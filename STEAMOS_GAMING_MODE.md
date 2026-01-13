@@ -17,6 +17,12 @@ SteamOS Gaming Mode presents unique challenges for systemd-based warning systems
 ## Key Challenges
 
 ### 1. Display Environment Detection
+
+**SteamOS Display Protocol Distinction**:
+- **Desktop Mode**: Uses **X11** (KDE Plasma desktop environment runs on X11). Window manager tools (`wmctrl`/`xdotool`) work in Desktop Mode, enabling full window control features like making windows immovable, preventing closing, etc.
+- **Gaming Mode**: Uses **Wayland** (gamescope compositor). Window manager tools don't work in Gaming Mode, limiting window control capabilities to informational features only.
+
+**Gaming Mode Specific Challenges**:
 - Gaming Mode uses gamescope (Wayland compositor), not X11
 - `DISPLAY` environment variable may not be set (Wayland uses `WAYLAND_DISPLAY`)
 - Traditional X11 detection methods may fail
@@ -146,9 +152,9 @@ For testing requirements, see [linux-warning-system-plan.md](linux-warning-syste
 
 ##### 3. No Game Running / Desktop Mode
 - **Expected Effectiveness**: ~95%
-- **Why**: Works identically to Desktop Mode
-- **Implementation**: Full dialog functionality available
-- **Reliability**: Same as Desktop Mode experience
+- **Why**: Works identically to Desktop Mode (X11 environment)
+- **Implementation**: Full dialog functionality available, window manager tools work (X11)
+- **Reliability**: Same as Desktop Mode experience with full window control capabilities
 - **Status**: Should work perfectly
 
 ##### 4. Windowed Games
@@ -256,6 +262,8 @@ For testing requirements, see [linux-warning-system-plan.md](linux-warning-syste
 
 5. **Desktop Mode**: Full functionality
    - Works identically to standard desktop environments
+   - Uses X11, so window manager tools (`wmctrl`/`xdotool`) work
+   - Full window control features available (immovable windows, prevent closing, etc.)
 
 #### ⚠️ Partial Success Areas
 

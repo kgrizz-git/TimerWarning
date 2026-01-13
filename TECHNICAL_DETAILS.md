@@ -48,7 +48,9 @@ The script should:
 
 **Wayland Detection**: Check `$WAYLAND_DISPLAY` environment variable (Wayland/gamescope)
 
-**SteamOS Gaming Mode**: Detect gamescope compositor and use appropriate display identifier. For detailed information, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md).
+**SteamOS Display Protocols**:
+- **Desktop Mode**: Uses X11 (KDE Plasma runs on X11). Window manager tools (`wmctrl`/`xdotool`) work here, enabling full window control features.
+- **Gaming Mode**: Uses Wayland (gamescope compositor). Window manager tools don't work here, limiting window control capabilities. For detailed information, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md).
 
 **Fallback Detection**: Use `loginctl` to find active user session and extract display information
 
@@ -136,8 +138,12 @@ For detailed display detection strategies for SteamOS Gaming Mode, see [STEAMOS_
 **Testing Priority**: This is a **CRITICAL** test case that must be verified early in development, with special emphasis on SteamOS Gaming Mode testing. Test on multiple desktop environments and both X11 and Wayland if possible.
 
 ## Timer Configuration
-- Use `OnCalendar=*:0/10` to run every 10 minutes
+- Timer interval is configurable via `CHECK_INTERVAL` in the configuration file (1-60 minutes)
+- Default interval: 10 minutes (`OnCalendar=*:0/10`)
+- The timer file is automatically updated by `configure.sh` when `CHECK_INTERVAL` is changed
+- Install script should read `CHECK_INTERVAL` from config (if exists) when creating the timer file
 - Timer accuracy: `AccuracySec=1min` (can be adjusted)
+- Format: `OnCalendar=*:0/N` where N is the check interval in minutes
 
 ## Interactive Configuration Script Details
 
@@ -437,7 +443,10 @@ The implementation should follow these principles to ensure maximum portability:
 
 6. **Distribution-Specific Notes**:
    - **Wayland vs X11**: Some window manager tools (wmctrl, xdotool) only work on X11, not Wayland/gamescope
-   - **SteamOS Gaming Mode**: Uses gamescope (Wayland), requires special display detection. See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md) for details.
+   - **SteamOS Display Protocols**:
+     - **Desktop Mode**: Uses X11 (KDE Plasma). Window manager tools work, enabling full window control features.
+     - **Gaming Mode**: Uses Wayland (gamescope). Window manager tools don't work, limiting window control to informational features only.
+     - Requires special display detection for Gaming Mode. See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md) for details.
    - **Package Manager Differences**: Document installation commands for each major distribution
    - **Service Management**: All systemd-based systems use the same commands (`systemctl --user`)
    - **Desktop vs Gaming Mode**: Services must persist across mode transitions on SteamOS. See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#systemd-service-robustness).
