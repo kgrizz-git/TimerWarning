@@ -1,0 +1,12 @@
+[Unit]
+Description=Sleep Warning System - Check and display warning during restricted hours
+Documentation=man:systemd.service(5)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/sleep-warning.sh
+StandardOutput=journal
+StandardError=journal
+
+# The script handles DISPLAY detection internally, so we don't need to set it here
+# If DISPLAY is available in the environment, it will be passed through automatically

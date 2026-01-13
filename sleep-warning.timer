@@ -1,0 +1,15 @@
+[Unit]
+Description=Sleep Warning System Timer - Triggers warning check every 10 minutes
+Documentation=man:systemd.timer(5)
+Requires=sleep-warning.service
+
+[Timer]
+# Run every 10 minutes
+OnCalendar=*:0/10
+# Start immediately if missed
+Persistent=true
+# Timer accuracy (can be adjusted)
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target
