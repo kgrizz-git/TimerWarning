@@ -45,6 +45,9 @@ DEFAULT_POPUP_POSITION="center"
 # Default minimum display time (in seconds) - used if config file missing or invalid
 DEFAULT_MIN_DISPLAY_TIME=30
 
+# Default popup immovable setting - used if config file missing or invalid
+DEFAULT_POPUP_IMMOVABLE=true
+
 # Default restricted hours (used if config file missing or invalid)
 # Format: day_number=start_hour-end_hour
 # Day numbers: 0=Sunday, 1=Monday, ..., 6=Saturday
@@ -199,8 +202,28 @@ get_display_identifier() {
     return 1
 }
 
-# Check if a dialog tool is available
+# Detect if running on KDE
+is_kde() {
+    if [ -n "${KDE_SESSION_VERSION}" ] || [ -n "${KDE_FULL_SESSION}" ] || [ "${XDG_CURRENT_DESKTOP}" = "KDE" ] || [ "${XDG_SESSION_DESKTOP}" = "kde" ]; then
+        return 0
+    fi
+    # Also check if KWin is running
+    if pgrep -x kwin >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
+# Check if a dialog tool is available (with environment-aware priority)
 check_dialog_tool() {
+    # On KDE, prefer kdialog for better window manager integration
+    # TEMPORARILY DISABLED: kdialog appears to have issues with window manipulation on some KDE systems
+    # if is_kde && command -v kdialog >/dev/null 2>&1; then
+    #     echo "kdialog"
+    #     return 0
+    # fi
+    
+    # Otherwise, use standard priority
     if command -v zenity >/dev/null 2>&1; then
         echo "zenity"
         return 0
@@ -321,15 +344,15 @@ get_popup_dimensions() {
     case "${size}" in
         small)
             width=300
-            height=150
+            height=225
             ;;
         medium)
-            width=400
-            height=200
+            width=500
+            height=375
             ;;
         large)
-            width=500
-            height=250
+            width=875
+            height=660
             ;;
         *)
             # Custom format (WIDTHxHEIGHT)
@@ -339,13 +362,13 @@ get_popup_dimensions() {
                 # Validate dimensions
                 if [ "${width}" -lt 200 ] || [ "${width}" -gt 2000 ] || [ "${height}" -lt 100 ] || [ "${height}" -gt 2000 ]; then
                     # Invalid dimensions, use medium default
-                    width=400
-                    height=200
+                    width=500
+                    height=375
                 fi
             else
                 # Invalid format, use medium default
-                width=400
-                height=200
+                width=500
+                height=375
             fi
             ;;
     esac
@@ -402,6 +425,31 @@ get_min_display_time() {
     else
         # Invalid or missing, use default
         echo "${DEFAULT_MIN_DISPLAY_TIME}"
+        return 0
+    fi
+}
+
+# Get popup immovable setting from configuration file
+get_popup_immovable() {
+    # Check if config file exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "${DEFAULT_POPUP_IMMOVABLE}"
+        return 0
+    fi
+    
+    # Read POPUP_IMMOVABLE from config file
+    local immovable
+    immovable=$(grep -E "^[[:space:]]*POPUP_IMMOVABLE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    
+    if [ "${immovable}" = "true" ] || [ "${immovable}" = "1" ] || [ "${immovable}" = "yes" ]; then
+        echo "true"
+        return 0
+    elif [ "${immovable}" = "false" ] || [ "${immovable}" = "0" ] || [ "${immovable}" = "no" ]; then
+        echo "false"
+        return 0
+    else
+        # Invalid or missing, use default
+        echo "${DEFAULT_POPUP_IMMOVABLE}"
         return 0
     fi
 }
@@ -548,6 +596,10 @@ make_window_unclosable() {
         return 0
     fi
     
+    # Check if immovable window feature is enabled
+    local popup_immovable
+    popup_immovable=$(get_popup_immovable)
+    
     # Wait a moment for window to appear
     sleep 0.5
     
@@ -558,11 +610,19 @@ make_window_unclosable() {
             window_id=$(wmctrl -l | grep "${window_title}" | head -n1 | awk '{print $1}')
             
             if [ -n "${window_id}" ]; then
-                # Remove window decorations (makes it harder to close)
                 # Make window sticky (stays on all desktops)
                 wmctrl -i -r "${window_id}" -b add,sticky 2>/dev/null
-                # Keep window on top
+                # Keep window on top (xprop commands disabled - they cause windows to close on KDE)
+                # if command -v xprop >/dev/null 2>&1; then
+                #     xprop -id "${window_id}" -f _NET_WM_STATE 32a -set _NET_WM_STATE _NET_WM_STATE_ABOVE _NET_WM_STATE_STAYS_ON_TOP 2>/dev/null
+                # fi
                 wmctrl -i -r "${window_id}" -b add,above 2>/dev/null
+                wmctrl -i -a "${window_id}" 2>/dev/null  # Also activate/raise
+                
+                # If immovable is enabled, start position monitoring
+                if [ "${popup_immovable}" = "true" ]; then
+                    make_window_immovable "${window_id}" "${tool}" "${timeout}" &
+                fi
             fi
             ;;
         xdotool)
@@ -571,13 +631,186 @@ make_window_unclosable() {
             window_id=$(xdotool search --name "${window_title}" 2>/dev/null | head -n1)
             
             if [ -n "${window_id}" ]; then
-                # Make window sticky
-                xdotool set_window --overrideredirect 0 "${window_id}" 2>/dev/null
-                # Keep window on top
+                # Keep window on top (xprop commands disabled - they cause windows to close on KDE)
+                # Set window type to DIALOG
+                # xprop -id "${window_id}" -f _NET_WM_WINDOW_TYPE 32a -set _NET_WM_WINDOW_TYPE _NET_WM_WINDOW_TYPE_DIALOG 2>/dev/null
+                # Set window state to ABOVE and STAYS_ON_TOP (this works on KDE!)
+                # xprop -id "${window_id}" -f _NET_WM_STATE 32a -set _NET_WM_STATE _NET_WM_STATE_ABOVE _NET_WM_STATE_STAYS_ON_TOP 2>/dev/null
+                # Also raise and focus
                 xdotool windowraise "${window_id}" 2>/dev/null
+                xdotool windowfocus "${window_id}" 2>/dev/null
+                xdotool windowraise "${window_id}" 2>/dev/null
+                
+                # If immovable is enabled, start position monitoring
+                if [ "${popup_immovable}" = "true" ]; then
+                    make_window_immovable "${window_id}" "${tool}" "${timeout}" &
+                fi
             fi
             ;;
     esac
+}
+
+# Keep window on top of other windows (with retries for reliability)
+keep_window_on_top() {
+    local window_title="$1"
+    local tool="$2"
+    local max_attempts="${3:-5}"  # Default 5 attempts if not specified
+    
+    if [ -z "${tool}" ]; then
+        return 0
+    fi
+    
+    local attempt=0
+    local window_id=""
+    
+    # Try to find window with retries
+    while [ "${attempt}" -lt "${max_attempts}" ] && [ -z "${window_id}" ]; do
+        sleep 0.2
+        case "${tool}" in
+            wmctrl)
+                window_id=$(wmctrl -l | grep "${window_title}" | head -n1 | awk '{print $1}')
+                ;;
+            xdotool)
+                window_id=$(xdotool search --name "${window_title}" 2>/dev/null | head -n1)
+                ;;
+        esac
+        attempt=$((attempt + 1))
+    done
+    
+    if [ -z "${window_id}" ]; then
+        return 0  # Window not found, can't set on top
+    fi
+    
+    # Try xprop approach for setting window properties (works well with zenity on KDE)
+    # Use multiple state atoms for better compatibility
+    if command -v xprop >/dev/null 2>&1; then
+        # Verify window exists before setting properties
+        if xprop -id "${window_id}" _NET_WM_NAME >/dev/null 2>&1; then
+            # Set the ABOVE state using xprop (more reliable than wmctrl for some dialogs)
+            xprop -id "${window_id}" -f _NET_WM_STATE 32a -set _NET_WM_STATE _NET_WM_STATE_ABOVE 2>/dev/null || true
+        fi
+    fi
+    
+    # Also apply standard methods for compatibility with other window managers
+    case "${tool}" in
+        wmctrl)
+            # Set above flag
+            wmctrl -i -r "${window_id}" -b add,above 2>/dev/null
+            # Activate and raise the window
+            wmctrl -i -a "${window_id}" 2>/dev/null
+            ;;
+        xdotool)
+            # Raise and focus the window multiple times for better reliability
+            xdotool windowraise "${window_id}" 2>/dev/null
+            xdotool windowfocus "${window_id}" 2>/dev/null
+            sleep 0.1
+            xdotool windowraise "${window_id}" 2>/dev/null
+            xdotool windowactivate "${window_id}" 2>/dev/null
+            ;;
+    esac
+}
+
+# Keep window on top periodically (runs in background)
+keep_window_on_top_periodic() {
+    local window_title="$1"
+    local tool="$2"
+    local popup_pid="$3"
+    local duration="${4:-300}"  # Default 5 minutes if not specified
+    
+    if [ -z "${tool}" ]; then
+        return 0
+    fi
+    
+    # Check every 0.5 seconds to ensure window stays on top (more aggressive)
+    local elapsed=0
+    local check_count=$((duration * 2))  # Check twice per second
+    local check_num=0
+    
+    while [ "${check_num}" -lt "${check_count}" ]; do
+        # Check if popup process is still running
+        if [ -n "${popup_pid}" ] && ! kill -0 "${popup_pid}" 2>/dev/null; then
+            # Process ended, stop monitoring
+            break
+        fi
+        
+        # Apply stay-on-top every 0.5 seconds
+        keep_window_on_top "${window_title}" "${tool}" 2  # Quick retry (2 attempts)
+        
+        sleep 0.5
+        check_num=$((check_num + 1))
+    done
+}
+
+# Make window immovable by monitoring and restoring position (Method 4)
+make_window_immovable() {
+    local window_id="$1"
+    local tool="$2"
+    local timeout="$3"
+    
+    if [ -z "${window_id}" ] || [ -z "${tool}" ] || [ "${timeout}" -eq 0 ]; then
+        return 0
+    fi
+    
+    # Get initial position
+    local initial_x initial_y
+    case "${tool}" in
+        xdotool)
+            initial_x=$(xdotool getwindowgeometry "${window_id}" 2>/dev/null | grep Position | awk '{print $2}' | cut -d',' -f1)
+            initial_y=$(xdotool getwindowgeometry "${window_id}" 2>/dev/null | grep Position | awk '{print $2}' | cut -d',' -f2)
+            ;;
+        wmctrl)
+            local geometry
+            geometry=$(wmctrl -lG 2>/dev/null | grep "${window_id}" | awk '{print $3, $4}')
+            initial_x=$(echo "${geometry}" | awk '{print $1}')
+            initial_y=$(echo "${geometry}" | awk '{print $2}')
+            ;;
+    esac
+    
+    if [ -z "${initial_x}" ] || [ -z "${initial_y}" ]; then
+        # Could not get initial position, skip monitoring
+        return 0
+    fi
+    
+    # Monitor position for the duration of the timeout
+    # Check 5 times per second (every 200ms)
+    local check_count=$((timeout * 5))
+    local check_num=0
+    
+    while [ "${check_num}" -lt "${check_count}" ]; do
+        sleep 0.2
+        
+        # Check current position
+        local current_x current_y
+        case "${tool}" in
+            xdotool)
+                current_x=$(xdotool getwindowgeometry "${window_id}" 2>/dev/null | grep Position | awk '{print $2}' | cut -d',' -f1)
+                current_y=$(xdotool getwindowgeometry "${window_id}" 2>/dev/null | grep Position | awk '{print $2}' | cut -d',' -f2)
+                ;;
+            wmctrl)
+                local geometry
+                geometry=$(wmctrl -lG 2>/dev/null | grep "${window_id}" | awk '{print $3, $4}')
+                current_x=$(echo "${geometry}" | awk '{print $1}')
+                current_y=$(echo "${geometry}" | awk '{print $2}')
+                ;;
+        esac
+        
+        # If position changed, restore it
+        if [ -n "${current_x}" ] && [ -n "${current_y}" ]; then
+            if [ "${current_x}" != "${initial_x}" ] || [ "${current_y}" != "${initial_y}" ]; then
+                # Position changed, restore it
+                case "${tool}" in
+                    xdotool)
+                        xdotool windowmove "${window_id}" "${initial_x}" "${initial_y}" 2>/dev/null
+                        ;;
+                    wmctrl)
+                        wmctrl -i -r "${window_id}" -e 0,"${initial_x}","${initial_y}",-1,-1 2>/dev/null
+                        ;;
+                esac
+            fi
+        fi
+        
+        check_num=$((check_num + 1))
+    done
 }
 
 # Re-enable window closing after timeout
@@ -711,6 +944,7 @@ parse_config() {
 }
 
 # Validate a single hour range (START-END format)
+# Supports both normal ranges (0-5) and overnight ranges (23-6) that span midnight
 validate_single_range() {
     local range="$1"
     
@@ -732,8 +966,10 @@ validate_single_range() {
         return 1
     fi
     
-    # Start should be less than end
-    if [ "${start_hour}" -ge "${end_hour}" ]; then
+    # Both normal ranges (start < end) and overnight ranges (start > end) are valid
+    # Overnight ranges like 23-6 mean 11 PM to 6 AM (spans midnight)
+    # We only reject if start == end (which would be invalid)
+    if [ "${start_hour}" -eq "${end_hour}" ]; then
         return 1
     fi
     
@@ -764,6 +1000,7 @@ validate_hour_range() {
 }
 
 # Check if current hour is within a single range
+# Handles both normal ranges (0-5) and overnight ranges (23-6) that span midnight
 is_hour_in_single_range() {
     local current_hour="$1"
     local range="$2"
@@ -772,9 +1009,18 @@ is_hour_in_single_range() {
     start_hour=$(echo "${range}" | cut -d'-' -f1)
     end_hour=$(echo "${range}" | cut -d'-' -f2)
     
-    # Check if current hour is within range
-    if [ "${current_hour}" -ge "${start_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
-        return 0
+    # Handle overnight ranges (start > end, spans midnight)
+    # Example: 23-6 means 11 PM to 6 AM (23:00 to 05:59)
+    if [ "${start_hour}" -gt "${end_hour}" ]; then
+        # Overnight range: current hour >= start OR current hour < end
+        if [ "${current_hour}" -ge "${start_hour}" ] || [ "${current_hour}" -lt "${end_hour}" ]; then
+            return 0
+        fi
+    else
+        # Normal range: current hour >= start AND current hour < end
+        if [ "${current_hour}" -ge "${start_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+            return 0
+        fi
     fi
     
     return 1
@@ -907,11 +1153,9 @@ It's recommended to get some rest. Consider taking a break or going to sleep.
 
 This warning will appear ${interval_text} while you continue using your computer during these hours.${countdown_msg}"
     
-    # Check for window manager tools if minimum display time is set
-    local window_tool=""
-    if [ "${min_display_time}" -gt 0 ]; then
-        window_tool=$(check_window_tools)
-    fi
+    # Check for window manager tools (needed for stay-on-top and minimum display time)
+    local window_tool
+    window_tool=$(check_window_tools)
     
     # Display popup based on available tool
     local popup_pid
@@ -947,6 +1191,13 @@ This warning will appear ${interval_text} while you continue using your computer
                 --warning "${message}" \
                 2>/dev/null &
             popup_pid=$!
+            # Give kdialog a moment to start
+            sleep 0.2
+            # Check if process is still running (if it exited immediately, popup failed)
+            if ! kill -0 "${popup_pid}" 2>/dev/null; then
+                log_to_file "ERROR" "kdialog popup failed to start (PID ${popup_pid} exited immediately)"
+                popup_pid=""
+            fi
             ;;
     esac
     
@@ -955,6 +1206,22 @@ This warning will appear ${interval_text} while you continue using your computer
         log_to_file "INFO" "Popup displayed successfully (PID: ${popup_pid}), Dialog tool: ${dialog_tool}, Size: ${popup_size}, Position: ${popup_position}, Min display time: ${min_display_time}s"
     else
         log_to_file "ERROR" "Failed to display popup, Dialog tool: ${dialog_tool}"
+        return 1
+    fi
+    
+    # Ensure window stays on top (always, not just during minimum display time)
+    # Wait longer for window to be fully created before trying to manipulate it
+    if [ -n "${window_tool}" ] && [ -n "${popup_pid}" ]; then
+        # Give the window more time to appear and stabilize
+        sleep 1.0
+        keep_window_on_top "Sleep Warning" "${window_tool}"
+        # Start periodic on-top enforcement (runs until popup closes)
+        # Use minimum display time if set, otherwise default to 5 minutes
+        local on_top_duration=${min_display_time}
+        if [ "${on_top_duration}" -eq 0 ]; then
+            on_top_duration=300  # 5 minutes default
+        fi
+        keep_window_on_top_periodic "Sleep Warning" "${window_tool}" "${popup_pid}" "${on_top_duration}" &
     fi
     
     # If minimum display time is set, enforce it
@@ -1002,12 +1269,22 @@ This warning will appear ${interval_text} while you continue using your computer
                             2>/dev/null &
                         popup_pid=$!
                         ;;
+                    kdialog)
+                        kdialog --title "Sleep Warning" \
+                            --warning "${updated_message}" \
+                            2>/dev/null &
+                        popup_pid=$!
+                        ;;
                 esac
                 
-                # Re-apply window restrictions
+                # Re-apply window restrictions and keep on top
                 if [ -n "${window_tool}" ]; then
                     sleep 0.5
                     make_window_unclosable "Sleep Warning" "${window_tool}" "${remaining}"
+                    # Also ensure it stays on top
+                    keep_window_on_top "Sleep Warning" "${window_tool}"
+                    # Restart periodic on-top enforcement for remaining time
+                    keep_window_on_top_periodic "Sleep Warning" "${window_tool}" "${popup_pid}" "${remaining}" &
                 fi
             fi
         done
@@ -1018,24 +1295,34 @@ This warning will appear ${interval_text} while you continue using your computer
         fi
         
         # Wait for user to actually close it (now they can)
-        wait "${popup_pid}" 2>/dev/null
-        local popup_exit_code=$?
-        
-        if [ ${popup_exit_code} -eq 0 ]; then
-            log_to_file "INFO" "Popup closed by user after minimum display time"
-        else
-            log_to_file "WARNING" "Popup exited with code ${popup_exit_code}"
-        fi
-    else
-        # No minimum display time, just wait normally
-        if [ -n "${popup_pid}" ]; then
+        # Check if popup is still running before waiting
+        if kill -0 "${popup_pid}" 2>/dev/null; then
             wait "${popup_pid}" 2>/dev/null
             local popup_exit_code=$?
             
             if [ ${popup_exit_code} -eq 0 ]; then
-                log_to_file "INFO" "Popup closed by user"
+                log_to_file "INFO" "Popup closed by user after minimum display time"
             else
                 log_to_file "WARNING" "Popup exited with code ${popup_exit_code}"
+            fi
+        else
+            log_to_file "WARNING" "Popup process (PID ${popup_pid}) already exited before wait"
+        fi
+    else
+        # No minimum display time, just wait normally
+        if [ -n "${popup_pid}" ]; then
+            # Check if popup is still running before waiting
+            if kill -0 "${popup_pid}" 2>/dev/null; then
+                wait "${popup_pid}" 2>/dev/null
+                local popup_exit_code=$?
+                
+                if [ ${popup_exit_code} -eq 0 ]; then
+                    log_to_file "INFO" "Popup closed by user"
+                else
+                    log_to_file "WARNING" "Popup exited with code ${popup_exit_code}"
+                fi
+            else
+                log_to_file "WARNING" "Popup process (PID ${popup_pid}) already exited before wait"
             fi
         fi
     fi

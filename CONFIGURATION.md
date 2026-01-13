@@ -2,6 +2,19 @@
 
 This document describes the configuration file format and all available options for the Sleep Warning System.
 
+## Installation and Configuration Order
+
+**Important**: Both installation and configuration steps should be completed:
+
+1. **Installation** (`./install.sh`): Sets up the system, installs files, and starts the timer
+2. **Configuration** (`sleep-warning-configure` or `./configure.sh`): Customizes restricted hours and settings
+
+**Recommended Order**: Install first, then configure. However, both scripts can be run in any order:
+- If you install first, the default configuration will be used until you customize it
+- If you configure first, your custom settings will be preserved during installation
+
+Both steps are necessary for a complete setup.
+
 ## Configuration File Location
 
 The configuration file is located at:
@@ -43,6 +56,43 @@ SATURDAY=1-5      # Saturday: 1:00 AM to 5:59 AM
 You can specify multiple time ranges for a single day by separating them with commas:
 ```
 MONDAY=0-5,22-23  # Monday: Midnight to 5:59 AM AND 10:00 PM to 11:59 PM
+```
+
+**Overnight Ranges** (spans midnight):
+You can specify time ranges that span midnight by using a start hour greater than the end hour:
+```
+MONDAY=23-6       # Monday: 11:00 PM to 6:00 AM (spans midnight)
+TUESDAY=22-8      # Tuesday: 10:00 PM to 8:00 AM (overnight)
+```
+
+**Important - Understanding Overnight Ranges**:
+When you specify an overnight range like `23-6` on Monday, it means:
+- **Monday 11:00 PM → Tuesday 6:00 AM**
+
+The range starts on the named day and continues into the next day. This is useful for restricting late-night usage that extends past midnight.
+
+**Examples of Overnight Ranges**:
+```
+MONDAY=23-6       # Monday 11:00 PM → Tuesday 6:00 AM
+TUESDAY=22-8      # Tuesday 10:00 PM → Wednesday 8:00 AM
+WEDNESDAY=23-5    # Wednesday 11:00 PM → Thursday 5:00 AM
+```
+
+**Overlapping Ranges**:
+If you set overlapping ranges, the system will detect and warn you. For example:
+```
+MONDAY=23-5       # Monday 11:00 PM → Tuesday 5:00 AM
+TUESDAY=0-5       # Tuesday midnight → 5:59 AM
+```
+
+Both ranges cover Tuesday midnight to 5:59 AM. This is harmless (only one warning will be shown during the overlap), but redundant. The configuration wizard will warn you about overlaps when you save your settings.
+
+**Combining Multiple and Overnight Ranges**:
+You can combine multiple ranges, including overnight ranges:
+```
+MONDAY=0-5,22-23  # Midnight to 5:59 AM AND 10 PM to 11:59 PM (same day)
+TUESDAY=23-6       # Tuesday 11:00 PM → Wednesday 6:00 AM (overnight)
+WEDNESDAY=0-5,22-6 # Midnight to 5:59 AM AND 10 PM to 6 AM (overnight)
 ```
 
 **No Restrictions**:
@@ -170,6 +220,34 @@ POPUP_MIN_DISPLAY_TIME=300    # 5 minutes (maximum)
 - On Wayland, the countdown message is shown, but window control is limited.
 - Setting this to `0` disables the feature entirely.
 
+### Prevent Window Movement
+
+**Option**: `POPUP_IMMOVABLE`
+
+**Description**: Prevents the popup window from being moved during the minimum display time by monitoring and restoring its position if moved.
+
+**Format**: `true` or `false`
+
+**Default**: `true`
+
+**Examples**:
+```
+POPUP_IMMOVABLE=true   # Prevent window movement (default)
+POPUP_IMMOVABLE=false  # Allow window movement
+```
+
+**How It Works**:
+- When enabled (`true`), the system monitors the popup window's position every 200ms (5 times per second).
+- If the window is moved, it is automatically restored to its original position.
+- This ensures the popup remains visible and in place during the minimum display time countdown.
+- Works in conjunction with `POPUP_MIN_DISPLAY_TIME` - if minimum display time is 0, this setting has no effect.
+
+**Note**: 
+- Requires `wmctrl` or `xdotool` for functionality (X11 only).
+- On Wayland, this feature is not available due to security restrictions.
+- The popup window will also stay on top of other windows automatically.
+- Setting this to `false` allows users to move the popup window, which may be useful if it blocks important content.
+
 ## Complete Configuration Example
 
 Here is a complete example configuration file with all options:
@@ -192,6 +270,9 @@ POPUP_POSITION=center
 
 # Minimum display time: Time popup must be visible before it can be closed (in seconds, 0-300)
 POPUP_MIN_DISPLAY_TIME=30
+
+# Prevent window movement: Prevent popup from being moved during minimum display time (true/false)
+POPUP_IMMOVABLE=true
 
 # Restricted hours for each day
 SUNDAY=1-5

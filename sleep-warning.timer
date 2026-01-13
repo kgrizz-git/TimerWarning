@@ -4,12 +4,19 @@ Documentation=man:systemd.timer(5)
 Requires=sleep-warning.service
 
 [Timer]
-# Run every 10 minutes
+# Run every 10 minutes (default)
+# Note: The actual interval can be configured via CHECK_INTERVAL in the config file.
+# The configure.sh script will update this OnCalendar value when CHECK_INTERVAL is changed.
+# Format: OnCalendar=*:0/N where N is the check interval in minutes
 OnCalendar=*:0/10
-# Start immediately if missed
+
+# Start immediately if missed (e.g., after system boot or resume from suspend)
 Persistent=true
-# Timer accuracy (can be adjusted)
+
+# Timer accuracy (can be adjusted if needed)
+# 1 minute accuracy means the timer may fire up to 1 minute early or late
 AccuracySec=1min
 
 [Install]
+# Enable timer to start automatically on boot/login
 WantedBy=timers.target

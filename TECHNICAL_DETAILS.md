@@ -126,10 +126,18 @@ For detailed display detection strategies for SteamOS Gaming Mode, see [STEAMOS_
 
 **For detailed SteamOS Gaming Mode compatibility information**, including specific considerations, limitations, and solutions, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#full-screen-application-compatibility).
 
-**Potential Solutions if Issues Arise**:
-1. **Use `yad` instead of `zenity`**: `yad` offers `--on-top` flag for better control and works across multiple desktop environments
-2. **Use `kdialog` for KDE**: Native KDE dialog tool may work better on KDE-based systems (SteamOS uses KDE in Desktop Mode)
-3. **Window manager tools**: Use `wmctrl` or `xdotool` to force window raise/focus (requires X11, not Wayland/gamescope)
+**Implemented Solutions**:
+1. **Multi-tool support**: System supports zenity, yad, and kdialog with automatic detection
+   - zenity: Primary choice, good cross-platform compatibility
+   - yad: Alternative with `--on-top` flag and better positioning control
+   - kdialog: KDE native tool (currently not preferred due to compatibility issues)
+2. **Window manager tools**: Implemented using `wmctrl` or `xdotool` for stay-on-top functionality
+   - Uses `xprop _NET_WM_STATE_ABOVE` for reliable on-top behavior
+   - Confirmed working with zenity on KDE/KWin
+   - Requires X11 (not available on Wayland/gamescope)
+3. **Periodic enforcement**: Background process continuously reapplies stay-on-top settings
+
+**Additional Solutions if Issues Arise**:
 4. **Steam Overlay Integration**: Consider integrating with Steam overlay for Gaming Mode compatibility (see [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md))
 5. **Alternative notification methods**: Consider desktop-specific notification systems or compositor overlays
 6. **Wayland-specific protocols**: Use native Wayland protocols for notifications (requires different implementation approach)
@@ -150,7 +158,8 @@ For detailed display detection strategies for SteamOS Gaming Mode, see [STEAMOS_
 The `configure.sh` script provides a user-friendly way to set up restricted hours without manually editing the configuration file.
 
 **Implementation Approach:**
-1. **GUI Interface**: Primary interface uses `zenity` for dialogs
+1. **GUI Interface**: Primary interface uses dialog tools (zenity/yad/kdialog) for dialogs
+   - System automatically detects available dialog tool
    - Welcome dialog explaining the process
    - Day-by-day hour selection dialogs
    - Summary dialog showing all configured hours
@@ -272,8 +281,9 @@ The `install.sh` script automates the entire installation process, making it eas
 2. **Dependency Management**:
    - Checks if systemd is available (required)
    - Checks if bash is available (required)
-   - Checks if zenity is installed (required)
-   - Offers to install zenity if missing (with user confirmation, or `--yes` flag to auto-confirm)
+   - Checks if a dialog tool (zenity/yad/kdialog) is installed (required)
+   - Offers to install zenity if no dialog tool is found (with user confirmation, or `--yes` flag to auto-confirm)
+   - **Optional**: Users can manually install wmctrl and xdotool for enhanced window management features (stay-on-top, immovable windows)
    - Provides clear error messages if dependencies cannot be installed
 
 3. **File Installation**:

@@ -40,6 +40,28 @@ has_gui() {
     [ -n "${DISPLAY}" ] || [ -S "/tmp/.X11-unix/X0" ] || command -v loginctl >/dev/null 2>&1
 }
 
+# Confirm cancellation with user
+confirm_cancel() {
+    local use_gui="$1"
+    
+    if [ "${use_gui}" = "true" ] && has_zenity; then
+        zenity --question \
+            --title="Cancel Configuration?" \
+            --text="Are you sure you want to cancel?\n\nAll unsaved changes will be lost." \
+            --ok-label="Yes, Cancel" \
+            --cancel-label="No, Continue" \
+            2>/dev/null
+        return $?
+    else
+        echo ""
+        read -p "Cancel configuration? All unsaved changes will be lost. [y/N]: " answer
+        case "${answer}" in
+            [Yy]*) return 0 ;;
+            *) return 1 ;;
+        esac
+    fi
+}
+
 # Get hour input using zenity
 get_hour_zenity() {
     local prompt="$1"
@@ -102,33 +124,46 @@ get_popup_size_config() {
     
     if [ "${use_gui}" = "true" ] && has_zenity; then
         # GUI mode
-        local size
-        size=$(zenity --list \
-            --title="Sleep Warning Configuration" \
-            --text="Select popup size:" \
-            --column="Size" --column="Dimensions" \
-            "small" "300x150 pixels" \
-            "medium" "400x200 pixels" \
-            "large" "500x250 pixels" \
-            --hide-column=2 \
-            --print-column=1 \
-            --default-item="${default_size}" \
-            2>/dev/null)
-        
-        if [ -n "${size}" ]; then
+        while true; do
+            local size
+            local tmpfile
+            tmpfile=$(mktemp)
+            
+            zenity --list \
+                --title="Sleep Warning Configuration" \
+                --text="Select popup size (current: ${default_size}):" \
+                --column="Size" --column="Dimensions" \
+                "small" "300x225 pixels" \
+                "medium" "500x375 pixels" \
+                "large" "875x660 pixels" \
+                --hide-column=2 \
+                --print-column=1 \
+                > "${tmpfile}" 2>/dev/null
+            local exit_code=$?
+            
+            size=$(cat "${tmpfile}" 2>/dev/null)
+            rm -f "${tmpfile}"
+            
+            # User cancelled
+            if [ "${exit_code}" -ne 0 ] || [ -z "${size}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2  # Special return code for cancellation
+                else
+                    continue  # User wants to continue, re-prompt
+                fi
+            fi
+            
             echo "${size}"
             return 0
-        else
-            echo "${default_size}"
-            return 0
-        fi
+        done
     else
         # Text mode
         echo ""
         echo "Popup Size Options:"
-        echo "  1) small (300x150)"
-        echo "  2) medium (400x200)"
-        echo "  3) large (500x250)"
+        echo "  1) small (300x225)"
+        echo "  2) medium (500x375)"
+        echo "  3) large (875x660)"
         echo ""
         while true; do
             read -p "Select size [1-3, default: ${default_size}]: " choice
@@ -159,27 +194,40 @@ get_min_display_time_config() {
     
     if [ "${use_gui}" = "true" ] && has_zenity; then
         # GUI mode
-        local time
-        time=$(zenity --entry \
-            --title="Sleep Warning Configuration" \
-            --text="Minimum time popup must be visible before it can be closed:\n\nEnter time in seconds (0-300):\n(0 = disabled, 30 = default)" \
-            --entry-text="${default_time}" \
-            2>/dev/null)
-        
-        if [ -z "${time}" ]; then
-            echo "${default_time}"
+        while true; do
+            local time
+            local tmpfile
+            tmpfile=$(mktemp)
+            
+            zenity --entry \
+                --title="Sleep Warning Configuration" \
+                --text="Minimum time popup must be visible before it can be closed:\n\nEnter time in seconds (0-300):\n(0 = disabled, 30 = default)" \
+                --entry-text="${default_time}" \
+                > "${tmpfile}" 2>/dev/null
+            local exit_code=$?
+            
+            time=$(cat "${tmpfile}" 2>/dev/null)
+            rm -f "${tmpfile}"
+            
+            # User cancelled
+            if [ "${exit_code}" -ne 0 ] || [ -z "${time}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2  # Special return code for cancellation
+                else
+                    continue  # User wants to continue, re-prompt
+                fi
+            fi
+            
+            # Validate time
+            if ! [[ "${time}" =~ ^[0-9]+$ ]] || [ "${time}" -lt 0 ] || [ "${time}" -gt 300 ]; then
+                zenity --error --text="Invalid time. Please enter a number between 0 and 300 seconds." 2>/dev/null
+                continue
+            fi
+            
+            echo "${time}"
             return 0
-        fi
-        
-        # Validate time
-        if ! [[ "${time}" =~ ^[0-9]+$ ]] || [ "${time}" -lt 0 ] || [ "${time}" -gt 300 ]; then
-            zenity --error --text="Invalid time. Please enter a number between 0 and 300 seconds." 2>/dev/null
-            echo "${default_time}"
-            return 0
-        fi
-        
-        echo "${time}"
-        return 0
+        done
     else
         # Text mode
         while true; do
@@ -192,6 +240,89 @@ get_min_display_time_config() {
             else
                 echo "Invalid time. Please enter a number between 0 and 300." >&2
             fi
+        done
+    fi
+}
+
+# Get popup immovable setting from user
+get_popup_immovable_config() {
+    local use_gui="$1"
+    local default_immovable="true"
+    
+    # Try to get existing setting from config
+    if [ -f "${CONFIG_FILE}" ]; then
+        local existing_immovable
+        existing_immovable=$(grep -E "^[[:space:]]*POPUP_IMMOVABLE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ -n "${existing_immovable}" ]; then
+            if [ "${existing_immovable}" = "true" ] || [ "${existing_immovable}" = "1" ] || [ "${existing_immovable}" = "yes" ]; then
+                default_immovable="true"
+            elif [ "${existing_immovable}" = "false" ] || [ "${existing_immovable}" = "0" ] || [ "${existing_immovable}" = "no" ]; then
+                default_immovable="false"
+            fi
+        fi
+    fi
+    
+    if [ "${use_gui}" = "true" ] && has_zenity; then
+        # GUI mode
+        while true; do
+            local immovable
+            local tmpfile
+            tmpfile=$(mktemp)
+            
+            zenity --list \
+                --title="Sleep Warning Configuration" \
+                --text="Prevent popup window from being moved during minimum display time?\n(Current: ${default_immovable})" \
+                --column="Option" --column="Description" \
+                "true" "Prevent window movement (recommended)" \
+                "false" "Allow window movement" \
+                --hide-column=2 \
+                --print-column=1 \
+                > "${tmpfile}" 2>/dev/null
+            local exit_code=$?
+            
+            immovable=$(cat "${tmpfile}" 2>/dev/null)
+            rm -f "${tmpfile}"
+            
+            # User cancelled
+            if [ "${exit_code}" -ne 0 ] || [ -z "${immovable}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2  # Special return code for cancellation
+                else
+                    continue  # User wants to continue, re-prompt
+                fi
+            fi
+            
+            echo "${immovable}"
+            return 0
+        done
+    else
+        # Text mode
+        echo ""
+        echo "Popup Immovable Setting:"
+        echo "  Prevents the popup window from being moved during minimum display time"
+        echo "  by monitoring and restoring its position if moved."
+        echo ""
+        while true; do
+            read -p "Prevent window movement? [y/n, default: ${default_immovable}]: " choice
+            choice=${choice:-${default_immovable}}
+            case "${choice}" in
+                y|Y|yes|YES|true|TRUE|1)
+                    echo "true"
+                    return 0
+                    ;;
+                n|N|no|NO|false|FALSE|0)
+                    echo "false"
+                    return 0
+                    ;;
+                "")
+                    echo "${default_immovable}"
+                    return 0
+                    ;;
+                *)
+                    echo "Invalid choice. Please enter 'y' for yes or 'n' for no." >&2
+                    ;;
+            esac
         done
     fi
 }
@@ -212,28 +343,41 @@ get_popup_position_config() {
     
     if [ "${use_gui}" = "true" ] && has_zenity; then
         # GUI mode
-        local position
-        position=$(zenity --list \
-            --title="Sleep Warning Configuration" \
-            --text="Select popup position on screen:" \
-            --column="Position" \
-            "center" \
-            "top-left" \
-            "top-right" \
-            "bottom-left" \
-            "bottom-right" \
-            "top-center" \
-            "bottom-center" \
-            --default-item="${default_position}" \
-            2>/dev/null)
-        
-        if [ -n "${position}" ]; then
+        while true; do
+            local position
+            local tmpfile
+            tmpfile=$(mktemp)
+            
+            zenity --list \
+                --title="Sleep Warning Configuration" \
+                --text="Select popup position on screen:\n(Current: ${default_position})" \
+                --column="Position" \
+                "center" \
+                "top-left" \
+                "top-right" \
+                "bottom-left" \
+                "bottom-right" \
+                "top-center" \
+                "bottom-center" \
+                > "${tmpfile}" 2>/dev/null
+            local exit_code=$?
+            
+            position=$(cat "${tmpfile}" 2>/dev/null)
+            rm -f "${tmpfile}"
+            
+            # User cancelled
+            if [ "${exit_code}" -ne 0 ] || [ -z "${position}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2  # Special return code for cancellation
+                else
+                    continue  # User wants to continue, re-prompt
+                fi
+            fi
+            
             echo "${position}"
             return 0
-        else
-            echo "${default_position}"
-            return 0
-        fi
+        done
     else
         # Text mode
         echo ""
@@ -281,12 +425,32 @@ get_check_interval() {
         # GUI mode
         while true; do
             local interval
-            interval=$(zenity --entry \
+            local tmpfile
+            tmpfile=$(mktemp)
+            
+            # Run zenity directly (not in command substitution) and capture exit code
+            zenity --entry \
                 --title="Sleep Warning Configuration" \
                 --text="How often should the system check for restricted hours?\n\nEnter interval in minutes (1-60):" \
                 --entry-text="${default_interval}" \
-                2>/dev/null)
+                > "${tmpfile}" 2>/dev/null
+            local exit_code=$?
             
+            # Read the output
+            interval=$(cat "${tmpfile}" 2>/dev/null)
+            rm -f "${tmpfile}"
+            
+            # Check exit code - non-zero means Cancel was clicked
+            if [ ${exit_code} -ne 0 ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2
+                else
+                    continue
+                fi
+            fi
+            
+            # Empty input - use default
             if [ -z "${interval}" ]; then
                 echo "${default_interval}"
                 return 0
@@ -386,57 +550,409 @@ update_timer_file() {
     fi
 }
 
-# Get hour range for a day
+# Format hour to 12-hour format with AM/PM
+format_hour_12h() {
+    local hour="$1"
+    if [ "${hour}" -eq 0 ]; then
+        echo "12:00 AM"
+    elif [ "${hour}" -eq 12 ]; then
+        echo "12:00 PM"
+    elif [ "${hour}" -lt 12 ]; then
+        echo "${hour}:00 AM"
+    else
+        echo "$((hour - 12)):00 PM"
+    fi
+}
+
+# Format a single range to human-readable format
+format_range_human() {
+    local range="$1"
+    local day_name="$2"
+    
+    local start_hour end_hour
+    start_hour=$(echo "${range}" | cut -d'-' -f1)
+    end_hour=$(echo "${range}" | cut -d'-' -f2)
+    
+    local start_12h end_12h
+    start_12h=$(format_hour_12h "${start_hour}")
+    end_12h=$(format_hour_12h "${end_hour}")
+    
+    # Handle overnight ranges
+    if [ "${start_hour}" -gt "${end_hour}" ]; then
+        # Get next day name
+        local next_day
+        case "${day_name}" in
+            Sunday) next_day="Monday" ;;
+            Monday) next_day="Tuesday" ;;
+            Tuesday) next_day="Wednesday" ;;
+            Wednesday) next_day="Thursday" ;;
+            Thursday) next_day="Friday" ;;
+            Friday) next_day="Saturday" ;;
+            Saturday) next_day="Sunday" ;;
+            *) next_day="next day" ;;
+        esac
+        echo "${start_12h} → ${end_12h} (${next_day})"
+    else
+        echo "${start_12h} → ${end_12h}"
+    fi
+}
+
+# Format multiple ranges to human-readable format
+format_ranges_human() {
+    local ranges="$1"
+    local day_name="$2"
+    
+    local IFS=','
+    local formatted_ranges=()
+    for range in ${ranges}; do
+        range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        formatted_ranges+=("$(format_range_human "${range}" "${day_name}")")
+    done
+    
+    # Join with " AND "
+    local result=""
+    local first=true
+    for formatted in "${formatted_ranges[@]}"; do
+        if [ "${first}" = "true" ]; then
+            result="${formatted}"
+            first=false
+        else
+            result="${result} AND ${formatted}"
+        fi
+    done
+    
+    echo "${result}"
+}
+
+# Detect overlaps between days
+detect_overlaps() {
+    local day1_index="$1"
+    local day1_ranges="$2"
+    local day2_index="$3"
+    local day2_ranges="$4"
+    
+    # Only check if day2 is the next day after day1
+    local expected_next=$(( (day1_index + 1) % 7 ))
+    if [ "${day2_index}" -ne "${expected_next}" ]; then
+        return 1  # Not adjacent days, no overlap possible
+    fi
+    
+    # Check if day1 has overnight range that overlaps with day2's early morning range
+    if [ -z "${day1_ranges}" ] || [ -z "${day2_ranges}" ]; then
+        return 1  # No overlap if either is empty
+    fi
+    
+    # Extract overnight ranges from day1 (start > end)
+    local IFS=','
+    for range1 in ${day1_ranges}; do
+        range1=$(echo "${range1}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        local start1 end1
+        start1=$(echo "${range1}" | cut -d'-' -f1)
+        end1=$(echo "${range1}" | cut -d'-' -f2)
+        
+        # If day1 has overnight range (start > end)
+        if [ "${start1}" -gt "${end1}" ]; then
+            # Check if day2 has early morning range that overlaps
+            for range2 in ${day2_ranges}; do
+                range2=$(echo "${range2}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start2 end2
+                start2=$(echo "${range2}" | cut -d'-' -f1)
+                end2=$(echo "${range2}" | cut -d'-' -f2)
+                
+                # Check if day2's range overlaps with day1's overnight end
+                # day1 overnight: start1 to end1 (e.g., 23-6 means 23:00 to 05:59)
+                # day2 early: start2 to end2 (e.g., 0-5 means 00:00 to 05:59)
+                # Overlap if: day2 starts before day1's overnight ends
+                if [ "${start2}" -lt "${end1}" ]; then
+                    echo "${range1}|${range2}|${start2}-${end1}"
+                    return 0
+                fi
+            done
+        fi
+    done
+    
+    return 1  # No overlap found
+}
+
+# Show help dialog
+show_help_dialog() {
+    local use_gui="$1"
+    
+    local help_text="TIME RANGE CONFIGURATION HELP
+
+SINGLE RANGE:
+  Format: START-END
+  Example: 0-5
+  Meaning: Midnight (00:00) to 5:59 AM on the same day
+
+MULTIPLE RANGES:
+  Format: START-END,START-END
+  Example: 0-5,22-23
+  Meaning: Two separate periods:
+    • Midnight to 5:59 AM
+    • 10:00 PM to 11:59 PM
+
+OVERNIGHT RANGES (spans midnight):
+  Format: START-END (where START > END)
+  Example: 23-6
+  Meaning: 11:00 PM on the named day to 6:00 AM on the NEXT day
+  Example: Monday 23-6 = Monday 11 PM → Tuesday 6 AM
+
+OVERLAPPING RANGES:
+  If you set Monday 23-5 and Tuesday 0-5:
+  • Both cover Tuesday midnight to 5:59 AM
+  • Only one warning will be shown (not duplicated)
+  • This is harmless but redundant
+
+NAVIGATION:
+  • Cancel: Exit without saving (available at any time)
+  • Back: Return to previous day's configuration
+  • Skip: Skip current day (no restrictions for that day)
+
+EXAMPLES:
+  • '0-5' = Midnight to 5:59 AM
+  • '22-23' = 10:00 PM to 11:59 PM  
+  • '23-6' = 11:00 PM to 6:00 AM (overnight)
+  • '0-5,22-23' = Midnight-5:59 AM AND 10 PM-11:59 PM"
+    
+    if [ "${use_gui}" = "true" ] && has_zenity; then
+        echo "${help_text}" | zenity --text-info \
+            --title="Configuration Help" \
+            --width=600 \
+            --height=500 \
+            --font="monospace" \
+            2>/dev/null
+    else
+        echo ""
+        echo "=== CONFIGURATION HELP ==="
+        echo "${help_text}"
+        echo ""
+        read -p "Press Enter to continue..."
+    fi
+}
+
+# Get hour range for a day (with navigation support)
 get_day_hours() {
     local day_name="$1"
     local day_index="$2"
     local use_gui="$3"
-    
-    local start_hour end_hour
+    local allow_back="$4"  # true/false - whether back button should be shown
+    local allow_cancel="$5"  # true/false - whether cancel should be available
     
     if [ "${use_gui}" = "true" ] && has_zenity; then
         # GUI mode
         while true; do
-            start_hour=$(get_hour_zenity "Enter start hour (0-23) for ${day_name}:\n(Leave empty to skip this day)" "0")
-            if [ -z "${start_hour}" ]; then
-                echo "skip"
+            # Build prompt text with examples
+            local prompt_text="Configure restricted hours for ${day_name}:\n\n"
+            prompt_text="${prompt_text}Format options:\n"
+            prompt_text="${prompt_text}• Single: 0-5 (midnight to 5:59 AM)\n"
+            prompt_text="${prompt_text}• Multiple: 0-5,22-23 (two periods)\n"
+            prompt_text="${prompt_text}• Overnight: 23-6 (11 PM to 6 AM, spans to next day)\n\n"
+            prompt_text="${prompt_text}IMPORTANT: Overnight ranges like '23-6' on ${day_name} mean:\n"
+            prompt_text="${prompt_text}${day_name} 11:00 PM → Next day 6:00 AM\n\n"
+            prompt_text="${prompt_text}(Leave empty to skip this day)"
+            
+            # Ask for time range (supports single range, multiple ranges, or overnight)
+            local range_input
+            local tmpfile
+            tmpfile=$(mktemp)
+            
+            zenity --entry \
+                --title="Sleep Warning Configuration - ${day_name}" \
+                --text="${prompt_text}" \
+                --width=550 \
+                --extra-button="Help" \
+                > "${tmpfile}" 2>/dev/null
+            local exit_code=$?
+            
+            range_input=$(cat "${tmpfile}" 2>/dev/null)
+            rm -f "${tmpfile}"
+            
+            # Handle extra button (Help)
+            if [ "${exit_code}" -eq 1 ] && [ "${range_input}" = "Help" ]; then
+                show_help_dialog "${use_gui}"
+                continue
+            fi
+            
+            # Handle cancel/empty
+            if [ "${exit_code}" -ne 0 ] || [ -z "${range_input}" ]; then
+                # User cancelled - ask if they want to cancel whole configuration
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2  # Special return code for cancellation
+                else
+                    # User wants to continue - treat as skip for this day
+                    echo "skip"
+                    return 0
+                fi
+            fi
+            
+            # Validate the input (could be single range, multiple ranges, or overnight)
+            # Check if it's a valid format
+            if ! echo "${range_input}" | grep -qE '^([0-9]+-[0-9]+)(,[0-9]+-[0-9]+)*$'; then
+                zenity --error --text="Invalid format. Use: START-END or START-END,START-END\n\nExamples:\n• 0-5 (midnight to 5:59 AM)\n• 0-5,22-23 (two periods)\n• 23-6 (11 PM to 6 AM, overnight)" 2>/dev/null
+                continue
+            fi
+            
+            # Validate each range in the input
+            local IFS=','
+            local valid=true
+            for range in ${range_input}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                # Validate hour values
+                if [ "${start_hour}" -lt 0 ] || [ "${start_hour}" -gt 23 ] || \
+                   [ "${end_hour}" -lt 0 ] || [ "${end_hour}" -gt 23 ]; then
+                    valid=false
+                    break
+                fi
+                
+                # Start and end cannot be equal
+                if [ "${start_hour}" -eq "${end_hour}" ]; then
+                    valid=false
+                    break
+                fi
+            done
+            
+            if [ "${valid}" = "false" ]; then
+                zenity --error --text="Invalid hour values. Hours must be 0-23, and start cannot equal end." 2>/dev/null
+                continue
+            fi
+            
+            # Show preview of what will be restricted
+            local preview
+            preview=$(format_ranges_human "${range_input}" "${day_name}")
+            if zenity --question \
+                --title="Confirm Time Range" \
+                --text="You entered: ${range_input}\n\nThis means:\n${preview}\n\nIs this correct?" \
+                --ok-label="Yes" \
+                --cancel-label="No, Edit" \
+                2>/dev/null; then
+                echo "${range_input}"
                 return 0
             fi
-            
-            end_hour=$(get_hour_zenity "Enter end hour (0-23) for ${day_name}:\n(Must be greater than start hour)" "6")
-            if [ -z "${end_hour}" ]; then
-                continue
-            fi
-            
-            # Validate range
-            if [ "${start_hour}" -ge "${end_hour}" ]; then
-                zenity --error --text="End hour must be greater than start hour." 2>/dev/null
-                continue
-            fi
-            
-            echo "${start_hour}-${end_hour}"
-            return 0
+            # User wants to edit, continue loop
         done
     else
         # Text mode
-        echo "Configuring ${day_name}:" >&2
+        echo ""
+        echo "=== Configuring ${day_name} ===" >&2
+        echo "" >&2
+        echo "IMPORTANT - Overnight ranges:" >&2
+        echo "  If you enter '23-6' on ${day_name}, it means:" >&2
+        echo "  ${day_name} 11:00 PM → Next day 6:00 AM" >&2
+        echo "" >&2
+        echo "Format options:" >&2
+        echo "  • Single: 0-5 (midnight to 5:59 AM)" >&2
+        echo "  • Multiple: 0-5,22-23 (two periods)" >&2
+        echo "  • Overnight: 23-6 (11 PM to 6 AM, spans to next day)" >&2
+        echo "" >&2
+        echo "Commands:" >&2
+        echo "  • Enter time range(s) to configure" >&2
+        echo "  • Type 'skip' to skip this day" >&2
+        if [ "${allow_back}" = "true" ]; then
+            echo "  • Type 'back' to go to previous day" >&2
+        fi
+        if [ "${allow_cancel}" = "true" ]; then
+            echo "  • Type 'cancel' to exit without saving" >&2
+        fi
+        echo "  • Type 'help' for detailed help" >&2
+        echo "" >&2
+        
         while true; do
-            start_hour=$(get_hour_text "Start hour (0-23, or 'skip' to skip this day)" "0")
-            if [ "${start_hour}" = "skip" ]; then
-                echo "skip"
-                return 0
-            fi
+            local range_input
+            read -p "Time range(s) for ${day_name}: " range_input
             
-            end_hour=$(get_hour_text "End hour (0-23, must be > start hour)" "6")
+            # Handle special commands
+            case "${range_input}" in
+                skip|"")
+                    echo "skip"
+                    return 0
+                    ;;
+                back)
+                    if [ "${allow_back}" = "true" ]; then
+                        echo "back"
+                        return 2  # Special return code for back
+                    else
+                        echo "Cannot go back from here." >&2
+                        continue
+                    fi
+                    ;;
+                cancel)
+                    if [ "${allow_cancel}" = "true" ]; then
+                        if confirm_cancel "${use_gui}"; then
+                            echo "CANCELLED"
+                            return 2  # Special return code for cancellation
+                        else
+                            # User wants to continue
+                            continue
+                        fi
+                    else
+                        echo "Type 'skip' to skip this day." >&2
+                        continue
+                    fi
+                    ;;
+                help)
+                    show_help_dialog "${use_gui}"
+                    continue
+                    ;;
+            esac
             
-            # Validate range
-            if [ "${start_hour}" -ge "${end_hour}" ]; then
-                echo "Error: End hour must be greater than start hour." >&2
+            # Validate the input format
+            if ! echo "${range_input}" | grep -qE '^([0-9]+-[0-9]+)(,[0-9]+-[0-9]+)*$'; then
+                echo "Error: Invalid format. Use: START-END or START-END,START-END" >&2
+                echo "Examples: 0-5 or 0-5,22-23 or 23-6" >&2
                 continue
             fi
             
-            echo "${start_hour}-${end_hour}"
-            return 0
+            # Validate each range
+            local IFS=','
+            local valid=true
+            for range in ${range_input}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                # Validate hour values
+                if [ "${start_hour}" -lt 0 ] || [ "${start_hour}" -gt 23 ] || \
+                   [ "${end_hour}" -lt 0 ] || [ "${end_hour}" -gt 23 ]; then
+                    valid=false
+                    break
+                fi
+                
+                # Start and end cannot be equal
+                if [ "${start_hour}" -eq "${end_hour}" ]; then
+                    valid=false
+                    break
+                fi
+            done
+            
+            if [ "${valid}" = "false" ]; then
+                echo "Error: Invalid hour values. Hours must be 0-23, and start cannot equal end." >&2
+                continue
+            fi
+            
+            # Show preview
+            local preview
+            preview=$(format_ranges_human "${range_input}" "${day_name}")
+            echo "" >&2
+            echo "Preview: ${preview}" >&2
+            echo "" >&2
+            read -p "Is this correct? [Y/n]: " confirm
+            case "${confirm}" in
+                [Nn]*)
+                    echo "Please re-enter the time range." >&2
+                    continue
+                    ;;
+                *)
+                    echo "${range_input}"
+                    return 0
+                    ;;
+            esac
         done
     fi
 }
@@ -450,11 +966,28 @@ show_welcome() {
 This wizard will help you set up restricted hours for each day of the week.
 During these hours, you will receive warning popups if you use your computer.
 
-You can:
-- Set different hours for each day
-- Apply the same settings to all weekdays
-- Apply the same settings to both weekend days
-- Skip days to have no restrictions
+NAVIGATION:
+• You can cancel at any time (changes won't be saved)
+• You can go back to previous days to edit
+• You can skip days to have no restrictions
+
+TIME RANGE FORMATS:
+• Single: '0-5' = Midnight to 5:59 AM
+• Multiple: '0-5,22-23' = Two periods (midnight-5:59 AM AND 10 PM-11:59 PM)
+• Overnight: '23-6' = 11 PM to 6 AM (spans midnight to next day)
+
+IMPORTANT - Overnight Ranges:
+If you enter '23-6' on Monday, it means:
+  Monday 11:00 PM → Tuesday 6:00 AM
+
+This spans across midnight to the next day. If you also set Tuesday 0-5,
+both will cover Tuesday midnight-5:59 AM (redundant but harmless).
+
+Examples:
+• '0-5' = Midnight to 5:59 AM (same day)
+• '22-23' = 10:00 PM to 11:59 PM (same day)
+• '23-6' = 11:00 PM to 6:00 AM (overnight, spans to next day)
+• '0-5,22-23' = Midnight-5:59 AM AND 10 PM-11:59 PM
 
 Let's get started!"
     
@@ -513,23 +1046,83 @@ ask_weekend_together() {
     fi
 }
 
-# Show summary and confirm
+# Show summary and confirm (with overlap detection and human-readable times)
 show_summary() {
     local use_gui="$1"
     local check_interval="$2"
     local popup_size="$3"
     local popup_position="$4"
     local min_display_time="$5"
-    shift 5
+    local popup_immovable="$6"
+    shift 6
     local summary_lines=("$@")
     
+    # Build summary with human-readable time periods
     local summary="Configuration Summary:\n\n"
     summary="${summary}Check Interval: Every ${check_interval} minute(s)\n"
     summary="${summary}Popup Size: ${popup_size}\n"
-    summary="${summary}Popup Position: ${popup_position}\n\n"
+    summary="${summary}Popup Position: ${popup_position}\n"
+    if [ "${min_display_time}" -eq 0 ]; then
+        summary="${summary}Minimum Display Time: Disabled\n"
+    else
+        summary="${summary}Minimum Display Time: ${min_display_time} seconds\n"
+    fi
+    if [ "${popup_immovable}" = "true" ]; then
+        summary="${summary}Prevent Window Movement: Enabled\n"
+    else
+        summary="${summary}Prevent Window Movement: Disabled\n"
+    fi
+    summary="${summary}\nRestricted Hours:\n"
+    
+    # Check for overlaps and format times
+    local overlap_warnings=()
+    local day_index=0
+    
     for line in "${summary_lines[@]}"; do
-        summary="${summary}${line}\n"
+        if [ -n "${line}" ]; then
+            # Extract day name and range
+            local day_name range
+            day_name=$(echo "${line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            
+            # Format to human-readable
+            local formatted
+            formatted=$(format_ranges_human "${range}" "${day_name}")
+            summary="${summary}• ${day_name}: ${formatted}\n"
+            
+            # Check for overlaps with previous day
+            if [ "${day_index}" -gt 0 ]; then
+                local prev_day_index=$((day_index - 1))
+                if [ -n "${summary_lines[${prev_day_index}]}" ]; then
+                    local prev_line="${summary_lines[${prev_day_index}]}"
+                    local prev_day_name prev_range
+                    prev_day_name=$(echo "${prev_line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    
+                    local overlap
+                    overlap=$(detect_overlaps "${prev_day_index}" "${prev_range}" "${day_index}" "${range}")
+                    if [ $? -eq 0 ]; then
+                        local range1 range2 overlap_hours
+                        range1=$(echo "${overlap}" | cut -d'|' -f1)
+                        range2=$(echo "${overlap}" | cut -d'|' -f2)
+                        overlap_hours=$(echo "${overlap}" | cut -d'|' -f3)
+                        overlap_warnings+=("${prev_day_name} ${range1} and ${day_name} ${range2} both cover ${overlap_hours}")
+                    fi
+                fi
+            fi
+        fi
+        day_index=$((day_index + 1))
     done
+    
+    # Add overlap warnings if any
+    if [ ${#overlap_warnings[@]} -gt 0 ]; then
+        summary="${summary}\n⚠️  OVERLAP WARNING:\n"
+        for warning in "${overlap_warnings[@]}"; do
+            summary="${summary}• ${warning}\n"
+        done
+        summary="${summary}\n(Overlaps are harmless - only one warning shown)\n"
+    fi
+    
     summary="${summary}\n\nSave this configuration?"
     
     if [ "${use_gui}" = "true" ] && has_zenity; then
@@ -543,18 +1136,74 @@ show_summary() {
         return $?
     else
         echo ""
-        echo "Configuration Summary:"
-        echo "  Check Interval: Every ${check_interval} minute(s)"
-        echo "  Popup Size: ${popup_size}"
-        echo "  Popup Position: ${popup_position}"
+        echo "=== Configuration Summary ==="
+        echo ""
+        echo "Check Interval: Every ${check_interval} minute(s)"
+        echo "Popup Size: ${popup_size}"
+        echo "Popup Position: ${popup_position}"
         if [ "${min_display_time}" -eq 0 ]; then
-            echo "  Minimum Display Time: Disabled"
+            echo "Minimum Display Time: Disabled"
         else
-            echo "  Minimum Display Time: ${min_display_time} seconds"
+            echo "Minimum Display Time: ${min_display_time} seconds"
         fi
+        if [ "${popup_immovable}" = "true" ]; then
+            echo "Prevent Window Movement: Enabled"
+        else
+            echo "Prevent Window Movement: Disabled"
+        fi
+        echo ""
+        echo "Restricted Hours:"
+        
+        # Show human-readable times and check for overlaps
+        local text_overlap_warnings=()
+        local day_index=0
+        
         for line in "${summary_lines[@]}"; do
-            echo "  ${line}"
+            if [ -n "${line}" ]; then
+                # Extract day name and range
+                local day_name range
+                day_name=$(echo "${line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                
+                # Format to human-readable
+                local formatted
+                formatted=$(format_ranges_human "${range}" "${day_name}")
+                echo "  • ${day_name}: ${formatted}"
+                
+                # Check for overlaps with previous day
+                if [ "${day_index}" -gt 0 ]; then
+                    local prev_day_index=$((day_index - 1))
+                    if [ -n "${summary_lines[${prev_day_index}]}" ]; then
+                        local prev_line="${summary_lines[${prev_day_index}]}"
+                        local prev_day_name prev_range
+                        prev_day_name=$(echo "${prev_line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                        prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                        
+                        local overlap
+                        overlap=$(detect_overlaps "${prev_day_index}" "${prev_range}" "${day_index}" "${range}")
+                        if [ $? -eq 0 ]; then
+                            local range1 range2 overlap_hours
+                            range1=$(echo "${overlap}" | cut -d'|' -f1)
+                            range2=$(echo "${overlap}" | cut -d'|' -f2)
+                            overlap_hours=$(echo "${overlap}" | cut -d'|' -f3)
+                            text_overlap_warnings+=("${prev_day_name} ${range1} and ${day_name} ${range2} both cover ${overlap_hours}")
+                        fi
+                    fi
+                fi
+            fi
+            day_index=$((day_index + 1))
         done
+        
+        # Show overlap warnings if any
+        if [ ${#text_overlap_warnings[@]} -gt 0 ]; then
+            echo ""
+            echo "⚠️  OVERLAP WARNING:"
+            for warning in "${text_overlap_warnings[@]}"; do
+                echo "  • ${warning}"
+            done
+            echo "  (Overlaps are harmless - only one warning shown)"
+        fi
+        
         echo ""
         read -p "Save this configuration? [y/N]: " answer
         case "${answer}" in
@@ -630,7 +1279,8 @@ write_config() {
     local popup_size="$2"
     local popup_position="$3"
     local min_display_time="$4"
-    shift 4
+    local popup_immovable="$5"
+    shift 5
     local config_lines=("$@")
     
     # Create config directory if it doesn't exist
@@ -654,6 +1304,22 @@ write_config() {
         echo "# Minimum: 1 minute"
         echo "# Maximum: 60 minutes"
         echo "CHECK_INTERVAL=${check_interval}"
+        echo "#"
+        echo "# POPUP_SIZE: Size of warning popup (small, medium, large, or custom WIDTHxHEIGHT)"
+        echo "# Default: medium"
+        echo "POPUP_SIZE=${popup_size}"
+        echo "#"
+        echo "# POPUP_POSITION: Position of warning popup on screen"
+        echo "# Default: center"
+        echo "POPUP_POSITION=${popup_position}"
+        echo "#"
+        echo "# POPUP_MIN_DISPLAY_TIME: Minimum time popup must be visible before it can be closed (in seconds)"
+        echo "# Default: 30 seconds"
+        echo "POPUP_MIN_DISPLAY_TIME=${min_display_time}"
+        echo "#"
+        echo "# POPUP_IMMOVABLE: Prevent popup window from being moved during minimum display time"
+        echo "# Default: true"
+        echo "POPUP_IMMOVABLE=${popup_immovable}"
         echo "#"
         echo "# This file was generated by the configuration wizard on $(date)"
         
@@ -722,18 +1388,62 @@ main() {
     # Get check interval
     local check_interval
     check_interval=$(get_check_interval "${use_gui}")
+    if [ "${check_interval}" = "CANCELLED" ]; then
+        if [ "${use_gui}" = "true" ] && has_zenity; then
+            zenity --info --text="Configuration cancelled." 2>/dev/null
+        else
+            echo "Configuration cancelled."
+        fi
+        exit 0
+    fi
     
     # Get popup size
     local popup_size
     popup_size=$(get_popup_size_config "${use_gui}")
+    if [ "${popup_size}" = "CANCELLED" ]; then
+        if [ "${use_gui}" = "true" ] && has_zenity; then
+            zenity --info --text="Configuration cancelled." 2>/dev/null
+        else
+            echo "Configuration cancelled."
+        fi
+        exit 0
+    fi
     
     # Get popup position
     local popup_position
     popup_position=$(get_popup_position_config "${use_gui}")
+    if [ "${popup_position}" = "CANCELLED" ]; then
+        if [ "${use_gui}" = "true" ] && has_zenity; then
+            zenity --info --text="Configuration cancelled." 2>/dev/null
+        else
+            echo "Configuration cancelled."
+        fi
+        exit 0
+    fi
     
     # Get minimum display time
     local min_display_time
     min_display_time=$(get_min_display_time_config "${use_gui}")
+    if [ "${min_display_time}" = "CANCELLED" ]; then
+        if [ "${use_gui}" = "true" ] && has_zenity; then
+            zenity --info --text="Configuration cancelled." 2>/dev/null
+        else
+            echo "Configuration cancelled."
+        fi
+        exit 0
+    fi
+    
+    # Get popup immovable setting
+    local popup_immovable
+    popup_immovable=$(get_popup_immovable_config "${use_gui}")
+    if [ "${popup_immovable}" = "CANCELLED" ]; then
+        if [ "${use_gui}" = "true" ] && has_zenity; then
+            zenity --info --text="Configuration cancelled." 2>/dev/null
+        else
+            echo "Configuration cancelled."
+        fi
+        exit 0
+    fi
     
     # Array to store configuration
     declare -a config_lines
@@ -742,8 +1452,15 @@ main() {
     # Ask about weekdays
     local weekday_range=""
     if ask_weekday_together "${use_gui}"; then
-        weekday_range=$(get_day_hours "Weekdays (Monday-Friday)" 1 "${use_gui}")
-        if [ "${weekday_range}" != "skip" ]; then
+        weekday_range=$(get_day_hours "Weekdays (Monday-Friday)" 1 "${use_gui}" "false" "true")
+        if [ "${weekday_range}" = "CANCELLED" ]; then
+            if [ "${use_gui}" = "true" ] && has_zenity; then
+                zenity --info --text="Configuration cancelled." 2>/dev/null
+            else
+                echo "Configuration cancelled."
+            fi
+            exit 0
+        elif [ "${weekday_range}" != "skip" ]; then
             for i in 1 2 3 4 5; do  # Monday through Friday
                 config_lines[${i}]="${DAY_VARS[${i}]}=${weekday_range}"
                 summary_lines[${i}]="${DAY_NAMES[${i}]}: ${weekday_range}"
@@ -753,8 +1470,15 @@ main() {
         # Configure each weekday separately
         for i in 1 2 3 4 5; do  # Monday through Friday
             local range
-            range=$(get_day_hours "${DAY_NAMES[${i}]}" "${i}" "${use_gui}")
-            if [ "${range}" != "skip" ]; then
+            range=$(get_day_hours "${DAY_NAMES[${i}]}" "${i}" "${use_gui}" "false" "true")
+            if [ "${range}" = "CANCELLED" ]; then
+                if [ "${use_gui}" = "true" ] && has_zenity; then
+                    zenity --info --text="Configuration cancelled." 2>/dev/null
+                else
+                    echo "Configuration cancelled."
+                fi
+                exit 0
+            elif [ "${range}" != "skip" ]; then
                 config_lines[${i}]="${DAY_VARS[${i}]}=${range}"
                 summary_lines[${i}]="${DAY_NAMES[${i}]}: ${range}"
             fi
@@ -764,8 +1488,15 @@ main() {
     # Ask about weekends
     local weekend_range=""
     if ask_weekend_together "${use_gui}"; then
-        weekend_range=$(get_day_hours "Weekends (Saturday and Sunday)" 6 "${use_gui}")
-        if [ "${weekend_range}" != "skip" ]; then
+        weekend_range=$(get_day_hours "Weekends (Saturday and Sunday)" 6 "${use_gui}" "false" "true")
+        if [ "${weekend_range}" = "CANCELLED" ]; then
+            if [ "${use_gui}" = "true" ] && has_zenity; then
+                zenity --info --text="Configuration cancelled." 2>/dev/null
+            else
+                echo "Configuration cancelled."
+            fi
+            exit 0
+        elif [ "${weekend_range}" != "skip" ]; then
             # Sunday (0)
             config_lines[0]="${DAY_VARS[0]}=${weekend_range}"
             summary_lines[0]="${DAY_NAMES[0]}: ${weekend_range}"
@@ -777,22 +1508,36 @@ main() {
         # Configure Sunday and Saturday separately
         # Sunday (0)
         local range
-        range=$(get_day_hours "${DAY_NAMES[0]}" 0 "${use_gui}")
-        if [ "${range}" != "skip" ]; then
+        range=$(get_day_hours "${DAY_NAMES[0]}" 0 "${use_gui}" "false" "true")
+        if [ "${range}" = "CANCELLED" ]; then
+            if [ "${use_gui}" = "true" ] && has_zenity; then
+                zenity --info --text="Configuration cancelled." 2>/dev/null
+            else
+                echo "Configuration cancelled."
+            fi
+            exit 0
+        elif [ "${range}" != "skip" ]; then
             config_lines[0]="${DAY_VARS[0]}=${range}"
             summary_lines[0]="${DAY_NAMES[0]}: ${range}"
         fi
         
         # Saturday (6)
-        range=$(get_day_hours "${DAY_NAMES[6]}" 6 "${use_gui}")
-        if [ "${range}" != "skip" ]; then
+        range=$(get_day_hours "${DAY_NAMES[6]}" 6 "${use_gui}" "false" "true")
+        if [ "${range}" = "CANCELLED" ]; then
+            if [ "${use_gui}" = "true" ] && has_zenity; then
+                zenity --info --text="Configuration cancelled." 2>/dev/null
+            else
+                echo "Configuration cancelled."
+            fi
+            exit 0
+        elif [ "${range}" != "skip" ]; then
             config_lines[6]="${DAY_VARS[6]}=${range}"
             summary_lines[6]="${DAY_NAMES[6]}: ${range}"
         fi
     fi
     
     # Show summary and confirm
-    if ! show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${summary_lines[@]}"; then
+    if ! show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${summary_lines[@]}"; then
         if [ "${use_gui}" = "true" ] && has_zenity; then
             zenity --info --text="Configuration cancelled." 2>/dev/null
         else
@@ -802,7 +1547,7 @@ main() {
     fi
     
     # Write configuration
-    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${config_lines[@]}"; then
+    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${config_lines[@]}"; then
         # Update timer file if it exists
         if [ -f "${TIMER_FILE}" ]; then
             if update_timer_file "${check_interval}"; then

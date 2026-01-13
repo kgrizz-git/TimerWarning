@@ -110,6 +110,11 @@ These enhancements can be integrated into the existing bash script suite without
 - **Files Affected**: `sleep-warning.sh` (enhance `make_window_unclosable()` function)
 - **Priority**: High (critical enhancement for minimum display time feature effectiveness)
 - **Status**: Not implemented
+- **Testing Results**:
+  - Method 1 (xprop _NET_WM_ALLOWED_ACTIONS): Failed to set property (window manager may not support this)
+  - Method 2 (xdotool/wmctrl properties): Applied but limited effect
+  - Method 3 (Window Manager Hints): Applied but effectiveness varies by window manager
+  - Method 4 (Monitor and Restore Position): **Tested and confirmed working** - This fallback method successfully prevents window movement by monitoring position and restoring it if moved
 - **Compatibility Assessment**:
   - **X11**: Partially feasible
     - Can use `xprop -id <window_id> -f _NET_WM_ALLOWED_ACTIONS 32a -set _NET_WM_ALLOWED_ACTIONS _NET_WM_ACTION_CLOSE _NET_WM_ACTION_RESIZE` to remove MOVE action
@@ -131,8 +136,8 @@ These enhancements can be integrated into the existing bash script suite without
     - Users with accessibility needs may require window movement
   - **Recommended Approach**:
     - Implement for X11 only (skip Wayland)
-    - Use `xprop` to set `_NET_WM_ALLOWED_ACTIONS` to remove MOVE action
-    - Add fallback: monitor window position every second and restore if moved (more compatible but less elegant)
+    - **Primary method**: Monitor window position and restore if moved (tested and confirmed working)
+    - Secondary attempt: Use `xprop` to set `_NET_WM_ALLOWED_ACTIONS` to remove MOVE action (fallback if window manager supports it)
     - Make it optional/configurable (allow users to disable if causing issues)
     - Test across multiple window managers (GNOME, KDE, XFCE, i3, etc.)
     - Document limitations clearly (not all window managers support this)

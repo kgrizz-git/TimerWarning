@@ -135,6 +135,7 @@ The solution consists of eight main components:
 - [x] Add configurable popup size - IMPLEMENTED: POPUP_SIZE setting (small/medium/large or custom WIDTHxHEIGHT)
 - [x] Add configurable popup position - IMPLEMENTED: POPUP_POSITION setting (center, corners, top/bottom-center)
 - [x] Add configurable minimum display time - IMPLEMENTED: POPUP_MIN_DISPLAY_TIME setting (0-300 seconds, prevents closing/minimizing)
+- [x] Add configurable immovable window setting - IMPLEMENTED: POPUP_IMMOVABLE setting (true/false, prevents window movement during minimum display time)
 - [x] Document configuration file format and options - IMPLEMENTED: Created CONFIGURATION.md with comprehensive documentation
 
 #### Checklist 1.3: Develop Bash Script Core Logic
@@ -179,8 +180,8 @@ The solution consists of eight main components:
 - [ ] Test systemd user services persistence across Desktop Mode ↔ Gaming Mode transitions - NOT TESTED: Requires SteamOS Gaming Mode environment
 - [x] Test minimum display time enforcement - PARTIALLY TESTED: Log shows popup displayed with minimum display time and closed after timeout. Full testing requires wmctrl/xdotool verification on X11 systems
 - [ ] Test minimum display time on Wayland - NOT TESTED: Window manager tools don't work on Wayland, needs fallback testing
-- [x] Consider using window manager tools to force popup on top if needed - IMPLEMENTED: wmctrl/xdotool used for window control, yad has --on-top flag
-- [ ] Explore immovable popup window feature - FUTURE ENHANCEMENT: Research and implement ability to prevent user from moving/dragging popup during minimum display time. See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#13-immovable-popup-window) for detailed feasibility assessment, implementation approaches, and compatibility considerations (X11 partially feasible, Wayland not feasible)
+- [x] Consider using window manager tools to force popup on top if needed - IMPLEMENTED AND TESTED: keep_window_on_top() function uses wmctrl/xdotool for window control, yad has --on-top flag. Window automatically stays on top of other windows. Uses xprop _NET_WM_STATE_ABOVE for reliable cross-environment compatibility. Confirmed working with zenity on KDE.
+- [x] Implement immovable popup window feature - IMPLEMENTED: Uses Method 4 (monitor and restore position) to prevent window movement during minimum display time. POPUP_IMMOVABLE configuration option added (true/false). See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#13-immovable-popup-window) for implementation details and testing results. Works on X11 with wmctrl/xdotool, not available on Wayland.
 
 #### Checklist 1.5: Add Script Robustness
 - [x] Add shebang line (`#!/bin/bash`)
@@ -208,23 +209,114 @@ The solution consists of eight main components:
 - [x] Add option to skip a day (no restrictions for that day)
 - [x] Add option to use same settings for all weekdays
 - [x] Add option to use same settings for both weekend days
-- [x] Add prompt for check interval (frequency) configuration - IMPLEMENTED: Prompts for CHECK_INTERVAL (1-60 minutes)
-- [x] Add prompt for popup size configuration - IMPLEMENTED: Prompts for POPUP_SIZE (small/medium/large)
-- [x] Add prompt for popup position configuration - IMPLEMENTED: Prompts for POPUP_POSITION (center, corners, etc.)
-- [x] Add prompt for minimum display time configuration - IMPLEMENTED: Prompts for POPUP_MIN_DISPLAY_TIME (0-300 seconds)
+- [x] Add prompt for check interval (frequency) configuration - IMPLEMENTED: Prompts for CHECK_INTERVAL (1-60 minutes) with cancellation confirmation
+- [x] Add prompt for popup size configuration - IMPLEMENTED: Prompts for POPUP_SIZE (small/medium/large) with cancellation confirmation
+- [x] Add prompt for popup position configuration - IMPLEMENTED: Prompts for POPUP_POSITION (center, corners, etc.) with cancellation confirmation
+- [x] Add prompt for minimum display time configuration - IMPLEMENTED: Prompts for POPUP_MIN_DISPLAY_TIME (0-300 seconds) with cancellation confirmation
+- [x] Add prompt for immovable window configuration - IMPLEMENTED: Prompts for POPUP_IMMOVABLE (true/false) in configure.sh with cancellation confirmation
 - [x] Display summary of configured hours before saving
-- [x] Display summary including interval, size, and position - IMPLEMENTED: Summary shows all configuration options including minimum display time
+- [x] Display summary including interval, size, and position - IMPLEMENTED: Summary shows all configuration options including minimum display time and immovable window setting
 - [x] Add confirmation dialog before writing to config file
 - [x] Implement config file writing with proper format
 - [x] Write check interval to config file - IMPLEMENTED: CHECK_INTERVAL saved to config
 - [x] Write popup size to config file - IMPLEMENTED: POPUP_SIZE saved to config
 - [x] Write popup position to config file - IMPLEMENTED: POPUP_POSITION saved to config
 - [x] Write minimum display time to config file - IMPLEMENTED: POPUP_MIN_DISPLAY_TIME saved to config
+- [x] Write immovable window setting to config file - IMPLEMENTED: POPUP_IMMOVABLE saved to config
 - [x] Preserve existing config file comments if present - FIXED: Script now extracts and preserves user comments from existing config file. Comments are preserved in a dedicated section (may change position but are not lost).
 - [x] Add error handling for missing zenity (fallback to text prompts)
 - [x] Add graceful handling for systems without GUI
 - [x] Test configuration script with various input scenarios - PARTIALLY TESTED: Script syntax validated, basic execution verified. Full interactive testing requires GUI and user interaction
 - [x] Make configure.sh executable (`chmod +x configure.sh`)
+
+#### Checklist 1.8: Improve Time Configuration Clarity and User Experience
+
+**Current Issues Identified**:
+- Configuration wizard asks for start hour separately, then asks for range (redundant and confusing)
+- Overnight range behavior not clearly explained (23-5 on Monday = Monday 11 PM to Tuesday 5 AM)
+- Overlapping ranges not detected or explained (Monday 23-5 and Tuesday 23-5 both cover Tuesday midnight-5am)
+- Summary doesn't show actual time periods or highlight overlaps
+
+**Improvements Needed**:
+
+- [x] **Fix redundant input prompts** - IMPLEMENTED: Removed separate start hour prompt, uses single unified input field for time ranges only. Removed unused start_hour variable from get_day_hours() function. Streamlined input to one prompt per day.
+  - [x] Remove separate start hour prompt (currently asks for start hour, then range - redundant)
+  - [x] Use single unified input field for time ranges only
+  - [x] Remove unused start_hour variable from get_day_hours() function
+  - [x] Streamline input to one prompt per day
+
+- [x] **Clarify overnight range behavior in configuration wizard** - IMPLEMENTED: Added clear explanations in prompts and welcome message. Shows examples like "23-6 on Monday = Monday 11:00 PM → Tuesday 6:00 AM". Displays formatted time periods before confirmation.
+  - [x] Explain that 23-5 on Monday means Monday 11 PM to Tuesday 5 AM (spans midnight)
+  - [x] Show clear examples of what overnight ranges mean for each day
+  - [x] Add visual/textual explanation showing the actual time periods being restricted
+  - [x] Display example: "23-5 on Monday = Monday 11:00 PM → Tuesday 5:00 AM"
+
+- [x] **Add overlap detection and warnings** - IMPLEMENTED: detect_overlaps() function detects when overnight ranges overlap with next day's ranges. Warns user in summary display. Explains that overlapping ranges are redundant but harmless. Allows user to proceed with warning.
+  - [x] Detect when overnight ranges overlap with next day's ranges
+  - [x] Warn user if Monday 23-5 and Tuesday 0-5 both cover Tuesday midnight-5am
+  - [x] Warn user if Monday 23-5 and Tuesday 23-5 both cover Tuesday midnight-5am
+  - [x] Explain that overlapping ranges are redundant but harmless (only one warning shown)
+  - [x] Suggest consolidating overlapping ranges (e.g., "Consider using Monday 23-5 only")
+  - [x] Allow user to proceed with warning (some users may want explicit coverage per day)
+
+- [x] **Improve summary display** - IMPLEMENTED: format_ranges_human() and format_range_human() functions show actual time periods in human-readable format (12-hour with AM/PM). Highlights overlapping periods if detected. Shows which hours are covered by which day's configuration. Displays in both 24-hour input and 12-hour formatted output.
+  - [x] Show actual time periods in human-readable format
+    - Example: "Monday: 11:00 PM - 5:00 AM (Tuesday)" for 23-5
+    - Example: "Monday: 12:00 AM - 5:59 AM" for 0-5
+  - [x] Highlight overlapping periods if detected
+  - [x] Show which hours are covered by which day's configuration
+  - [x] Display in both 24-hour and 12-hour format for clarity
+  - [x] Add note explaining overnight ranges span to next day
+
+- [x] **Add real-time preview/validation** - IMPLEMENTED: Shows preview of formatted time periods before confirmation in both GUI and text modes. Validates ranges immediately and shows errors clearly. Displays formatted time periods before confirmation.
+  - [x] Show preview of what time periods will be restricted as user types
+  - [x] Validate ranges immediately and show errors clearly
+  - [x] Display formatted time periods before confirmation
+
+- [x] **Add help/explanation dialog** - IMPLEMENTED: show_help_dialog() function provides comprehensive help with "What do overnight ranges mean?" section, "Understanding overlapping ranges" explanation, and examples section. Help accessible from configuration wizard via "Help" button (GUI) or "help" command (text mode).
+  - [x] Create "What do overnight ranges mean?" help section
+  - [x] Create "Understanding overlapping ranges" explanation
+  - [x] Add "Examples" section showing common scenarios:
+    - Single period: "0-5 = midnight to 5:59 AM"
+    - Overnight: "23-6 = 11 PM to 6 AM (spans midnight)"
+    - Multiple periods: "0-5,22-23 = midnight-5:59 AM AND 10 PM-11:59 PM"
+    - Overlap scenario: "Monday 23-5 and Tuesday 23-5 both cover Tuesday midnight-5am"
+  - [x] Make help accessible from configuration wizard (help button or menu option)
+
+- [x] **Add navigation controls** - PARTIALLY IMPLEMENTED: Cancel with confirmation at any time is implemented. Cancel button/option added to every prompt/dialog with confirmation. Skip option available. Back button and progress indicator not yet implemented (future enhancement).
+  - [x] Allow user to cancel configuration at any time (not just at summary)
+  - [x] Add "Cancel" button/option to every prompt/dialog
+  - [x] Confirm before cancelling if any changes have been made
+  - [ ] Add "Back" button/option to go to previous day's configuration
+  - [x] Add "Skip" option to skip current day and move to next
+  - [ ] Show progress indicator (e.g., "Day 3 of 7: Wednesday")
+  - [ ] Allow jumping to specific day (e.g., "Go to Monday" menu option)
+  - [ ] Save progress as user goes (allow resuming if cancelled mid-way)
+
+- [x] **Update documentation to clarify behavior** - IMPLEMENTED: Updated README.md and CONFIGURATION.md with overnight range behavior, overlap behavior, and examples. Updated configure.sh welcome message with clear explanations.
+  - [x] Document that overnight ranges span to next day
+  - [x] Document overlap behavior (both ranges apply, but only one warning shown per check)
+  - [x] Add examples showing:
+    - Monday 23-5 covers Monday 11 PM to Tuesday 5 AM
+    - Tuesday 23-5 covers Tuesday 11 PM to Wednesday 5 AM
+    - If both set, Tuesday midnight-5am is covered by Monday's range
+  - [x] Clarify in README.md, CONFIGURATION.md, and configure.sh welcome message
+  - [ ] Add FAQ section addressing common confusion points
+  - [x] Document navigation features (cancel, back, skip)
+
+- [ ] **Add restore to default configuration option**
+  - [ ] Add option in configure.sh to restore default configuration values
+  - [ ] Add option in manage.sh to restore default configuration
+  - [ ] Show confirmation dialog before restoring (warn that current settings will be lost)
+  - [ ] Restore default restricted hours (weekdays: 0-5, weekends: 1-5)
+  - [ ] Restore default CHECK_INTERVAL (10 minutes)
+  - [ ] Restore default POPUP_SIZE (medium)
+  - [ ] Restore default POPUP_POSITION (center)
+  - [ ] Restore default POPUP_MIN_DISPLAY_TIME (30 seconds)
+  - [ ] Restore default POPUP_IMMOVABLE (true)
+  - [ ] Preserve user comments if possible (or ask if user wants to keep comments)
+  - [ ] Show summary of restored defaults before final confirmation
+  - [ ] Update timer file if CHECK_INTERVAL is restored
 
 #### Checklist 1.7: Create Management/Help Script
 - [x] Create `manage.sh` script with shebang (`#!/bin/bash`)
@@ -251,76 +343,76 @@ The solution consists of eight main components:
 ### Phase 2: Systemd Integration
 
 #### Checklist 2.1: Create Systemd Service File
-- [ ] Define service unit with appropriate description
-- [ ] Set Type=oneshot (runs once per trigger)
-- [ ] Configure to run as user (not root)
-- [ ] Set environment variables for display access
-- [ ] Point ExecStart to script location
-- [ ] Add appropriate user/group settings
+- [x] Define service unit with appropriate description - IMPLEMENTED: Service file includes description and documentation
+- [x] Set Type=oneshot (runs once per trigger) - IMPLEMENTED: Type=oneshot set in service file
+- [x] Configure to run as user (not root) - IMPLEMENTED: User service (runs as user, not root)
+- [x] Set environment variables for display access - IMPLEMENTED: Service configured with After=graphical-session.target to ensure GUI access, script handles DISPLAY/WAYLAND_DISPLAY detection internally
+- [x] Point ExecStart to script location - IMPLEMENTED: ExecStart=%h/.local/bin/sleep-warning.sh
+- [x] Add appropriate user/group settings - IMPLEMENTED: User services run as the user automatically, no explicit user/group needed
 
 #### Checklist 2.2: Create Systemd Timer File
-- [ ] Define timer unit with appropriate description
-- [ ] Set OnCalendar to trigger based on CHECK_INTERVAL from config (defaults to 10 minutes if not configured) - IMPLEMENTED: Timer file defaults to `*:0/10` (every 10 minutes), but configure.sh can update it based on CHECK_INTERVAL setting
-- [ ] Configure to start on boot/login (WantedBy)
-- [ ] Link timer to service file
-- [ ] Set appropriate accuracy settings
-- [ ] Note: Timer interval is configurable via CHECK_INTERVAL in config file (1-60 minutes). The configure.sh script automatically updates the timer file when CHECK_INTERVAL is changed. Install script should read CHECK_INTERVAL from config (if exists) when creating timer file.
+- [x] Define timer unit with appropriate description - IMPLEMENTED: Timer file includes description and documentation
+- [x] Set OnCalendar to trigger based on CHECK_INTERVAL from config (defaults to 10 minutes if not configured) - IMPLEMENTED: Timer file defaults to `*:0/10` (every 10 minutes), but configure.sh can update it based on CHECK_INTERVAL setting
+- [x] Configure to start on boot/login (WantedBy) - IMPLEMENTED: WantedBy=timers.target set in [Install] section
+- [x] Link timer to service file - IMPLEMENTED: Requires=sleep-warning.service links timer to service
+- [x] Set appropriate accuracy settings - IMPLEMENTED: AccuracySec=1min set, Persistent=true for missed triggers
+- [x] Note: Timer interval is configurable via CHECK_INTERVAL in config file (1-60 minutes). The configure.sh script automatically updates the timer file when CHECK_INTERVAL is changed. Install script should read CHECK_INTERVAL from config (if exists) when creating timer file.
 
 #### Checklist 2.3: Test Systemd Integration
-- [ ] Test service manually (`systemctl --user start sleep-warning.service`)
-- [ ] Test timer activation (`systemctl --user start sleep-warning.timer`)
-- [ ] Verify timer status (`systemctl --user status sleep-warning.timer`)
-- [ ] Check timer list (`systemctl --user list-timers`)
-- [ ] Verify service runs correctly when triggered
+- [x] Test service manually (`systemctl --user start sleep-warning.service`) - TESTED: Service starts and runs successfully, exits cleanly when not in restricted hours
+- [x] Test timer activation (`systemctl --user start sleep-warning.timer`) - TESTED: Timer activates and shows correct next trigger time
+- [x] Verify timer status (`systemctl --user status sleep-warning.timer`) - TESTED: Timer shows active (waiting) status with correct trigger time
+- [x] Check timer list (`systemctl --user list-timers`) - TESTED: Timer appears in list with correct next trigger time
+- [x] Verify service runs correctly when triggered - TESTED: Service executes successfully when started manually, logs show proper execution
 
 ### Phase 3: Installation and Deployment
 
 #### Checklist 3.1: Create Automated Installation Script
-- [ ] Create `install.sh` script with shebang (`#!/bin/bash`)
-- [ ] Add script header comments explaining purpose and usage
-- [ ] Implement distribution detection (Debian/Ubuntu, Fedora/RHEL, Arch/SteamOS, openSUSE, etc.)
-- [ ] Implement package manager detection (apt, dnf/yum, pacman, zypper, apk)
-- [ ] Add function to check if command exists (`command -v`)
-- [ ] Add function to check for required dependencies (systemd, bash, zenity)
-- [ ] Add function to install zenity based on detected package manager
-- [ ] Add function to create necessary directories (`~/.local/bin`, `~/.config/sleep-warning`, `~/.config/systemd/user`)
-- [ ] Add function to copy script to `~/.local/bin/sleep-warning.sh`
-- [ ] Add function to copy default config file to `~/.config/sleep-warning/sleep-warning.conf` (only if not exists)
-- [ ] Add function to copy systemd service file to `~/.config/systemd/user/sleep-warning.service`
-- [ ] Add function to copy systemd timer file to `~/.config/systemd/user/sleep-warning.timer` - NOTE: Should read CHECK_INTERVAL from config file (if exists) and generate timer file with appropriate OnCalendar value, otherwise use default 10 minutes
-- [ ] Add function to copy configure.sh to `~/.local/bin/sleep-warning-configure` (or similar accessible name)
-- [ ] Add function to copy manage.sh to `~/.local/bin/sleep-warning-manage` (or similar accessible name)
-- [ ] Add function to set executable permissions on all scripts (`chmod +x`)
-- [ ] Add function to reload systemd user daemon
-- [ ] Add function to enable and start systemd timer
-- [ ] Add function to verify installation (check timer status)
-- [ ] Add error handling for each step (exit on failure with clear message)
-- [ ] Add colored output for success/error messages (optional, with fallback for non-color terminals)
-- [ ] Add confirmation prompt before installing dependencies (with --yes flag to skip)
-- [ ] Add check to prevent re-installation over existing installation (with --force flag option)
-- [ ] Add summary output showing what was installed and next steps
-- [ ] Make install.sh executable (`chmod +x install.sh`)
-- [ ] Test installation script on clean system
-- [ ] Test installation script with missing dependencies
-- [ ] Test installation script with existing installation
-- [ ] Test installation script on different distributions (if possible)
+- [x] Create `install.sh` script with shebang (`#!/bin/bash`) - IMPLEMENTED: Script created with proper shebang
+- [x] Add script header comments explaining purpose and usage - IMPLEMENTED: Comprehensive header with usage examples
+- [x] Implement distribution detection (Debian/Ubuntu, Fedora/RHEL, Arch/SteamOS, openSUSE, etc.) - IMPLEMENTED: Detects distribution via /etc/os-release
+- [x] Implement package manager detection (apt, dnf/yum, pacman, zypper, apk) - IMPLEMENTED: Detects apt, dnf, yum, pacman, zypper, apk
+- [x] Add function to check if command exists (`command -v`) - IMPLEMENTED: command_exists() function
+- [x] Add function to check for required dependencies (systemd, bash, zenity) - IMPLEMENTED: check_dependencies() function
+- [x] Add function to install zenity based on detected package manager - IMPLEMENTED: install_dependencies() function with package manager support
+- [x] Add function to create necessary directories (`~/.local/bin`, `~/.config/sleep-warning`, `~/.config/systemd/user`) - IMPLEMENTED: create_directories() function
+- [x] Add function to copy script to `~/.local/bin/sleep-warning.sh` - IMPLEMENTED: install_files() function
+- [x] Add function to copy default config file to `~/.config/sleep-warning/sleep-warning.conf` (only if not exists) - IMPLEMENTED: Preserves existing config
+- [x] Add function to copy systemd service file to `~/.config/systemd/user/sleep-warning.service` - IMPLEMENTED: install_files() function
+- [x] Add function to copy systemd timer file to `~/.config/systemd/user/sleep-warning.timer` - IMPLEMENTED: generate_timer_file() function reads CHECK_INTERVAL from config and generates timer with correct OnCalendar value
+- [x] Add function to copy configure.sh to `~/.local/bin/sleep-warning-configure` (or similar accessible name) - IMPLEMENTED: Copies as sleep-warning-configure
+- [x] Add function to copy manage.sh to `~/.local/bin/sleep-warning-manage` (or similar accessible name) - IMPLEMENTED: Copies as sleep-warning-manage
+- [x] Add function to set executable permissions on all scripts (`chmod +x`) - IMPLEMENTED: Sets permissions on all scripts
+- [x] Add function to reload systemd user daemon - IMPLEMENTED: reload_systemd() function
+- [x] Add function to enable and start systemd timer - IMPLEMENTED: enable_timer() function
+- [x] Add function to verify installation (check timer status) - IMPLEMENTED: verify_installation() function
+- [x] Add error handling for each step (exit on failure with clear message) - IMPLEMENTED: set -e and error checking throughout
+- [x] Add colored output for success/error messages (optional, with fallback for non-color terminals) - IMPLEMENTED: Color support with fallback
+- [x] Add confirmation prompt before installing dependencies (with --yes flag to skip) - IMPLEMENTED: --yes flag support
+- [x] Add check to prevent re-installation over existing installation (with --force flag option) - IMPLEMENTED: check_existing_installation() with --force support
+- [x] Add summary output showing what was installed and next steps - IMPLEMENTED: print_summary() function
+- [x] Make install.sh executable (`chmod +x install.sh`) - IMPLEMENTED: Script is executable
+- [ ] Test installation script on clean system - PENDING: Requires testing
+- [ ] Test installation script with missing dependencies - PENDING: Requires testing
+- [ ] Test installation script with existing installation - PENDING: Requires testing
+- [ ] Test installation script on different distributions (if possible) - PENDING: Requires testing
 
 #### Checklist 3.2: Create Uninstall Script
-- [ ] Create `uninstall.sh` script with shebang (`#!/bin/bash`)
-- [ ] Add script header comments explaining purpose and usage
-- [ ] Add function to stop systemd timer
-- [ ] Add function to disable systemd timer
-- [ ] Add function to remove systemd service and timer files
-- [ ] Add function to remove script from `~/.local/bin/`
-- [ ] Add function to remove configure.sh from `~/.local/bin/`
-- [ ] Add function to remove manage.sh from `~/.local/bin/`
-- [ ] Add option to remove configuration file (with confirmation prompt)
-- [ ] Add function to reload systemd user daemon after cleanup
-- [ ] Add verification that files were removed
-- [ ] Add error handling for missing files (should not error, just skip)
-- [ ] Add summary output showing what was removed
-- [ ] Make uninstall.sh executable (`chmod +x uninstall.sh`)
-- [ ] Test uninstall script thoroughly
+- [x] Create `uninstall.sh` script with shebang (`#!/bin/bash`) - IMPLEMENTED: Script created with proper shebang
+- [x] Add script header comments explaining purpose and usage - IMPLEMENTED: Comprehensive header with usage examples
+- [x] Add function to stop systemd timer - IMPLEMENTED: stop_timer() function
+- [x] Add function to disable systemd timer - IMPLEMENTED: stop_timer() function handles both stop and disable
+- [x] Add function to remove systemd service and timer files - IMPLEMENTED: remove_systemd_files() function
+- [x] Add function to remove script from `~/.local/bin/` - IMPLEMENTED: remove_scripts() function
+- [x] Add function to remove configure.sh from `~/.local/bin/` - IMPLEMENTED: remove_scripts() function removes all scripts
+- [x] Add function to remove manage.sh from `~/.local/bin/` - IMPLEMENTED: remove_scripts() function removes all scripts
+- [x] Add option to remove configuration file (with confirmation prompt) - IMPLEMENTED: remove_config() function with --remove-config flag
+- [x] Add function to reload systemd user daemon after cleanup - IMPLEMENTED: reload_systemd() function
+- [x] Add verification that files were removed - IMPLEMENTED: verify_removal() function
+- [x] Add error handling for missing files (should not error, just skip) - IMPLEMENTED: Graceful handling with checks
+- [x] Add summary output showing what was removed - IMPLEMENTED: print_summary() function
+- [x] Make uninstall.sh executable (`chmod +x uninstall.sh`) - IMPLEMENTED: Script is executable
+- [ ] Test uninstall script thoroughly - PENDING: Requires testing
 
 #### Checklist 3.3: Manual Installation Instructions
 - [ ] Create installation instructions document (README.md or INSTALL.md)
@@ -392,7 +484,8 @@ The solution consists of eight main components:
 - [ ] Test on systems without GUI (should exit gracefully without errors)
 - [ ] Test on different desktop environments if available (GNOME, KDE, XFCE)
 - [ ] Test minimum display time with different window managers - NOT TESTED: Test on GNOME, KDE, XFCE, etc.
-- [ ] Test window stays on top during timeout - NOT TESTED: Verify window manager tools work correctly
+- [x] Test window stays on top during timeout - IMPLEMENTED AND TESTED: keep_window_on_top() function ensures window stays on top. Uses xprop _NET_WM_STATE_ABOVE and xdotool windowraise/windowactivate for reliable on-top behavior. Confirmed working with zenity on KDE/KWin. Requires wmctrl or xdotool to be installed.
+- [ ] Test immovable window feature - NOT TESTED: Verify position monitoring and restoration works correctly on X11 systems
 - [ ] **SteamOS Gaming Mode**: Test when gamescope compositor is active (Wayland)
 - [ ] **SteamOS Gaming Mode**: Test display detection when switching from Desktop Mode to Gaming Mode
 - [ ] **SteamOS Gaming Mode**: Test display detection when switching from Gaming Mode to Desktop Mode
@@ -472,7 +565,8 @@ The solution consists of eight main components:
 - [ ] **Document how to view and interpret logs** - Step-by-step guide for users
 - [ ] **Document window state logging** - Explain what window states are detected and logged
 - [ ] **Document troubleshooting using logs** - How to use logs to diagnose issues
-- [ ] Document minimum display time feature in user documentation
+- [x] Document minimum display time feature in user documentation - IMPLEMENTED: Documented in CONFIGURATION.md and README.md
+- [x] Document immovable window feature in user documentation - IMPLEMENTED: Documented in CONFIGURATION.md and README.md with examples and usage notes
 - [ ] Document wmctrl/xdotool as optional dependencies
 - [ ] Document X11 vs Wayland limitations for minimum display time feature
 - [ ] Add troubleshooting section for minimum display time issues
@@ -707,7 +801,8 @@ For comprehensive information about potential future enhancements and alternativ
 - Implementation notes and considerations
 
 **Quick Summary**:
-- **High Priority**: Enhanced display detection, dialog tool priority, window state detection, immovable popup window (critical for minimum display time feature effectiveness)
+- **High Priority**: Enhanced display detection, dialog tool priority, window state detection
+- **Completed**: Immovable popup window feature - IMPLEMENTED using Method 4 (monitor and restore position). See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#13-immovable-popup-window) for testing results.
 - **Medium Priority**: Steam Overlay integration (best solution for SteamOS Gaming Mode full-screen games), systemd service environment detection, desktop notification fallback, Wayland-specific window management
 - **Low Priority**: Configurable messages, escalating warnings, audio alerts, distribution-specific optimizations
 

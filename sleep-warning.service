@@ -1,6 +1,8 @@
 [Unit]
 Description=Sleep Warning System - Check and display warning during restricted hours
 Documentation=man:systemd.service(5)
+After=graphical-session.target
+PartOf=graphical-session.target
 
 [Service]
 Type=oneshot
@@ -8,5 +10,11 @@ ExecStart=%h/.local/bin/sleep-warning.sh
 StandardOutput=journal
 StandardError=journal
 
-# The script handles DISPLAY detection internally, so we don't need to set it here
-# If DISPLAY is available in the environment, it will be passed through automatically
+# Environment variables for display access
+# The script handles DISPLAY/WAYLAND_DISPLAY detection internally with fallbacks,
+# but we pass through environment variables from the user session for better compatibility.
+# Systemd user services inherit the user's environment, but we can also explicitly
+# reference session environment variables if needed.
+#
+# Note: The script has robust display detection that works even if these variables
+# are not set, using loginctl and other fallback methods.
