@@ -2,7 +2,9 @@
 
 ## High-Level Description
 
-This project implements a systemd-based monitoring system that displays interactive warning popups when the system is being used during configurable restricted hours. The system is designed to work on any modern Linux distribution with systemd (including Steam OS, Ubuntu, Debian, Fedora, Arch, and others). It uses a bash script combined with systemd timers to check the current time every 10 minutes and display modal warning dialogs if usage occurs during user-defined restricted hours.
+This project implements a systemd-based monitoring system that displays interactive warning popups when the system is being used during configurable restricted hours. **The system is designed with maximum compatibility as a core principle**, working on any modern Linux distribution with systemd (including Steam OS in both Desktop Mode and Gaming Mode, Ubuntu, Debian, Fedora, Arch, and others). It uses a bash script combined with systemd timers to check the current time every 10 minutes and display modal warning dialogs if usage occurs during user-defined restricted hours.
+
+**Compatibility Focus**: Special attention has been given to ensuring the system works reliably on SteamOS in Gaming Mode, which presents unique challenges including Wayland compositor (gamescope) display detection, full-screen game overlay compatibility, and systemd user service persistence across mode transitions. The implementation includes robust fallback mechanisms and multiple detection strategies to maximize compatibility across all supported environments.
 
 **Default restricted hours** (easily configurable):
 - **Weekdays (Monday-Friday)**: Midnight (00:00) to 6:00 AM
@@ -24,8 +26,9 @@ The solution consists of eight main components:
    - Reads configuration file to determine restricted hours
    - Checks current day of week and time
    - Determines if current usage falls within restricted hours
-   - Displays modal popup using `zenity` if conditions are met
-   - Handles display environment detection
+   - Displays modal popup using `zenity` (with fallbacks to `yad` and `kdialog`) if conditions are met
+   - Handles display environment detection with multiple fallback strategies (X11 DISPLAY, Wayland WAYLAND_DISPLAY, loginctl session detection, gamescope detection)
+   - Includes SteamOS Gaming Mode compatibility features
 
 3. **Systemd Service** (`sleep-warning.service`):
    - Defines the service that executes the bash script
@@ -106,6 +109,14 @@ The solution consists of eight main components:
 #### Checklist 1.4: Implement Display and Popup Functionality
 - [x] Detect DISPLAY environment variable
 - [x] Fallback to finding active user session display if DISPLAY not set
+- [x] Add loginctl-based session detection as fallback
+- [ ] Add Wayland display detection (WAYLAND_DISPLAY environment variable)
+- [ ] Add gamescope-specific display detection for SteamOS Gaming Mode
+- [ ] Add active window state detection (full-screen, exclusive full-screen, windowed, borderless)
+- [ ] Add window state logging (log window state when warning is triggered)
+- [ ] Implement window state detection for X11 (using xdotool/wmctrl)
+- [ ] Implement window state detection for Wayland (using swaymsg or similar, if available)
+- [ ] Add graceful fallback when window state detection tools unavailable
 - [x] Implement zenity popup command with modal flag
 - [x] Add fallback detection for alternative dialog tools (yad, kdialog) if zenity unavailable
 - [x] Add appropriate warning message text
@@ -122,6 +133,11 @@ The solution consists of eight main components:
 - [x] Add auto-reopen if closed prematurely - IMPLEMENTED: Reopens popup with countdown if closed during minimum display time
 - [x] Add countdown message in popup - IMPLEMENTED: Shows remaining time before popup can be closed
 - [ ] Test popup behavior with full-screen applications - NOT TESTED: Requires actual testing with full-screen games/applications
+- [ ] Test popup behavior in SteamOS Gaming Mode with no game running
+- [ ] Test popup behavior in SteamOS Gaming Mode with windowed games
+- [ ] Test popup behavior in SteamOS Gaming Mode with full-screen games
+- [ ] Test display detection in SteamOS Gaming Mode (gamescope/Wayland)
+- [ ] Test systemd user services persistence across Desktop Mode ↔ Gaming Mode transitions
 - [ ] Test minimum display time enforcement - NOT TESTED: Requires testing with wmctrl/xdotool on X11 systems
 - [ ] Test minimum display time on Wayland - NOT TESTED: Window manager tools don't work on Wayland, needs fallback testing
 - [ ] Consider using window manager tools to force popup on top if needed - IMPLEMENTED: wmctrl/xdotool used for window control, yad has --on-top flag
@@ -130,6 +146,12 @@ The solution consists of eight main components:
 - [x] Add shebang line (`#!/bin/bash`)
 - [x] Add error handling for missing dependencies
 - [x] Add logging capability (optional, to syslog or file) - Uses logger command if available
+- [ ] Add file-based logging to `~/.config/sleep-warning/warnings.log` for user-accessible logs
+- [ ] Log window state information (full-screen, exclusive, windowed, etc.) when warnings are triggered
+- [ ] Log display environment information (X11/Wayland, display identifier) when warnings are triggered
+- [ ] Log dialog tool used (zenity/yad/kdialog) for troubleshooting
+- [ ] Log popup success/failure status
+- [ ] Add log rotation or size limits to prevent log file from growing too large
 - [x] Add script header comments explaining purpose
 - [x] Make script executable (`chmod +x`)
 
@@ -295,6 +317,17 @@ The solution consists of eight main components:
 - [ ] **CRITICAL**: Test popup with full-screen game/application running
 - [ ] Verify popup appears on top of full-screen applications
 - [ ] Verify popup can steal focus from full-screen applications
+- [ ] **CRITICAL - SteamOS Gaming Mode**: Test systemd user services start automatically in Gaming Mode
+- [ ] **CRITICAL - SteamOS Gaming Mode**: Test display detection works with gamescope (Wayland compositor)
+- [ ] **CRITICAL - SteamOS Gaming Mode**: Test popup appears with no game running in Gaming Mode
+- [ ] **CRITICAL - SteamOS Gaming Mode**: Test popup appears with windowed game in Gaming Mode
+- [ ] **CRITICAL - SteamOS Gaming Mode**: Test popup appears with full-screen game in Gaming Mode
+- [ ] **CRITICAL - SteamOS Gaming Mode**: Test popup appears with exclusive full-screen game in Gaming Mode
+- [ ] **CRITICAL - SteamOS Gaming Mode**: Test popup appears with borderless windowed game in Gaming Mode
+- [ ] **CRITICAL - SteamOS Gaming Mode**: Test with Steam games (native and Proton)
+- [ ] **CRITICAL - SteamOS Gaming Mode**: Test with non-Steam games added to library
+- [ ] **CRITICAL - SteamOS Gaming Mode**: Test timer persistence when switching between Desktop Mode and Gaming Mode
+- [ ] **CRITICAL - SteamOS Gaming Mode**: Test service status after reboot into Gaming Mode
 
 #### Checklist 4.2: Edge Case Testing
 - [ ] Test at exact boundary times (00:00, 05:59, 06:00)
@@ -304,10 +337,19 @@ The solution consists of eight main components:
 - [ ] Test with malformed configuration entries
 - [ ] Test with configuration file containing comments
 - [ ] Test when DISPLAY is not set (should handle gracefully)
+- [ ] Test when WAYLAND_DISPLAY is not set (should handle gracefully)
+- [ ] Test when neither DISPLAY nor WAYLAND_DISPLAY is set (should use loginctl fallback)
 - [ ] Test when zenity is not available (should handle gracefully)
+- [ ] Test when all dialog tools unavailable (zenity, yad, kdialog) - should log error and exit gracefully
 - [ ] Test with multiple user sessions (if applicable)
 - [ ] Test on systems without GUI (should exit gracefully without errors)
 - [ ] Test on different desktop environments if available (GNOME, KDE, XFCE)
+- [ ] **SteamOS Gaming Mode**: Test when gamescope compositor is active (Wayland)
+- [ ] **SteamOS Gaming Mode**: Test display detection when switching from Desktop Mode to Gaming Mode
+- [ ] **SteamOS Gaming Mode**: Test display detection when switching from Gaming Mode to Desktop Mode
+- [ ] **SteamOS Gaming Mode**: Test when on-screen keyboard is active (may affect dialog input)
+- [ ] **SteamOS Gaming Mode**: Test with different game rendering technologies (Vulkan, DirectX via Proton)
+- [ ] **SteamOS Gaming Mode**: Test under heavy system load (game running, high CPU/GPU usage)
 
 #### Checklist 4.3: Installation and Uninstall Testing
 - [ ] Test install.sh on clean system (no previous installation)
@@ -339,6 +381,12 @@ The solution consists of eight main components:
 - [ ] Test behavior when system is suspended/resumed
 - [ ] Verify no performance impact from 10-minute checks
 - [ ] Check systemd logs for any errors
+- [ ] **SteamOS Gaming Mode**: Verify timer persists when booting directly into Gaming Mode
+- [ ] **SteamOS Gaming Mode**: Verify timer persists when booting into Desktop Mode then switching to Gaming Mode
+- [ ] **SteamOS Gaming Mode**: Verify timer persists when switching from Gaming Mode to Desktop Mode
+- [ ] **SteamOS Gaming Mode**: Test service status after system suspend/resume in Gaming Mode
+- [ ] **SteamOS Gaming Mode**: Verify no performance impact during gameplay (check CPU/GPU usage during timer trigger)
+- [ ] **SteamOS Gaming Mode**: Test with different SteamOS versions (if available) to ensure compatibility
 
 ### Phase 5: Documentation and Maintenance
 
@@ -364,6 +412,13 @@ The solution consists of eight main components:
 - [ ] Document how to disable/stop the service (with clear explanations of what this means)
 - [ ] Document how to re-enable the service
 - [ ] Document how to view service status and logs (with interpretation guide)
+- [ ] **Document log file locations** - Clearly explain where logs are stored:
+  - Systemd journal: `journalctl --user -u sleep-warning.service`
+  - User log file: `~/.config/sleep-warning/warnings.log`
+- [ ] **Document log file format** - Explain what information is logged (window state, display environment, dialog tool, etc.)
+- [ ] **Document how to view and interpret logs** - Step-by-step guide for users
+- [ ] **Document window state logging** - Explain what window states are detected and logged
+- [ ] **Document troubleshooting using logs** - How to use logs to diagnose issues
 - [ ] Document troubleshooting steps (organized by problem type)
 - [ ] Document distribution-specific troubleshooting
 - [ ] Include example configuration file with extensive comments
@@ -396,10 +451,16 @@ The solution consists of eight main components:
 #### Checklist 5.2: Maintenance Considerations
 - [ ] Document how to view timer status (with examples of what output means)
 - [ ] Document how to view service logs (with examples of normal vs. error logs)
+- [ ] Document how to view user log file (`~/.config/sleep-warning/warnings.log`)
+- [ ] Document log file location and how to access it
+- [ ] Document what information is logged (window state, display environment, dialog tool, timestamps)
+- [ ] Document how to interpret log entries (what different window states mean)
+- [ ] Document how to use logs for troubleshooting (identifying why popups didn't appear)
+- [ ] Document log file rotation or cleanup (if implemented)
 - [ ] Document how to modify the warning message (with examples)
 - [ ] Document how to change the check interval (if needed) (with warnings about impact)
 - [ ] **Document how to update the system** (if updates are released)
-- [ ] **Document how to report issues** (where to report, what information to include)
+- [ ] **Document how to report issues** (where to report, what information to include - emphasize including log file contents)
 - [ ] **Document how to get help** (community resources, support channels)
 
 #### Checklist 5.3: End-User Accessibility
@@ -457,7 +518,7 @@ LinuxTimerWarning/
 
 This system is designed to work on **any Linux distribution that uses systemd** as its init system, including but not limited to:
 
-- **Steam OS** (Arch-based)
+- **Steam OS** (Arch-based) - **Special Focus**: Maximum compatibility with both Desktop Mode and Gaming Mode
 - **Ubuntu** (18.04 and later)
 - **Debian** (8 and later)
 - **Fedora**
@@ -468,17 +529,20 @@ This system is designed to work on **any Linux distribution that uses systemd** 
 - **Pop!_OS**
 - **Linux Mint**
 
+**Note**: Special emphasis has been placed on ensuring compatibility with SteamOS in Gaming Mode, which presents unique challenges due to the gamescope Wayland compositor and full-screen gaming environment. See the "SteamOS Gaming Mode Compatibility" section for detailed information.
+
 ### Desktop Environment Compatibility
 
 The system requires a **graphical desktop environment** with GTK support:
 
 - ✅ **GNOME** - Full support
-- ✅ **KDE Plasma** - Full support (Steam OS uses KDE)
+- ✅ **KDE Plasma** - Full support (Steam OS Desktop Mode uses KDE)
 - ✅ **XFCE** - Full support
 - ✅ **LXDE/LXQt** - Full support
 - ✅ **MATE** - Full support
 - ✅ **Cinnamon** - Full support
 - ⚠️ **Tiling Window Managers** (i3, sway, etc.) - May work if GTK libraries are installed
+- ⚠️ **SteamOS Gaming Mode** (gamescope/Wayland) - Partial support, requires testing (see SteamOS Gaming Mode Compatibility section)
 - ❌ **Headless/Server Systems** - Not supported (no GUI)
 
 ### Not Compatible With
@@ -567,9 +631,13 @@ The script should:
 - Check if current hour falls within configured restricted range(s)
 
 ### Display Access
-- Check `$DISPLAY` environment variable
-- If not set, use `loginctl` to find active user session
-- Set DISPLAY before running zenity
+- **Primary Detection**: Check `$DISPLAY` environment variable (X11)
+- **Wayland Detection**: Check `$WAYLAND_DISPLAY` environment variable (Wayland/gamescope)
+- **SteamOS Gaming Mode**: Detect gamescope compositor and use appropriate display identifier
+- **Fallback Detection**: Use `loginctl` to find active user session and extract display information
+- **Last Resort**: Try common display values (`:0`, `/tmp/.X11-unix/X0`)
+- Set appropriate display environment variable (DISPLAY or WAYLAND_DISPLAY) before running dialog tools
+- Handle both X11 and Wayland display protocols appropriately
 
 ### Modal Popup
 - Use `zenity --warning --modal` to ensure user must interact
@@ -623,24 +691,35 @@ The script should:
 
 **Important Consideration**: The behavior of zenity popups with full-screen applications (especially games) can vary depending on:
 - Desktop environment and window manager (GNOME, KDE, XFCE, etc.)
+- Display protocol (X11 vs Wayland/gamescope)
 - Whether the application uses exclusive full-screen mode (bypasses window manager)
 - Whether the application uses borderless windowed mode (still managed by WM)
 - Compositor settings and window manager policies
 
 **Expected Behavior**:
-- zenity dialogs typically appear over full-screen applications in most Linux environments
-- However, exclusive full-screen games may block window manager dialogs
-- Behavior may vary between different desktop environments
-- Behavior should be tested with actual full-screen games on target systems
+- zenity dialogs typically appear over full-screen applications in most Linux environments (X11)
+- On Wayland/gamescope (SteamOS Gaming Mode), behavior may differ significantly
+- Exclusive full-screen games may block window manager dialogs on both X11 and Wayland
+- Behavior varies between different desktop environments and compositors
+- Behavior should be tested with actual full-screen games on target systems, especially SteamOS Gaming Mode
+
+**SteamOS Gaming Mode Specific Considerations**:
+- **gamescope Compositor**: Uses Wayland protocol, not X11
+- **Full-Screen Games**: May use exclusive full-screen mode that bypasses compositor
+- **Steam Overlay**: Native Steam overlay may be more reliable than external dialogs
+- **Window Manager Tools**: `wmctrl`/`xdotool` do not work on Wayland/gamescope
+- **Dialog Tool Limitations**: zenity dialogs may not receive keyboard input from Steam Deck's on-screen keyboard in Gaming Mode (known issue: https://github.com/ValveSoftware/SteamOS/issues/1039)
 
 **Potential Solutions if Issues Arise**:
 1. **Use `yad` instead of `zenity`**: `yad` offers `--on-top` flag for better control and works across multiple desktop environments
-2. **Use `kdialog` for KDE**: Native KDE dialog tool may work better on KDE-based systems
-3. **Window manager tools**: Use `wmctrl` or `xdotool` to force window raise/focus (requires X11, not Wayland)
-4. **Alternative notification methods**: Consider desktop-specific notification systems or compositor overlays
-5. **Test and document**: Identify which full-screen modes work on different desktop environments and document limitations
+2. **Use `kdialog` for KDE**: Native KDE dialog tool may work better on KDE-based systems (SteamOS uses KDE in Desktop Mode)
+3. **Window manager tools**: Use `wmctrl` or `xdotool` to force window raise/focus (requires X11, not Wayland/gamescope)
+4. **Steam Overlay Integration**: Consider integrating with Steam overlay for Gaming Mode compatibility (see Future Enhancements section)
+5. **Alternative notification methods**: Consider desktop-specific notification systems or compositor overlays
+6. **Wayland-specific protocols**: Use native Wayland protocols for notifications (requires different implementation approach)
+7. **Test and document**: Identify which full-screen modes work on different desktop environments and document limitations
 
-**Testing Priority**: This is a critical test case that should be verified early in development and tested on multiple desktop environments if possible.
+**Testing Priority**: This is a **CRITICAL** test case that must be verified early in development, with special emphasis on SteamOS Gaming Mode testing. Test on multiple desktop environments and both X11 and Wayland if possible.
 
 ### Timer Configuration
 - Use `OnCalendar=*:0/10` to run every 10 minutes
@@ -910,6 +989,16 @@ sleep-warning-manage
 4. **Log Monitoring**: Check `journalctl --user -u sleep-warning.service` for errors
 5. **Multi-Distribution Testing**: Test on different Linux distributions if possible (or document known compatibility)
 6. **Desktop Environment Testing**: Test on different desktop environments (GNOME, KDE, XFCE) if available
+7. **SteamOS Gaming Mode Testing**: **CRITICAL** - Extensive testing required for:
+   - Systemd user services in Gaming Mode
+   - Display detection with gamescope (Wayland)
+   - Popup appearance with various game states (no game, windowed, full-screen, exclusive full-screen)
+   - Timer persistence across Desktop Mode ↔ Gaming Mode transitions
+   - Performance impact during gameplay
+   - Compatibility with different game types (Steam native, Proton, non-Steam)
+8. **Display Protocol Testing**: Test on both X11 and Wayland environments
+9. **Edge Case Testing**: Test boundary conditions, missing dependencies, invalid configurations
+10. **Cross-Mode Testing**: Test behavior when switching between different modes (Desktop/Gaming, X11/Wayland)
 
 ## Portability Considerations
 
@@ -925,40 +1014,410 @@ The implementation should follow these principles to ensure maximum portability:
 2. **Dependency Detection**: Script should check for required tools and provide helpful error messages
    - Check for `zenity` availability
    - Check for `systemd` availability
-   - Check for GUI environment (DISPLAY variable or active session)
+   - Check for GUI environment (DISPLAY variable, WAYLAND_DISPLAY variable, or active session)
+   - Check for gamescope compositor (SteamOS Gaming Mode)
 
-3. **Fallback Options**: Consider implementing fallback dialog tools
+3. **Fallback Options**: Implement comprehensive fallback dialog tools
    - Primary: `zenity` (GTK, works on most systems)
-   - Fallback 1: `yad` (enhanced zenity alternative)
-   - Fallback 2: `kdialog` (KDE-specific, better on KDE systems)
+   - Fallback 1: `yad` (enhanced zenity alternative, better Wayland support, preferred for Gaming Mode)
+   - Fallback 2: `kdialog` (KDE-specific, better on KDE systems like SteamOS Desktop Mode)
    - Fallback 3: `notify-send` (non-modal, last resort)
+   - Environment-aware selection: Prefer yad for Gaming Mode, kdialog for KDE systems
 
-4. **Error Handling**: Gracefully handle missing dependencies
+4. **Display Protocol Support**: Support both X11 and Wayland
+   - **X11**: Check `$DISPLAY` environment variable, use X11 tools (xrandr, xdpyinfo)
+   - **Wayland**: Check `$WAYLAND_DISPLAY` environment variable, detect gamescope compositor
+   - **Fallback**: Use `loginctl` to find active sessions and extract display information
+   - **Multi-protocol**: Try X11 first, then Wayland, then fallbacks
+
+5. **Error Handling**: Gracefully handle missing dependencies
    - Log errors to systemd journal
    - Exit cleanly without breaking systemd service
    - Provide clear error messages for troubleshooting
+   - Handle both X11 and Wayland display detection failures gracefully
 
-5. **Distribution-Specific Notes**:
-   - **Wayland vs X11**: Some window manager tools (wmctrl, xdotool) only work on X11
+6. **Distribution-Specific Notes**:
+   - **Wayland vs X11**: Some window manager tools (wmctrl, xdotool) only work on X11, not Wayland/gamescope
+   - **SteamOS Gaming Mode**: Uses gamescope (Wayland), requires special display detection
    - **Package Manager Differences**: Document installation commands for each major distribution
    - **Service Management**: All systemd-based systems use the same commands (`systemctl --user`)
+   - **Desktop vs Gaming Mode**: Services must persist across mode transitions on SteamOS
 
-## Future Enhancements (Optional)
+## SteamOS Gaming Mode Compatibility
 
-- Different warning messages for weekdays vs weekends
-- Different warning messages per day of week
-- Escalating warnings (first warning, then stronger warning)
-- Logging of warning events
-- Ability to temporarily disable warnings (via config or command)
-- Integration with system sleep/hibernate detection
-- Multiple time ranges per day (e.g., 00:00-02:00 and 04:00-06:00) - IMPLEMENTED: Comma-separated ranges supported
-- Configurable warning message text
-- Configurable check interval (currently hardcoded to 10 minutes) - IMPLEMENTED: CHECK_INTERVAL configuration added
-- Configurable popup size and position - IMPLEMENTED: POPUP_SIZE and POPUP_POSITION configuration added
-- Configurable minimum display time (prevent closing/minimizing) - IMPLEMENTED: POPUP_MIN_DISPLAY_TIME configuration added (0-300 seconds, uses wmctrl/xdotool on X11)
-- Automatic fallback to alternative dialog tools if primary tool unavailable
-- Wayland-specific window management support
-- Distribution-specific optimizations (e.g., KDE-specific features on KDE systems)
+### Overview
+
+SteamOS Gaming Mode presents unique challenges for systemd-based warning systems due to its use of the gamescope Wayland compositor, focus on full-screen gaming experiences, and different environment setup compared to traditional desktop environments. This section outlines the compatibility considerations, implementation strategies, and testing requirements specific to SteamOS Gaming Mode.
+
+### Key Challenges
+
+1. **Display Environment Detection**
+   - Gaming Mode uses gamescope (Wayland compositor), not X11
+   - `DISPLAY` environment variable may not be set (Wayland uses `WAYLAND_DISPLAY`)
+   - Traditional X11 detection methods may fail
+   - Need to detect gamescope-specific display identifiers
+
+2. **Systemd User Services**
+   - User services should work in Gaming Mode, but need verification
+   - Services must persist across Desktop Mode ↔ Gaming Mode transitions
+   - Services must start automatically when booting directly into Gaming Mode
+
+3. **GUI Dialog Compatibility**
+   - zenity/yad/kdialog may not appear over exclusive full-screen games
+   - Dialogs may not receive keyboard input from Steam Deck's on-screen keyboard
+   - Window manager tools (wmctrl/xdotool) don't work on Wayland/gamescope
+   - Full-screen games may block compositor-level dialogs
+
+4. **Performance Considerations**
+   - Timer checks should not impact game performance
+   - Dialog display should not cause frame drops or stuttering
+   - System should handle high CPU/GPU load scenarios gracefully
+
+### Implementation Strategies
+
+#### Display Detection Enhancements
+
+**Current Implementation**:
+- Checks `$DISPLAY` (X11)
+- Falls back to `loginctl` session detection
+- Tries common X11 display values
+
+**Required Enhancements for Gaming Mode**:
+- [ ] Detect `$WAYLAND_DISPLAY` environment variable
+- [ ] Detect gamescope compositor (check for gamescope process or environment)
+- [ ] Use `loginctl` to find Wayland sessions
+- [ ] Query gamescope-specific display information if available
+- [ ] Implement multi-protocol display detection (try X11, then Wayland, then fallbacks)
+- [ ] Log display environment information (X11/Wayland, display identifier) to log file
+
+#### Window State Detection
+
+**Purpose**: Detect and log the state of the active window to help troubleshoot popup visibility issues, especially in Gaming Mode.
+
+**Required Implementation**:
+- [ ] Detect active window state (full-screen, exclusive full-screen, windowed, borderless windowed)
+- [ ] For X11: Use `xdotool` or `wmctrl` to query window state
+  - Check if window is full-screen
+  - Check if window is maximized
+  - Check if window is in exclusive full-screen mode (if detectable)
+  - Get window title/application name if available
+- [ ] For Wayland: Use `swaymsg` (if Sway/sway-based) or other Wayland tools if available
+  - Note: Limited window state detection on Wayland/gamescope
+  - Log that detection is limited on Wayland
+- [ ] Log window state information when warning is triggered
+- [ ] Include window state in log file entries (`~/.config/sleep-warning/warnings.log`)
+- [ ] Add graceful fallback when window state detection tools unavailable
+- [ ] Log window title/application name if available (for troubleshooting)
+
+**Log Format**:
+```
+[YYYY-MM-DD HH:MM:SS] WARNING_TRIGGERED | Window State: <state> | Display: <X11/Wayland> | Dialog Tool: <tool> | Popup Success: <yes/no> | Window Title: <title>
+```
+
+**Window States to Detect**:
+- `windowed` - Normal windowed mode
+- `borderless_windowed` - Borderless windowed mode
+- `fullscreen` - Full-screen (non-exclusive, compositor-managed)
+- `exclusive_fullscreen` - Exclusive full-screen (bypasses compositor)
+- `unknown` - Cannot determine (fallback when detection unavailable)
+- `no_window` - No active window detected
+
+**Log File Location**: `~/.config/sleep-warning/warnings.log`
+
+#### Dialog Tool Selection
+
+**Priority Order for Gaming Mode**:
+1. **yad** (if available): Better Wayland support, `--on-top` flag, more reliable over full-screen
+2. **kdialog** (if available): Native KDE tool, may work better on SteamOS (KDE-based in Desktop Mode)
+3. **zenity** (fallback): Standard GTK dialog, may have limitations in Gaming Mode
+
+**Implementation**:
+- [ ] Detect available dialog tools in priority order
+- [ ] Prefer yad for Gaming Mode if detected
+- [ ] Use kdialog as second choice (especially on SteamOS)
+- [ ] Fall back to zenity if others unavailable
+- [ ] Log which tool is used for troubleshooting
+
+#### Systemd Service Robustness
+
+**Required Enhancements**:
+- [ ] Ensure service starts in Gaming Mode (test after boot)
+- [ ] Verify service persists across mode transitions
+- [ ] Add service dependencies if needed (e.g., graphical-session.target)
+- [ ] Test service status in both Desktop and Gaming Modes
+- [ ] Document any Gaming Mode-specific service configuration
+
+### Testing Requirements
+
+See **Checklist 4.1**, **4.2**, and **4.4** for comprehensive SteamOS Gaming Mode testing requirements. Key test scenarios include:
+
+- Systemd user services in Gaming Mode
+- Display detection with gamescope
+- Popup appearance with various game states
+- Timer persistence across mode transitions
+- Performance impact during gameplay
+
+### Known Limitations
+
+1. **Exclusive Full-Screen Games**: May block dialog popups entirely
+   - **Workaround**: Use borderless windowed mode in games
+   - **Future Solution**: Steam Overlay integration (see Future Enhancements)
+   - **Logging**: Window state detection will log when exclusive full-screen is detected to help diagnose issues
+
+2. **On-Screen Keyboard**: zenity dialogs may not receive input from Steam Deck keyboard overlay
+   - **Reference**: https://github.com/ValveSoftware/SteamOS/issues/1039
+   - **Workaround**: Use yad or kdialog if available
+   - **Future Solution**: Steam Overlay integration
+   - **Logging**: Dialog tool used is logged to help identify when zenity issues occur
+
+3. **Window Manager Tools**: wmctrl/xdotool don't work on Wayland/gamescope
+   - **Impact**: Minimum display time feature has limited enforcement in Gaming Mode
+   - **Impact**: Window state detection is limited on Wayland/gamescope
+   - **Workaround**: Countdown message still shown, but window control unavailable
+   - **Logging**: Logs will indicate when window state detection is unavailable (Wayland limitation)
+
+4. **Dialog Visibility**: May vary by game type, rendering technology, and full-screen mode
+   - **Testing Required**: Extensive testing with different games and configurations
+   - **Documentation**: Document known working/not-working scenarios
+   - **Logging**: Window state and popup success/failure are logged to help identify patterns
+
+### Compatibility Status
+
+**Current Status**: ⚠️ **Partially Compatible - Requires Testing**
+
+- ✅ Systemd user services: Should work (needs verification)
+- ⚠️ Display detection: Needs Wayland/gamescope support (implementation required)
+- ⚠️ Dialog popups: May work but needs extensive testing
+- ❌ Window manager tools: Not compatible (Wayland limitation)
+- ⚠️ Full-screen games: Unknown compatibility (critical testing required)
+
+**Target Status**: ✅ **Fully Compatible** (after implementation and testing)
+
+## Future Enhancements and Alternatives
+
+This section outlines potential improvements and alternative approaches to enhance functionality, compatibility, and user experience. Each item is categorized as either **Complementary** (can be added to the current suite of scripts and files) or **Alternative Approach** (would require a different implementation strategy).
+
+### Complementary Enhancements (Can Be Added to Current System)
+
+These enhancements can be integrated into the existing bash script suite without requiring a complete redesign:
+
+#### 1. Enhanced Display Detection
+- **Description**: Improve display detection for Wayland/gamescope with multiple fallback strategies
+- **Implementation**: Add functions to detect `WAYLAND_DISPLAY`, gamescope compositor, and query Wayland sessions
+- **Files Affected**: `sleep-warning.sh`
+- **Priority**: High (required for SteamOS Gaming Mode compatibility)
+- **Status**: Partially implemented, needs enhancement
+
+#### 2. Dialog Tool Priority System
+- **Description**: Implement intelligent dialog tool selection based on environment (prefer yad for Gaming Mode, kdialog for KDE)
+- **Implementation**: Enhance `check_dialog_tool()` function with environment-aware selection
+- **Files Affected**: `sleep-warning.sh`
+- **Priority**: High (improves Gaming Mode compatibility)
+- **Status**: Basic implementation exists, needs enhancement
+
+#### 3. Systemd Service Environment Detection
+- **Description**: Detect Desktop Mode vs Gaming Mode and adjust behavior accordingly
+- **Implementation**: Add environment detection function, configure service based on mode
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.service`
+- **Priority**: Medium (improves compatibility)
+- **Status**: Not implemented
+
+#### 4. Configurable Warning Messages
+- **Description**: Allow users to customize warning message text per day or time range
+- **Implementation**: Add `MESSAGE_*` configuration options, update `show_warning()` function
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`, `configure.sh`
+- **Priority**: Low (nice-to-have feature)
+- **Status**: Not implemented
+
+#### 5. Escalating Warnings
+- **Description**: Show progressively stronger warnings if user continues using system during restricted hours
+- **Implementation**: Track warning count in temporary file, adjust message intensity
+- **Files Affected**: `sleep-warning.sh`
+- **Priority**: Low (enhancement feature)
+- **Status**: Not implemented
+
+#### 6. Warning Event Logging
+- **Description**: Log each warning event with timestamp, window state, display environment, and dialog tool to a file for user review
+- **Implementation**: 
+  - Add file-based logging function, write to `~/.config/sleep-warning/warnings.log`
+  - Log timestamp, window state (full-screen/exclusive/windowed), display environment (X11/Wayland), dialog tool used, popup success/failure
+  - Include window state detection (using xdotool/wmctrl for X11, swaymsg for Wayland if available)
+- **Files Affected**: `sleep-warning.sh`
+- **Priority**: High (critical for troubleshooting Gaming Mode compatibility)
+- **Status**: Not implemented
+
+#### 7. Temporary Disable via Config
+- **Description**: Allow users to temporarily disable warnings via configuration file or command
+- **Implementation**: Add `ENABLED=false` config option, check before showing warning
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`, `configure.sh`, `manage.sh`
+- **Priority**: Medium (useful feature)
+- **Status**: Not implemented
+
+#### 8. System Sleep/Hibernate Detection
+- **Description**: Skip warnings if system was recently resumed from sleep (user may have just woken up)
+- **Implementation**: Check system uptime or last resume time, skip warnings for configurable duration after resume
+- **Files Affected**: `sleep-warning.sh`
+- **Priority**: Low (enhancement feature)
+- **Status**: Not implemented
+
+#### 9. Audio Alerts
+- **Description**: Add optional audio notification (beep, sound file) alongside visual popup
+- **Implementation**: Use `paplay`, `aplay`, or `speaker-test` to play sound
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`
+- **Priority**: Low (enhancement feature)
+- **Status**: Not implemented
+
+#### 10. Desktop Notification Fallback
+- **Description**: Use desktop notification system (notify-send) as fallback if dialog tools fail
+- **Implementation**: Add notify-send as last-resort fallback in `show_warning()` function
+- **Files Affected**: `sleep-warning.sh`
+- **Priority**: Medium (improves compatibility)
+- **Status**: Not implemented
+
+#### 11. Wayland-Specific Window Management
+- **Description**: Implement Wayland-native window control using wlr-randr or similar tools
+- **Implementation**: Add Wayland-specific functions for screen info and window positioning
+- **Files Affected**: `sleep-warning.sh`
+- **Priority**: Medium (improves Wayland/gamescope compatibility)
+- **Status**: Not implemented (requires research into Wayland protocols)
+
+#### 12. Distribution-Specific Optimizations
+- **Description**: Add optimizations for specific distributions (e.g., KDE-specific features on KDE systems)
+- **Implementation**: Detect distribution/DE, apply appropriate optimizations
+- **Files Affected**: `sleep-warning.sh`
+- **Priority**: Low (enhancement feature)
+- **Status**: Not implemented
+
+### Alternative Approaches (Require Different Implementation)
+
+These approaches would require significant changes to the architecture or a completely different implementation strategy:
+
+#### 1. Steam Overlay Integration
+- **Description**: Integrate with Steam Overlay API to display warnings within Steam's native overlay system
+- **Why Alternative**: Requires Steamworks SDK, C/C++ development, different architecture
+- **Advantages**: 
+  - Guaranteed to work over full-screen games in Gaming Mode
+  - Native Steam integration
+  - Better user experience for Steam users
+- **Disadvantages**:
+  - Only works with Steam games
+  - Requires Steam to be running
+  - Significant development effort
+  - Different technology stack (C/C++ vs bash)
+- **Implementation Approach**:
+  - Develop C/C++ plugin using Steamworks SDK
+  - Create overlay notification system
+  - Integrate with existing systemd service (call plugin from bash script)
+- **Complementary Option**: Could be developed alongside current system as optional enhancement
+- **Priority**: High (best solution for SteamOS Gaming Mode full-screen games)
+- **Status**: Not implemented
+
+#### 2. Custom Wayland Protocol Implementation
+- **Description**: Develop custom Wayland protocol for notifications compatible with gamescope
+- **Why Alternative**: Requires deep Wayland protocol knowledge, C development, compositor integration
+- **Advantages**:
+  - Native Wayland support
+  - Works with gamescope
+  - Full control over notification behavior
+- **Disadvantages**:
+  - Very complex implementation
+  - Requires compositor modifications or extensions
+  - May not work with all compositors
+- **Implementation Approach**:
+  - Develop Wayland protocol extension
+  - Create compositor plugin or modification
+  - Integrate with existing system
+- **Complementary Option**: Could be developed as optional enhancement
+- **Priority**: Low (very complex, limited benefit over simpler solutions)
+- **Status**: Not implemented
+
+#### 3. Native Desktop Application (GUI Wrapper)
+- **Description**: Create full desktop application (GTK/Qt/Electron) to replace bash scripts
+- **Why Alternative**: Different technology stack, different architecture, different distribution method
+- **Advantages**:
+  - Better user experience
+  - Native GUI for configuration
+  - Can be packaged as AppImage/Flatpak/Snap
+  - System tray integration possible
+- **Disadvantages**:
+  - Requires GUI framework knowledge
+  - Larger codebase
+  - Different maintenance requirements
+  - May not work in Gaming Mode (needs desktop environment)
+- **Implementation Approach**:
+  - Develop GUI application (Python+GTK, Qt, or Electron)
+  - Replace configure.sh and manage.sh with GUI
+  - Keep systemd service integration
+- **Complementary Option**: Could be developed alongside bash scripts as alternative interface
+- **Priority**: Medium (improves user experience but not Gaming Mode compatibility)
+- **Status**: Not implemented (see Distribution Options section for details)
+
+#### 4. Systemd Timer Alternative (Cron-based)
+- **Description**: Use cron instead of systemd timers for scheduling
+- **Why Alternative**: Different scheduling system, different architecture
+- **Advantages**:
+  - Works on systems without systemd
+  - More traditional approach
+- **Disadvantages**:
+  - Less reliable than systemd timers
+  - Doesn't solve Gaming Mode compatibility issues
+  - Different service management
+- **Implementation Approach**:
+  - Create cron job instead of systemd timer
+  - Modify installation script
+  - Different service management
+- **Complementary Option**: Could be developed as alternative for non-systemd systems
+- **Priority**: Low (systemd is standard, limited benefit)
+- **Status**: Not implemented
+
+#### 5. Web-Based Configuration Interface
+- **Description**: Create web server for configuration and management
+- **Why Alternative**: Different architecture, requires web server, different access method
+- **Advantages**:
+  - Access from any device
+  - Modern interface
+  - Remote configuration possible
+- **Disadvantages**:
+  - Security concerns (local web server)
+  - Additional dependencies
+  - Doesn't solve Gaming Mode compatibility
+  - Overkill for simple configuration
+- **Implementation Approach**:
+  - Develop lightweight web server (Python Flask, Node.js, etc.)
+  - Create web interface
+  - Integrate with existing system
+- **Complementary Option**: Could be developed as optional enhancement
+- **Priority**: Very Low (unnecessary complexity)
+- **Status**: Not implemented
+
+### Recommended Implementation Priority
+
+**High Priority (Required for Gaming Mode Compatibility)**:
+1. Enhanced Display Detection (Wayland/gamescope)
+2. Dialog Tool Priority System
+3. Window State Detection and Logging (critical for troubleshooting)
+4. File-Based Logging with Window State Information
+5. Steam Overlay Integration (Alternative, but best solution)
+
+**Medium Priority (Improves Compatibility/Usability)**:
+6. Systemd Service Environment Detection
+7. Desktop Notification Fallback
+8. Wayland-Specific Window Management
+9. Temporary Disable via Config
+
+**Low Priority (Nice-to-Have Enhancements)**:
+10. Configurable Warning Messages
+11. Escalating Warnings
+12. Audio Alerts
+13. Distribution-Specific Optimizations
+
+### Implementation Notes
+
+- **Complementary enhancements** can be added incrementally without breaking existing functionality
+- **Alternative approaches** should be evaluated carefully as they may require significant development effort
+- **Steam Overlay Integration** is the most promising solution for full Gaming Mode compatibility but requires the most development effort
+- All enhancements should maintain backward compatibility with existing configurations
+- Testing should be performed for each enhancement, especially Gaming Mode compatibility
 
 ## Distribution and Packaging Options
 
