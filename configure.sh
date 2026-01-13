@@ -134,8 +134,8 @@ get_popup_size_config() {
                 --text="Select popup size (current: ${default_size}):" \
                 --column="Size" --column="Dimensions" \
                 "small" "300x225 pixels" \
-                "medium" "500x375 pixels" \
-                "large" "875x660 pixels" \
+                "medium" "600x400 pixels" \
+                "large" "1400x1000 pixels" \
                 --hide-column=2 \
                 --print-column=1 \
                 > "${tmpfile}" 2>/dev/null

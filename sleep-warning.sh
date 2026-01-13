@@ -347,12 +347,12 @@ get_popup_dimensions() {
             height=225
             ;;
         medium)
-            width=500
-            height=375
+            width=600
+            height=400
             ;;
         large)
-            width=875
-            height=660
+            width=1400
+            height=1000
             ;;
         *)
             # Custom format (WIDTHxHEIGHT)
