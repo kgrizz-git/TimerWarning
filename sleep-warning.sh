@@ -343,15 +343,15 @@ get_popup_dimensions() {
     
     case "${size}" in
         small)
-            width=300
-            height=225
+            width=400
+            height=250
             ;;
         medium)
-            width=750
+            width=800
             height=500
             ;;
         large)
-            width=1950
+            width=2000
             height=1350
             ;;
         *)

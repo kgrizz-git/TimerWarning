@@ -133,9 +133,9 @@ get_popup_size_config() {
                 --title="Sleep Warning Configuration" \
                 --text="Select popup size (current: ${default_size}):" \
                 --column="Size" --column="Dimensions" \
-                "small" "300x225 pixels" \
-                "medium" "750x500 pixels" \
-                "large" "1950x1350 pixels" \
+                "small" "400x250 pixels" \
+                "medium" "800x500 pixels" \
+                "large" "2000x1350 pixels" \
                 --hide-column=2 \
                 --print-column=1 \
                 > "${tmpfile}" 2>/dev/null
