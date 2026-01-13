@@ -12,6 +12,39 @@ This project implements a systemd-based monitoring system that displays interact
 
 The restricted hours for each day of the week are easily configurable through a simple configuration file, allowing users to customize the warning schedule to their needs. The popup dialogs are modal and require user interaction before they can be dismissed, ensuring the user is aware of the late-night usage. The system runs as a user service (not system-wide) to ensure proper display access and user context.
 
+## Disclaimer
+
+**IMPORTANT - PLEASE READ CAREFULLY**
+
+This software is provided "AS IS", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.
+
+**User Responsibility**:
+- Users are responsible for backing up important data before installing or using this software
+- Users are responsible for ensuring system stability and compatibility before installation
+- Users acknowledge that they use this software at their own risk
+- The developers are not responsible for any errors, data loss, system instability, or adverse effects resulting from the use of this software
+- The developers are not responsible for any consequences of missed warnings or system failures
+- Users should test the software in a safe environment before relying on it for important use cases
+
+**System Modifications**:
+- This software modifies systemd user services and system configuration
+- Improper installation or configuration may affect system behavior
+- Users should understand systemd services and Linux system administration before installing
+- Uninstallation should be performed using the provided uninstall script
+
+**Compatibility**:
+- While extensive testing is planned, compatibility cannot be guaranteed for all systems
+- Some features may not work on all Linux distributions or desktop environments
+- SteamOS Gaming Mode compatibility is actively being developed but may have limitations
+- Users should verify compatibility with their specific system before installation
+
+**Support**:
+- Support is provided on a best-effort basis
+- No guarantee is made regarding response time or resolution of issues
+- Users are encouraged to review logs and documentation before requesting support
+
+By installing or using this software, you acknowledge that you have read, understood, and agree to this disclaimer. If you do not agree, do not install or use this software.
+
 ## Architecture Overview
 
 The solution consists of eight main components:
@@ -314,6 +347,11 @@ The solution consists of eight main components:
 - [ ] Verify popup appears and is modal (blocks interaction)
 - [ ] Verify popup can be dismissed by user
 - [ ] Test timer triggers every 10 minutes correctly
+- [ ] Test minimum display time enforcement - NOT TESTED: Requires testing with wmctrl/xdotool on X11 systems
+- [ ] Test minimum display time on Wayland - NOT TESTED: Window manager tools don't work on Wayland, needs fallback testing
+- [ ] Test auto-reopen functionality - NOT TESTED: Verify popup reopens correctly when closed prematurely
+- [ ] Test countdown accuracy - NOT TESTED: Verify countdown updates correctly
+- [ ] Test graceful fallback without window tools - NOT TESTED: Verify countdown still works without wmctrl/xdotool
 - [ ] **CRITICAL**: Test popup with full-screen game/application running
 - [ ] Verify popup appears on top of full-screen applications
 - [ ] Verify popup can steal focus from full-screen applications
@@ -344,6 +382,8 @@ The solution consists of eight main components:
 - [ ] Test with multiple user sessions (if applicable)
 - [ ] Test on systems without GUI (should exit gracefully without errors)
 - [ ] Test on different desktop environments if available (GNOME, KDE, XFCE)
+- [ ] Test minimum display time with different window managers - NOT TESTED: Test on GNOME, KDE, XFCE, etc.
+- [ ] Test window stays on top during timeout - NOT TESTED: Verify window manager tools work correctly
 - [ ] **SteamOS Gaming Mode**: Test when gamescope compositor is active (Wayland)
 - [ ] **SteamOS Gaming Mode**: Test display detection when switching from Desktop Mode to Gaming Mode
 - [ ] **SteamOS Gaming Mode**: Test display detection when switching from Gaming Mode to Desktop Mode
@@ -391,6 +431,10 @@ The solution consists of eight main components:
 ### Phase 5: Documentation and Maintenance
 
 #### Checklist 5.1: Documentation
+- [ ] Add disclaimer section to README.md (prominently placed, user must acknowledge)
+- [ ] Add disclaimer to installation script (display before installation)
+- [ ] Add disclaimer to uninstall script (if applicable)
+- [ ] Ensure disclaimer is visible in all user-facing documentation
 - [ ] Create comprehensive README.md with project overview
 - [ ] **Create GETTING_STARTED.md** - Simple step-by-step guide for first-time users
 - [ ] **Create USER_GUIDE.md** - Detailed end-user documentation with examples
@@ -419,6 +463,10 @@ The solution consists of eight main components:
 - [ ] **Document how to view and interpret logs** - Step-by-step guide for users
 - [ ] **Document window state logging** - Explain what window states are detected and logged
 - [ ] **Document troubleshooting using logs** - How to use logs to diagnose issues
+- [ ] Document minimum display time feature in user documentation
+- [ ] Document wmctrl/xdotool as optional dependencies
+- [ ] Document X11 vs Wayland limitations for minimum display time feature
+- [ ] Add troubleshooting section for minimum display time issues
 - [ ] Document troubleshooting steps (organized by problem type)
 - [ ] Document distribution-specific troubleshooting
 - [ ] Include example configuration file with extensive comments
@@ -1410,6 +1458,10 @@ These approaches would require significant changes to the architecture or a comp
 11. Escalating Warnings
 12. Audio Alerts
 13. Distribution-Specific Optimizations
+14. Wayland support for minimum display time (would require different approach)
+15. More robust window control (prevent all close methods, not just window manager)
+16. Visual countdown timer in popup (instead of just text)
+17. Configurable auto-reopen behavior
 
 ### Implementation Notes
 
@@ -1419,261 +1471,4 @@ These approaches would require significant changes to the architecture or a comp
 - All enhancements should maintain backward compatibility with existing configurations
 - Testing should be performed for each enhancement, especially Gaming Mode compatibility
 
-## Distribution and Packaging Options
-
-### Current Distribution Method
-
-The project currently uses a traditional installation approach:
-- Source code repository (Git)
-- Installation script (`install.sh`) that copies files to system locations
-- Manual installation via systemd user services
-- Configuration via command-line scripts
-
-### Alternative Distribution Options
-
-#### Option 1: Single Executable Installer Script
-
-**Description**: Bundle all files into a single self-extracting installer script that users can download and run.
-
-**Advantages**:
-- Single file to download
-- Easy distribution (GitHub releases, direct download)
-- No package manager required
-- Works across all distributions
-- Can include all dependencies bundled
-
-**Implementation Approach**:
-- Create a shell script that contains all project files as base64-encoded data
-- Script extracts files to temporary directory
-- Runs installation process
-- Cleans up temporary files
-- Can be made executable with `chmod +x`
-
-**Example Structure**:
-```bash
-#!/bin/bash
-# Self-extracting installer
-# Contains: sleep-warning.sh, configure.sh, manage.sh, systemd files, etc.
-
-# Extract embedded files
-# Run install.sh
-# Clean up
-```
-
-**Checklist**:
-- [ ] Create self-extracting installer script template
-- [ ] Add file embedding mechanism (base64 or here-document)
-- [ ] Add extraction logic
-- [ ] Integrate with existing install.sh
-- [ ] Test on multiple distributions
-- [ ] Create build script to generate installer
-- [ ] Document usage and distribution
-
-#### Option 2: Desktop GUI Application Wrapper
-
-**Description**: Create a desktop application (using GTK, Qt, or Electron) that provides a GUI for configuration and management.
-
-**Advantages**:
-- User-friendly graphical interface
-- No command-line knowledge required
-- Can be packaged as AppImage, Flatpak, or Snap
-- Provides visual feedback and status
-- Can include system tray integration
-
-**Implementation Approach**:
-- Use Python with GTK (PyGObject) or similar
-- Create GUI windows for:
-  - Configuration wizard (replaces configure.sh)
-  - Management interface (replaces manage.sh)
-  - Status display
-  - Settings panel
-- Backend still uses systemd services
-- Can be packaged as AppImage or Flatpak
-
-**Technologies**:
-- **Python + GTK**: Lightweight, native Linux look
-- **Electron**: Cross-platform, modern UI, larger size
-- **Qt/QML**: Native, good performance, cross-platform
-
-**Checklist**:
-- [ ] Choose GUI framework (GTK/Qt/Electron)
-- [ ] Design GUI mockups/wireframes
-- [ ] Implement configuration GUI
-- [ ] Implement management GUI
-- [ ] Implement status display
-- [ ] Integrate with systemd services
-- [ ] Add system tray icon (optional)
-- [ ] Create desktop entry file
-- [ ] Package as AppImage/Flatpak/Snap
-- [ ] Test on multiple desktop environments
-
-#### Option 3: Flatpak Package
-
-**Description**: Package the application as a Flatpak for easy distribution across Linux distributions.
-
-**Advantages**:
-- Works on any Linux distribution with Flatpak support
-- Sandboxed execution
-- Automatic dependency management
-- Easy installation: `flatpak install sleep-warning`
-- Centralized distribution (Flathub)
-
-**Requirements**:
-- Flatpak manifest file (`.flatpak.json` or `.yaml`)
-- Application metadata
-- Desktop entry file
-- Icon files
-- Build system setup
-
-**Implementation Approach**:
-- Create Flatpak manifest defining:
-  - Runtime dependencies (systemd, bash, zenity)
-  - Application files
-  - Permissions (user service access)
-- Build Flatpak package
-- Submit to Flathub or host repository
-
-**Checklist**:
-- [ ] Create Flatpak manifest file
-- [ ] Define runtime and SDK requirements
-- [ ] Configure application permissions
-- [ ] Create desktop entry and metadata
-- [ ] Create application icons
-- [ ] Build Flatpak package locally
-- [ ] Test Flatpak installation and functionality
-- [ ] Set up build automation (CI/CD)
-- [ ] Submit to Flathub or create repository
-- [ ] Document Flatpak installation process
-
-#### Option 4: Snap Package
-
-**Description**: Package the application as a Snap for Ubuntu and other Snap-supported distributions.
-
-**Advantages**:
-- Works on Ubuntu, Debian, Fedora, Arch (with snapd)
-- Automatic updates
-- Sandboxed execution
-- Centralized distribution (Snap Store)
-
-**Requirements**:
-- Snapcraft YAML file (`snapcraft.yaml`)
-- Application metadata
-- Desktop entry file
-- Icon files
-- Build system setup
-
-**Implementation Approach**:
-- Create `snapcraft.yaml` defining:
-  - Base and build packages
-  - Application files and scripts
-  - Plugs and slots for systemd access
-  - Desktop integration
-- Build Snap package
-- Submit to Snap Store
-
-**Checklist**:
-- [ ] Create snapcraft.yaml file
-- [ ] Define base and build requirements
-- [ ] Configure plugs for systemd user services
-- [ ] Create desktop entry and metadata
-- [ ] Create application icons
-- [ ] Build Snap package locally
-- [ ] Test Snap installation and functionality
-- [ ] Set up build automation (CI/CD)
-- [ ] Submit to Snap Store
-- [ ] Document Snap installation process
-
-#### Option 5: Hybrid Approach (Recommended)
-
-**Description**: Provide multiple distribution methods to suit different user preferences and technical levels.
-
-**Distribution Methods**:
-1. **Traditional**: Source code + install.sh (current method)
-2. **Single Installer**: Self-extracting executable script
-3. **GUI App**: Desktop application (AppImage or Flatpak)
-4. **Package Manager**: Flatpak or Snap for easy installation
-
-**Implementation Strategy**:
-- Keep current installation method for advanced users
-- Add single installer script for convenience
-- Develop GUI application wrapper
-- Package GUI app as Flatpak/Snap
-- Provide clear documentation for each method
-
-**Checklist**:
-- [ ] Maintain current installation method
-- [ ] Implement single installer script (Option 1)
-- [ ] Develop GUI application (Option 2)
-- [ ] Package GUI as Flatpak (Option 3)
-- [ ] Package GUI as Snap (Option 4)
-- [ ] Create unified documentation covering all methods
-- [ ] Set up automated builds for all packages
-- [ ] Create release process for all distribution formats
-
-### Recommendations
-
-**For End-User Ease**: 
-- **Priority 1**: Single executable installer script (Option 1) - Easiest to implement, works everywhere
-- **Priority 2**: GUI application wrapper (Option 2) - Best user experience, can be packaged
-
-**For Distribution**:
-- **Priority 1**: Flatpak (Option 3) - Best cross-distribution support, modern packaging
-- **Priority 2**: Snap (Option 4) - Good for Ubuntu users, automatic updates
-
-**For Maximum Compatibility**:
-- Provide all methods: Traditional install, single installer, GUI app, and packaged versions
-- Let users choose based on their technical level and distribution preferences
-
-## Minimum Display Time Feature - Implementation Status
-
-### Completed Tasks
-
-#### Configuration System (Checklist 1.2)
-- [x] Add configurable minimum display time - IMPLEMENTED: POPUP_MIN_DISPLAY_TIME setting (0-300 seconds, prevents closing/minimizing)
-
-#### Display and Popup Functionality (Checklist 1.4)
-- [x] Implement minimum display time enforcement - IMPLEMENTED: POPUP_MIN_DISPLAY_TIME prevents closing/minimizing for configured duration
-- [x] Add window manager tool detection - IMPLEMENTED: Checks for wmctrl/xdotool for window control
-- [x] Add window unclosable functionality - IMPLEMENTED: Uses wmctrl/xdotool to make window sticky and prevent closing
-- [x] Add auto-reopen if closed prematurely - IMPLEMENTED: Reopens popup with countdown if closed during minimum display time
-- [x] Add countdown message in popup - IMPLEMENTED: Shows remaining time before popup can be closed
-- [x] Consider using window manager tools to force popup on top if needed - IMPLEMENTED: wmctrl/xdotool used for window control, yad has --on-top flag
-
-#### Interactive Configuration Script (Checklist 1.6)
-- [x] Add prompt for minimum display time configuration - IMPLEMENTED: Prompts for POPUP_MIN_DISPLAY_TIME (0-300 seconds)
-- [x] Display summary including interval, size, and position - IMPLEMENTED: Summary shows all configuration options including minimum display time
-- [x] Write minimum display time to config file - IMPLEMENTED: POPUP_MIN_DISPLAY_TIME saved to config
-
-#### Code Implementation
-- [x] Add `get_min_display_time()` function - Reads POPUP_MIN_DISPLAY_TIME from config
-- [x] Add `check_window_tools()` function - Detects wmctrl/xdotool availability
-- [x] Add `make_window_unclosable()` function - Uses window manager tools to prevent closing
-- [x] Add `reenable_window_closing()` function - Re-enables closing after timeout
-- [x] Integrate minimum display time into `show_warning()` function
-- [x] Add countdown message to popup text
-- [x] Implement monitoring and auto-reopen logic
-- [x] Add graceful fallback when window tools unavailable
-
-### Remaining Tasks
-
-#### Testing (Not Yet Completed)
-- [ ] Test minimum display time enforcement - NOT TESTED: Requires testing with wmctrl/xdotool on X11 systems
-- [ ] Test minimum display time on Wayland - NOT TESTED: Window manager tools don't work on Wayland, needs fallback testing
-- [ ] Test auto-reopen functionality - NOT TESTED: Verify popup reopens correctly when closed prematurely
-- [ ] Test countdown accuracy - NOT TESTED: Verify countdown updates correctly
-- [ ] Test with different window managers - NOT TESTED: Test on GNOME, KDE, XFCE, etc.
-- [ ] Test window stays on top during timeout - NOT TESTED: Verify window manager tools work correctly
-- [ ] Test graceful fallback without window tools - NOT TESTED: Verify countdown still works without wmctrl/xdotool
-
-#### Documentation (Not Yet Completed)
-- [ ] Document minimum display time feature in user documentation
-- [ ] Document wmctrl/xdotool as optional dependencies
-- [ ] Document X11 vs Wayland limitations
-- [ ] Document configuration options in README
-- [ ] Add troubleshooting section for minimum display time issues
-
-#### Future Enhancements (Optional)
-- [ ] Wayland support for minimum display time (would require different approach)
-- [ ] More robust window control (prevent all close methods, not just window manager)
-- [ ] Visual countdown timer in popup (instead of just text)
-- [ ] Configurable auto-reopen behavior
+**Note**: For information about distribution and packaging options, see `DISTRIBUTION_OPTIONS.md`.
