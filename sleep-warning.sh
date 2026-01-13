@@ -30,6 +30,8 @@
 SCRIPT_NAME="sleep-warning"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
 CONFIG_FILE="${CONFIG_DIR}/sleep-warning.conf"
+LOG_FILE="${CONFIG_DIR}/warnings.log"
+MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10 MB max log size
 
 # Default check interval (in minutes) - used if config file missing or invalid
 DEFAULT_CHECK_INTERVAL=10
@@ -68,6 +70,135 @@ log_message() {
     fi
 }
 
+# File-based logging function
+log_to_file() {
+    local level="$1"
+    shift
+    local message="$*"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    # Ensure log directory exists
+    mkdir -p "${CONFIG_DIR}"
+    
+    # Rotate log if it exceeds max size
+    if [ -f "${LOG_FILE}" ] && [ -s "${LOG_FILE}" ]; then
+        local log_size
+        log_size=$(stat -f%s "${LOG_FILE}" 2>/dev/null || stat -c%s "${LOG_FILE}" 2>/dev/null || echo 0)
+        if [ "${log_size}" -gt "${MAX_LOG_SIZE}" ]; then
+            # Rotate: keep last 1000 lines
+            tail -n 1000 "${LOG_FILE}" > "${LOG_FILE}.tmp" 2>/dev/null && mv "${LOG_FILE}.tmp" "${LOG_FILE}" 2>/dev/null
+        fi
+    fi
+    
+    # Append to log file
+    echo "[${timestamp}] [${level}] ${message}" >> "${LOG_FILE}" 2>/dev/null
+}
+
+# Detect display environment type (X11, Wayland, gamescope)
+detect_display_environment() {
+    # Check for Wayland first (including gamescope)
+    if [ -n "${WAYLAND_DISPLAY}" ]; then
+        # Check if gamescope is running
+        if pgrep -x gamescope >/dev/null 2>&1 || [ -n "${GAMESCOPE_SESSION}" ]; then
+            echo "gamescope"
+            return 0
+        else
+            echo "wayland"
+            return 0
+        fi
+    fi
+    
+    # Check for X11
+    if [ -n "${DISPLAY}" ]; then
+        echo "x11"
+        return 0
+    fi
+    
+    # Try to detect via loginctl
+    if command -v loginctl >/dev/null 2>&1; then
+        local session_id
+        session_id=$(loginctl list-sessions --no-legend 2>/dev/null | grep "$(whoami)" | grep -v "tty" | head -n1 | awk '{print $1}')
+        
+        if [ -n "${session_id}" ]; then
+            local session_type
+            session_type=$(loginctl show-session "${session_id}" -p Type --value 2>/dev/null)
+            
+            if [ "${session_type}" = "wayland" ]; then
+                # Check if it's gamescope
+                if pgrep -x gamescope >/dev/null 2>&1; then
+                    echo "gamescope"
+                    return 0
+                else
+                    echo "wayland"
+                    return 0
+                fi
+            elif [ "${session_type}" = "x11" ]; then
+                echo "x11"
+                return 0
+            fi
+        fi
+    fi
+    
+    # Default fallback
+    echo "unknown"
+    return 1
+}
+
+# Get display identifier (DISPLAY or WAYLAND_DISPLAY value)
+get_display_identifier() {
+    local env_type="$1"
+    
+    case "${env_type}" in
+        x11)
+            if [ -n "${DISPLAY}" ]; then
+                echo "${DISPLAY}"
+                return 0
+            fi
+            ;;
+        wayland|gamescope)
+            if [ -n "${WAYLAND_DISPLAY}" ]; then
+                echo "${WAYLAND_DISPLAY}"
+                return 0
+            fi
+            ;;
+    esac
+    
+    # Fallback: try to get from loginctl
+    if command -v loginctl >/dev/null 2>&1; then
+        local session_id
+        session_id=$(loginctl list-sessions --no-legend 2>/dev/null | grep "$(whoami)" | grep -v "tty" | head -n1 | awk '{print $1}')
+        
+        if [ -n "${session_id}" ]; then
+            if [ "${env_type}" = "x11" ]; then
+                local display_env
+                display_env=$(loginctl show-session "${session_id}" -p Display --value 2>/dev/null)
+                if [ -n "${display_env}" ]; then
+                    echo "${display_env}"
+                    return 0
+                fi
+            else
+                # For Wayland, try to get from session
+                local wayland_display
+                wayland_display=$(loginctl show-session "${session_id}" -p Display --value 2>/dev/null)
+                if [ -n "${wayland_display}" ]; then
+                    echo "${wayland_display}"
+                    return 0
+                fi
+            fi
+        fi
+    fi
+    
+    # Last resort for X11
+    if [ "${env_type}" = "x11" ] && [ -S "/tmp/.X11-unix/X0" ]; then
+        echo ":0"
+        return 0
+    fi
+    
+    echo "unknown"
+    return 1
+}
+
 # Check if a dialog tool is available
 check_dialog_tool() {
     if command -v zenity >/dev/null 2>&1; then
@@ -84,30 +215,37 @@ check_dialog_tool() {
     fi
 }
 
-# Get DISPLAY environment variable, with fallback
+# Get DISPLAY environment variable, with fallback (enhanced for Wayland and gamescope)
 get_display() {
-    # First, check if DISPLAY is already set
-    if [ -n "${DISPLAY}" ]; then
-        echo "${DISPLAY}"
-        return 0
-    fi
+    local env_type
+    env_type=$(detect_display_environment)
     
-    # Try to find active user session using loginctl
-    if command -v loginctl >/dev/null 2>&1; then
-        local session_id
-        session_id=$(loginctl list-sessions --no-legend 2>/dev/null | grep "$(whoami)" | grep -v "tty" | head -n1 | awk '{print $1}')
-        
-        if [ -n "${session_id}" ]; then
-            local display_env
-            display_env=$(loginctl show-session "${session_id}" -p Display --value 2>/dev/null)
-            if [ -n "${display_env}" ]; then
-                echo "${display_env}"
+    case "${env_type}" in
+        x11)
+            local display_id
+            display_id=$(get_display_identifier "x11")
+            if [ -n "${display_id}" ] && [ "${display_id}" != "unknown" ]; then
+                echo "${display_id}"
                 return 0
             fi
-        fi
-    fi
+            ;;
+        wayland|gamescope)
+            local wayland_id
+            wayland_id=$(get_display_identifier "wayland")
+            if [ -n "${wayland_id}" ] && [ "${wayland_id}" != "unknown" ]; then
+                # For Wayland, try to find X11 display as fallback for tools that need it
+                if [ -S "/tmp/.X11-unix/X0" ]; then
+                    echo ":0"
+                    return 0
+                fi
+                # Return wayland display identifier (will be used to set WAYLAND_DISPLAY in show_warning)
+                echo "${wayland_id}"
+                return 0
+            fi
+            ;;
+    esac
     
-    # Last resort: try common display values
+    # Last resort: try common X11 display values
     if [ -S "/tmp/.X11-unix/X0" ]; then
         echo ":0"
         return 0
@@ -279,6 +417,125 @@ check_window_tools() {
     else
         return 1
     fi
+}
+
+# Detect active window state (X11)
+detect_window_state_x11() {
+    local tool="$1"
+    local state="unknown"
+    local window_title=""
+    
+    # Use xdotool if available (works with both wmctrl and xdotool tool selection)
+    if command -v xdotool >/dev/null 2>&1; then
+        # Get active window ID
+        local active_id
+        active_id=$(xdotool getactivewindow 2>/dev/null)
+        
+        if [ -n "${active_id}" ]; then
+            # Get window title
+            window_title=$(xdotool getwindowname "${active_id}" 2>/dev/null)
+            
+            # Check window state using xprop (most reliable)
+            if command -v xprop >/dev/null 2>&1; then
+                local net_wm_state
+                net_wm_state=$(xprop -id "${active_id}" _NET_WM_STATE 2>/dev/null)
+                
+                if echo "${net_wm_state}" | grep -q "_NET_WM_STATE_FULLSCREEN"; then
+                    state="fullscreen"
+                elif echo "${net_wm_state}" | grep -q "_NET_WM_STATE_MAXIMIZED_HORZ" && echo "${net_wm_state}" | grep -q "_NET_WM_STATE_MAXIMIZED_VERT"; then
+                    state="maximized"
+                else
+                    state="windowed"
+                fi
+            else
+                # Fallback: check window geometry (less reliable)
+                local geometry
+                geometry=$(xdotool getwindowgeometry "${active_id}" 2>/dev/null)
+                # Without xprop, we can't reliably detect fullscreen
+                state="windowed (detection limited)"
+            fi
+        fi
+    elif [ "${tool}" = "wmctrl" ] && command -v wmctrl >/dev/null 2>&1; then
+        # Fallback to wmctrl if xdotool not available
+        # Get active window using wmctrl (limited)
+        local active_list
+        active_list=$(wmctrl -l 2>/dev/null | head -n1)
+        if [ -n "${active_list}" ]; then
+            # Extract window title (last field)
+            window_title=$(echo "${active_list}" | awk '{$1=$2=$3=""; print $0}' | sed 's/^[[:space:]]*//')
+            # wmctrl alone can't reliably detect fullscreen state
+            state="windowed (detection limited)"
+        fi
+    fi
+    
+    # Output format: state|title
+    echo "${state}|${window_title}"
+}
+
+# Detect active window state (Wayland)
+detect_window_state_wayland() {
+    local env_type="$1"
+    local state="unknown"
+    local window_title=""
+    
+    # Wayland window state detection is limited
+    if [ "${env_type}" = "gamescope" ]; then
+        # gamescope-specific: check if a game is running
+        if pgrep -x gamescope >/dev/null 2>&1; then
+            # Try to detect if we're in a game (limited detection)
+            # Most games in gamescope will be fullscreen
+            state="fullscreen (gamescope)"
+            window_title="gamescope session"
+        else
+            state="unknown (gamescope)"
+        fi
+    else
+        # Try swaymsg if available (Sway/i3)
+        if command -v swaymsg >/dev/null 2>&1; then
+            local focused
+            focused=$(swaymsg -t get_tree | grep -A 10 '"focused": true' 2>/dev/null | head -n20)
+            if [ -n "${focused}" ]; then
+                # Extract window title if available
+                window_title=$(echo "${focused}" | grep -o '"name": "[^"]*"' 2>/dev/null | head -n1 | cut -d'"' -f4)
+                # Check if fullscreen
+                local fullscreen_mode
+                fullscreen_mode=$(echo "${focused}" | grep -o '"fullscreen_mode": [0-9]*' 2>/dev/null | cut -d' ' -f2)
+                if [ -n "${fullscreen_mode}" ] && [ "${fullscreen_mode}" != "0" ]; then
+                    state="fullscreen"
+                else
+                    state="windowed"
+                fi
+            fi
+        else
+            # Limited detection on Wayland without swaymsg
+            state="unknown (wayland - limited detection)"
+        fi
+    fi
+    
+    # Output format: state|title
+    echo "${state}|${window_title}"
+}
+
+# Detect window state (wrapper function)
+detect_window_state() {
+    local env_type="$1"
+    local window_tool="$2"
+    
+    case "${env_type}" in
+        x11)
+            if [ -n "${window_tool}" ]; then
+                detect_window_state_x11 "${window_tool}"
+            else
+                echo "unknown|"
+            fi
+            ;;
+        wayland|gamescope)
+            detect_window_state_wayland "${env_type}"
+            ;;
+        *)
+            echo "unknown|"
+            ;;
+    esac
 }
 
 # Make window unclosable and unminimizable using window manager tools
@@ -558,22 +815,55 @@ is_restricted_hour() {
 show_warning() {
     local dialog_tool
     local display_env
+    local env_type
+    local display_id
+    
+    # Detect display environment type
+    env_type=$(detect_display_environment)
+    display_id=$(get_display_identifier "${env_type}")
     
     # Get display environment
     display_env=$(get_display)
     if [ -z "${display_env}" ]; then
         log_message "warning" "No display available, cannot show warning popup"
+        log_to_file "WARNING" "No display available, cannot show warning popup"
         return 1
     fi
     
-    export DISPLAY="${display_env}"
+    # Set display environment variables
+    if [ "${env_type}" = "x11" ]; then
+        export DISPLAY="${display_env}"
+    else
+        # For Wayland/gamescope, set both DISPLAY (for tools that need it) and WAYLAND_DISPLAY
+        if [ -n "${display_id}" ] && [ "${display_id}" != "unknown" ]; then
+            export WAYLAND_DISPLAY="${display_id}"
+        fi
+        # Also set DISPLAY as fallback for tools that may need it
+        export DISPLAY="${display_env}"
+    fi
+    
+    # Detect window state before showing popup
+    local window_tool
+    window_tool=$(check_window_tools)
+    local window_state_info
+    window_state_info=$(detect_window_state "${env_type}" "${window_tool}")
+    local window_state window_title
+    window_state=$(echo "${window_state_info}" | cut -d'|' -f1)
+    window_title=$(echo "${window_state_info}" | cut -d'|' -f2-)
+    
+    # Log display environment and window state
+    log_to_file "INFO" "Display environment: ${env_type}, Display ID: ${display_id}, Window state: ${window_state}, Window title: ${window_title}"
     
     # Check for available dialog tool
     dialog_tool=$(check_dialog_tool)
     if [ -z "${dialog_tool}" ]; then
         log_message "warning" "No dialog tool available (zenity/yad/kdialog)"
+        log_to_file "ERROR" "No dialog tool available (zenity/yad/kdialog), Display: ${env_type}, Display ID: ${display_id}"
         return 1
     fi
+    
+    # Log dialog tool used
+    log_to_file "INFO" "Using dialog tool: ${dialog_tool}"
     
     # Get check interval for message
     local check_interval
@@ -660,6 +950,13 @@ This warning will appear ${interval_text} while you continue using your computer
             ;;
     esac
     
+    # Log popup display attempt
+    if [ -n "${popup_pid}" ]; then
+        log_to_file "INFO" "Popup displayed successfully (PID: ${popup_pid}), Dialog tool: ${dialog_tool}, Size: ${popup_size}, Position: ${popup_position}, Min display time: ${min_display_time}s"
+    else
+        log_to_file "ERROR" "Failed to display popup, Dialog tool: ${dialog_tool}"
+    fi
+    
     # If minimum display time is set, enforce it
     if [ "${min_display_time}" -gt 0 ] && [ -n "${popup_pid}" ]; then
         # Try to make window unclosable if window tools are available
@@ -722,10 +1019,24 @@ This warning will appear ${interval_text} while you continue using your computer
         
         # Wait for user to actually close it (now they can)
         wait "${popup_pid}" 2>/dev/null
+        local popup_exit_code=$?
+        
+        if [ ${popup_exit_code} -eq 0 ]; then
+            log_to_file "INFO" "Popup closed by user after minimum display time"
+        else
+            log_to_file "WARNING" "Popup exited with code ${popup_exit_code}"
+        fi
     else
         # No minimum display time, just wait normally
         if [ -n "${popup_pid}" ]; then
             wait "${popup_pid}" 2>/dev/null
+            local popup_exit_code=$?
+            
+            if [ ${popup_exit_code} -eq 0 ]; then
+                log_to_file "INFO" "Popup closed by user"
+            else
+                log_to_file "WARNING" "Popup exited with code ${popup_exit_code}"
+            fi
         fi
     fi
     
@@ -751,6 +1062,15 @@ main() {
     # Check if current hour is within restricted range
     if is_restricted_hour "${current_hour}" "${restricted_range}"; then
         log_message "info" "Restricted hour detected: Day ${current_day}, Hour ${current_hour}, Range ${restricted_range}"
+        
+        # Get display environment info for logging
+        local env_type display_id
+        env_type=$(detect_display_environment)
+        display_id=$(get_display_identifier "${env_type}")
+        
+        # Log warning trigger with full context
+        log_to_file "WARNING" "Restricted hour detected - Day: ${current_day}, Hour: ${current_hour}, Range: ${restricted_range}, Display: ${env_type}, Display ID: ${display_id}"
+        
         show_warning
     else
         # Not a restricted hour, exit silently

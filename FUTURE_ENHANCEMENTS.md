@@ -100,6 +100,57 @@ These enhancements can be integrated into the existing bash script suite without
 - **Priority**: Low (enhancement feature)
 - **Status**: Not implemented
 
+### 13. Immovable Popup Window
+- **Description**: Prevent user from moving/dragging the popup window during the minimum display time countdown
+- **Implementation**: 
+  - **X11 Approach**: Use `xprop` to set `_NET_WM_ALLOWED_ACTIONS` property, removing `_NET_WM_ACTION_MOVE` action
+  - **Alternative X11**: Use `xdotool` or `wmctrl` to set window properties that prevent movement
+  - **Window Manager Hints**: Set window gravity and type hints via xprop after window creation
+  - **Fallback**: Monitor window position and restore if moved (less elegant but more compatible)
+- **Files Affected**: `sleep-warning.sh` (enhance `make_window_unclosable()` function)
+- **Priority**: High (critical enhancement for minimum display time feature effectiveness)
+- **Status**: Not implemented
+- **Compatibility Assessment**:
+  - **X11**: Partially feasible
+    - Can use `xprop -id <window_id> -f _NET_WM_ALLOWED_ACTIONS 32a -set _NET_WM_ALLOWED_ACTIONS _NET_WM_ACTION_CLOSE _NET_WM_ACTION_RESIZE` to remove MOVE action
+    - Not all window managers honor `_NET_WM_ALLOWED_ACTIONS` hints (compliance varies)
+    - Some users may have custom keybindings (Alt+drag, Super+drag) that bypass window manager controls
+    - `override_redirect` flag would prevent movement but also removes decorations and may cause UX issues
+  - **Wayland**: Not feasible
+    - Wayland's security model prevents applications from controlling other windows' properties
+    - Would require compositor-specific solutions (gamescope, sway, etc.)
+    - gamescope (SteamOS Gaming Mode) likely won't support this
+    - Would need Wayland protocol extensions or compositor modifications
+  - **Toolkit Limitations**:
+    - `zenity`/`yad`/`kdialog` are GTK-based but don't expose window property APIs directly
+    - Must use external tools (`xprop`, `xdotool`) after window creation
+    - Window must be created first, then properties modified (timing-sensitive)
+  - **User Experience Considerations**:
+    - Preventing window movement may frustrate users if popup blocks important content
+    - Some window managers may ignore hints, leading to inconsistent behavior
+    - Users with accessibility needs may require window movement
+  - **Recommended Approach**:
+    - Implement for X11 only (skip Wayland)
+    - Use `xprop` to set `_NET_WM_ALLOWED_ACTIONS` to remove MOVE action
+    - Add fallback: monitor window position every second and restore if moved (more compatible but less elegant)
+    - Make it optional/configurable (allow users to disable if causing issues)
+    - Test across multiple window managers (GNOME, KDE, XFCE, i3, etc.)
+    - Document limitations clearly (not all window managers support this)
+- **Research Findings**:
+  - EWMH (Extended Window Manager Hints) standard provides `_NET_WM_ALLOWED_ACTIONS` property
+  - Can remove `_NET_WM_ACTION_MOVE` from allowed actions list
+  - Window manager compliance varies: GNOME/KDE generally honor it, tiling WMs may ignore it
+  - `override_redirect` would work but removes window decorations and may cause issues
+  - Window gravity hints (`Gdk.Gravity.STATIC`) may help but not guaranteed
+  - Some window managers allow disabling move shortcuts in settings (user-level, not app-level)
+- **Implementation Notes**:
+  - Must find window ID after popup is created (use `xdotool search --name` or `wmctrl -l`)
+  - Set properties immediately after window appears (may need small delay)
+  - Restore original properties after minimum display time expires
+  - Consider making it a separate config option: `POPUP_IMMOVABLE=true/false`
+  - Log attempts to set immovable property and whether it succeeded
+- **Related**: Complements minimum display time feature (#15 in current implementation)
+
 ## Alternative Approaches (Require Different Implementation)
 
 These approaches would require significant changes to the architecture or a completely different implementation strategy:
@@ -121,7 +172,7 @@ These approaches would require significant changes to the architecture or a comp
   - Create overlay notification system
   - Integrate with existing systemd service (call plugin from bash script)
 - **Complementary Option**: Could be developed alongside current system as optional enhancement
-- **Priority**: High (best solution for SteamOS Gaming Mode full-screen games)
+- **Priority**: Medium (best solution for SteamOS Gaming Mode full-screen games, but requires significant development effort)
 - **Status**: Not implemented
 - **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#path-to-maximum-effectiveness) for effectiveness analysis
 
@@ -211,13 +262,14 @@ These approaches would require significant changes to the architecture or a comp
 2. Dialog Tool Priority System
 3. Window State Detection and Logging (critical for troubleshooting)
 4. File-Based Logging with Window State Information
-5. Steam Overlay Integration (Alternative, but best solution)
+5. Immovable Popup Window (critical for minimum display time feature effectiveness)
 
 **Medium Priority (Improves Compatibility/Usability)**:
-6. Systemd Service Environment Detection
-7. Desktop Notification Fallback
-8. Wayland-Specific Window Management
-9. Temporary Disable via Config
+6. Steam Overlay Integration (Alternative, but best solution for SteamOS Gaming Mode full-screen games)
+7. Systemd Service Environment Detection
+8. Desktop Notification Fallback
+9. Wayland-Specific Window Management
+10. Temporary Disable via Config
 
 **Low Priority (Nice-to-Have Enhancements)**:
 10. Configurable Warning Messages
