@@ -166,7 +166,8 @@ These enhancements can be integrated into the existing bash script suite without
   - **Fallback**: Monitor window position and restore if moved (less elegant but more compatible)
 - **Files Affected**: `sleep-warning.sh` (enhance `make_window_unclosable()` function)
 - **Priority**: High (critical enhancement for minimum display time feature effectiveness)
-- **Status**: **Implemented** - Uses Method 4 (monitor and restore position) to prevent window movement during minimum display time. `POPUP_IMMOVABLE` configuration option added (true/false). Works on X11 with wmctrl/xdotool, not available on Wayland.
+- **Status**: ✅ **Implemented** - Uses Method 4 (monitor and restore position) to prevent window movement during minimum display time. `POPUP_IMMOVABLE` configuration option added (true/false). Works on X11 with wmctrl/xdotool, not available on Wayland.
+- **Distribution Options**: Current implementation works with traditional installation method. For future GUI application wrapper (see [DISTRIBUTION_OPTIONS.md](DISTRIBUTION_OPTIONS.md)), this feature would be accessible via GUI configuration interface. Flatpak/Snap packaging would require appropriate permissions for window management tools (xdotool/wmctrl).
 - **Testing Results**:
   - Method 1 (xprop _NET_WM_ALLOWED_ACTIONS): Failed to set property (window manager may not support this)
   - Method 2 (xdotool/wmctrl properties): Applied but limited effect
