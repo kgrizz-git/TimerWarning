@@ -321,7 +321,7 @@ For testing requirements, see [linux-warning-system-plan.md](linux-warning-syste
 **Timeline**: Can be implemented alongside current development
 **Compatibility**: Maintains backward compatibility
 
-For implementation checklists, see [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
+For implementation checklists, see [linux-warning-system-plan.md](linux-warning-system-plan.md).
 
 ### Phase 2: Steam Overlay Integration (Target: ~95% Overall Effectiveness)
 

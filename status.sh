@@ -163,7 +163,7 @@ check_installation() {
     else
         print_status "Configuration File" "Not Found" "warning"
         echo ""
-        echo -e "${COLOR_YELLOW}  → Run './configure.sh' to create configuration${COLOR_RESET}"
+        echo -e "${COLOR_YELLOW}  → Run 'sleep-warning-configure' or './configure.sh' to create configuration${COLOR_RESET}"
     fi
     
     return 0
@@ -259,7 +259,7 @@ show_configuration() {
     if [ ! -f "${CONFIG_FILE}" ]; then
         echo -e "  ${COLOR_YELLOW}No configuration file found${COLOR_RESET}"
         echo ""
-        echo -e "${COLOR_YELLOW}  → Run './configure.sh' to create configuration${COLOR_RESET}"
+        echo -e "${COLOR_YELLOW}  → Run 'sleep-warning-configure' or './configure.sh' to create configuration${COLOR_RESET}"
         return 1
     fi
     
@@ -337,7 +337,7 @@ show_configuration() {
     if [ "${has_restrictions}" = "false" ]; then
         echo -e "  ${COLOR_YELLOW}No restricted hours configured${COLOR_RESET}"
         echo ""
-        echo -e "${COLOR_YELLOW}  → Run './configure.sh' to set up restricted hours${COLOR_RESET}"
+        echo -e "${COLOR_YELLOW}  → Run 'sleep-warning-configure' or './configure.sh' to set up restricted hours${COLOR_RESET}"
     fi
 }
 
@@ -346,18 +346,27 @@ show_tips() {
     print_header "QUICK COMMANDS"
     
     echo -e "  ${COLOR_BOLD}Configuration:${COLOR_RESET}"
-    echo "    ./configure.sh          - Configure restricted hours"
+    echo "    sleep-warning-configure  - Configure restricted hours (installed)"
+    echo "    ./configure.sh          - Configure restricted hours (local)"
+    echo ""
+    echo -e "  ${COLOR_BOLD}Status:${COLOR_RESET}"
+    echo "    sleep-warning-status    - View system status (this command)"
     echo ""
     echo -e "  ${COLOR_BOLD}Management:${COLOR_RESET}"
-    echo "    ./manage.sh start       - Start the timer"
-    echo "    ./manage.sh stop        - Stop the timer"
-    echo "    ./manage.sh enable      - Enable timer at login"
-    echo "    ./manage.sh disable     - Disable timer at login"
-    echo "    ./manage.sh restart     - Restart the timer"
+    echo "    sleep-warning-manage    - Interactive management menu (installed)"
+    echo "    ./manage.sh             - Interactive management menu (local)"
+    echo "    Note: Interactive menu - no command-line flags needed"
     echo ""
     echo -e "  ${COLOR_BOLD}Logs:${COLOR_RESET}"
-    echo "    ./manage.sh logs        - View recent logs"
-    echo "    ./manage.sh logs-follow - Follow logs in real-time"
+    echo "    sleep-warning-manage    - View logs via interactive menu"
+    echo "    ./manage.sh             - View logs via interactive menu"
+    echo ""
+    echo -e "  ${COLOR_BOLD}Disable/Uninstall:${COLOR_RESET}"
+    echo "    sleep-warning-manage    - Disable via interactive menu (keeps installed)"
+    echo "    sleep-warning-uninstall - Remove the system completely (installed)"
+    echo "    sleep-warning-uninstall --remove-config  - Uninstall including config"
+    echo "    ./uninstall.sh          - Remove the system completely (local)"
+    echo "    ./uninstall.sh --remove-config  - Uninstall including config"
 }
 
 # Main function

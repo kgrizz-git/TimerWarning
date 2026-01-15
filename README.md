@@ -27,11 +27,25 @@ A systemd-based monitoring system that displays interactive warning popups when 
 
 **Important**: Both installation and configuration steps should be completed. The recommended order is to install first, then configure, but both scripts can be run in any order.
 
-1. Clone this repository:
-```bash
-git clone https://github.com/YOUR_USERNAME/LinuxTimerWarning.git
-cd LinuxTimerWarning
-```
+**Note**: The installation script requires a terminal to run properly. If you're using a desktop file manager:
+- **Recommended**: Right-click the `install.sh` file and select "Open in Terminal" or "Open Terminal Here"
+- **Alternative**: Open a terminal manually, navigate to the project directory, then run `./install.sh`
+- **Auto-confirm mode**: If you must run from desktop, use `./install.sh --yes` to skip prompts (requires zenity to be already installed)
+
+1. **Download the project** (choose one method):
+
+   **Option A: Clone with Git** (recommended for easy updates):
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/LinuxTimerWarning.git
+   cd LinuxTimerWarning
+   ```
+   *Note: With Git, you can easily update to newer versions later by running `git pull` in the repository directory.*
+
+   **Option B: Download ZIP file**:
+   - Go to the GitHub repository: https://github.com/YOUR_USERNAME/LinuxTimerWarning
+   - Click the green "Code" button, then select "Download ZIP"
+   - Extract the ZIP file to a location of your choice
+   - Open a terminal in the extracted `LinuxTimerWarning` directory
 
 2. **Install the system** (recommended first step):
 ```bash
@@ -127,7 +141,7 @@ POPUP_MIN_DISPLAY_TIME=30
 POPUP_IMMOVABLE=true
 ```
 
-See [CONFIGURATION.md](CONFIGURATION.md) for complete configuration options including popup size, position, and advanced settings.
+See [user-docs/CONFIGURATION.md](user-docs/CONFIGURATION.md) for complete configuration options including popup size, position, and advanced settings.
 
 ### Time Range Options
 
@@ -162,7 +176,7 @@ If you set overlapping ranges (e.g., `MONDAY=23-5` and `TUESDAY=0-5`), both will
 
 ## Usage
 
-Once installed, the system runs automatically. The timer checks every 10 minutes by default and displays a warning popup if you're using the system during restricted hours. This frequency can be configured with the configuration wizard (run ./configure.sh in the source directory) or by manually editing `CHECK_INTERVAL` in the configuration file.
+Once installed, the system runs automatically. The timer checks every 10 minutes by default and displays a warning popup if you're using the system during restricted hours. This frequency can be configured with the configuration wizard (run sleep-warning-configure in the terminal or ./configure.sh in the source directory) or by manually editing `CHECK_INTERVAL` in the configuration file.
 
 ### Check Status
 
@@ -180,6 +194,19 @@ This displays:
 
 ### Manual Control
 
+**Interactive Management Menu** (recommended):
+```bash
+sleep-warning-manage
+```
+
+This provides an interactive menu to:
+- View service status
+- Start/stop the timer
+- Enable/disable the timer
+- View logs
+- Get help and information
+
+**Direct systemctl commands**:
 - **Check status**: `systemctl --user status sleep-warning.timer`
 - **View logs**: `journalctl --user -u sleep-warning.service`
 - **Stop temporarily**: `systemctl --user stop sleep-warning.timer`
@@ -191,10 +218,19 @@ This displays:
 To remove the system:
 
 ```bash
+sleep-warning-uninstall
+```
+
+Or from the source directory:
+```bash
 ./uninstall.sh
 ```
 
-Or manually:
+**Options**:
+- `sleep-warning-uninstall` - Uninstalls the system (prompts about config file)
+- `sleep-warning-uninstall --remove-config` - Uninstalls including configuration file
+
+**Manual uninstallation**:
 ```bash
 systemctl --user stop sleep-warning.timer
 systemctl --user disable sleep-warning.timer
@@ -272,12 +308,9 @@ Without these tools, popups will still appear but may not stay on top of other w
 
 ## Development
 
-See `linux-warning-system-plan.md` for the complete implementation plan and architecture details.
+See `dev-docs/linux-warning-system-plan.md` for the complete implementation plan and architecture details.
 
 ## License
 
-[Add your license here]
+[TO BE ADDED]
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.

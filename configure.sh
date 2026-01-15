@@ -62,6 +62,46 @@ confirm_cancel() {
     fi
 }
 
+# Confirm skipping a day
+confirm_skip_day() {
+    local day_name="$1"
+    local use_gui="$2"
+    
+    # Determine if this is multiple days (weekdays or weekends)
+    local is_multiple=false
+    local skip_message=""
+    if [[ "${day_name}" == *"Weekdays"* ]] || [[ "${day_name}" == *"Monday-Friday"* ]]; then
+        is_multiple=true
+        skip_message="Are you sure you want to skip all weekdays (Monday-Friday)?\n\nNo restrictions will be set for any weekday."
+    elif [[ "${day_name}" == *"Weekends"* ]] || [[ "${day_name}" == *"Saturday and Sunday"* ]]; then
+        is_multiple=true
+        skip_message="Are you sure you want to skip both weekend days (Saturday and Sunday)?\n\nNo restrictions will be set for either weekend day."
+    else
+        skip_message="Are you sure you want to skip ${day_name}?\n\nNo restrictions will be set for this day."
+    fi
+    
+    if [ "${use_gui}" = "true" ] && has_zenity; then
+        zenity --question \
+            --title="Skip ${day_name}?" \
+            --text="${skip_message}" \
+            --ok-label="Yes, Skip" \
+            --cancel-label="No, Configure" \
+            2>/dev/null
+        return $?
+    else
+        echo ""
+        if [ "${is_multiple}" = "true" ]; then
+            read -p "Skip ${day_name}? No restrictions will be set. [y/N]: " answer
+        else
+            read -p "Skip ${day_name}? No restrictions will be set for this day. [y/N]: " answer
+        fi
+        case "${answer}" in
+            [Yy]*) return 0 ;;
+            *) return 1 ;;
+        esac
+    fi
+}
+
 # Get hour input using zenity
 get_hour_zenity() {
     local prompt="$1"
@@ -161,9 +201,9 @@ get_popup_size_config() {
         # Text mode
         echo ""
         echo "Popup Size Options:"
-        echo "  1) small (300x225)"
-        echo "  2) medium (500x375)"
-        echo "  3) large (875x660)"
+        echo "  1) small (400x250)"
+        echo "  2) medium (800x500)"
+        echo "  3) large (2000x1350)"
         echo ""
         while true; do
             read -p "Select size [1-3, default: ${default_size}]: " choice
@@ -776,14 +816,14 @@ get_day_hours() {
             
             # Handle cancel/empty
             if [ "${exit_code}" -ne 0 ] || [ -z "${range_input}" ]; then
-                # User cancelled - ask if they want to cancel whole configuration
-                if confirm_cancel "${use_gui}"; then
-                    echo "CANCELLED"
-                    return 2  # Special return code for cancellation
-                else
-                    # User wants to continue - treat as skip for this day
+                # User cancelled or left empty - ask if they want to skip this day
+                if confirm_skip_day "${day_name}" "${use_gui}"; then
+                    # User confirmed skipping this day
                     echo "skip"
                     return 0
+                else
+                    # User wants to continue configuring this day - re-prompt
+                    continue
                 fi
             fi
             
@@ -869,8 +909,13 @@ get_day_hours() {
             # Handle special commands
             case "${range_input}" in
                 skip|"")
-                    echo "skip"
-                    return 0
+                    if confirm_skip_day "${day_name}" "${use_gui}"; then
+                        echo "skip"
+                        return 0
+                    else
+                        # User wants to continue configuring this day
+                        continue
+                    fi
                     ;;
                 back)
                     if [ "${allow_back}" = "true" ]; then
@@ -1076,13 +1121,16 @@ show_summary() {
     
     # Check for overlaps and format times
     local overlap_warnings=()
-    local day_index=0
     
-    for line in "${summary_lines[@]}"; do
-        if [ -n "${line}" ]; then
+    # Iterate through all days in calendar order (Sun-Sat, indices 0-6)
+    for day_index in 0 1 2 3 4 5 6; do
+        local day_name="${DAY_NAMES[${day_index}]}"
+        
+        if [ -n "${summary_lines[${day_index}]}" ]; then
+            # Day has restrictions configured
+            local line="${summary_lines[${day_index}]}"
             # Extract day name and range
-            local day_name range
-            day_name=$(echo "${line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            local range
             range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             
             # Format to human-readable
@@ -1090,28 +1138,35 @@ show_summary() {
             formatted=$(format_ranges_human "${range}" "${day_name}")
             summary="${summary}• ${day_name}: ${formatted}\n"
             
-            # Check for overlaps with previous day
-            if [ "${day_index}" -gt 0 ]; then
-                local prev_day_index=$((day_index - 1))
-                if [ -n "${summary_lines[${prev_day_index}]}" ]; then
-                    local prev_line="${summary_lines[${prev_day_index}]}"
-                    local prev_day_name prev_range
-                    prev_day_name=$(echo "${prev_line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                    prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                    
-                    local overlap
-                    overlap=$(detect_overlaps "${prev_day_index}" "${prev_range}" "${day_index}" "${range}")
-                    if [ $? -eq 0 ]; then
-                        local range1 range2 overlap_hours
-                        range1=$(echo "${overlap}" | cut -d'|' -f1)
-                        range2=$(echo "${overlap}" | cut -d'|' -f2)
-                        overlap_hours=$(echo "${overlap}" | cut -d'|' -f3)
-                        overlap_warnings+=("${prev_day_name} ${range1} and ${day_name} ${range2} both cover ${overlap_hours}")
-                    fi
+            # Check for overlaps with previous calendar day
+            local prev_day_index
+            if [ "${day_index}" -eq 0 ]; then
+                # Sunday (0) - check overlap with Saturday (6)
+                prev_day_index=6
+            else
+                prev_day_index=$((day_index - 1))
+            fi
+            
+            if [ -n "${summary_lines[${prev_day_index}]}" ]; then
+                local prev_line="${summary_lines[${prev_day_index}]}"
+                local prev_day_name prev_range
+                prev_day_name=$(echo "${prev_line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                
+                local overlap
+                overlap=$(detect_overlaps "${prev_day_index}" "${prev_range}" "${day_index}" "${range}")
+                if [ $? -eq 0 ]; then
+                    local range1 range2 overlap_hours
+                    range1=$(echo "${overlap}" | cut -d'|' -f1)
+                    range2=$(echo "${overlap}" | cut -d'|' -f2)
+                    overlap_hours=$(echo "${overlap}" | cut -d'|' -f3)
+                    overlap_warnings+=("${prev_day_name} ${range1} and ${day_name} ${range2} both cover ${overlap_hours}")
                 fi
             fi
+        else
+            # Day has no restrictions configured
+            summary="${summary}• ${day_name}: No restrictions\n"
         fi
-        day_index=$((day_index + 1))
     done
     
     # Add overlap warnings if any
@@ -1156,13 +1211,16 @@ show_summary() {
         
         # Show human-readable times and check for overlaps
         local text_overlap_warnings=()
-        local day_index=0
         
-        for line in "${summary_lines[@]}"; do
-            if [ -n "${line}" ]; then
-                # Extract day name and range
-                local day_name range
-                day_name=$(echo "${line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        # Iterate through all days in calendar order (Sun-Sat, indices 0-6)
+        for day_index in 0 1 2 3 4 5 6; do
+            local day_name="${DAY_NAMES[${day_index}]}"
+            
+            if [ -n "${summary_lines[${day_index}]}" ]; then
+                # Day has restrictions configured
+                local line="${summary_lines[${day_index}]}"
+                # Extract range
+                local range
                 range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                 
                 # Format to human-readable
@@ -1170,28 +1228,35 @@ show_summary() {
                 formatted=$(format_ranges_human "${range}" "${day_name}")
                 echo "  • ${day_name}: ${formatted}"
                 
-                # Check for overlaps with previous day
-                if [ "${day_index}" -gt 0 ]; then
-                    local prev_day_index=$((day_index - 1))
-                    if [ -n "${summary_lines[${prev_day_index}]}" ]; then
-                        local prev_line="${summary_lines[${prev_day_index}]}"
-                        local prev_day_name prev_range
-                        prev_day_name=$(echo "${prev_line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                        prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                        
-                        local overlap
-                        overlap=$(detect_overlaps "${prev_day_index}" "${prev_range}" "${day_index}" "${range}")
-                        if [ $? -eq 0 ]; then
-                            local range1 range2 overlap_hours
-                            range1=$(echo "${overlap}" | cut -d'|' -f1)
-                            range2=$(echo "${overlap}" | cut -d'|' -f2)
-                            overlap_hours=$(echo "${overlap}" | cut -d'|' -f3)
-                            text_overlap_warnings+=("${prev_day_name} ${range1} and ${day_name} ${range2} both cover ${overlap_hours}")
-                        fi
+                # Check for overlaps with previous calendar day
+                local prev_day_index
+                if [ "${day_index}" -eq 0 ]; then
+                    # Sunday (0) - check overlap with Saturday (6)
+                    prev_day_index=6
+                else
+                    prev_day_index=$((day_index - 1))
+                fi
+                
+                if [ -n "${summary_lines[${prev_day_index}]}" ]; then
+                    local prev_line="${summary_lines[${prev_day_index}]}"
+                    local prev_day_name prev_range
+                    prev_day_name=$(echo "${prev_line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    
+                    local overlap
+                    overlap=$(detect_overlaps "${prev_day_index}" "${prev_range}" "${day_index}" "${range}")
+                    if [ $? -eq 0 ]; then
+                        local range1 range2 overlap_hours
+                        range1=$(echo "${overlap}" | cut -d'|' -f1)
+                        range2=$(echo "${overlap}" | cut -d'|' -f2)
+                        overlap_hours=$(echo "${overlap}" | cut -d'|' -f3)
+                        text_overlap_warnings+=("${prev_day_name} ${range1} and ${day_name} ${range2} both cover ${overlap_hours}")
                     fi
                 fi
+            else
+                # Day has no restrictions configured
+                echo "  • ${day_name}: No restrictions"
             fi
-            day_index=$((day_index + 1))
         done
         
         # Show overlap warnings if any
@@ -1332,10 +1397,10 @@ write_config() {
         
         echo ""
         
-        # Write configuration lines
-        for line in "${config_lines[@]}"; do
-            if [ -n "${line}" ] && [ "${line}" != "skip" ]; then
-                echo "${line}"
+        # Write configuration lines in calendar order (Sun-Sat, indices 0-6)
+        for day_index in 0 1 2 3 4 5 6; do
+            if [ -n "${config_lines[${day_index}]}" ] && [ "${config_lines[${day_index}]}" != "skip" ]; then
+                echo "${config_lines[${day_index}]}"
             fi
         done
     } > "${CONFIG_FILE}"
@@ -1468,9 +1533,17 @@ main() {
         fi
     else
         # Configure each weekday separately
-        for i in 1 2 3 4 5; do  # Monday through Friday
+        local i=1  # Start with Monday
+        while [ "${i}" -le 5 ]; do  # Monday through Friday
+            local allow_back="false"
+            if [ "${i}" -gt 1 ]; then
+                allow_back="true"  # Allow back from Tuesday onwards
+            fi
+            
             local range
-            range=$(get_day_hours "${DAY_NAMES[${i}]}" "${i}" "${use_gui}" "false" "true")
+            range=$(get_day_hours "${DAY_NAMES[${i}]}" "${i}" "${use_gui}" "${allow_back}" "true")
+            local exit_code=$?
+            
             if [ "${range}" = "CANCELLED" ]; then
                 if [ "${use_gui}" = "true" ] && has_zenity; then
                     zenity --info --text="Configuration cancelled." 2>/dev/null
@@ -1478,9 +1551,21 @@ main() {
                     echo "Configuration cancelled."
                 fi
                 exit 0
+            elif [ "${range}" = "back" ] || [ ${exit_code} -eq 2 ]; then
+                # User wants to go back
+                if [ "${i}" -gt 1 ]; then
+                    i=$((i - 1))  # Go back to previous day
+                    # Remove previous day's entry if it was set
+                    unset config_lines[${i}]
+                    unset summary_lines[${i}]
+                fi
+                # Continue loop to re-prompt previous day
             elif [ "${range}" != "skip" ]; then
                 config_lines[${i}]="${DAY_VARS[${i}]}=${range}"
                 summary_lines[${i}]="${DAY_NAMES[${i}]}: ${range}"
+                i=$((i + 1))  # Move to next day
+            else
+                i=$((i + 1))  # Skip this day, move to next
             fi
         done
     fi
@@ -1497,43 +1582,59 @@ main() {
             fi
             exit 0
         elif [ "${weekend_range}" != "skip" ]; then
-            # Sunday (0)
-            config_lines[0]="${DAY_VARS[0]}=${weekend_range}"
-            summary_lines[0]="${DAY_NAMES[0]}: ${weekend_range}"
             # Saturday (6)
             config_lines[6]="${DAY_VARS[6]}=${weekend_range}"
             summary_lines[6]="${DAY_NAMES[6]}: ${weekend_range}"
+            # Sunday (0)
+            config_lines[0]="${DAY_VARS[0]}=${weekend_range}"
+            summary_lines[0]="${DAY_NAMES[0]}: ${weekend_range}"
         fi
     else
-        # Configure Sunday and Saturday separately
-        # Sunday (0)
-        local range
-        range=$(get_day_hours "${DAY_NAMES[0]}" 0 "${use_gui}" "false" "true")
-        if [ "${range}" = "CANCELLED" ]; then
-            if [ "${use_gui}" = "true" ] && has_zenity; then
-                zenity --info --text="Configuration cancelled." 2>/dev/null
-            else
-                echo "Configuration cancelled."
+        # Configure Saturday and Sunday separately
+        # Saturday (6) - first weekend day, no back
+        local weekend_day=6  # Start with Saturday
+        while true; do
+            local allow_back="false"
+            if [ "${weekend_day}" -eq 0 ]; then
+                allow_back="true"  # Allow back from Sunday to Saturday
             fi
-            exit 0
-        elif [ "${range}" != "skip" ]; then
-            config_lines[0]="${DAY_VARS[0]}=${range}"
-            summary_lines[0]="${DAY_NAMES[0]}: ${range}"
-        fi
-        
-        # Saturday (6)
-        range=$(get_day_hours "${DAY_NAMES[6]}" 6 "${use_gui}" "false" "true")
-        if [ "${range}" = "CANCELLED" ]; then
-            if [ "${use_gui}" = "true" ] && has_zenity; then
-                zenity --info --text="Configuration cancelled." 2>/dev/null
+            
+            local range
+            range=$(get_day_hours "${DAY_NAMES[${weekend_day}]}" "${weekend_day}" "${use_gui}" "${allow_back}" "true")
+            local exit_code=$?
+            
+            if [ "${range}" = "CANCELLED" ]; then
+                if [ "${use_gui}" = "true" ] && has_zenity; then
+                    zenity --info --text="Configuration cancelled." 2>/dev/null
+                else
+                    echo "Configuration cancelled."
+                fi
+                exit 0
+            elif [ "${range}" = "back" ] || [ ${exit_code} -eq 2 ]; then
+                # User wants to go back
+                if [ "${weekend_day}" -eq 0 ]; then
+                    weekend_day=6  # Go back to Saturday
+                    # Remove Saturday's entry if it was set
+                    unset config_lines[6]
+                    unset summary_lines[6]
+                fi
+                # Continue loop to re-prompt previous day
+            elif [ "${range}" != "skip" ]; then
+                config_lines[${weekend_day}]="${DAY_VARS[${weekend_day}]}=${range}"
+                summary_lines[${weekend_day}]="${DAY_NAMES[${weekend_day}]}: ${range}"
+                if [ "${weekend_day}" -eq 6 ]; then
+                    weekend_day=0  # Move to Sunday
+                else
+                    break  # Done with both weekend days
+                fi
             else
-                echo "Configuration cancelled."
+                if [ "${weekend_day}" -eq 6 ]; then
+                    weekend_day=0  # Skip Saturday, move to Sunday
+                else
+                    break  # Done with both weekend days
+                fi
             fi
-            exit 0
-        elif [ "${range}" != "skip" ]; then
-            config_lines[6]="${DAY_VARS[6]}=${range}"
-            summary_lines[6]="${DAY_NAMES[6]}: ${range}"
-        fi
+        done
     fi
     
     # Show summary and confirm

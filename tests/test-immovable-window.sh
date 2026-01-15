@@ -4,7 +4,7 @@
 # Test Immovable Window Methods
 #
 # This script tests different methods for making a popup window immovable
-# as described in FUTURE_ENHANCEMENTS.md section 13.
+# as described in dev-docs/FUTURE_ENHANCEMENTS.md section 13.
 #
 # Each method is tested one at a time with a 5-second countdown.
 # The user can try to move the window during each test to see if it works.
@@ -15,8 +15,8 @@
 # - xprop (for X11 methods)
 # - xdotool or wmctrl (for window manipulation)
 #
-# Usage:
-#   ./test-immovable-window.sh [method_number]
+# Usage (from root project directory):
+#   ./tests/test-immovable-window.sh [method_number]
 #   If method_number is provided, only test that method (1-4)
 #   Otherwise, test all methods sequentially
 ###############################################################################

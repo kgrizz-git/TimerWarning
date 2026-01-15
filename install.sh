@@ -180,6 +180,13 @@ install_dependencies() {
     print_info "The following dependencies need to be installed: ${deps[*]}"
     
     if [ "$AUTO_YES" = false ]; then
+        # Check if we're in a terminal - if not, we can't prompt interactively
+        if [ ! -t 0 ] || [ ! -t 1 ]; then
+            print_error "Cannot prompt for input: not running in a terminal"
+            print_error "Please run this script from a terminal, or use: $0 --yes"
+            exit 1
+        fi
+        
         echo -n "Install these dependencies now? (y/N): "
         read -r response
         if [[ ! "$response" =~ ^[Yy]$ ]]; then
@@ -367,6 +374,13 @@ install_files() {
         print_success "Status script installed"
     fi
     
+    # Copy uninstall script
+    if [ -f "$SCRIPT_DIR/uninstall.sh" ]; then
+        cp "$SCRIPT_DIR/uninstall.sh" "$INSTALL_DIR/sleep-warning-uninstall"
+        chmod +x "$INSTALL_DIR/sleep-warning-uninstall"
+        print_success "Uninstall script installed"
+    fi
+    
     # Copy config file (only if doesn't exist, to preserve user customizations)
     if [ ! -f "$CONFIG_DIR/sleep-warning.conf" ]; then
         if [ -f "$SCRIPT_DIR/sleep-warning.conf" ]; then
@@ -464,6 +478,9 @@ print_summary() {
     echo ""
     echo "  4. View logs:"
     echo "     ${BLUE}journalctl --user -u sleep-warning.service${NC}"
+    echo ""
+    echo "  5. To uninstall later:"
+    echo "     ${BLUE}sleep-warning-uninstall${NC}"
     echo ""
     echo "The timer is now active and will check for restricted hours every $(get_check_interval) minutes."
     echo ""

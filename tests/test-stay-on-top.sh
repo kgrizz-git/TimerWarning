@@ -11,8 +11,8 @@
 # - zenity
 # - xdotool or wmctrl (for window manipulation)
 #
-# Usage:
-#   ./test-stay-on-top.sh
+# Usage (from root project directory):
+#   ./tests/test-stay-on-top.sh
 ###############################################################################
 
 # Colors for output

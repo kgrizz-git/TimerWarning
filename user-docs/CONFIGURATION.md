@@ -455,6 +455,6 @@ cat ~/.config/sleep-warning/sleep-warning.conf
 
 ## Additional Resources
 
-- **Main Documentation**: See [README.md](README.md) for general information
-- **Technical Details**: See [TECHNICAL_DETAILS.md](TECHNICAL_DETAILS.md) for implementation details
-- **SteamOS Gaming Mode**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md) for Gaming Mode compatibility information
+- **Main Documentation**: See [README.md](../README.md) for general information
+- **Technical Details**: See [../dev-docs/TECHNICAL_DETAILS.md](../dev-docs/TECHNICAL_DETAILS.md) for implementation details
+- **SteamOS Gaming Mode**: See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md) for Gaming Mode compatibility information

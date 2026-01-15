@@ -136,7 +136,7 @@ The solution consists of eight main components:
 - [x] Add configurable popup position - IMPLEMENTED: POPUP_POSITION setting (center, corners, top/bottom-center)
 - [x] Add configurable minimum display time - IMPLEMENTED: POPUP_MIN_DISPLAY_TIME setting (0-300 seconds, prevents closing/minimizing)
 - [x] Add configurable immovable window setting - IMPLEMENTED: POPUP_IMMOVABLE setting (true/false, prevents window movement during minimum display time)
-- [x] Document configuration file format and options - IMPLEMENTED: Created CONFIGURATION.md with comprehensive documentation
+- [x] Document configuration file format and options - IMPLEMENTED: Created ../user-docs/CONFIGURATION.md with comprehensive documentation
 
 #### Checklist 1.3: Develop Bash Script Core Logic
 - [x] Get current day of week (0=Sunday, 6=Saturday)
@@ -291,16 +291,15 @@ The solution consists of eight main components:
   - [x] Add "Skip" option to skip current day and move to next
   - [ ] Show progress indicator (e.g., "Day 3 of 7: Wednesday")
   - [ ] Allow jumping to specific day (e.g., "Go to Monday" menu option)
-  - [ ] Save progress as user goes (allow resuming if cancelled mid-way)
 
-- [x] **Update documentation to clarify behavior** - IMPLEMENTED: Updated README.md and CONFIGURATION.md with overnight range behavior, overlap behavior, and examples. Updated configure.sh welcome message with clear explanations.
+- [x] **Update documentation to clarify behavior** - IMPLEMENTED: Updated README.md and ../user-docs/CONFIGURATION.md with overnight range behavior, overlap behavior, and examples. Updated configure.sh welcome message with clear explanations.
   - [x] Document that overnight ranges span to next day
   - [x] Document overlap behavior (both ranges apply, but only one warning shown per check)
   - [x] Add examples showing:
     - Monday 23-5 covers Monday 11 PM to Tuesday 5 AM
     - Tuesday 23-5 covers Tuesday 11 PM to Wednesday 5 AM
     - If both set, Tuesday midnight-5am is covered by Monday's range
-  - [x] Clarify in README.md, CONFIGURATION.md, and configure.sh welcome message
+  - [x] Clarify in README.md, ../user-docs/CONFIGURATION.md, and configure.sh welcome message
   - [ ] Add FAQ section addressing common confusion points
   - [x] Document navigation features (cancel, back, skip)
 
@@ -565,8 +564,8 @@ The solution consists of eight main components:
 - [ ] **Document how to view and interpret logs** - Step-by-step guide for users
 - [ ] **Document window state logging** - Explain what window states are detected and logged
 - [ ] **Document troubleshooting using logs** - How to use logs to diagnose issues
-- [x] Document minimum display time feature in user documentation - IMPLEMENTED: Documented in CONFIGURATION.md and README.md
-- [x] Document immovable window feature in user documentation - IMPLEMENTED: Documented in CONFIGURATION.md and README.md with examples and usage notes
+- [x] Document minimum display time feature in user documentation - IMPLEMENTED: Documented in ../user-docs/CONFIGURATION.md and README.md
+- [x] Document immovable window feature in user documentation - IMPLEMENTED: Documented in ../user-docs/CONFIGURATION.md and README.md with examples and usage notes
 - [ ] Document wmctrl/xdotool as optional dependencies
 - [ ] Document X11 vs Wayland limitations for minimum display time feature
 - [ ] Add troubleshooting section for minimum display time issues
@@ -627,6 +626,50 @@ The solution consists of eight main components:
 - [ ] **Provide both GUI and CLI instructions** - Support different user preferences
 - [ ] **Include "I just want to..." sections** - Quick answers to common goals
 
+#### Checklist 5.4: License Selection and Implementation
+- [ ] **Review license options** - See LICENSE_OPTIONS.md for comprehensive comparison
+- [ ] **Consider project goals** - Maximum adoption (MIT/Apache) vs. keeping code free (GPL)
+- [ ] **Consider target audience** - Corporate users may prefer MIT/Apache, FSF-aligned projects prefer GPL
+- [ ] **Choose appropriate license** - Recommended: MIT License for utilities (maximum compatibility)
+- [ ] **Create LICENSE file** - Add license text to repository root
+  - [ ] Copy license text from official source (choosealicense.com, OSI, or license author)
+  - [ ] Replace placeholder text (e.g., [year], [fullname]) with actual values
+  - [ ] Ensure copyright notice includes correct year and name
+- [ ] **Update README.md** - Add license section referencing LICENSE file
+  - [ ] Include brief summary of license terms
+  - [ ] Link to LICENSE file
+  - [ ] Explain what the license allows (commercial use, modification, etc.)
+- [ ] **Add copyright notices to source files** (optional but recommended)
+  - [ ] Add copyright header to main scripts (sleep-warning.sh, configure.sh, manage.sh, etc.)
+  - [ ] Include copyright year and name
+  - [ ] Reference license (e.g., "Licensed under the MIT License")
+- [ ] **Verify license compatibility** - Ensure license works with all dependencies and tools used
+- [ ] **Update project metadata** - Add license to GitHub repository settings (if applicable)
+- [ ] **Document license choice** - Note in LICENSE_OPTIONS.md which license was chosen and why
+
+#### Checklist 5.5: PayPal Donation Links
+- [ ] **Create PayPal donation account** - Set up PayPal Business or Personal account
+- [ ] **Generate PayPal donation button/link** - Use PayPal's button generator or create custom link
+  - [ ] Choose button style (text link, button image, or custom HTML)
+  - [ ] Set donation amount options (fixed or user-defined)
+  - [ ] Configure currency (USD, EUR, etc.)
+- [ ] **Add donation section to README.md**
+  - [ ] Place in appropriate location (e.g., after Features, before Installation)
+  - [ ] Include brief, friendly message explaining purpose
+  - [ ] Add PayPal donation button/link
+  - [ ] Make it optional and non-intrusive
+- [ ] **Add donation link to other documentation** (optional)
+  - [ ] Consider adding to footer of main documentation files
+  - [ ] Add to CONTRIBUTING.md if applicable
+- [ ] **Test donation link** - Verify link works correctly and opens PayPal securely
+- [ ] **Consider alternative payment methods** (optional)
+  - [ ] GitHub Sponsors
+  - [ ] Ko-fi
+  - [ ] Patreon
+  - [ ] Bitcoin/crypto addresses
+- [ ] **Add acknowledgment section** (optional) - Thank donors in README or separate file
+- [ ] **Keep donation requests respectful** - Make it clear donations are optional and appreciated
+
 ## File Structure
 
 ### Repository Structure (Source Code)
@@ -653,7 +696,9 @@ LinuxTimerWarning/
 │   └── bin/
 │       ├── sleep-warning.sh           # Main script (installed by install.sh)
 │       ├── sleep-warning-configure    # Configuration wizard (installed by install.sh)
-│       └── sleep-warning-manage       # Management/help script (installed by install.sh)
+│       ├── sleep-warning-manage       # Management/help script (installed by install.sh)
+│       ├── sleep-warning-status       # Status checking script (installed by install.sh)
+│       └── sleep-warning-uninstall    # Uninstall script (installed by install.sh)
 └── .config/
     ├── sleep-warning/
     │   └── sleep-warning.conf         # Configuration file (installed by install.sh)

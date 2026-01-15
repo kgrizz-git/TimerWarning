@@ -6,8 +6,8 @@
 # This script displays a test popup with the same format as the sleep warning
 # system to demonstrate the appearance and size.
 #
-# Usage:
-#   ./test-popup.sh
+# Usage (from root project directory):
+#   ./tests/test-popup.sh
 ###############################################################################
 
 # Check if zenity is available
