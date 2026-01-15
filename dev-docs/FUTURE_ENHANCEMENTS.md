@@ -24,7 +24,47 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Basic implementation exists, needs enhancement
 - **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#dialog-tool-selection) for priority order and implementation details
 
-### 3. Systemd Service Environment Detection
+### 3. Enhanced Window Size Options and Display-Based Sizing
+- **Description**: Add more predefined window size options and allow window sizes to be automatically calculated based on current display resolution
+- **Implementation**: 
+  - Add additional predefined size options (e.g., `xsmall`, `xlarge`, `xxlarge`) beyond current `small`, `medium`, `large`
+  - Add display resolution detection function (using `xrandr` for X11, `wlr-randr` or `wayland-info` for Wayland)
+  - Implement percentage-based sizing (e.g., `50%x30%` to use 50% of screen width and 30% of screen height)
+  - Add resolution-aware predefined sizes that scale with display (e.g., `medium` could be 30% of screen width by 20% of screen height)
+  - Update `configure.sh` to provide GUI/text options for selecting from expanded size list or entering custom dimensions
+  - Add option in `configure.sh` to enable/disable display-based sizing
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`, `configure.sh`
+- **Priority**: Medium (improves usability and adaptability across different display configurations)
+- **Status**: Not implemented
+- **Current Implementation**:
+  - Three predefined sizes: `small` (400x250), `medium` (800x500), `large` (2000x1350)
+  - Custom sizes via `WIDTHxHEIGHT` format (200-2000 width, 100-2000 height)
+  - Size configuration available in `configure.sh` "Window Behavior" section
+- **Display Resolution Detection Considerations**:
+  - **X11**: Can use `xrandr --query` to get screen resolution, supports multiple displays
+  - **Wayland**: More complex - may need `wlr-randr`, `wayland-info`, or compositor-specific tools
+  - **gamescope (SteamOS Gaming Mode)**: Resolution detection may be limited or require special handling
+  - **Multi-monitor setups**: Should detect primary display or allow user to specify which display to use for sizing calculations
+  - **Dynamic resolution changes**: May need to detect resolution at popup time rather than configuration time
+- **Implementation Notes**:
+  - Add `POPUP_SIZE_MODE` config option: `fixed` (current behavior) or `display-based` (percentage-based)
+  - When `display-based` is enabled, predefined sizes could map to screen percentages:
+    - `small`: 20% width × 15% height
+    - `medium`: 30% width × 20% height  
+    - `large`: 50% width × 35% height
+  - Custom sizes in display-based mode could accept percentage format: `50%x30%`
+  - Fallback to fixed pixel sizes if resolution detection fails
+  - Cache detected resolution to avoid repeated queries (with refresh option)
+  - Update `get_popup_dimensions()` function to handle percentage calculations
+  - Add resolution detection function that works across X11/Wayland with appropriate fallbacks
+- **User Experience Benefits**:
+  - Better popup sizing on high-resolution displays (4K, ultrawide monitors)
+  - Consistent visual appearance across different screen sizes
+  - Easier configuration for users with multiple displays or changing resolutions
+  - More intuitive sizing options (percentage-based feels more natural than pixel values)
+- **Related**: Complements existing window size configuration, works with popup position feature
+
+### 4. Systemd Service Environment Detection
 - **Description**: Detect Desktop Mode vs Gaming Mode and adjust behavior accordingly
 - **Implementation**: Add environment detection function, configure service based on mode
 - **Files Affected**: `sleep-warning.sh`, `sleep-warning.service`
@@ -32,21 +72,38 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Not implemented
 - **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#systemd-service-robustness) for Gaming Mode considerations
 
-### 4. Configurable Warning Messages
+### 5. Configurable Warning Messages
 - **Description**: Allow users to customize warning message text per day or time range
 - **Implementation**: Add `MESSAGE_*` configuration options, update `show_warning()` function
 - **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`, `configure.sh`
 - **Priority**: Low (nice-to-have feature)
 - **Status**: Not implemented
 
-### 5. Escalating Warnings
+### 6. Escalating Warnings
 - **Description**: Show progressively stronger warnings if user continues using system during restricted hours
-- **Implementation**: Track warning count in temporary file, adjust message intensity
-- **Files Affected**: `sleep-warning.sh`
+- **Implementation**: 
+  - Track warning count in temporary file, adjust message intensity
+  - **Window Size Escalation**: Progressively increase popup window size with each warning
+    - Start with user's configured size (small, medium, large, or custom)
+    - Escalate to next larger predefined size with each warning: `small` → `medium` → `large`
+    - If user starts with `medium`, escalation goes: `medium` → `large`
+    - If user starts with `large` or custom size, escalation should max out at `large` (the largest predefined option) or custom, if larger
+    - Maximum size may be system-dependent (limited by display resolution), but should not exceed the `large` predefined size (or custom, if larger)
+    - Reset escalation level when user stops using system during restricted hours (e.g., after configurable timeout period)
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`
 - **Priority**: Low (enhancement feature)
 - **Status**: Not implemented
+- **Implementation Notes**:
+  - Store warning count and escalation level in temporary file (e.g., `~/.config/sleep-warning/.warning_count`)
+  - Map predefined sizes to escalation order: `small` (400x250) → `medium` (800x500) → `large` (2000x1350)
+  - Maximum escalation should cap at `large` predefined size, regardless of system capabilities
+  - For custom sizes, calculate escalation: increase by configurable percentage (e.g., 25% per warning) up to `large` size dimensions
+  - System-dependent maximums (e.g., display resolution limits) should be respected, but escalation should not attempt to exceed `large` size
+  - Reset escalation when user exits restricted hours or after configurable cooldown period
+  - Combine with message intensity changes for maximum effect
+  - Consider making escalation optional via config option: `ESCALATING_WARNINGS=true/false`
 
-### 6. Warning Event Logging
+### 7. Warning Event Logging
 - **Description**: Log each warning event with timestamp, window state, display environment, and dialog tool to a file for user review
 - **Implementation**: 
   - Add file-based logging function, write to `~/.config/sleep-warning/warnings.log`
@@ -57,35 +114,35 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Not implemented
 - **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#window-state-detection) for window state detection implementation
 
-### 7. Temporary Disable via Config
+### 8. Temporary Disable via Config
 - **Description**: Allow users to temporarily disable warnings via configuration file or command
 - **Implementation**: Add `ENABLED=false` config option, check before showing warning
 - **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`, `configure.sh`, `manage.sh`
 - **Priority**: Medium (useful feature)
 - **Status**: Not implemented
 
-### 8. System Sleep/Hibernate Detection
+### 9. System Sleep/Hibernate Detection
 - **Description**: Skip warnings if system was recently resumed from sleep (user may have just woken up)
 - **Implementation**: Check system uptime or last resume time, skip warnings for configurable duration after resume
 - **Files Affected**: `sleep-warning.sh`
 - **Priority**: Low (enhancement feature)
 - **Status**: Not implemented
 
-### 9. Audio Alerts
+### 10. Audio Alerts
 - **Description**: Add optional audio notification (beep, sound file) alongside visual popup
 - **Implementation**: Use `paplay`, `aplay`, or `speaker-test` to play sound
 - **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`
 - **Priority**: Low (enhancement feature)
 - **Status**: Not implemented
 
-### 10. Desktop Notification Fallback
+### 11. Desktop Notification Fallback
 - **Description**: Use desktop notification system (notify-send) as fallback if dialog tools fail
 - **Implementation**: Add notify-send as last-resort fallback in `show_warning()` function
 - **Files Affected**: `sleep-warning.sh`
 - **Priority**: Medium (improves compatibility)
 - **Status**: Not implemented
 
-### 11. Wayland-Specific Window Management
+### 12. Wayland-Specific Window Management
 - **Description**: Implement Wayland-native window control using wlr-randr or similar tools
 - **Implementation**: Add Wayland-specific functions for screen info and window positioning
 - **Files Affected**: `sleep-warning.sh`
@@ -93,14 +150,14 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Not implemented (requires research into Wayland protocols)
 - **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md) for Wayland/gamescope considerations
 
-### 12. Distribution-Specific Optimizations
+### 13. Distribution-Specific Optimizations
 - **Description**: Add optimizations for specific distributions (e.g., KDE-specific features on KDE systems)
 - **Implementation**: Detect distribution/DE, apply appropriate optimizations
 - **Files Affected**: `sleep-warning.sh`
 - **Priority**: Low (enhancement feature)
 - **Status**: Not implemented
 
-### 13. Immovable Popup Window
+### 14. Immovable Popup Window
 - **Description**: Prevent user from moving/dragging the popup window during the minimum display time countdown
 - **Implementation**: 
   - **X11 Approach**: Use `xprop` to set `_NET_WM_ALLOWED_ACTIONS` property, removing `_NET_WM_ACTION_MOVE` action
@@ -109,7 +166,7 @@ These enhancements can be integrated into the existing bash script suite without
   - **Fallback**: Monitor window position and restore if moved (less elegant but more compatible)
 - **Files Affected**: `sleep-warning.sh` (enhance `make_window_unclosable()` function)
 - **Priority**: High (critical enhancement for minimum display time feature effectiveness)
-- **Status**: Not implemented
+- **Status**: **Implemented** - Uses Method 4 (monitor and restore position) to prevent window movement during minimum display time. `POPUP_IMMOVABLE` configuration option added (true/false). Works on X11 with wmctrl/xdotool, not available on Wayland.
 - **Testing Results**:
   - Method 1 (xprop _NET_WM_ALLOWED_ACTIONS): Failed to set property (window manager may not support this)
   - Method 2 (xdotool/wmctrl properties): Applied but limited effect
@@ -155,6 +212,43 @@ These enhancements can be integrated into the existing bash script suite without
   - Consider making it a separate config option: `POPUP_IMMOVABLE=true/false`
   - Log attempts to set immovable property and whether it succeeded
 - **Related**: Complements minimum display time feature (#15 in current implementation)
+
+### 15. Auto-Close Popup Window
+- **Description**: Automatically close the popup window after a pre-configured time period, providing users with a non-interactive option for warning dismissal
+- **Implementation**: 
+  - Add configuration option to enable/disable auto-close: `POPUP_AUTO_CLOSE=true/false`
+  - Add configuration option for auto-close timeout: `POPUP_AUTO_CLOSE_TIME=<seconds>` or allow it to use the minimum display time value
+  - Implement timer mechanism that closes the window after the configured duration
+  - Support two modes:
+    - **Mode 1**: Use minimum display time as auto-close time (single variable controls both)
+    - **Mode 2**: Separate auto-close time independent of minimum display time (allows window to stay open longer than minimum but still auto-close)
+  - Close window using appropriate method for dialog tool (send close signal, kill process, or use tool-specific close command)
+  - Ensure auto-close respects minimum display time (auto-close time should be >= minimum display time if both are enabled)
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`, `configure.sh`
+- **Priority**: Medium (useful feature for users who want automatic dismissal without manual interaction)
+- **Status**: Not implemented
+- **Implementation Notes**:
+  - Add `POPUP_AUTO_CLOSE` config option: `false` (default, current behavior) or `true` (enable auto-close)
+  - Add `POPUP_AUTO_CLOSE_TIME` config option: 
+    - `0` or `auto` = use minimum display time value
+    - Positive integer = seconds until auto-close (must be >= minimum display time if both are enabled)
+  - When auto-close is enabled, start background timer after window is displayed
+  - Use `sleep` command or background process to track time
+  - Close window using appropriate method:
+    - For `zenity`: May need to find and kill the process
+    - For `yad`: May support timeout parameter or need process termination
+    - For `kdialog`: May need process termination
+    - For `dialog`: May need process termination
+  - Ensure auto-close doesn't interfere with minimum display time enforcement
+  - If user manually closes window before auto-close time, cancel the auto-close timer
+  - Consider showing countdown in window message if visual countdown feature is implemented
+  - Log auto-close events if logging is enabled
+- **User Experience Benefits**:
+  - Provides automatic dismissal option for users who don't want to manually close warnings
+  - Can be set to same as minimum display time for consistent behavior
+  - Can be set longer than minimum display time to ensure warning is seen but still auto-dismisses
+  - Reduces need for user interaction while still ensuring warning visibility
+- **Related**: Complements minimum display time feature (#14 Immovable Popup Window), could work with visual countdown timer enhancement
 
 ## Alternative Approaches (Require Different Implementation)
 
@@ -267,7 +361,7 @@ These approaches would require significant changes to the architecture or a comp
 2. Dialog Tool Priority System
 3. Window State Detection and Logging (critical for troubleshooting)
 4. File-Based Logging with Window State Information
-5. Immovable Popup Window (critical for minimum display time feature effectiveness)
+5. ~~Immovable Popup Window~~ ✅ **IMPLEMENTED** (critical for minimum display time feature effectiveness)
 
 **Medium Priority (Improves Compatibility/Usability)**:
 6. Steam Overlay Integration (Alternative, but best solution for SteamOS Gaming Mode full-screen games)
@@ -275,16 +369,18 @@ These approaches would require significant changes to the architecture or a comp
 8. Desktop Notification Fallback
 9. Wayland-Specific Window Management
 10. Temporary Disable via Config
+11. Enhanced Window Size Options and Display-Based Sizing
+12. Auto-Close Popup Window
 
 **Low Priority (Nice-to-Have Enhancements)**:
-10. Configurable Warning Messages
-11. Escalating Warnings
-12. Audio Alerts
-13. Distribution-Specific Optimizations
-14. Wayland support for minimum display time (would require different approach)
-15. More robust window control (prevent all close methods, not just window manager)
-16. Visual countdown timer in popup (instead of just text)
-17. Configurable auto-reopen behavior
+13. Configurable Warning Messages
+14. Escalating Warnings
+15. Audio Alerts
+16. Distribution-Specific Optimizations
+17. Wayland support for minimum display time (would require different approach)
+18. More robust window control (prevent all close methods, not just window manager)
+19. Visual countdown timer in popup (instead of just text)
+20. Configurable auto-reopen behavior
 
 ## Implementation Notes
 

@@ -40,6 +40,235 @@ has_gui() {
     [ -n "${DISPLAY}" ] || [ -S "/tmp/.X11-unix/X0" ] || command -v loginctl >/dev/null 2>&1
 }
 
+# Load existing configuration from file
+# This function populates global arrays and sets global variables
+# Arrays must be declared as global in the caller before calling this function
+load_existing_config() {
+    # Initialize with defaults
+    declare -g check_interval="10"
+    declare -g popup_size="medium"
+    declare -g popup_position="center"
+    declare -g min_display_time="30"
+    declare -g popup_immovable="true"
+    
+    # Clear existing arrays (they should already be declared as global by caller)
+    config_lines=()
+    summary_lines=()
+    
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        # No config file, use defaults (already set above)
+        return 0
+    fi
+    
+    # Read check interval
+    local existing_interval
+    existing_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    if [ -n "${existing_interval}" ] && [[ "${existing_interval}" =~ ^[0-9]+$ ]] && [ "${existing_interval}" -ge 1 ] && [ "${existing_interval}" -le 60 ]; then
+        declare -g check_interval="${existing_interval}"
+    fi
+    
+    # Read popup size
+    local existing_size
+    existing_size=$(grep -E "^[[:space:]]*POPUP_SIZE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    if [ -n "${existing_size}" ]; then
+        declare -g popup_size="${existing_size}"
+    fi
+    
+    # Read popup position
+    local existing_position
+    existing_position=$(grep -E "^[[:space:]]*POPUP_POSITION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    if [ -n "${existing_position}" ]; then
+        declare -g popup_position="${existing_position}"
+    fi
+    
+    # Read minimum display time
+    local existing_time
+    existing_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    if [ -n "${existing_time}" ] && [[ "${existing_time}" =~ ^[0-9]+$ ]] && [ "${existing_time}" -ge 0 ] && [ "${existing_time}" -le 300 ]; then
+        declare -g min_display_time="${existing_time}"
+    fi
+    
+    # Read popup immovable setting
+    local existing_immovable
+    existing_immovable=$(grep -E "^[[:space:]]*POPUP_IMMOVABLE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    if [ -n "${existing_immovable}" ]; then
+        if [ "${existing_immovable}" = "true" ] || [ "${existing_immovable}" = "1" ] || [ "${existing_immovable}" = "yes" ]; then
+            declare -g popup_immovable="true"
+        elif [ "${existing_immovable}" = "false" ] || [ "${existing_immovable}" = "0" ] || [ "${existing_immovable}" = "no" ]; then
+            declare -g popup_immovable="false"
+        fi
+    fi
+    
+    # Load day configurations
+    for i in 0 1 2 3 4 5 6; do
+        local day_var="${DAY_VARS[${i}]}"
+        local day_name="${DAY_NAMES[${i}]}"
+        local day_config
+        # Read the day configuration from file
+        # Use cut to extract value after = sign, then trim whitespace
+        day_config=$(grep -E "^[[:space:]]*${day_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        
+        if [ -n "${day_config}" ]; then
+            config_lines[${i}]="${day_var}=${day_config}"
+            summary_lines[${i}]="${day_name}: ${day_config}"
+        fi
+    done
+}
+
+# Get section status indicators for menu display
+get_section_status() {
+    # Access global config_lines array directly
+    local weekdays_status="(not configured)"
+    local weekends_status="(not configured)"
+    
+    # Check weekdays (indices 1-5: Monday-Friday)
+    local has_weekdays=false
+    for i in 1 2 3 4 5; do
+        if [ -n "${config_lines[${i}]}" ]; then
+            has_weekdays=true
+            break
+        fi
+    done
+    
+    if [ "${has_weekdays}" = "true" ]; then
+        weekdays_status="✓"
+    fi
+    
+    # Check weekends (indices 0, 6: Sunday, Saturday)
+    local has_weekends=false
+    for i in 0 6; do
+        if [ -n "${config_lines[${i}]}" ]; then
+            has_weekends=true
+            break
+        fi
+    done
+    
+    if [ "${has_weekends}" = "true" ]; then
+        weekends_status="✓"
+    fi
+    
+    echo "${weekdays_status}|${weekends_status}"
+}
+
+# Show main navigation menu
+show_main_menu() {
+    local use_gui="$1"
+    local check_interval="$2"
+    local popup_size="$3"
+    local popup_position="$4"
+    local min_display_time="$5"
+    local popup_immovable="$6"
+    local weekdays_status="$7"
+    local weekends_status="$8"
+    
+    if [ "${use_gui}" = "true" ] && has_zenity; then
+        # GUI mode
+        local tmpfile
+        tmpfile=$(mktemp)
+        
+        # Build window behavior description with all attributes
+        local window_desc="Size: ${popup_size}"
+        if [ "${popup_size}" = "small" ]; then
+            window_desc="${window_desc} (400x250)"
+        elif [ "${popup_size}" = "medium" ]; then
+            window_desc="${window_desc} (800x500)"
+        elif [ "${popup_size}" = "large" ]; then
+            window_desc="${window_desc} (2000x1350)"
+        fi
+        window_desc="${window_desc}, Position: ${popup_position}"
+        if [ "${min_display_time}" -gt 0 ]; then
+            window_desc="${window_desc}, Min Display: ${min_display_time}s"
+        else
+            window_desc="${window_desc}, Min Display: Disabled"
+        fi
+        if [ "${popup_immovable}" = "true" ]; then
+            window_desc="${window_desc}, Immovable: On"
+        else
+            window_desc="${window_desc}, Immovable: Off"
+        fi
+        
+        zenity --list \
+            --title="Sleep Warning Configuration" \
+            --text="Select a section to configure:" \
+            --column="Option" --column="Description" \
+            --hide-column=1 \
+            --width=700 \
+            --height=400 \
+            "1" "Timer Settings (Check Interval: ${check_interval} min)" \
+            "2" "Window Behavior (${window_desc})" \
+            "3" "Weekdays Configuration ${weekdays_status}" \
+            "4" "Weekends Configuration ${weekends_status}" \
+            "5" "Review and Save" \
+            > "${tmpfile}" 2>/dev/null
+        local exit_code=$?
+        local choice=$(cat "${tmpfile}" 2>/dev/null)
+        rm -f "${tmpfile}"
+        
+        if [ "${exit_code}" -ne 0 ]; then
+            # User cancelled - ask if they want to cancel whole config
+            if confirm_cancel "${use_gui}"; then
+                echo "CANCELLED"
+                return 2
+            else
+                return 1  # Return to show menu again
+            fi
+        fi
+        
+        # If OK was clicked but no item selected, default to "Review and Save" (option 5)
+        if [ -z "${choice}" ]; then
+            choice="5"
+        fi
+        
+        echo "${choice}"
+        return 0
+    else
+        # Text mode
+        echo ""
+        echo "=== Configuration Menu ==="
+        echo ""
+        # Build window behavior description with all attributes
+        local window_desc="Size: ${popup_size}"
+        if [ "${popup_size}" = "small" ]; then
+            window_desc="${window_desc} (400x250)"
+        elif [ "${popup_size}" = "medium" ]; then
+            window_desc="${window_desc} (800x500)"
+        elif [ "${popup_size}" = "large" ]; then
+            window_desc="${window_desc} (2000x1350)"
+        fi
+        window_desc="${window_desc}, Position: ${popup_position}"
+        if [ "${min_display_time}" -gt 0 ]; then
+            window_desc="${window_desc}, Min Display: ${min_display_time}s"
+        else
+            window_desc="${window_desc}, Min Display: Disabled"
+        fi
+        if [ "${popup_immovable}" = "true" ]; then
+            window_desc="${window_desc}, Immovable: On"
+        else
+            window_desc="${window_desc}, Immovable: Off"
+        fi
+        
+        echo "1. Timer Settings (Check Interval: ${check_interval} min)"
+        echo "2. Window Behavior (${window_desc})"
+        echo "3. Weekdays Configuration ${weekdays_status}"
+        echo "4. Weekends Configuration ${weekends_status}"
+        echo "5. Review and Save"
+        echo ""
+        
+        while true; do
+            read -p "Select option [1-5]: " choice
+            case "${choice}" in
+                1|2|3|4|5)
+                    echo "${choice}"
+                    return 0
+                    ;;
+                *)
+                    echo "Invalid option. Please enter 1-5." >&2
+                    ;;
+            esac
+        done
+    fi
+}
+
 # Confirm cancellation with user
 confirm_cancel() {
     local use_gui="$1"
@@ -176,7 +405,8 @@ get_popup_size_config() {
                 "small" "400x250 pixels" \
                 "medium" "800x500 pixels" \
                 "large" "2000x1350 pixels" \
-                --hide-column=2 \
+                --width=500 \
+                --height=350 \
                 --print-column=1 \
                 > "${tmpfile}" 2>/dev/null
             local exit_code=$?
@@ -313,6 +543,8 @@ get_popup_immovable_config() {
                 --title="Sleep Warning Configuration" \
                 --text="Prevent popup window from being moved during minimum display time?\n(Current: ${default_immovable})" \
                 --column="Option" --column="Description" \
+                --width=500 \
+                --height=250 \
                 "true" "Prevent window movement (recommended)" \
                 "false" "Allow window movement" \
                 --hide-column=2 \
@@ -392,6 +624,8 @@ get_popup_position_config() {
                 --title="Sleep Warning Configuration" \
                 --text="Select popup position on screen:\n(Current: ${default_position})" \
                 --column="Position" \
+                --width=500 \
+                --height=500 \
                 "center" \
                 "top-left" \
                 "top-right" \
@@ -816,15 +1050,74 @@ get_day_hours() {
             
             # Handle cancel/empty
             if [ "${exit_code}" -ne 0 ] || [ -z "${range_input}" ]; then
-                # User cancelled or left empty - ask if they want to skip this day
-                if confirm_skip_day "${day_name}" "${use_gui}"; then
-                    # User confirmed skipping this day
-                    echo "skip"
-                    return 0
-                else
-                    # User wants to continue configuring this day - re-prompt
-                    continue
+                # User cancelled or left empty - show options menu
+                local tmpfile
+                tmpfile=$(mktemp)
+                
+                local menu_options=("Skip this day")
+                if [ "${allow_back}" = "true" ]; then
+                    menu_options+=("Go back to previous day")
                 fi
+                if [ "${allow_cancel}" = "true" ]; then
+                    menu_options+=("Cancel configuration")
+                fi
+                menu_options+=("Continue configuring")
+                
+                printf '%s\n' "${menu_options[@]}" | zenity --list \
+                    --title="What would you like to do?" \
+                    --text="You cancelled or left ${day_name} empty. What would you like to do?" \
+                    --column="Option" \
+                    --width=350 \
+                    --height=200 \
+                    > "${tmpfile}" 2>/dev/null
+                local menu_exit=$?
+                local choice=$(cat "${tmpfile}" 2>/dev/null)
+                rm -f "${tmpfile}"
+                
+                if [ "${menu_exit}" -ne 0 ] || [ -z "${choice}" ]; then
+                    # User cancelled the menu - treat as cancel whole config
+                    if confirm_cancel "${use_gui}"; then
+                        echo "CANCELLED"
+                        return 2
+                    else
+                        continue
+                    fi
+                fi
+                
+                case "${choice}" in
+                    "Skip this day")
+                        if confirm_skip_day "${day_name}" "${use_gui}"; then
+                            echo "skip"
+                            return 0
+                        else
+                            continue
+                        fi
+                        ;;
+                    "Go back to previous day")
+                        if [ "${allow_back}" = "true" ]; then
+                            echo "back"
+                            return 2
+                        fi
+                        continue
+                        ;;
+                    "Cancel configuration")
+                        if [ "${allow_cancel}" = "true" ]; then
+                            if confirm_cancel "${use_gui}"; then
+                                echo "CANCELLED"
+                                return 2
+                            else
+                                continue
+                            fi
+                        fi
+                        continue
+                        ;;
+                    "Continue configuring")
+                        continue
+                        ;;
+                    *)
+                        continue
+                        ;;
+                esac
             fi
             
             # Validate the input (could be single range, multiple ranges, or overnight)
@@ -1088,6 +1381,138 @@ ask_weekend_together() {
             [Yy]*) return 0 ;;
             *) return 1 ;;
         esac
+    fi
+}
+
+# Configure weekdays section
+configure_weekdays_section() {
+    local use_gui="$1"
+    local -n config_lines_ref="$2"  # Pass by reference
+    local -n summary_lines_ref="$3"  # Pass by reference
+    
+    # Ask if configure together or separately
+    if ask_weekday_together "${use_gui}"; then
+        # Configure all weekdays together
+        local weekday_range
+        weekday_range=$(get_day_hours "Weekdays (Monday-Friday)" 1 "${use_gui}" "false" "true")
+        local exit_code=$?
+        
+        if [ "${weekday_range}" = "CANCELLED" ]; then
+            return 2  # Cancelled
+        elif [ "${weekday_range}" != "skip" ]; then
+            # Apply to all weekdays (indices 1-5: Monday-Friday)
+            for i in 1 2 3 4 5; do
+                config_lines_ref[${i}]="${DAY_VARS[${i}]}=${weekday_range}"
+                summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${weekday_range}"
+            done
+        fi
+        return 0
+    else
+        # Configure each weekday separately
+        local i=1  # Start with Monday
+        while [ "${i}" -le 5 ]; do  # Monday through Friday
+            local allow_back="false"
+            if [ "${i}" -gt 1 ]; then
+                allow_back="true"  # Allow back from Tuesday onwards
+            fi
+            
+            local range
+            range=$(get_day_hours "${DAY_NAMES[${i}]}" "${i}" "${use_gui}" "${allow_back}" "true")
+            local exit_code=$?
+            
+            if [ "${range}" = "CANCELLED" ]; then
+                return 2  # Cancelled
+            elif [ "${range}" = "back" ] || [ ${exit_code} -eq 2 ]; then
+                # User wants to go back
+                if [ "${i}" -gt 1 ]; then
+                    i=$((i - 1))  # Go back to previous day
+                    # Remove previous day's entry if it was set
+                    unset config_lines_ref[${i}]
+                    unset summary_lines_ref[${i}]
+                else
+                    # Back from first day - return to main menu
+                    return 0
+                fi
+                # Continue loop to re-prompt previous day
+            elif [ "${range}" != "skip" ]; then
+                config_lines_ref[${i}]="${DAY_VARS[${i}]}=${range}"
+                summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${range}"
+                i=$((i + 1))  # Move to next day
+            else
+                i=$((i + 1))  # Skip this day, move to next
+            fi
+        done
+        return 0
+    fi
+}
+
+# Configure weekends section
+configure_weekends_section() {
+    local use_gui="$1"
+    local -n config_lines_ref="$2"  # Pass by reference
+    local -n summary_lines_ref="$3"  # Pass by reference
+    
+    # Ask if configure together or separately
+    if ask_weekend_together "${use_gui}"; then
+        # Configure both weekend days together
+        local weekend_range
+        weekend_range=$(get_day_hours "Weekends (Saturday and Sunday)" 6 "${use_gui}" "false" "true")
+        local exit_code=$?
+        
+        if [ "${weekend_range}" = "CANCELLED" ]; then
+            return 2  # Cancelled
+        elif [ "${weekend_range}" != "skip" ]; then
+            # Apply to both weekend days (Saturday=6, Sunday=0)
+            config_lines_ref[6]="${DAY_VARS[6]}=${weekend_range}"
+            summary_lines_ref[6]="${DAY_NAMES[6]}: ${weekend_range}"
+            config_lines_ref[0]="${DAY_VARS[0]}=${weekend_range}"
+            summary_lines_ref[0]="${DAY_NAMES[0]}: ${weekend_range}"
+        fi
+        return 0
+    else
+        # Configure Saturday and Sunday separately
+        local weekend_day=6  # Start with Saturday
+        while true; do
+            local allow_back="false"
+            if [ "${weekend_day}" -eq 0 ]; then
+                allow_back="true"  # Allow back from Sunday to Saturday
+            fi
+            
+            local range
+            range=$(get_day_hours "${DAY_NAMES[${weekend_day}]}" "${weekend_day}" "${use_gui}" "${allow_back}" "true")
+            local exit_code=$?
+            
+            if [ "${range}" = "CANCELLED" ]; then
+                return 2  # Cancelled
+            elif [ "${range}" = "back" ] || [ ${exit_code} -eq 2 ]; then
+                # User wants to go back
+                if [ "${weekend_day}" -eq 0 ]; then
+                    weekend_day=6  # Go back to Saturday
+                    # Remove Saturday's entry if it was set
+                    unset config_lines_ref[6]
+                    unset summary_lines_ref[6]
+                else
+                    # Back from Saturday - return to main menu
+                    return 0
+                fi
+                # Continue loop to re-prompt previous day
+            elif [ "${range}" != "skip" ]; then
+                config_lines_ref[${weekend_day}]="${DAY_VARS[${weekend_day}]}=${range}"
+                summary_lines_ref[${weekend_day}]="${DAY_NAMES[${weekend_day}]}: ${range}"
+                if [ "${weekend_day}" -eq 6 ]; then
+                    weekend_day=0  # Move to Sunday
+                else
+                    break  # Done with both weekend days
+                fi
+            else
+                if [ "${weekend_day}" -eq 6 ]; then
+                    weekend_day=0  # Skip Saturday, move to Sunday
+                else
+                    break  # Done with both weekend days
+                fi
+            fi
+        done
+        return 0
     fi
 }
 
@@ -1450,230 +1875,142 @@ main() {
     # Show welcome
     show_welcome "${use_gui}"
     
-    # Get check interval
-    local check_interval
-    check_interval=$(get_check_interval "${use_gui}")
-    if [ "${check_interval}" = "CANCELLED" ]; then
-        if [ "${use_gui}" = "true" ] && has_zenity; then
-            zenity --info --text="Configuration cancelled." 2>/dev/null
-        else
-            echo "Configuration cancelled."
-        fi
-        exit 0
-    fi
+    # Declare global arrays and variables BEFORE calling load_existing_config()
+    # This ensures they exist in the parent shell
+    declare -g -a config_lines=()
+    declare -g -a summary_lines=()
+    declare -g check_interval popup_size popup_position min_display_time popup_immovable
     
-    # Get popup size
-    local popup_size
-    popup_size=$(get_popup_size_config "${use_gui}")
-    if [ "${popup_size}" = "CANCELLED" ]; then
-        if [ "${use_gui}" = "true" ] && has_zenity; then
-            zenity --info --text="Configuration cancelled." 2>/dev/null
-        else
-            echo "Configuration cancelled."
-        fi
-        exit 0
-    fi
+    # Load existing configuration
+    # Function sets global variables and populates global arrays directly
+    load_existing_config
     
-    # Get popup position
-    local popup_position
-    popup_position=$(get_popup_position_config "${use_gui}")
-    if [ "${popup_position}" = "CANCELLED" ]; then
-        if [ "${use_gui}" = "true" ] && has_zenity; then
-            zenity --info --text="Configuration cancelled." 2>/dev/null
-        else
-            echo "Configuration cancelled."
-        fi
-        exit 0
-    fi
-    
-    # Get minimum display time
-    local min_display_time
-    min_display_time=$(get_min_display_time_config "${use_gui}")
-    if [ "${min_display_time}" = "CANCELLED" ]; then
-        if [ "${use_gui}" = "true" ] && has_zenity; then
-            zenity --info --text="Configuration cancelled." 2>/dev/null
-        else
-            echo "Configuration cancelled."
-        fi
-        exit 0
-    fi
-    
-    # Get popup immovable setting
-    local popup_immovable
-    popup_immovable=$(get_popup_immovable_config "${use_gui}")
-    if [ "${popup_immovable}" = "CANCELLED" ]; then
-        if [ "${use_gui}" = "true" ] && has_zenity; then
-            zenity --info --text="Configuration cancelled." 2>/dev/null
-        else
-            echo "Configuration cancelled."
-        fi
-        exit 0
-    fi
-    
-    # Array to store configuration
-    declare -a config_lines
-    declare -a summary_lines
-    
-    # Ask about weekdays
-    local weekday_range=""
-    if ask_weekday_together "${use_gui}"; then
-        weekday_range=$(get_day_hours "Weekdays (Monday-Friday)" 1 "${use_gui}" "false" "true")
-        if [ "${weekday_range}" = "CANCELLED" ]; then
-            if [ "${use_gui}" = "true" ] && has_zenity; then
-                zenity --info --text="Configuration cancelled." 2>/dev/null
-            else
-                echo "Configuration cancelled."
-            fi
+    # Main configuration loop
+    while true; do
+        # Get section status indicators
+        local status_data
+        status_data=$(get_section_status)
+        local weekdays_status weekends_status
+        IFS='|' read -r weekdays_status weekends_status <<< "${status_data}"
+        
+        # Show main menu
+        local menu_choice
+        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}")
+        local menu_exit=$?
+        
+        if [ "${menu_exit}" -eq 2 ] || [ "${menu_choice}" = "CANCELLED" ]; then
+            # User cancelled
             exit 0
-        elif [ "${weekday_range}" != "skip" ]; then
-            for i in 1 2 3 4 5; do  # Monday through Friday
-                config_lines[${i}]="${DAY_VARS[${i}]}=${weekday_range}"
-                summary_lines[${i}]="${DAY_NAMES[${i}]}: ${weekday_range}"
-            done
         fi
-    else
-        # Configure each weekday separately
-        local i=1  # Start with Monday
-        while [ "${i}" -le 5 ]; do  # Monday through Friday
-            local allow_back="false"
-            if [ "${i}" -gt 1 ]; then
-                allow_back="true"  # Allow back from Tuesday onwards
-            fi
-            
-            local range
-            range=$(get_day_hours "${DAY_NAMES[${i}]}" "${i}" "${use_gui}" "${allow_back}" "true")
-            local exit_code=$?
-            
-            if [ "${range}" = "CANCELLED" ]; then
-                if [ "${use_gui}" = "true" ] && has_zenity; then
-                    zenity --info --text="Configuration cancelled." 2>/dev/null
-                else
-                    echo "Configuration cancelled."
-                fi
-                exit 0
-            elif [ "${range}" = "back" ] || [ ${exit_code} -eq 2 ]; then
-                # User wants to go back
-                if [ "${i}" -gt 1 ]; then
-                    i=$((i - 1))  # Go back to previous day
-                    # Remove previous day's entry if it was set
-                    unset config_lines[${i}]
-                    unset summary_lines[${i}]
-                fi
-                # Continue loop to re-prompt previous day
-            elif [ "${range}" != "skip" ]; then
-                config_lines[${i}]="${DAY_VARS[${i}]}=${range}"
-                summary_lines[${i}]="${DAY_NAMES[${i}]}: ${range}"
-                i=$((i + 1))  # Move to next day
-            else
-                i=$((i + 1))  # Skip this day, move to next
-            fi
-        done
-    fi
-    
-    # Ask about weekends
-    local weekend_range=""
-    if ask_weekend_together "${use_gui}"; then
-        weekend_range=$(get_day_hours "Weekends (Saturday and Sunday)" 6 "${use_gui}" "false" "true")
-        if [ "${weekend_range}" = "CANCELLED" ]; then
-            if [ "${use_gui}" = "true" ] && has_zenity; then
-                zenity --info --text="Configuration cancelled." 2>/dev/null
-            else
-                echo "Configuration cancelled."
-            fi
-            exit 0
-        elif [ "${weekend_range}" != "skip" ]; then
-            # Saturday (6)
-            config_lines[6]="${DAY_VARS[6]}=${weekend_range}"
-            summary_lines[6]="${DAY_NAMES[6]}: ${weekend_range}"
-            # Sunday (0)
-            config_lines[0]="${DAY_VARS[0]}=${weekend_range}"
-            summary_lines[0]="${DAY_NAMES[0]}: ${weekend_range}"
+        
+        if [ "${menu_exit}" -ne 0 ]; then
+            continue  # Show menu again
         fi
-    else
-        # Configure Saturday and Sunday separately
-        # Saturday (6) - first weekend day, no back
-        local weekend_day=6  # Start with Saturday
-        while true; do
-            local allow_back="false"
-            if [ "${weekend_day}" -eq 0 ]; then
-                allow_back="true"  # Allow back from Sunday to Saturday
-            fi
-            
-            local range
-            range=$(get_day_hours "${DAY_NAMES[${weekend_day}]}" "${weekend_day}" "${use_gui}" "${allow_back}" "true")
-            local exit_code=$?
-            
-            if [ "${range}" = "CANCELLED" ]; then
-                if [ "${use_gui}" = "true" ] && has_zenity; then
-                    zenity --info --text="Configuration cancelled." 2>/dev/null
+        
+        # Handle menu choice
+        case "${menu_choice}" in
+            1)
+                # Timer Settings
+                local new_interval
+                new_interval=$(get_check_interval "${use_gui}")
+                if [ "${new_interval}" = "CANCELLED" ]; then
+                    # User already confirmed cancellation in get_check_interval
+                    exit 0
                 else
-                    echo "Configuration cancelled."
+                    check_interval="${new_interval}"
                 fi
-                exit 0
-            elif [ "${range}" = "back" ] || [ ${exit_code} -eq 2 ]; then
-                # User wants to go back
-                if [ "${weekend_day}" -eq 0 ]; then
-                    weekend_day=6  # Go back to Saturday
-                    # Remove Saturday's entry if it was set
-                    unset config_lines[6]
-                    unset summary_lines[6]
-                fi
-                # Continue loop to re-prompt previous day
-            elif [ "${range}" != "skip" ]; then
-                config_lines[${weekend_day}]="${DAY_VARS[${weekend_day}]}=${range}"
-                summary_lines[${weekend_day}]="${DAY_NAMES[${weekend_day}]}: ${range}"
-                if [ "${weekend_day}" -eq 6 ]; then
-                    weekend_day=0  # Move to Sunday
+                ;;
+            2)
+                # Window Behavior
+                local new_size
+                new_size=$(get_popup_size_config "${use_gui}")
+                if [ "${new_size}" = "CANCELLED" ]; then
+                    # User already confirmed cancellation
+                    exit 0
                 else
-                    break  # Done with both weekend days
+                    popup_size="${new_size}"
                 fi
-            else
-                if [ "${weekend_day}" -eq 6 ]; then
-                    weekend_day=0  # Skip Saturday, move to Sunday
+                
+                local new_position
+                new_position=$(get_popup_position_config "${use_gui}")
+                if [ "${new_position}" = "CANCELLED" ]; then
+                    # User already confirmed cancellation
+                    exit 0
                 else
-                    break  # Done with both weekend days
+                    popup_position="${new_position}"
                 fi
-            fi
-        done
-    fi
-    
-    # Show summary and confirm
-    if ! show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${summary_lines[@]}"; then
-        if [ "${use_gui}" = "true" ] && has_zenity; then
-            zenity --info --text="Configuration cancelled." 2>/dev/null
-        else
-            echo "Configuration cancelled."
-        fi
-        exit 0
-    fi
-    
-    # Write configuration
-    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${config_lines[@]}"; then
-        # Update timer file if it exists
-        if [ -f "${TIMER_FILE}" ]; then
-            if update_timer_file "${check_interval}"; then
-                show_success "${use_gui}" "${check_interval}"
-            else
-                local warning_msg="Configuration saved, but failed to update timer file.\n\nYou may need to manually update:\n${TIMER_FILE}\n\nOr run: systemctl --user daemon-reload"
-                if [ "${use_gui}" = "true" ] && has_zenity; then
-                    zenity --warning --text="${warning_msg}" 2>/dev/null
+                
+                local new_time
+                new_time=$(get_min_display_time_config "${use_gui}")
+                if [ "${new_time}" = "CANCELLED" ]; then
+                    # User already confirmed cancellation
+                    exit 0
                 else
-                    echo "${warning_msg}" >&2
+                    min_display_time="${new_time}"
                 fi
-            fi
-        else
-            show_success "${use_gui}" "${check_interval}"
-        fi
-        exit 0
-    else
-        local error_msg="Error: Failed to write configuration file.\n\nPlease check permissions for:\n${CONFIG_DIR}"
-        if [ "${use_gui}" = "true" ] && has_zenity; then
-            zenity --error --text="${error_msg}" 2>/dev/null
-        else
-            echo "${error_msg}" >&2
-        fi
-        exit 1
-    fi
+                
+                local new_immovable
+                new_immovable=$(get_popup_immovable_config "${use_gui}")
+                if [ "${new_immovable}" = "CANCELLED" ]; then
+                    # User already confirmed cancellation
+                    exit 0
+                else
+                    popup_immovable="${new_immovable}"
+                fi
+                ;;
+            3)
+                # Weekdays Configuration
+                configure_weekdays_section "${use_gui}" config_lines summary_lines
+                local weekdays_exit=$?
+                if [ "${weekdays_exit}" -eq 2 ]; then
+                    # User cancelled
+                    exit 0
+                fi
+                ;;
+            4)
+                # Weekends Configuration
+                configure_weekends_section "${use_gui}" config_lines summary_lines
+                local weekends_exit=$?
+                if [ "${weekends_exit}" -eq 2 ]; then
+                    # User cancelled
+                    exit 0
+                fi
+                ;;
+            5)
+                # Review and Save
+                if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${summary_lines[@]}"; then
+                    # Write configuration
+                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${config_lines[@]}"; then
+                        # Update timer file if it exists
+                        if [ -f "${TIMER_FILE}" ]; then
+                            if update_timer_file "${check_interval}"; then
+                                show_success "${use_gui}" "${check_interval}"
+                            else
+                                local warning_msg="Configuration saved, but failed to update timer file.\n\nYou may need to manually update:\n${TIMER_FILE}\n\nOr run: systemctl --user daemon-reload"
+                                if [ "${use_gui}" = "true" ] && has_zenity; then
+                                    zenity --warning --text="${warning_msg}" 2>/dev/null
+                                else
+                                    echo "${warning_msg}" >&2
+                                fi
+                            fi
+                        else
+                            show_success "${use_gui}" "${check_interval}"
+                        fi
+                        exit 0
+                    else
+                        local error_msg="Error: Failed to write configuration file.\n\nPlease check permissions for:\n${CONFIG_DIR}"
+                        if [ "${use_gui}" = "true" ] && has_zenity; then
+                            zenity --error --text="${error_msg}" 2>/dev/null
+                        else
+                            echo "${error_msg}" >&2
+                        fi
+                        # Return to menu instead of exiting on error
+                    fi
+                fi
+                # User didn't confirm, return to menu
+                ;;
+        esac
+    done
 }
 
 # Run main function

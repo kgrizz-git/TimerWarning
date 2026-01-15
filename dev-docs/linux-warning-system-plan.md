@@ -283,14 +283,14 @@ The solution consists of eight main components:
     - Overlap scenario: "Monday 23-5 and Tuesday 23-5 both cover Tuesday midnight-5am"
   - [x] Make help accessible from configuration wizard (help button or menu option)
 
-- [x] **Add navigation controls** - PARTIALLY IMPLEMENTED: Cancel with confirmation at any time is implemented. Cancel button/option added to every prompt/dialog with confirmation. Skip option available. Back button and progress indicator not yet implemented (future enhancement).
+- [x] **Add navigation controls** - IMPLEMENTED: Full navigation support with menu-driven interface. Cancel with confirmation at any time, back navigation between days, section jumping, and skip option all implemented.
   - [x] Allow user to cancel configuration at any time (not just at summary)
   - [x] Add "Cancel" button/option to every prompt/dialog
   - [x] Confirm before cancelling if any changes have been made
-  - [ ] Add "Back" button/option to go to previous day's configuration
+  - [x] Add "Back" button/option to go to previous day's configuration (works in both GUI and text modes)
   - [x] Add "Skip" option to skip current day and move to next
-  - [ ] Show progress indicator (e.g., "Day 3 of 7: Wednesday")
-  - [ ] Allow jumping to specific day (e.g., "Go to Monday" menu option)
+  - [x] Allow jumping between sections (Timer Settings, Window Behavior, Weekdays, Weekends) via main menu
+  - [ ] Show progress indicator (e.g., "Day 3 of 7: Wednesday") - Future enhancement
 
 - [x] **Update documentation to clarify behavior** - IMPLEMENTED: Updated README.md and ../user-docs/CONFIGURATION.md with overnight range behavior, overlap behavior, and examples. Updated configure.sh welcome message with clear explanations.
   - [x] Document that overnight ranges span to next day
@@ -304,7 +304,7 @@ The solution consists of eight main components:
   - [x] Document navigation features (cancel, back, skip)
 
 - [ ] **Add restore to default configuration option**
-  - [ ] Add option in configure.sh to restore default configuration values
+  - [ ] Add option in configure.sh to restore default configuration values (via GUI and via text)
   - [ ] Add option in manage.sh to restore default configuration
   - [ ] Show confirmation dialog before restoring (warn that current settings will be lost)
   - [ ] Restore default restricted hours (weekdays: 0-5, weekends: 1-5)
