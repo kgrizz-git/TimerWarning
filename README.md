@@ -78,6 +78,13 @@ Or if running from the source directory:
 
 The configuration wizard will help you set up your restricted hours schedule.
 
+**Note**: If you get "command not found" when running `sleep-warning-configure`, you may need to:
+- Restart your terminal (to reload PATH), or
+- Run `source ~/.bashrc` in your current terminal, or
+- Use the full path: `~/.local/bin/sleep-warning-configure`
+
+The install script adds `~/.local/bin` to your PATH in `~/.bashrc`, but existing terminal sessions need to be restarted or reloaded to pick up the change.
+
 **Note**: Both steps can be run in any order:
 - **Install → Configure** (recommended): System is set up first, then customized
 - **Configure → Install**: Custom settings are created first, then system is installed (settings are preserved)
@@ -155,7 +162,7 @@ If you set overlapping ranges (e.g., `MONDAY=23-5` and `TUESDAY=0-5`), both will
 
 ## Usage
 
-Once installed, the system runs automatically. The timer checks every 10 minutes and displays a warning popup if you're using the system during restricted hours.
+Once installed, the system runs automatically. The timer checks every 10 minutes by default and displays a warning popup if you're using the system during restricted hours. This frequency can be configured with the configuration wizard (run ./configure.sh in the source directory) or by manually editing `CHECK_INTERVAL` in the configuration file.
 
 ### Check Status
 

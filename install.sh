@@ -239,6 +239,51 @@ create_directories() {
     print_success "Directories created"
 }
 
+# Function to ensure ~/.local/bin is in PATH
+ensure_path_setup() {
+    local local_bin_path="$HOME/.local/bin"
+    local bashrc="$HOME/.bashrc"
+    local profile="$HOME/.profile"
+    local path_export='export PATH="$HOME/.local/bin:$PATH"'
+    
+    # Check if already in PATH
+    if echo "$PATH" | grep -q "$local_bin_path"; then
+        print_info "~/.local/bin is already in PATH"
+        return 0
+    fi
+    
+    # Try to add to .bashrc first (most common)
+    if [ -f "$bashrc" ]; then
+        if ! grep -q '\.local/bin' "$bashrc" 2>/dev/null; then
+            echo "" >> "$bashrc"
+            echo "# Added by Sleep Warning System installer" >> "$bashrc"
+            echo "$path_export" >> "$bashrc"
+            print_success "Added ~/.local/bin to PATH in ~/.bashrc"
+            return 0
+        fi
+    fi
+    
+    # Fallback to .profile if .bashrc doesn't exist or already has it
+    if [ -f "$profile" ]; then
+        if ! grep -q '\.local/bin' "$profile" 2>/dev/null; then
+            echo "" >> "$profile"
+            echo "# Added by Sleep Warning System installer" >> "$profile"
+            echo "$path_export" >> "$profile"
+            print_success "Added ~/.local/bin to PATH in ~/.profile"
+            return 0
+        fi
+    fi
+    
+    # If neither file exists, create .bashrc
+    if [ ! -f "$bashrc" ] && [ ! -f "$profile" ]; then
+        echo "$path_export" >> "$bashrc"
+        print_success "Created ~/.bashrc and added ~/.local/bin to PATH"
+        return 0
+    fi
+    
+    print_info "~/.local/bin PATH entry already exists in shell config"
+}
+
 # Function to read CHECK_INTERVAL from config file
 get_check_interval() {
     local config_file="$CONFIG_DIR/sleep-warning.conf"
@@ -408,6 +453,8 @@ print_summary() {
     echo "  1. Configure restricted hours (recommended):"
     echo "     ${BLUE}sleep-warning-configure${NC}"
     echo "     This will help you set up your restricted hours schedule."
+    echo "     ${YELLOW}Note: If the command is not found, restart your terminal or run:${NC}"
+    echo "     ${YELLOW}     source ~/.bashrc${NC}"
     echo ""
     echo "  2. Check system status:"
     echo "     ${BLUE}sleep-warning-status${NC}"
@@ -446,6 +493,9 @@ main() {
     
     # Create directories
     create_directories
+    
+    # Ensure ~/.local/bin is in PATH
+    ensure_path_setup
     
     # Install files
     install_files
