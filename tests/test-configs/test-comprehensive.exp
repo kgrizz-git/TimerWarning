@@ -1,0 +1,308 @@
+#!/usr/bin/expect -f
+
+set timeout 10
+set configure_script [lindex $argv 0]
+set test_name [lindex $argv 1]
+
+spawn bash $configure_script --text
+
+# Wait for welcome and press Enter
+expect {
+    "Press Enter to continue" {
+        send "\r"
+    }
+    timeout {
+        puts "ERROR: Welcome message timeout"
+        exit 1
+    }
+}
+
+# Wait for menu
+expect {
+    "Select option" {
+    if {$test_name == "test_timer_settings"} {
+        # Test 1: Timer Settings
+        send "1\r"
+        expect "Check interval in minutes"
+        send "15\r"
+        expect "Select option"
+        send "6\r"
+        expect "Save this configuration"
+        send "y\r"
+        expect "Configuration saved successfully"
+        puts "PASS: Timer settings saved"
+        exit 0
+    } elseif {$test_name == "test_window_behavior"} {
+        # Test 2: Window Behavior
+        send "2\r"
+        expect "Popup Size Options"
+        send "3\r"  # large
+        expect "Select option"
+        expect "Popup Position Options"
+        send "2\r"  # top-left
+        expect "Select option"
+        expect "Minimum display time"
+        send "60\r"
+        expect "Select option"
+        expect "Prevent window movement"
+        send "n\r"
+        expect "Select option"
+        send "6\r"
+        expect "Save this configuration"
+        send "y\r"
+        expect "Configuration saved successfully"
+        puts "PASS: Window behavior settings saved"
+        exit 0
+    } elseif {$test_name == "test_weekday_bulk"} {
+        # Test 3: Weekday bulk apply
+        send "3\r"
+        expect "Use same hours for all weekdays"
+        send "y\r"
+        expect "Configure restricted hours for Weekdays"
+        send "0-5\r"
+        expect "Is this correct"
+        send "y\r"
+        expect "Select option"
+        send "6\r"
+        expect "Save this configuration"
+        send "y\r"
+        expect "Configuration saved successfully"
+        puts "PASS: Weekday bulk apply saved"
+        exit 0
+    } elseif {$test_name == "test_weekend_bulk"} {
+        # Test 4: Weekend bulk apply
+        send "4\r"
+        expect "Use same hours for both weekend days"
+        send "y\r"
+        expect "Configure restricted hours for Weekends"
+        send "1-6\r"
+        expect "Is this correct"
+        send "y\r"
+        expect "Select option"
+        send "6\r"
+        expect "Save this configuration"
+        send "y\r"
+        expect "Configuration saved successfully"
+        puts "PASS: Weekend bulk apply saved"
+        exit 0
+    } elseif {$test_name == "test_individual_day"} {
+        # Test 5: Individual day editing
+        send "3\r"
+        expect "Use same hours for all weekdays"
+        send "n\r"
+        expect "Configure restricted hours for Monday"
+        send "22-23\r"
+        expect "Is this correct"
+        send "y\r"
+        expect "Configure restricted hours for Tuesday"
+        send "skip\r"
+        expect "Skip Monday"
+        send "n\r"
+        expect "Configure restricted hours for Tuesday"
+        send "skip\r"
+        expect "Skip Tuesday"
+        send "y\r"
+        expect "Configure restricted hours for Wednesday"
+        send "0-3\r"
+        expect "Is this correct"
+        send "y\r"
+        expect "Configure restricted hours for Thursday"
+        send "back\r"
+        expect "Configure restricted hours for Wednesday"
+        send "0-4\r"
+        expect "Is this correct"
+        send "y\r"
+        expect "Configure restricted hours for Thursday"
+        send "0-5\r"
+        expect "Is this correct"
+        send "y\r"
+        expect "Configure restricted hours for Friday"
+        send "skip\r"
+        expect "Skip Friday"
+        send "y\r"
+        expect "Select option"
+        send "6\r"
+        expect "Save this configuration"
+        send "y\r"
+        expect "Configuration saved successfully"
+        puts "PASS: Individual day editing saved"
+        exit 0
+    } elseif {$test_name == "test_grid_empty"} {
+        # Test 6: Grid with empty config
+        send "5\r"
+        expect "Visual Day/Time Grid"
+        expect "Select option"
+        # Verify all days show "(no restrictions)"
+        expect "no restrictions"
+        send "0\r"
+        expect "Select option"
+        send "6\r"
+        expect "Save"
+        send "n\r"
+        puts "PASS: Grid displays empty config correctly"
+        exit 0
+    } elseif {$test_name == "test_grid_multiple_ranges"} {
+        # Test 7: Grid with multiple time ranges
+        send "5\r"
+        expect "Visual Day/Time Grid"
+        expect "Select option"
+        send "2\r"  # Monday
+        expect "all weekdays"
+        send "n\r"
+        expect "Configure restricted hours for Monday"
+        send "0-5,22-23\r"
+        expect "Is this correct"
+        send "y\r"
+        expect "Visual Day/Time Grid"
+        expect "AND"
+        puts "PASS: Multiple ranges displayed with AND"
+        send "0\r"
+        expect "Select option"
+        send "6\r"
+        expect "Save"
+        send "y\r"
+        expect "Configuration saved successfully"
+        puts "PASS: Multiple ranges saved"
+        exit 0
+    } elseif {$test_name == "test_grid_overnight"} {
+        # Test 8: Grid with overnight ranges
+        send "5\r"
+        expect "Visual Day/Time Grid"
+        expect "Select option"
+        send "2\r"  # Monday
+        expect "all weekdays"
+        send "n\r"
+        expect "Configure restricted hours for Monday"
+        send "23-6\r"
+        expect "Is this correct"
+        send "y\r"
+        expect "Visual Day/Time Grid"
+        expect "Tuesday"
+        puts "PASS: Overnight range displayed correctly"
+        send "0\r"
+        expect "Select option"
+        send "6\r"
+        expect "Save"
+        send "y\r"
+        expect "Configuration saved successfully"
+        puts "PASS: Overnight range saved"
+        exit 0
+    } elseif {$test_name == "test_cancellation"} {
+        # Test 9: Cancellation handling
+        send "5\r"
+        expect "Visual Day/Time Grid"
+        expect "Select option"
+        send "2\r"  # Monday
+        expect "all weekdays"
+        send "n\r"
+        expect "Configure restricted hours for Monday"
+        send "\r"  # Cancel/empty
+        expect "What would you like to do"
+        # This should show menu with options
+        puts "PASS: Cancellation menu appeared"
+        send "Continue configuring\r"
+        expect "Configure restricted hours for Monday"
+        send "cancel\r"
+        expect "Cancel configuration"
+        send "n\r"
+        expect "Configure restricted hours for Monday"
+        send "0-5\r"
+        expect "Is this correct"
+        send "y\r"
+        expect "Visual Day/Time Grid"
+        send "0\r"
+        expect "Select option"
+        send "6\r"
+        expect "Save"
+        send "n\r"
+        puts "PASS: Cancellation handling works"
+        exit 0
+    } elseif {$test_name == "test_backward_compat"} {
+        # Test 10: Backward compatibility
+        expect "Select option"
+        send "1\r"
+        expect "Check interval"
+        puts "PASS: Option 1 accessible"
+        expect "Select option"
+        send "2\r"
+        expect "Window Behavior"
+        puts "PASS: Option 2 accessible"
+        expect "Select option"
+        send "3\r"
+        expect "Weekdays"
+        puts "PASS: Option 3 accessible"
+        expect "Select option"
+        send "4\r"
+        expect "Weekends"
+        puts "PASS: Option 4 accessible"
+        expect "Select option"
+        send "5\r"
+        expect "Visual Day/Time Grid"
+        puts "PASS: Option 5 accessible"
+        send "0\r"
+        expect "Select option"
+        send "6\r"
+        expect "Save"
+        send "n\r"
+        puts "PASS: All options accessible"
+        exit 0
+    } elseif {$test_name == "test_config_persistence"} {
+        # Test 11: Config persistence - set values, then verify they load
+        send "1\r"
+        expect "Check interval in minutes"
+        send "20\r"
+        expect "Select option"
+        send "2\r"
+        expect "Popup Size Options"
+        send "1\r"  # small
+        expect "Select option"
+        expect "Popup Position Options"
+        send "5\r"  # bottom-right
+        expect "Select option"
+        expect "Minimum display time"
+        send "45\r"
+        expect "Select option"
+        expect "Prevent window movement"
+        send "n\r"
+        expect "Select option"
+        send "3\r"
+        expect "Use same hours for all weekdays"
+        send "y\r"
+        expect "Configure restricted hours for Weekdays"
+        send "0-8\r"
+        expect "Is this correct"
+        send "y\r"
+        expect "Select option"
+        send "6\r"
+        expect "Save this configuration"
+        send "y\r"
+        expect "Configuration saved successfully"
+        puts "PASS: Configuration saved"
+        exit 0
+    } elseif {$test_name == "test_config_reload"} {
+        # Test 12: Verify saved config loads correctly
+        # This test assumes config was saved in previous test
+        # Just verify menu shows correct values
+        expect "Check Interval: 20"
+        puts "PASS: Check interval loaded correctly"
+        expect "Size: small"
+        puts "PASS: Popup size loaded correctly"
+        expect "Position: bottom-right"
+        puts "PASS: Popup position loaded correctly"
+        expect "Min Display: 45s"
+        puts "PASS: Min display time loaded correctly"
+        expect "Immovable: Off"
+        puts "PASS: Immovable setting loaded correctly"
+        send "6\r"
+        expect "Save"
+        send "n\r"
+        puts "PASS: Configuration reloads correctly"
+        exit 0
+    }
+    timeout {
+        puts "ERROR: Menu timeout"
+        exit 1
+    }
+}
+
+expect eof

@@ -392,6 +392,30 @@ or
 
 The wizard will guide you through setting all configuration options with a user-friendly interface.
 
+**Configuration Menu Options**:
+1. **Timer Settings** - Configure how often the system checks for restricted hours
+2. **Window Behavior** - Configure popup size, position, display time, and immovable settings
+3. **Weekdays Configuration** - Set restricted hours for Monday through Friday
+4. **Weekends Configuration** - Set restricted hours for Saturday and Sunday
+5. **Visual Day/Time Grid** - View and edit all days in a visual grid format (see below)
+6. **Review and Save** - Review your configuration and save changes
+
+**Visual Day/Time Grid**:
+The grid view (option 5) provides a convenient way to see all days of the week and their configured time ranges at a glance. The grid displays:
+- All 7 days (Sunday through Saturday) in a single view
+- Current time ranges for each day in human-readable format (e.g., "12:00 AM → 4:59 AM")
+- Visual indicators (✗) showing which days have restrictions configured
+- Easy click-to-edit access for any day
+
+You can select any day from the grid to edit its restricted hours. After editing, the grid automatically refreshes to show your updated configuration. This makes it easy to configure different hours for each day or quickly review your entire schedule.
+
+**Command-line options**:
+- `--text` or `--no-gui`: Force text mode (useful for SSH sessions or when GUI isn't working)
+- `--gui`: Force GUI mode (requires zenity)
+- `--help` or `-h`: Show help message
+
+By default, the wizard uses GUI mode if zenity is available and a display is present. Use `--text` to force text mode when working over SSH or when the GUI environment isn't available.
+
 ### Method 2: Manual Editing
 
 You can manually edit the configuration file using any text editor:

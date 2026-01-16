@@ -4,9 +4,9 @@ This document provides detailed technical specifications for the Sleep Warning S
 
 ## Configuration File Format
 
-The configuration file should be simple and easy to edit. Suggested format:
+The configuration file uses a simple day-based format that is easy to edit:
 
-**Option 1: Day-based format (recommended)**
+**Day-based format (implemented)**
 ```
 # Sleep Warning Configuration
 # Format: DAY=START_HOUR-END_HOUR
@@ -22,19 +22,15 @@ FRIDAY=0-5
 SATURDAY=1-5
 ```
 
-**Option 2: Simple key-value format**
-```
-WEEKDAY_START=0
-WEEKDAY_END=5
-WEEKEND_START=1
-WEEKEND_END=5
-```
+The script:
+- Reads configuration from `~/.config/sleep-warning/sleep-warning.conf`
+- Falls back to defaults if file doesn't exist
+- Validates hour ranges (0-23, start < end for normal ranges, start > end for overnight ranges)
+- Supports comments (lines starting with #)
+- Supports multiple time ranges per day (comma-separated, e.g., `0-5,22-23`)
+- Supports overnight ranges that span midnight (e.g., `23-6` means 11 PM to 5:59 AM)
 
-The script should:
-- Read configuration from `~/.config/sleep-warning/sleep-warning.conf`
-- Fall back to defaults if file doesn't exist
-- Validate hour ranges (0-23, start < end)
-- Support comments (lines starting with #)
+For complete configuration documentation including all options (CHECK_INTERVAL, POPUP_SIZE, POPUP_POSITION, POPUP_MIN_DISPLAY_TIME, POPUP_IMMOVABLE), see [user-docs/CONFIGURATION.md](../user-docs/CONFIGURATION.md).
 
 ## Time Checking Logic
 - Use `date +%w` for day of week (0=Sunday, 6=Saturday)

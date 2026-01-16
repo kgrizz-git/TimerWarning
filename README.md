@@ -92,6 +92,13 @@ Or if running from the source directory:
 
 The configuration wizard will help you set up your restricted hours schedule.
 
+**Command-line options**:
+- `--text` or `--no-gui`: Force text mode (useful for SSH sessions or when GUI isn't working)
+- `--gui`: Force GUI mode (requires zenity)
+- `--help` or `-h`: Show help message
+
+By default, the wizard uses GUI mode if zenity is available and a display is present.
+
 **Note**: If you get "command not found" when running `sleep-warning-configure`, you may need to:
 - Restart your terminal (to reload PATH), or
 - Run `source ~/.bashrc` in your current terminal, or
@@ -118,6 +125,15 @@ You can configure restricted hours using the interactive wizard:
 ```bash
 sleep-warning-configure
 ```
+
+The configuration wizard provides several options:
+- **Timer Settings** - Configure check interval
+- **Window Behavior** - Configure popup size, position, and display settings
+- **Weekdays/Weekends Configuration** - Set restricted hours for weekdays or weekends
+- **Visual Day/Time Grid** - View and edit all days in a visual grid format, showing all 7 days and their time ranges at a glance
+- **Review and Save** - Review your configuration before saving
+
+The **Visual Day/Time Grid** is particularly useful for seeing your entire schedule at once and making quick edits to individual days.
 
 Or edit the configuration file at `~/.config/sleep-warning/sleep-warning.conf`:
 

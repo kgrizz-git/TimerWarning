@@ -214,6 +214,18 @@ These enhancements can be integrated into the existing bash script suite without
   - Log attempts to set immovable property and whether it succeeded
 - **Related**: Complements minimum display time feature (#15 in current implementation)
 
+### 14.5. Configure.sh GUI Window Behavior
+- **Description**: Fix issue where `configure.sh` GUI windows (when run in GUI mode) can be mistaken for the warning popup and end up staying on top and being immovable. The actual warning popup should stay on top, not the configuration GUI windows.
+- **Implementation**: 
+  - Ensure `configure.sh` GUI windows (zenity dialogs) do not use stay-on-top or immovable window properties
+  - Ensure warning popup windows have higher z-order priority than configuration GUI windows
+  - Consider using different window properties or flags for configuration dialogs vs warning popups
+  - May need to adjust window manager hints or properties to distinguish between configuration dialogs and warning popups
+- **Files Affected**: `configure.sh`, `sleep-warning.sh`
+- **Priority**: Medium (usability issue, can confuse users)
+- **Status**: Not implemented
+- **Current Issue**: When `configure.sh` is run in GUI mode, the zenity dialogs may be treated similarly to warning popups, causing them to stay on top and potentially be immovable, which interferes with the intended behavior where only the actual warning popup should have these properties.
+
 ### 15. Auto-Close Popup Window
 - **Description**: Automatically close the popup window after a pre-configured time period, providing users with a non-interactive option for warning dismissal
 - **Implementation**: 
@@ -266,41 +278,141 @@ These enhancements can be integrated into the existing bash script suite without
 - **Description**: Display a visual summary grid showing all days and their configured time ranges, with clickable day entries that open the existing configuration dialog. Provides visual overview without requiring complex grid editing implementation.
 - **Priority**: Medium-High (easier to implement, provides immediate usability improvement)
 - **Status**: Not implemented
-- **Implementation**: 
-  - Create visual summary grid/table showing days (Sunday-Saturday) as rows
-  - Display configured time ranges for each day in human-readable format (e.g., "12:00 AM - 5:59 AM")
-  - Show visual indicators for days with restrictions (colored/shaded) vs. days without restrictions
-  - Make each day row clickable/selectable to edit that day's configuration
-  - When user clicks a weekday, ask if they want to apply same times to all weekdays
-  - When user clicks a weekend day, ask if they want to apply same times to both weekend days
-  - Use existing `get_day_hours()` function for editing (no changes needed to editing logic)
-  - Display summary in both GUI (yad/zenity list/table) and text mode (formatted table)
-  - Update summary display after each day is edited
-- **Implementation Approaches**:
-  - **GUI Mode**: Use `yad --list` or `zenity --list` to display days and time ranges in table format
-  - **Text Mode**: Display formatted ASCII table with numbered options, allow selection via menu
-  - Clicking/selecting a day opens existing configuration dialog for that day
+- **Implementation Approach**: Add as new main menu option "5. Visual Day/Time Grid" (Option 1 - Non-breaking enhancement)
+- **Implementation Plan**:
+  - **Menu Integration**:
+    - Add "5. Visual Day/Time Grid" option to `show_main_menu()` function (Review and Save moved to option 6)
+    - Update menu handling in `main()` function to route option 5 to grid view
+    - Maintain backward compatibility with existing menu options (1-5)
+  - **Grid Display Function** (`show_visual_grid()`):
+    - **GUI Mode** (zenity):
+      - Use `zenity --list` with columns: "Status", "Day", "Time Ranges"
+      - Status column: Use "✗" (X) for days with restrictions, blank/empty for days without restrictions
+      - Day column: Full day name (Sunday, Monday, etc.)
+      - Time Ranges column: Human-readable format using `format_ranges_human()` (e.g., "12:00 AM → 4:59 AM")
+      - Display all 7 days in calendar order (Sunday-Saturday)
+      - Add "Back to Menu" option at bottom of list
+    - **Text Mode**:
+      - Display formatted ASCII table with numbered options (1-7 for days, 0 for back)
+      - Show status indicator (✗) before day name only if day has restrictions, otherwise leave blank
+      - Display formatted time ranges using `format_ranges_human()`
+      - Format: `[✗] 1. Sunday: 12:00 AM → 4:59 AM` or `1. Sunday: (no restrictions)`
+      - Clear table borders and spacing for readability
+  - **Day Selection and Editing** (`configure_day_from_grid()`):
+    - Parse selected day from grid (day index 0-6)
+    - Determine if selected day is weekday (1-5) or weekend (0, 6)
+    - **For Weekdays** (Monday-Friday, indices 1-5):
+      - Prompt: "Apply same times to all weekdays (Monday-Friday)?"
+      - If yes: Use `get_day_hours("Weekdays (Monday-Friday)", ...)` and apply to all weekdays
+      - If no: Use `get_day_hours()` for selected day only
+    - **For Weekend Days** (Saturday-Sunday, indices 0, 6):
+      - Prompt: "Apply same times to both weekend days (Saturday and Sunday)?"
+      - If yes: Use `get_day_hours("Weekends (Saturday and Sunday)", ...)` and apply to both
+      - If no: Use `get_day_hours()` for selected day only
+    - Update `config_lines[]` and `summary_lines[]` arrays after editing
+    - Return to grid view after each edit (refresh display)
+  - **Grid Refresh**:
+    - After each day edit, rebuild grid display using updated `summary_lines[]` array
+    - Reuse `format_ranges_human()` to format time ranges for display
+    - Maintain user's position in grid (if possible) or return to top
+  - **Navigation Flow**:
+    - Main Menu → Option 5 → Grid View → Select Day → Edit Dialog → Grid View (updated) → Loop or Back
+    - Provide clear "Back to Main Menu" option from grid view
+    - Allow multiple day edits in single session without returning to main menu
+  - **Visual Indicators**:
+    - **✗ (X mark)**: Day has restrictions configured (blocked times)
+    - **Blank/Empty**: Day has no restrictions (unrestricted)
+    - Use X to clearly indicate "blocked/restricted" (negative connotation)
+    - Leave unrestricted days blank for cleaner, simpler display
+    - Avoid checkmarks (✓) which might imply "allowed" when we mean "restricted"
+  - **Function Reuse**:
+    - Reuse `get_day_hours()` for all editing (no changes needed)
+    - Reuse `format_ranges_human()` and `format_range_human()` for display
+    - Reuse `ask_weekday_together()` and `ask_weekend_together()` for bulk prompts
+    - Reuse `load_existing_config()` to populate initial grid data
+    - Reuse existing `config_lines[]` and `summary_lines[]` array structure
+  - **Error Handling**:
+    - Handle cancellation gracefully (return to grid or main menu)
+    - Validate day selection (ensure index is 0-6)
+    - Handle empty/unconfigured days (show blank status with "(no restrictions)" text)
+    - Preserve existing error handling from `get_day_hours()`
+- **Technical Considerations**:
+  - **Minimal Code Changes**: Only add new functions, no modifications to existing functions
+  - **Array Management**: Use existing `config_lines[]` and `summary_lines[]` arrays (passed by reference)
+  - **Configuration Format**: No changes to config file format required
+  - **Backward Compatibility**: Existing menu options (1-5) remain unchanged
+  - **GUI/Text Mode**: Support both modes using existing `use_gui` detection
+  - **Function Structure**:
+    - `show_visual_grid()`: Main grid display function (GUI and text modes)
+    - `configure_day_from_grid()`: Handle day selection and editing logic
+    - Both functions accept `use_gui`, `config_lines_ref`, `summary_lines_ref` parameters
 - **User Experience**:
   - **Visual Overview**: User can see all days and their restrictions at a glance
-  - **Easy Access**: Click any day to edit it immediately
-  - **Bulk Operations**: Still prompts for weekday/weekend bulk apply when editing those days
-  - **No Grid Editing**: Time ranges still entered via existing text input (no complex grid widget needed)
-- **Technical Considerations**:
-  - Reuse existing `get_day_hours()` function from `configure.sh`
-  - Parse current configuration to build summary display
-  - Format time ranges using existing `format_range_human()` function (if available)
-  - Minimal changes to existing codebase
-  - Works with current configuration file format (no changes needed)
+  - **Easy Access**: Click any day to edit it immediately (no sequential navigation)
+  - **Bulk Operations**: Prompts for weekday/weekend bulk apply when editing those days
+  - **Familiar Editing**: Uses existing time range input method (no learning curve)
+  - **Quick Iteration**: Edit multiple days in sequence without returning to main menu
+  - **Clear Status**: Visual indicator (✗) makes restricted days immediately obvious; unrestricted days are blank
 - **User Experience Benefits**:
   - **Visual Clarity**: Immediately see which days have restrictions and what they are
   - **Easy Navigation**: Click any day to edit without going through sequential wizard
   - **Quick Overview**: See entire week's configuration at once
   - **Familiar Editing**: Uses existing time range input method (no learning curve)
+  - **Pattern Recognition**: Easily see patterns across days (e.g., all weekdays same)
 - **Limitations**:
   - Time ranges still entered via text input (not visual grid editing)
   - No drag-to-select hour ranges
   - No visual hour-by-hour grid display
   - No bulk copy/paste between days (except weekday/weekend prompts)
+  - Grid shows summary only, not individual hour blocks
+
+- **Selected Implementation Choices**:
+  - **Menu Integration**: Option 1 - Add as new menu option "5. Visual Day/Time Grid" (non-breaking, Review and Save moved to option 6)
+  - **Visual Indicators**: ✗ (X) for restricted days, blank for unrestricted days (cleaner display, negative connotation for blocked times)
+  - **Display Format**: Three-column table (Status, Day, Time Ranges) in GUI mode; numbered list in text mode
+  - **Editing Flow**: Reuse existing `get_day_hours()` function with bulk apply prompts for weekdays/weekends
+  - **Grid Refresh**: Update grid display after each edit to show current state
+  - **Navigation**: Loop in grid view allowing multiple edits, clear "Back to Menu" option
+  - **Function Structure**: Two new functions (`show_visual_grid()`, `configure_day_from_grid()`) with minimal code changes
+
+- **Implementation Checklist**:
+  - [x] Add "5. Visual Day/Time Grid" option to `show_main_menu()` function (GUI and text modes, Review and Save moved to option 6)
+  - [x] Update menu handling in `main()` function to route option 5 to grid view
+  - [x] Create `show_visual_grid()` function:
+    - [x] GUI mode: Use `zenity --list` with Status (✗ or blank), Day, Time Ranges columns
+    - [x] Text mode: Display numbered ASCII table with status indicators
+    - [x] Format time ranges using `format_ranges_human()` function
+    - [x] Handle "Back to Menu" option
+  - [x] Create `configure_day_from_grid()` function:
+    - [x] Parse selected day index (0-6)
+    - [x] Detect weekday vs. weekend day
+    - [x] Prompt for bulk apply (weekdays or weekends) using existing functions
+    - [x] Call `get_day_hours()` with appropriate parameters
+    - [x] Update `config_lines[]` and `summary_lines[]` arrays
+    - [x] Return updated arrays to caller
+  - [x] Implement grid refresh logic (rebuild display after edits)
+  - [x] Add navigation loop in grid view (allow multiple edits without returning to main menu)
+  - [ ] Update documentation if needed
+  - [ ] Test GUI mode with zenity
+  - [x] Test text mode with terminal (test framework created, tests 1-3 passing)
+  - [x] Test weekday bulk apply functionality (test 3 passing with config verification)
+  - [ ] Test weekend bulk apply functionality
+  - [ ] Test individual day editing
+  - [ ] Test cancellation handling (return to grid or main menu)
+  - [ ] Test with empty/unconfigured days
+  - [ ] Test with days that have multiple time ranges
+  - [ ] Test with overnight ranges (verify display format)
+  - [ ] Verify backward compatibility (existing menu options 1-5 still work)
+  
+  **Test Framework Status:**
+  - Test framework created: `tests/test-configure-comprehensive.sh` and `tests/test-configure-comprehensive.exp`
+  - Can run individual tests: `./tests/test-configure-comprehensive.sh 1 2 3` (runs tests 1, 2, and 3)
+  - Test 1 (Timer Settings): ✅ PASSING - verifies config file persistence
+  - Test 2 (Window Behavior): ✅ PASSING - verifies all window settings saved correctly
+  - Test 3 (Weekday Bulk Apply): ✅ PASSING - verifies bulk apply to all weekdays
+  
+  **Bugs Fixed in configure.sh:**
+  - Fixed prompt text going to stdout instead of stderr in `get_popup_size_config()`, `get_popup_position_config()`, `get_popup_immovable_config()`, and `get_day_hours()` - these prompts were being captured in config values
 
 #### Phase 2: Full Interactive Grid Editing (Advanced Implementation)
 - **Description**: Extend Phase 1 with full interactive grid editing, allowing users to click/toggle individual hours directly in the grid, with drag selection, visual feedback, and advanced bulk operations.

@@ -347,7 +347,9 @@ show_tips() {
     
     echo -e "  ${COLOR_BOLD}Configuration:${COLOR_RESET}"
     echo "    sleep-warning-configure  - Configure restricted hours (installed)"
+    echo "    sleep-warning-configure --text  - Force text mode (useful for SSH)"
     echo "    ./configure.sh          - Configure restricted hours (local)"
+    echo "    ./configure.sh --text    - Force text mode"
     echo ""
     echo -e "  ${COLOR_BOLD}Status:${COLOR_RESET}"
     echo "    sleep-warning-status    - View system status (this command)"

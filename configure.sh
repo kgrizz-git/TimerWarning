@@ -12,8 +12,15 @@
 # - zenity (preferred) or fallback to text prompts
 #
 # Usage:
-#   ./configure.sh
-#   sleep-warning-configure (after installation)
+#   ./configure.sh [OPTIONS]
+#   sleep-warning-configure [OPTIONS] (after installation)
+#
+# Options:
+#   --text, --no-gui    Force text mode (disable GUI)
+#   --gui               Force GUI mode (requires zenity)
+#   --help, -h          Show help message
+#
+# By default, GUI mode is used if zenity is available and a display is present.
 #
 # Output:
 # - Updates ~/.config/sleep-warning/sleep-warning.conf with user selections
@@ -210,7 +217,8 @@ show_main_menu() {
             "2" "Window Behavior (${window_desc})" \
             "3" "Weekdays Configuration ${weekdays_status}" \
             "4" "Weekends Configuration ${weekends_status}" \
-            "5" "Review and Save" \
+            "5" "Visual Day/Time Grid" \
+            "6" "Review and Save" \
             > "${tmpfile}" 2>/dev/null
         local exit_code=$?
         local choice=$(cat "${tmpfile}" 2>/dev/null)
@@ -226,18 +234,18 @@ show_main_menu() {
             fi
         fi
         
-        # If OK was clicked but no item selected, default to "Review and Save" (option 5)
+        # If OK was clicked but no item selected, default to "Review and Save" (option 6)
         if [ -z "${choice}" ]; then
-            choice="5"
+            choice="6"
         fi
         
         echo "${choice}"
         return 0
     else
         # Text mode
-        echo ""
-        echo "=== Configuration Menu ==="
-        echo ""
+        echo "" >&2
+        echo "=== Configuration Menu ===" >&2
+        echo "" >&2
         # Build window behavior description with all attributes
         local window_desc="Size: ${popup_size}"
         if [ "${popup_size}" = "small" ]; then
@@ -259,22 +267,36 @@ show_main_menu() {
             window_desc="${window_desc}, Immovable: Off"
         fi
         
-        echo "1. Timer Settings (Check Interval: ${check_interval} min)"
-        echo "2. Window Behavior (${window_desc})"
-        echo "3. Weekdays Configuration ${weekdays_status}"
-        echo "4. Weekends Configuration ${weekends_status}"
-        echo "5. Review and Save"
-        echo ""
+        echo "1. Timer Settings (Check Interval: ${check_interval} min)" >&2
+        echo "   Configure how often the system checks for restricted hours" >&2
+        echo "" >&2
+        echo "2. Window Behavior (${window_desc})" >&2
+        echo "   Configure popup size, position, display time, and immovable settings" >&2
+        echo "" >&2
+        echo "3. Weekdays Configuration ${weekdays_status}" >&2
+        echo "   Set restricted hours for Monday through Friday" >&2
+        echo "" >&2
+        echo "4. Weekends Configuration ${weekends_status}" >&2
+        echo "   Set restricted hours for Saturday and Sunday" >&2
+        echo "" >&2
+        echo "5. Visual Day/Time Grid" >&2
+        echo "   View and edit all days in a visual grid format" >&2
+        echo "" >&2
+        echo "6. Review and Save" >&2
+        echo "   Review your configuration and save changes" >&2
+        echo "" >&2
+        echo "To cancel and exit without saving, press Ctrl+C" >&2
+        echo "" >&2
         
         while true; do
-            read -p "Select option [1-5]: " choice
+            read -p "Select option [1-6]: " choice >&2
             case "${choice}" in
-                1|2|3|4|5)
+                1|2|3|4|5|6)
                     echo "${choice}"
                     return 0
                     ;;
                 *)
-                    echo "Invalid option. Please enter 1-5." >&2
+                    echo "Invalid option. Please enter 1-6." >&2
                     ;;
             esac
         done
@@ -441,12 +463,12 @@ get_popup_size_config() {
         done
     else
         # Text mode
-        echo ""
-        echo "Popup Size Options:"
-        echo "  1) small (400x250)"
-        echo "  2) medium (800x500)"
-        echo "  3) large (2000x1350)"
-        echo ""
+        echo "" >&2
+        echo "Popup Size Options:" >&2
+        echo "  1) small (400x250)" >&2
+        echo "  2) medium (800x500)" >&2
+        echo "  3) large (2000x1350)" >&2
+        echo "" >&2
         while true; do
             read -p "Select size [1-3, default: ${default_size}]: " choice
             case "${choice}" in
@@ -582,11 +604,11 @@ get_popup_immovable_config() {
         done
     else
         # Text mode
-        echo ""
-        echo "Popup Immovable Setting:"
-        echo "  Prevents the popup window from being moved during minimum display time"
-        echo "  by monitoring and restoring its position if moved."
-        echo ""
+        echo "" >&2
+        echo "Popup Immovable Setting:" >&2
+        echo "  Prevents the popup window from being moved during minimum display time" >&2
+        echo "  by monitoring and restoring its position if moved." >&2
+        echo "" >&2
         while true; do
             read -p "Prevent window movement? [y/n, default: ${default_immovable}]: " choice
             choice=${choice:-${default_immovable}}
@@ -666,16 +688,16 @@ get_popup_position_config() {
         done
     else
         # Text mode
-        echo ""
-        echo "Popup Position Options:"
-        echo "  1) center"
-        echo "  2) top-left"
-        echo "  3) top-right"
-        echo "  4) bottom-left"
-        echo "  5) bottom-right"
-        echo "  6) top-center"
-        echo "  7) bottom-center"
-        echo ""
+        echo "" >&2
+        echo "Popup Position Options:" >&2
+        echo "  1) center" >&2
+        echo "  2) top-left" >&2
+        echo "  3) top-right" >&2
+        echo "  4) bottom-left" >&2
+        echo "  5) bottom-right" >&2
+        echo "  6) top-center" >&2
+        echo "  7) bottom-center" >&2
+        echo "" >&2
         while true; do
             read -p "Select position [1-7, default: ${default_position}]: " choice
             case "${choice}" in
@@ -1192,7 +1214,7 @@ get_day_hours() {
         done
     else
         # Text mode
-        echo ""
+        echo "" >&2
         echo "=== Configuring ${day_name} ===" >&2
         echo "" >&2
         echo "IMPORTANT - Overnight ranges:" >&2
@@ -1553,6 +1575,313 @@ configure_weekends_section() {
         done
         return 0
     fi
+}
+
+# Show visual grid of all days with their time restrictions
+show_visual_grid() {
+    local use_gui="$1"
+    local -n config_lines_ref="$2"  # Pass by reference
+    local -n summary_lines_ref="$3"  # Pass by reference
+    
+    if [ "${use_gui}" = "true" ] && has_zenity; then
+        # GUI mode
+        while true; do
+            local tmpfile
+            tmpfile=$(mktemp)
+            
+            # Build grid data for zenity list
+            # Store day names and time ranges separately, then combine with pipe
+            local day_names=()
+            local time_ranges_list=()
+            
+            for day_index in 0 1 2 3 4 5 6; do
+                local day_name="${DAY_NAMES[${day_index}]}"
+                local status_indicator=""
+                local time_ranges=""
+                
+                if [ -n "${summary_lines_ref[${day_index}]}" ]; then
+                    # Day has configuration (may be restricted or explicitly skipped)
+                    local line="${summary_lines_ref[${day_index}]}"
+                    local range
+                    range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    
+                    if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
+                        # No restrictions
+                        time_ranges="(no restrictions)"
+                    else
+                        # Has restrictions - show formatted time ranges
+                        status_indicator="✗ "
+                        time_ranges=$(format_ranges_human "${range}" "${day_name}")
+                    fi
+                else
+                    # Day has no configuration
+                    time_ranges="(no restrictions)"
+                fi
+                
+                # Store separately
+                day_names+=("${status_indicator}${day_name}")
+                time_ranges_list+=("${time_ranges}")
+            done
+            
+            # Add "Back to Menu" option
+            day_names+=("<<BACK>>")
+            time_ranges_list+=("Back to Main Menu")
+            
+            # Build pipe-separated lines manually
+            local grid_data=()
+            for i in "${!day_names[@]}"; do
+                grid_data+=("${day_names[${i}]}|${time_ranges_list[${i}]}")
+            done
+            
+            # Debug: Log what we're sending to zenity (if DEBUG_GRID is set)
+            if [ -n "${DEBUG_GRID:-}" ]; then
+                echo "DEBUG: Grid data array contents:" >&2
+                for i in "${!grid_data[@]}"; do
+                    echo "  [${i}]: '${grid_data[${i}]}'" >&2
+                done
+                echo "DEBUG: Sending to zenity (pipe-separated):" >&2
+                printf '%s\n' "${grid_data[@]}" >&2
+            fi
+            
+            # Display grid using zenity
+            # Use two columns: Day (with status indicator) and Time Ranges
+            # zenity --list expects data as separate arguments, alternating between columns
+            # For 2 columns, format is: col1_row1 col2_row1 col1_row2 col2_row2 ...
+            local zenity_data=()
+            for i in "${!day_names[@]}"; do
+                zenity_data+=("${day_names[${i}]}")
+                zenity_data+=("${time_ranges_list[${i}]}")
+            done
+            
+            if [ -n "${DEBUG_GRID:-}" ]; then
+                echo "DEBUG: Zenity data array (alternating Day, Time):" >&2
+                for i in "${!zenity_data[@]}"; do
+                    echo "  [${i}]: '${zenity_data[${i}]}'" >&2
+                done
+            fi
+            
+            # Pass data as separate arguments - zenity will group them into rows
+            zenity --list \
+                --title="Visual Day/Time Grid" \
+                --text="Select a day to edit its restricted hours:" \
+                --column="Day" --column="Time Ranges" \
+                --width=800 \
+                --height=450 \
+                --print-column=1 \
+                "${zenity_data[@]}" \
+                > "${tmpfile}" 2>/dev/null
+            local exit_code=$?
+            
+            local selected=$(cat "${tmpfile}" 2>/dev/null)
+            rm -f "${tmpfile}"
+            
+            if [ -n "${DEBUG_GRID:-}" ]; then
+                echo "DEBUG: zenity exit code: ${exit_code}" >&2
+                echo "DEBUG: Selected value: '${selected}'" >&2
+            fi
+            
+            if [ "${exit_code}" -ne 0 ] || [ -z "${selected}" ]; then
+                # User cancelled - return to main menu
+                declare -g grid_result_var="BACK"
+                return 0
+            fi
+            
+            # Extract day name from selection
+            # With --print-column=1, we get just the Day column (first column)
+            # Day may have "✗ " prefix for restricted days
+            local selected_day
+            selected_day=$(echo "${selected}" | sed 's/^✗ //;s/^[[:space:]]*//;s/[[:space:]]*$//')
+            
+            # Check if "Back to Menu" was selected
+            if [ "${selected_day}" = "<<BACK>>" ]; then
+                declare -g grid_result_var="BACK"
+                return 0
+            fi
+            
+            # Find day index
+            local day_index=-1
+            for i in 0 1 2 3 4 5 6; do
+                if [ "${DAY_NAMES[${i}]}" = "${selected_day}" ]; then
+                    day_index=${i}
+                    break
+                fi
+            done
+            
+            if [ "${day_index}" -lt 0 ]; then
+                # Invalid selection
+                zenity --error --text="Invalid day selection." 2>/dev/null
+                continue
+            fi
+            
+            # Store day index in global variable
+            declare -g grid_result_var="${day_index}"
+            return 0
+        done
+    else
+        # Text mode
+        while true; do
+            echo ""
+            echo "=== Visual Day/Time Grid ==="
+            echo ""
+            echo "Select a day to edit its restricted hours:"
+            echo ""
+            
+            # Display grid
+            for day_index in 0 1 2 3 4 5 6; do
+                local day_name="${DAY_NAMES[${day_index}]}"
+                local status_indicator=""
+                local time_ranges=""
+                
+                if [ -n "${summary_lines_ref[${day_index}]}" ]; then
+                    # Day has configuration
+                    local line="${summary_lines_ref[${day_index}]}"
+                    local range
+                    range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    
+                    if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
+                        # No restrictions - blank status
+                        time_ranges="(no restrictions)"
+                    else
+                        # Has restrictions - show X and formatted time ranges
+                        status_indicator="[✗]"
+                        time_ranges=$(format_ranges_human "${range}" "${day_name}")
+                    fi
+                else
+                    # Day has no configuration
+                    time_ranges="(no restrictions)"
+                fi
+                
+                # Display: [✗] 1. Sunday: 12:00 AM → 4:59 AM
+                # or: 1. Sunday: (no restrictions)
+                if [ -n "${status_indicator}" ]; then
+                    echo "${status_indicator} $((day_index + 1)). ${day_name}: ${time_ranges}"
+                else
+                    echo "  $((day_index + 1)). ${day_name}: ${time_ranges}"
+                fi
+            done
+            
+            echo ""
+            echo "0. Back to Main Menu"
+            echo ""
+            
+            while true; do
+                read -p "Select option [0-7]: " choice
+                    case "${choice}" in
+                    0)
+                        declare -g grid_result_var="BACK"
+                        return 0
+                        ;;
+                    1|2|3|4|5|6|7)
+                        # Convert to day index (1-7 -> 0-6)
+                        local day_index=$((choice - 1))
+                        declare -g grid_result_var="${day_index}"
+                        return 0
+                        ;;
+                    *)
+                        echo "Invalid option. Please enter 0-7." >&2
+                        ;;
+                    esac
+            done
+        done
+    fi
+}
+
+# Configure a day from the visual grid
+configure_day_from_grid() {
+    local day_index="$1"
+    local use_gui="$2"
+    local -n config_lines_ref="$3"  # Pass by reference
+    local -n summary_lines_ref="$4"  # Pass by reference
+    
+    # Validate day index
+    if [ "${day_index}" -lt 0 ] || [ "${day_index}" -gt 6 ]; then
+        return 1
+    fi
+    
+    local day_name="${DAY_NAMES[${day_index}]}"
+    local range=""
+    local exit_code=0
+    
+    # Determine if weekday or weekend
+    if [ "${day_index}" -ge 1 ] && [ "${day_index}" -le 5 ]; then
+        # Weekday (Monday-Friday, indices 1-5)
+        if ask_weekday_together "${use_gui}"; then
+            # Apply to all weekdays
+            range=$(get_day_hours "Weekdays (Monday-Friday)" 1 "${use_gui}" "false" "true")
+            exit_code=$?
+            
+            if [ "${range}" = "CANCELLED" ]; then
+                return 2
+            elif [ "${range}" != "skip" ]; then
+                # Apply to all weekdays (indices 1-5)
+                for i in 1 2 3 4 5; do
+                    config_lines_ref[${i}]="${DAY_VARS[${i}]}=${range}"
+                    summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${range}"
+                done
+            else
+                # Explicitly skipped - mark all weekdays as skipped
+                for i in 1 2 3 4 5; do
+                    config_lines_ref[${i}]="${DAY_VARS[${i}]}="
+                    summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: (no restrictions)"
+                done
+            fi
+        else
+            # Edit single weekday
+            range=$(get_day_hours "${day_name}" "${day_index}" "${use_gui}" "false" "true")
+            exit_code=$?
+            
+            if [ "${range}" = "CANCELLED" ]; then
+                return 2
+            elif [ "${range}" != "skip" ]; then
+                config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}=${range}"
+                summary_lines_ref[${day_index}]="${day_name}: ${range}"
+            else
+                # Explicitly skipped
+                config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}="
+                summary_lines_ref[${day_index}]="${day_name}: (no restrictions)"
+            fi
+        fi
+    elif [ "${day_index}" -eq 0 ] || [ "${day_index}" -eq 6 ]; then
+        # Weekend day (Sunday=0, Saturday=6)
+        if ask_weekend_together "${use_gui}"; then
+            # Apply to both weekend days
+            range=$(get_day_hours "Weekends (Saturday and Sunday)" 6 "${use_gui}" "false" "true")
+            exit_code=$?
+            
+            if [ "${range}" = "CANCELLED" ]; then
+                return 2
+            elif [ "${range}" != "skip" ]; then
+                # Apply to both weekend days
+                config_lines_ref[6]="${DAY_VARS[6]}=${range}"
+                summary_lines_ref[6]="${DAY_NAMES[6]}: ${range}"
+                config_lines_ref[0]="${DAY_VARS[0]}=${range}"
+                summary_lines_ref[0]="${DAY_NAMES[0]}: ${range}"
+            else
+                # Explicitly skipped - mark both weekend days as skipped
+                config_lines_ref[6]="${DAY_VARS[6]}="
+                summary_lines_ref[6]="${DAY_NAMES[6]}: (no restrictions)"
+                config_lines_ref[0]="${DAY_VARS[0]}="
+                summary_lines_ref[0]="${DAY_NAMES[0]}: (no restrictions)"
+            fi
+        else
+            # Edit single weekend day
+            range=$(get_day_hours "${day_name}" "${day_index}" "${use_gui}" "false" "true")
+            exit_code=$?
+            
+            if [ "${range}" = "CANCELLED" ]; then
+                return 2
+            elif [ "${range}" != "skip" ]; then
+                config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}=${range}"
+                summary_lines_ref[${day_index}]="${day_name}: ${range}"
+            else
+                # Explicitly skipped
+                config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}="
+                summary_lines_ref[${day_index}]="${day_name}: (no restrictions)"
+            fi
+        fi
+    fi
+    
+    return ${exit_code}
 }
 
 # Show summary and confirm (with overlap detection and human-readable times)
@@ -1926,8 +2255,55 @@ You can run this wizard again anytime to change your settings."
 # Main function
 main() {
     local use_gui="false"
-    if has_gui && has_zenity; then
-        use_gui="true"
+    local force_text=false
+    local force_gui=false
+    
+    # Parse command-line arguments
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --text|--no-gui)
+                force_text=true
+                shift
+                ;;
+            --gui)
+                force_gui=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: $0 [OPTIONS]"
+                echo ""
+                echo "Options:"
+                echo "  --text, --no-gui    Force text mode (disable GUI)"
+                echo "  --gui               Force GUI mode (requires zenity)"
+                echo "  --help, -h          Show this help message"
+                echo ""
+                echo "By default, GUI mode is used if zenity is available and a display is present."
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                echo "Use --help for usage information." >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Determine GUI mode
+    if [ "${force_text}" = "true" ]; then
+        use_gui="false"
+    elif [ "${force_gui}" = "true" ]; then
+        if has_zenity; then
+            use_gui="true"
+        else
+            echo "Error: --gui flag specified but zenity is not available." >&2
+            echo "Please install zenity or use --text mode." >&2
+            exit 1
+        fi
+    else
+        # Auto-detect: use GUI if available
+        if has_gui && has_zenity; then
+            use_gui="true"
+        fi
     fi
     
     # Show welcome
@@ -2035,6 +2411,35 @@ main() {
                 fi
                 ;;
             5)
+                # Visual Day/Time Grid
+                # Use global variable to store result (avoid subshell issue with namerefs)
+                declare -g grid_result_var=""
+                while true; do
+                    grid_result_var=""
+                    show_visual_grid "${use_gui}" config_lines summary_lines
+                    local grid_exit=$?
+                    
+                    if [ "${grid_exit}" -ne 0 ] || [ "${grid_result_var}" = "BACK" ]; then
+                        # User wants to go back to main menu
+                        break
+                    fi
+                    
+                    # grid_result_var contains the day index (0-6) or "BACK"
+                    local day_index="${grid_result_var}"
+                    
+                    # Configure the selected day
+                    configure_day_from_grid "${day_index}" "${use_gui}" config_lines summary_lines
+                    local config_exit=$?
+                    
+                    if [ "${config_exit}" -eq 2 ]; then
+                        # User cancelled configuration
+                        break
+                    fi
+                    
+                    # Grid will refresh automatically on next loop iteration
+                done
+                ;;
+            6)
                 # Review and Save
                 if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${summary_lines[@]}"; then
                     # Write configuration

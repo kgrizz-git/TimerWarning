@@ -1,0 +1,290 @@
+#!/usr/bin/expect -f
+
+###############################################################################
+# Expect script for testing configure.sh interactive functionality
+# Tests various scenarios by properly handling interactive prompts
+###############################################################################
+
+# Enable logging to see what's happening
+log_user 1
+exp_internal 0
+
+set timeout 5
+set configure_script [lindex $argv 0]
+set test_name [lindex $argv 1]
+set test_input [lindex $argv 2]
+
+# Start the configure script
+spawn bash $configure_script --text
+
+# Wait for welcome message and press Enter
+expect "Press Enter to continue" {
+    send "\r"
+}
+
+# Now wait for the menu to appear (look for "Select option" which appears after menu)
+expect {
+    "Select option" {
+        # Menu appeared, now handle test-specific input
+        if {$test_name == "menu_display"} {
+            # Just verify menu is displayed, then exit
+            puts "PASS: Menu displayed"
+            send "6\r"
+            expect {
+                "Save this configuration" {
+                    send "n\r"
+                    expect eof
+                    exit 0
+                }
+                "Configuration Summary" {
+                    send "n\r"
+                    expect eof
+                    exit 0
+                }
+                "Select option" {
+                    # Menu looped back, exit anyway
+                    exit 0
+                }
+                timeout {
+                    # Timeout is okay, we verified menu appeared
+                    exit 0
+                }
+            }
+        } elseif {$test_name == "grid_display"} {
+            # Select option 5 (Visual Grid)
+            send "5\r"
+            sleep 0.5
+            expect {
+                -re "=== Visual Day/Time Grid ===" {
+                    puts "PASS: Grid displayed"
+                    expect "Select option"
+                    # Go back
+                    send "0\r"
+                    expect "Configuration Menu"
+                    send "6\r"
+                    expect {
+                        "Save" {
+                            send "n\r"
+                        }
+                        timeout {}
+                    }
+                    exit 0
+                }
+                -re "Visual Day/Time Grid" {
+                    # Also match without === for GUI mode
+                    puts "PASS: Grid displayed"
+                    expect "Select option"
+                    send "0\r"
+                    expect "Configuration Menu"
+                    send "6\r"
+                    expect {
+                        "Save" {
+                            send "n\r"
+                        }
+                        timeout {}
+                    }
+                    exit 0
+                }
+                "Select a day" {
+                    # Grid appeared, just need to verify
+                    puts "PASS: Grid displayed"
+                    send "0\r"
+                    expect "Configuration Menu"
+                    send "6\r"
+                    expect {
+                        "Save" {
+                            send "n\r"
+                        }
+                        timeout {}
+                    }
+                    exit 0
+                }
+                timeout {
+                    puts "ERROR: Grid did not display"
+                    exit 1
+                }
+            }
+        } elseif {$test_name == "grid_configured_days"} {
+            # Select option 5
+            send "5\r"
+            expect "Visual Day/Time Grid"
+            expect "Select option"
+            # Check for Monday with restrictions (use expect to see output)
+            set found_restriction 0
+            expect {
+                -re "Monday.*12:00 AM" {
+                    puts "PASS: Monday shows restrictions"
+                    set found_restriction 1
+                }
+                -re "\\\[✗\\\].*Monday" {
+                    puts "PASS: Monday shows status indicator"
+                    set found_restriction 1
+                }
+                timeout {
+                    if {$found_restriction == 0} {
+                        puts "ERROR: Monday restrictions not found"
+                        exit 1
+                    }
+                }
+            }
+            # Go back
+            send "0\r"
+            expect "Configuration Menu"
+            send "6\r"
+            expect {
+                "Save" {
+                    send "n\r"
+                }
+                timeout {}
+            }
+            exit 0
+        } elseif {$test_name == "grid_overnight"} {
+            # Select option 5
+            send "5\r"
+            expect "Visual Day/Time Grid"
+            expect "Select option"
+            # Check for overnight range
+            expect {
+                "Monday.*11:00 PM.*Tuesday" {
+                    puts "PASS: Overnight range displayed correctly"
+                }
+            }
+            send "0\r"
+            expect "Configuration Menu"
+            send "6\r"
+            expect "Save"
+            send "n\r"
+            exit 0
+        } elseif {$test_name == "grid_multiple_ranges"} {
+            # Select option 5
+            send "5\r"
+            expect "Visual Day/Time Grid"
+            expect "Select option"
+            # Check for multiple ranges with AND
+            expect {
+                "AND" {
+                    puts "PASS: Multiple ranges displayed with AND"
+                }
+            }
+            send "0\r"
+            expect "Configuration Menu"
+            send "6\r"
+            expect "Save"
+            send "n\r"
+            exit 0
+        } elseif {$test_name == "individual_day_edit"} {
+            # Select option 5
+            send "5\r"
+            expect "Visual Day/Time Grid"
+            expect "Select option"
+            # Select Monday (option 1)
+            send "1\r"
+            expect {
+                "all weekdays" {
+                    # Bulk apply prompt appeared
+                    send "n\r"
+                    expect "Configure restricted hours for Monday"
+                    send "0-5\r"
+                    expect "Is this correct"
+                    send "y\r"
+                    expect "Visual Day/Time Grid"
+                    send "0\r"
+                    expect "Configuration Menu"
+                    send "6\r"
+                    expect "Save"
+                    send "n\r"
+                    exit 0
+                }
+                "Configure restricted hours for Monday" {
+                    # Direct to day config (no bulk prompt)
+                    send "0-5\r"
+                    expect "Is this correct"
+                    send "y\r"
+                    expect "Visual Day/Time Grid"
+                    send "0\r"
+                    expect "Configuration Menu"
+                    send "6\r"
+                    expect "Save"
+                    send "n\r"
+                    exit 0
+                }
+            }
+        } elseif {$test_name == "weekday_bulk_apply"} {
+            # Select option 5
+            send "5\r"
+            expect "Visual Day/Time Grid"
+            expect "Select option"
+            # Select Monday (option 1)
+            send "1\r"
+            expect {
+                "all weekdays" {
+                    puts "PASS: Weekday bulk apply prompt appeared"
+                    send "y\r"
+                    expect "Weekdays"
+                    send "0-5\r"
+                    expect "Is this correct"
+                    send "y\r"
+                    expect "Visual Day/Time Grid"
+                    send "0\r"
+                    expect "Configuration Menu"
+                    send "6\r"
+                    expect "Save"
+                    send "n\r"
+                    exit 0
+                }
+            }
+        } elseif {$test_name == "weekend_bulk_apply"} {
+            # Select option 5
+            send "5\r"
+            expect "Visual Day/Time Grid"
+            expect "Select option"
+            # Select Saturday (option 7)
+            send "7\r"
+            expect {
+                "both weekend days" {
+                    puts "PASS: Weekend bulk apply prompt appeared"
+                    send "y\r"
+                    expect "Weekends"
+                    send "1-5\r"
+                    expect "Is this correct"
+                    send "y\r"
+                    expect "Visual Day/Time Grid"
+                    send "0\r"
+                    expect "Configuration Menu"
+                    send "6\r"
+                    expect "Save"
+                    send "n\r"
+                    exit 0
+                }
+            }
+        } elseif {$test_name == "backward_compat"} {
+            # Test options 1-4 still work
+            foreach option {1 2 3 4} {
+                expect "Select option"
+                send "$option\r"
+                expect {
+                    "Check interval" { puts "PASS: Option 1 accessible" }
+                    "Window Behavior" { puts "PASS: Option 2 accessible" }
+                    "Weekdays" { puts "PASS: Option 3 accessible" }
+                    "Weekends" { puts "PASS: Option 4 accessible" }
+                }
+                # Cancel and return to menu
+                expect {
+                    "Cancel" { send "n\r" }
+                    "Press Enter" { send "\r" }
+                }
+                expect "Configuration Menu"
+            }
+            send "6\r"
+            expect "Save"
+            send "n\r"
+            exit 0
+        }
+    }
+    timeout {
+        puts "ERROR: Timeout waiting for menu"
+        exit 1
+    }
+}
+
+expect eof
