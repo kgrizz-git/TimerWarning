@@ -52,13 +52,13 @@ DEFAULT_POPUP_IMMOVABLE=true
 # Format: day_number=start_hour-end_hour
 # Day numbers: 0=Sunday, 1=Monday, ..., 6=Saturday
 declare -A DEFAULT_HOURS=(
-    [0]="1-5"  # Sunday: 1:00 AM to 5:59 AM
-    [1]="0-5"  # Monday: Midnight to 5:59 AM
-    [2]="0-5"  # Tuesday: Midnight to 5:59 AM
-    [3]="0-5"  # Wednesday: Midnight to 5:59 AM
-    [4]="0-5"  # Thursday: Midnight to 5:59 AM
-    [5]="0-5"  # Friday: Midnight to 5:59 AM
-    [6]="1-5"  # Saturday: 1:00 AM to 5:59 AM
+    [0]="1-5"  # Sunday: 1:00 AM to 4:59 AM
+    [1]="0-5"  # Monday: Midnight to 4:59 AM
+    [2]="0-5"  # Tuesday: Midnight to 4:59 AM
+    [3]="0-5"  # Wednesday: Midnight to 4:59 AM
+    [4]="0-5"  # Thursday: Midnight to 4:59 AM
+    [5]="0-5"  # Friday: Midnight to 4:59 AM
+    [6]="1-5"  # Saturday: 1:00 AM to 4:59 AM
 )
 
 # Logging function (optional, logs to systemd journal if available)
@@ -929,16 +929,27 @@ parse_config() {
         return 0
     fi
     
-    # Read config file, ignoring comments and empty lines
+    # Check if day line exists in config file (even if empty)
+    local day_line_exists
+    day_line_exists=$(grep -E "^[[:space:]]*${day_name}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+    
+    if [ -z "${day_line_exists}" ]; then
+        # Day line doesn't exist in config file = not configured yet, use default
+        echo "${DEFAULT_HOURS[${day_num}]}"
+        return 0
+    fi
+    
+    # Day line exists - extract value (may be empty if explicitly skipped)
     local config_line
-    config_line=$(grep -E "^[[:space:]]*${day_name}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | sed 's/^[[:space:]]*//' | cut -d'=' -f2 | tr -d '[:space:]')
+    config_line=$(echo "${day_line_exists}" | sed 's/^[[:space:]]*//' | cut -d'=' -f2- | tr -d '[:space:]')
     
     if [ -n "${config_line}" ]; then
+        # Has a value, use it
         echo "${config_line}"
         return 0
     else
-        # No configuration for this day, use default
-        echo "${DEFAULT_HOURS[${day_num}]}"
+        # Line exists but is empty = explicitly skipped, no restrictions
+        echo ""
         return 0
     fi
 }
@@ -1010,7 +1021,7 @@ is_hour_in_single_range() {
     end_hour=$(echo "${range}" | cut -d'-' -f2)
     
     # Handle overnight ranges (start > end, spans midnight)
-    # Example: 23-6 means 11 PM to 6 AM (23:00 to 05:59)
+    # Example: 23-6 means 11 PM to 5:59 AM (23:00 to 05:59)
     if [ "${start_hour}" -gt "${end_hour}" ]; then
         # Overnight range: current hour >= start OR current hour < end
         if [ "${current_hour}" -ge "${start_hour}" ] || [ "${current_hour}" -lt "${end_hour}" ]; then
@@ -1346,9 +1357,59 @@ main() {
     local restricted_range
     restricted_range=$(parse_config "${current_day}")
     
-    # Check if current hour is within restricted range
+    # Check if current hour is within restricted range for current day
+    local is_restricted=false
+    local matched_range="${restricted_range}"
+    
     if is_restricted_hour "${current_hour}" "${restricted_range}"; then
-        log_message "info" "Restricted hour detected: Day ${current_day}, Hour ${current_hour}, Range ${restricted_range}"
+        is_restricted=true
+    elif [ -z "${restricted_range}" ]; then
+        # Current day is empty/skipped (no restrictions for this day)
+        # Check if previous day has an overnight range that extends into current day
+        # Calculate previous day (handle wrap-around: Sunday (0) -> Saturday (6))
+        local prev_day
+        if [ "${current_day}" -eq 0 ]; then
+            prev_day=6  # Sunday -> Saturday
+        else
+            prev_day=$((current_day - 1))
+        fi
+        
+        # Get previous day's configuration
+        local prev_day_range
+        prev_day_range=$(parse_config "${prev_day}")
+        
+        # Check if previous day has overnight ranges that extend into current day
+        if [ -n "${prev_day_range}" ]; then
+            # Check each range in previous day's configuration
+            local IFS=','
+            for range in ${prev_day_range}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                # Check if this is an overnight range (start > end) that extends into current day
+                if [ "${start_hour}" -gt "${end_hour}" ]; then
+                    # Overnight range: check if current hour falls within the end portion (before end_hour)
+                    # Example: prev_day has 23-5, current hour is 2, then 2 < 5, so it's restricted
+                    # Example: prev_day has 23-5, current hour is 23, then 23 >= 23, but wait...
+                    # Actually, for overnight range 23-5 on previous day:
+                    # - Previous day 23:00-23:59 is restricted (part of previous day)
+                    # - Current day 00:00-04:59 is restricted (extends into current day)
+                    # - Current day 05:00+ is NOT restricted
+                    # So we only check: current_hour < end_hour
+                    if [ "${current_hour}" -lt "${end_hour}" ]; then
+                        is_restricted=true
+                        matched_range="${range} (from previous day)"
+                        break
+                    fi
+                fi
+            done
+        fi
+    fi
+    
+    if [ "${is_restricted}" = "true" ]; then
+        log_message "info" "Restricted hour detected: Day ${current_day}, Hour ${current_hour}, Range ${matched_range}"
         
         # Get display environment info for logging
         local env_type display_id
@@ -1356,7 +1417,7 @@ main() {
         display_id=$(get_display_identifier "${env_type}")
         
         # Log warning trigger with full context
-        log_to_file "WARNING" "Restricted hour detected - Day: ${current_day}, Hour: ${current_hour}, Range: ${restricted_range}, Display: ${env_type}, Display ID: ${display_id}"
+        log_to_file "WARNING" "Restricted hour detected - Day: ${current_day}, Hour: ${current_hour}, Range: ${matched_range}, Display: ${env_type}, Display ID: ${display_id}"
         
         show_warning
     else

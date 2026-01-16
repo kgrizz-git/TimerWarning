@@ -43,19 +43,19 @@ The configuration file uses a simple key-value format with comments. Lines start
 
 **Examples**:
 ```
-SUNDAY=1-5        # Sunday: 1:00 AM to 5:59 AM
-MONDAY=0-5        # Monday: Midnight (00:00) to 5:59 AM
-TUESDAY=0-5       # Tuesday: Midnight to 5:59 AM
-WEDNESDAY=0-5     # Wednesday: Midnight to 5:59 AM
-THURSDAY=0-5      # Thursday: Midnight to 5:59 AM
-FRIDAY=0-5        # Friday: Midnight to 5:59 AM
-SATURDAY=1-5      # Saturday: 1:00 AM to 5:59 AM
+SUNDAY=1-5        # Sunday: 1:00 AM to 4:59 AM
+MONDAY=0-5        # Monday: Midnight (00:00) to 4:59 AM
+TUESDAY=0-5       # Tuesday: Midnight to 4:59 AM
+WEDNESDAY=0-5     # Wednesday: Midnight to 4:59 AM
+THURSDAY=0-5      # Thursday: Midnight to 4:59 AM
+FRIDAY=0-5        # Friday: Midnight to 4:59 AM
+SATURDAY=1-5      # Saturday: 1:00 AM to 4:59 AM
 ```
 
 **Multiple Ranges per Day**:
 You can specify multiple time ranges for a single day by separating them with commas:
 ```
-MONDAY=0-5,22-23  # Monday: Midnight to 5:59 AM AND 10:00 PM to 11:59 PM
+MONDAY=0-5,22-23  # Monday: Midnight to 4:59 AM AND 10:00 PM to 11:59 PM
 ```
 
 **Overnight Ranges** (spans midnight):
@@ -81,18 +81,18 @@ WEDNESDAY=23-5    # Wednesday 11:00 PM → Thursday 5:00 AM
 **Overlapping Ranges**:
 If you set overlapping ranges, the system will detect and warn you. For example:
 ```
-MONDAY=23-5       # Monday 11:00 PM → Tuesday 5:00 AM
-TUESDAY=0-5       # Tuesday midnight → 5:59 AM
+MONDAY=23-5       # Monday 11:00 PM → Tuesday 4:59 AM
+TUESDAY=0-5       # Tuesday midnight → 4:59 AM
 ```
 
-Both ranges cover Tuesday midnight to 5:59 AM. This is harmless (only one warning will be shown during the overlap), but redundant. The configuration wizard will warn you about overlaps when you save your settings.
+Both ranges cover Tuesday midnight to 4:59 AM. This is harmless (only one warning will be shown during the overlap), but redundant. The configuration wizard will warn you about overlaps when you save your settings.
 
 **Combining Multiple and Overnight Ranges**:
 You can combine multiple ranges, including overnight ranges:
 ```
-MONDAY=0-5,22-23  # Midnight to 5:59 AM AND 10 PM to 11:59 PM (same day)
-TUESDAY=23-6       # Tuesday 11:00 PM → Wednesday 6:00 AM (overnight)
-WEDNESDAY=0-5,22-6 # Midnight to 5:59 AM AND 10 PM to 6 AM (overnight)
+MONDAY=0-5,22-23  # Midnight to 4:59 AM AND 10 PM to 11:59 PM (same day)
+TUESDAY=23-6       # Tuesday 11:00 PM → Wednesday 5:59 AM (overnight)
+WEDNESDAY=0-5,22-6 # Midnight to 4:59 AM AND 10 PM to 5:59 AM (overnight)
 ```
 
 **No Restrictions**:
@@ -103,8 +103,8 @@ SUNDAY=
 ```
 
 **Default Values** (used if configuration file is missing):
-- **Weekdays (Monday-Friday)**: `0-5` (Midnight to 5:59 AM)
-- **Weekends (Saturday-Sunday)**: `1-5` (1:00 AM to 5:59 AM)
+- **Weekdays (Monday-Friday)**: `0-5` (Midnight to 4:59 AM)
+- **Weekends (Saturday-Sunday)**: `1-5` (1:00 AM to 4:59 AM)
 
 ### Check Interval
 
@@ -301,7 +301,7 @@ THURSDAY=23-6
 FRIDAY=23-6
 
 # More lenient on weekends
-SATURDAY=1-6     # 1 AM to 5:59 AM
+SATURDAY=1-6     # 1 AM to 5:59 AM (overnight)
 SUNDAY=1-6
 ```
 
@@ -313,7 +313,7 @@ POPUP_POSITION=bottom-right
 POPUP_MIN_DISPLAY_TIME=15
 
 # Restrict very early morning usage
-MONDAY=0-5       # Midnight to 5:59 AM
+MONDAY=0-5       # Midnight to 4:59 AM
 TUESDAY=0-5
 WEDNESDAY=0-5
 THURSDAY=0-5
@@ -334,7 +334,7 @@ POPUP_MIN_DISPLAY_TIME=60
 # (omit MONDAY through FRIDAY lines)
 
 # Weekend restrictions
-SATURDAY=1-8     # 1 AM to 7:59 AM
+SATURDAY=1-8     # 1 AM to 7:59 AM (overnight)
 SUNDAY=1-8
 ```
 
@@ -346,13 +346,13 @@ POPUP_POSITION=center
 POPUP_MIN_DISPLAY_TIME=30
 
 # Different restrictions for each day
-SUNDAY=2-6       # Sunday: 2 AM to 5:59 AM
-MONDAY=0-5       # Monday: Midnight to 5:59 AM
-TUESDAY=0-5      # Tuesday: Midnight to 5:59 AM
-WEDNESDAY=0-5    # Wednesday: Midnight to 5:59 AM
-THURSDAY=0-5     # Thursday: Midnight to 5:59 AM
-FRIDAY=0-5       # Friday: Midnight to 5:59 AM
-SATURDAY=1-7     # Saturday: 1 AM to 6:59 AM
+SUNDAY=2-6       # Sunday: 2 AM to 5:59 AM (overnight)
+MONDAY=0-5       # Monday: Midnight to 4:59 AM
+TUESDAY=0-5      # Tuesday: Midnight to 4:59 AM
+WEDNESDAY=0-5    # Wednesday: Midnight to 4:59 AM
+THURSDAY=0-5     # Thursday: Midnight to 4:59 AM
+FRIDAY=0-5       # Friday: Midnight to 4:59 AM
+SATURDAY=1-7     # Saturday: 1 AM to 6:59 AM (overnight)
 ```
 
 ### Multiple Time Ranges Per Day
@@ -363,7 +363,7 @@ POPUP_POSITION=center
 POPUP_MIN_DISPLAY_TIME=30
 
 # Multiple restricted periods per day
-MONDAY=0-5,22-23    # Midnight to 5:59 AM AND 10 PM to 11:59 PM
+MONDAY=0-5,22-23    # Midnight to 4:59 AM AND 10 PM to 11:59 PM
 TUESDAY=0-5,22-23
 WEDNESDAY=0-5,22-23
 THURSDAY=0-5,22-23

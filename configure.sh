@@ -103,15 +103,27 @@ load_existing_config() {
     for i in 0 1 2 3 4 5 6; do
         local day_var="${DAY_VARS[${i}]}"
         local day_name="${DAY_NAMES[${i}]}"
-        local day_config
-        # Read the day configuration from file
-        # Use cut to extract value after = sign, then trim whitespace
-        day_config=$(grep -E "^[[:space:]]*${day_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         
-        if [ -n "${day_config}" ]; then
-            config_lines[${i}]="${day_var}=${day_config}"
-            summary_lines[${i}]="${day_name}: ${day_config}"
+        # Check if day line exists in config file (even if empty)
+        local day_line_exists
+        day_line_exists=$(grep -E "^[[:space:]]*${day_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+        
+        if [ -n "${day_line_exists}" ]; then
+            # Day line exists - extract value (may be empty if explicitly skipped)
+            local day_config
+            day_config=$(echo "${day_line_exists}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            
+            if [ -n "${day_config}" ]; then
+                # Has a value - configured with restrictions
+                config_lines[${i}]="${day_var}=${day_config}"
+                summary_lines[${i}]="${day_name}: ${day_config}"
+            else
+                # Line exists but is empty - explicitly skipped, no restrictions
+                config_lines[${i}]="${day_var}="
+                summary_lines[${i}]="${day_name}: (no restrictions)"
+            fi
         fi
+        # If day line doesn't exist, don't add to array (will use defaults)
     done
 }
 
@@ -811,9 +823,12 @@ update_timer_file() {
     
     # Replace timer file
     if mv "${temp_file}" "${TIMER_FILE}" 2>/dev/null; then
-        # Reload systemd if timer is active
+        # Always reload systemd daemon to pick up timer file changes
+        systemctl --user daemon-reload >/dev/null 2>&1
+        
+        # Restart timer if it's active to pick up the new schedule
         if systemctl --user is-active "${SERVICE_NAME}.timer" >/dev/null 2>&1; then
-            systemctl --user daemon-reload >/dev/null 2>&1
+            systemctl --user restart "${SERVICE_NAME}.timer" >/dev/null 2>&1
         fi
         rm -f "${backup_file}" 2>/dev/null
         return 0
@@ -842,6 +857,12 @@ format_hour_12h() {
 format_range_human() {
     local range="$1"
     local day_name="$2"
+    
+    # Handle empty or invalid ranges (e.g., skipped days)
+    if [ -z "${range}" ] || [ "${range}" = "(no restrictions)" ] || ! echo "${range}" | grep -qE '^[0-9]+-[0-9]+$'; then
+        echo "(no restrictions)"
+        return 0
+    fi
     
     local start_hour end_hour
     start_hour=$(echo "${range}" | cut -d'-' -f1)
@@ -935,7 +956,7 @@ detect_overlaps() {
                 
                 # Check if day2's range overlaps with day1's overnight end
                 # day1 overnight: start1 to end1 (e.g., 23-6 means 23:00 to 05:59)
-                # day2 early: start2 to end2 (e.g., 0-5 means 00:00 to 05:59)
+                # day2 early: start2 to end2 (e.g., 0-5 means 00:00 to 04:59)
                 # Overlap if: day2 starts before day1's overnight ends
                 if [ "${start2}" -lt "${end1}" ]; then
                     echo "${range1}|${range2}|${start2}-${end1}"
@@ -957,24 +978,24 @@ show_help_dialog() {
 SINGLE RANGE:
   Format: START-END
   Example: 0-5
-  Meaning: Midnight (00:00) to 5:59 AM on the same day
+  Meaning: Midnight (00:00) to 4:59 AM on the same day
 
 MULTIPLE RANGES:
   Format: START-END,START-END
   Example: 0-5,22-23
   Meaning: Two separate periods:
-    • Midnight to 5:59 AM
+    • Midnight to 4:59 AM
     • 10:00 PM to 11:59 PM
 
 OVERNIGHT RANGES (spans midnight):
   Format: START-END (where START > END)
   Example: 23-6
-  Meaning: 11:00 PM on the named day to 6:00 AM on the NEXT day
-  Example: Monday 23-6 = Monday 11 PM → Tuesday 6 AM
+  Meaning: 11:00 PM on the named day to 5:59 AM on the NEXT day
+  Example: Monday 23-6 = Monday 11 PM → Tuesday 5:59 AM
 
 OVERLAPPING RANGES:
   If you set Monday 23-5 and Tuesday 0-5:
-  • Both cover Tuesday midnight to 5:59 AM
+  • Both cover Tuesday midnight to 4:59 AM
   • Only one warning will be shown (not duplicated)
   • This is harmless but redundant
 
@@ -984,10 +1005,10 @@ NAVIGATION:
   • Skip: Skip current day (no restrictions for that day)
 
 EXAMPLES:
-  • '0-5' = Midnight to 5:59 AM
+  • '0-5' = Midnight to 4:59 AM
   • '22-23' = 10:00 PM to 11:59 PM  
-  • '23-6' = 11:00 PM to 6:00 AM (overnight)
-  • '0-5,22-23' = Midnight-5:59 AM AND 10 PM-11:59 PM"
+  • '23-6' = 11:00 PM to 5:59 AM (overnight)
+  • '0-5,22-23' = Midnight-4:59 AM AND 10 PM-11:59 PM"
     
     if [ "${use_gui}" = "true" ] && has_zenity; then
         echo "${help_text}" | zenity --text-info \
@@ -1019,9 +1040,9 @@ get_day_hours() {
             # Build prompt text with examples
             local prompt_text="Configure restricted hours for ${day_name}:\n\n"
             prompt_text="${prompt_text}Format options:\n"
-            prompt_text="${prompt_text}• Single: 0-5 (midnight to 5:59 AM)\n"
+            prompt_text="${prompt_text}• Single: 0-5 (midnight to 4:59 AM)\n"
             prompt_text="${prompt_text}• Multiple: 0-5,22-23 (two periods)\n"
-            prompt_text="${prompt_text}• Overnight: 23-6 (11 PM to 6 AM, spans to next day)\n\n"
+            prompt_text="${prompt_text}• Overnight: 23-6 (11 PM to 5:59 AM, spans to next day)\n\n"
             prompt_text="${prompt_text}IMPORTANT: Overnight ranges like '23-6' on ${day_name} mean:\n"
             prompt_text="${prompt_text}${day_name} 11:00 PM → Next day 6:00 AM\n\n"
             prompt_text="${prompt_text}(Leave empty to skip this day)"
@@ -1123,7 +1144,7 @@ get_day_hours() {
             # Validate the input (could be single range, multiple ranges, or overnight)
             # Check if it's a valid format
             if ! echo "${range_input}" | grep -qE '^([0-9]+-[0-9]+)(,[0-9]+-[0-9]+)*$'; then
-                zenity --error --text="Invalid format. Use: START-END or START-END,START-END\n\nExamples:\n• 0-5 (midnight to 5:59 AM)\n• 0-5,22-23 (two periods)\n• 23-6 (11 PM to 6 AM, overnight)" 2>/dev/null
+                zenity --error --text="Invalid format. Use: START-END or START-END,START-END\n\nExamples:\n• 0-5 (midnight to 4:59 AM)\n• 0-5,22-23 (two periods)\n• 23-6 (11 PM to 5:59 AM, overnight)" 2>/dev/null
                 continue
             fi
             
@@ -1176,12 +1197,12 @@ get_day_hours() {
         echo "" >&2
         echo "IMPORTANT - Overnight ranges:" >&2
         echo "  If you enter '23-6' on ${day_name}, it means:" >&2
-        echo "  ${day_name} 11:00 PM → Next day 6:00 AM" >&2
+        echo "  ${day_name} 11:00 PM → Next day 5:59 AM" >&2
         echo "" >&2
         echo "Format options:" >&2
-        echo "  • Single: 0-5 (midnight to 5:59 AM)" >&2
+        echo "  • Single: 0-5 (midnight to 4:59 AM)" >&2
         echo "  • Multiple: 0-5,22-23 (two periods)" >&2
-        echo "  • Overnight: 23-6 (11 PM to 6 AM, spans to next day)" >&2
+        echo "  • Overnight: 23-6 (11 PM to 5:59 AM, spans to next day)" >&2
         echo "" >&2
         echo "Commands:" >&2
         echo "  • Enter time range(s) to configure" >&2
@@ -1310,22 +1331,22 @@ NAVIGATION:
 • You can skip days to have no restrictions
 
 TIME RANGE FORMATS:
-• Single: '0-5' = Midnight to 5:59 AM
-• Multiple: '0-5,22-23' = Two periods (midnight-5:59 AM AND 10 PM-11:59 PM)
-• Overnight: '23-6' = 11 PM to 6 AM (spans midnight to next day)
+• Single: '0-5' = Midnight to 4:59 AM
+• Multiple: '0-5,22-23' = Two periods (midnight-4:59 AM AND 10 PM-11:59 PM)
+• Overnight: '23-6' = 11 PM to 5:59 AM (spans midnight to next day)
 
 IMPORTANT - Overnight Ranges:
 If you enter '23-6' on Monday, it means:
-  Monday 11:00 PM → Tuesday 6:00 AM
+  Monday 11:00 PM → Tuesday 5:59 AM
 
 This spans across midnight to the next day. If you also set Tuesday 0-5,
-both will cover Tuesday midnight-5:59 AM (redundant but harmless).
+both will cover Tuesday midnight-4:59 AM (redundant but harmless).
 
 Examples:
-• '0-5' = Midnight to 5:59 AM (same day)
+• '0-5' = Midnight to 4:59 AM (same day)
 • '22-23' = 10:00 PM to 11:59 PM (same day)
-• '23-6' = 11:00 PM to 6:00 AM (overnight, spans to next day)
-• '0-5,22-23' = Midnight-5:59 AM AND 10 PM-11:59 PM
+• '23-6' = 11:00 PM to 5:59 AM (overnight, spans to next day)
+• '0-5,22-23' = Midnight-4:59 AM AND 10 PM-11:59 PM
 
 Let's get started!"
     
@@ -1405,6 +1426,12 @@ configure_weekdays_section() {
                 config_lines_ref[${i}]="${DAY_VARS[${i}]}=${weekday_range}"
                 summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${weekday_range}"
             done
+        else
+            # Explicitly skipped - mark all weekdays as skipped (no restrictions)
+            for i in 1 2 3 4 5; do
+                config_lines_ref[${i}]="${DAY_VARS[${i}]}="
+                summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: (no restrictions)"
+            done
         fi
         return 0
     else
@@ -1439,6 +1466,9 @@ configure_weekdays_section() {
                 summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${range}"
                 i=$((i + 1))  # Move to next day
             else
+                # Explicitly skipped - mark as skipped (no restrictions)
+                config_lines_ref[${i}]="${DAY_VARS[${i}]}="
+                summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: (no restrictions)"
                 i=$((i + 1))  # Skip this day, move to next
             fi
         done
@@ -1467,6 +1497,12 @@ configure_weekends_section() {
             summary_lines_ref[6]="${DAY_NAMES[6]}: ${weekend_range}"
             config_lines_ref[0]="${DAY_VARS[0]}=${weekend_range}"
             summary_lines_ref[0]="${DAY_NAMES[0]}: ${weekend_range}"
+        else
+            # Explicitly skipped - mark both weekend days as skipped (no restrictions)
+            config_lines_ref[6]="${DAY_VARS[6]}="
+            summary_lines_ref[6]="${DAY_NAMES[6]}: (no restrictions)"
+            config_lines_ref[0]="${DAY_VARS[0]}="
+            summary_lines_ref[0]="${DAY_NAMES[0]}: (no restrictions)"
         fi
         return 0
     else
@@ -1505,6 +1541,9 @@ configure_weekends_section() {
                     break  # Done with both weekend days
                 fi
             else
+                # Explicitly skipped - mark as skipped (no restrictions)
+                config_lines_ref[${weekend_day}]="${DAY_VARS[${weekend_day}]}="
+                summary_lines_ref[${weekend_day}]="${DAY_NAMES[${weekend_day}]}: (no restrictions)"
                 if [ "${weekend_day}" -eq 6 ]; then
                     weekend_day=0  # Skip Saturday, move to Sunday
                 else
@@ -1552,40 +1591,48 @@ show_summary() {
         local day_name="${DAY_NAMES[${day_index}]}"
         
         if [ -n "${summary_lines[${day_index}]}" ]; then
-            # Day has restrictions configured
+            # Day has restrictions configured (or explicitly skipped)
             local line="${summary_lines[${day_index}]}"
             # Extract day name and range
             local range
             range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             
-            # Format to human-readable
-            local formatted
-            formatted=$(format_ranges_human "${range}" "${day_name}")
-            summary="${summary}• ${day_name}: ${formatted}\n"
-            
-            # Check for overlaps with previous calendar day
-            local prev_day_index
-            if [ "${day_index}" -eq 0 ]; then
-                # Sunday (0) - check overlap with Saturday (6)
-                prev_day_index=6
+            # Check if this is a skipped day (no restrictions)
+            if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
+                summary="${summary}• ${day_name}: No restrictions\n"
             else
-                prev_day_index=$((day_index - 1))
-            fi
-            
-            if [ -n "${summary_lines[${prev_day_index}]}" ]; then
-                local prev_line="${summary_lines[${prev_day_index}]}"
-                local prev_day_name prev_range
-                prev_day_name=$(echo "${prev_line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                # Format to human-readable
+                local formatted
+                formatted=$(format_ranges_human "${range}" "${day_name}")
+                summary="${summary}• ${day_name}: ${formatted}\n"
                 
-                local overlap
-                overlap=$(detect_overlaps "${prev_day_index}" "${prev_range}" "${day_index}" "${range}")
-                if [ $? -eq 0 ]; then
-                    local range1 range2 overlap_hours
-                    range1=$(echo "${overlap}" | cut -d'|' -f1)
-                    range2=$(echo "${overlap}" | cut -d'|' -f2)
-                    overlap_hours=$(echo "${overlap}" | cut -d'|' -f3)
-                    overlap_warnings+=("${prev_day_name} ${range1} and ${day_name} ${range2} both cover ${overlap_hours}")
+                # Check for overlaps with previous calendar day
+                local prev_day_index
+                if [ "${day_index}" -eq 0 ]; then
+                    # Sunday (0) - check overlap with Saturday (6)
+                    prev_day_index=6
+                else
+                    prev_day_index=$((day_index - 1))
+                fi
+                
+                if [ -n "${summary_lines[${prev_day_index}]}" ]; then
+                    local prev_line="${summary_lines[${prev_day_index}]}"
+                    local prev_day_name prev_range
+                    prev_day_name=$(echo "${prev_line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    
+                    # Only check overlaps if previous day is not skipped
+                    if [ "${prev_range}" != "(no restrictions)" ] && [ -n "${prev_range}" ]; then
+                        local overlap
+                        overlap=$(detect_overlaps "${prev_day_index}" "${prev_range}" "${day_index}" "${range}")
+                        if [ $? -eq 0 ]; then
+                            local range1 range2 overlap_hours
+                            range1=$(echo "${overlap}" | cut -d'|' -f1)
+                            range2=$(echo "${overlap}" | cut -d'|' -f2)
+                            overlap_hours=$(echo "${overlap}" | cut -d'|' -f3)
+                            overlap_warnings+=("${prev_day_name} ${range1} and ${day_name} ${range2} both cover ${overlap_hours}")
+                        fi
+                    fi
                 fi
             fi
         else
@@ -1642,40 +1689,48 @@ show_summary() {
             local day_name="${DAY_NAMES[${day_index}]}"
             
             if [ -n "${summary_lines[${day_index}]}" ]; then
-                # Day has restrictions configured
+                # Day has restrictions configured (or explicitly skipped)
                 local line="${summary_lines[${day_index}]}"
                 # Extract range
                 local range
                 range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                 
-                # Format to human-readable
-                local formatted
-                formatted=$(format_ranges_human "${range}" "${day_name}")
-                echo "  • ${day_name}: ${formatted}"
-                
-                # Check for overlaps with previous calendar day
-                local prev_day_index
-                if [ "${day_index}" -eq 0 ]; then
-                    # Sunday (0) - check overlap with Saturday (6)
-                    prev_day_index=6
+                # Check if this is a skipped day (no restrictions)
+                if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
+                    echo "  • ${day_name}: No restrictions"
                 else
-                    prev_day_index=$((day_index - 1))
-                fi
-                
-                if [ -n "${summary_lines[${prev_day_index}]}" ]; then
-                    local prev_line="${summary_lines[${prev_day_index}]}"
-                    local prev_day_name prev_range
-                    prev_day_name=$(echo "${prev_line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                    prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    # Format to human-readable
+                    local formatted
+                    formatted=$(format_ranges_human "${range}" "${day_name}")
+                    echo "  • ${day_name}: ${formatted}"
                     
-                    local overlap
-                    overlap=$(detect_overlaps "${prev_day_index}" "${prev_range}" "${day_index}" "${range}")
-                    if [ $? -eq 0 ]; then
-                        local range1 range2 overlap_hours
-                        range1=$(echo "${overlap}" | cut -d'|' -f1)
-                        range2=$(echo "${overlap}" | cut -d'|' -f2)
-                        overlap_hours=$(echo "${overlap}" | cut -d'|' -f3)
-                        text_overlap_warnings+=("${prev_day_name} ${range1} and ${day_name} ${range2} both cover ${overlap_hours}")
+                    # Check for overlaps with previous calendar day
+                    local prev_day_index
+                    if [ "${day_index}" -eq 0 ]; then
+                        # Sunday (0) - check overlap with Saturday (6)
+                        prev_day_index=6
+                    else
+                        prev_day_index=$((day_index - 1))
+                    fi
+                    
+                    if [ -n "${summary_lines[${prev_day_index}]}" ]; then
+                        local prev_line="${summary_lines[${prev_day_index}]}"
+                        local prev_day_name prev_range
+                        prev_day_name=$(echo "${prev_line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                        prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                        
+                        # Only check overlaps if previous day is not skipped
+                        if [ "${prev_range}" != "(no restrictions)" ] && [ -n "${prev_range}" ]; then
+                            local overlap
+                            overlap=$(detect_overlaps "${prev_day_index}" "${prev_range}" "${day_index}" "${range}")
+                            if [ $? -eq 0 ]; then
+                                local range1 range2 overlap_hours
+                                range1=$(echo "${overlap}" | cut -d'|' -f1)
+                                range2=$(echo "${overlap}" | cut -d'|' -f2)
+                                overlap_hours=$(echo "${overlap}" | cut -d'|' -f3)
+                                text_overlap_warnings+=("${prev_day_name} ${range1} and ${day_name} ${range2} both cover ${overlap_hours}")
+                            fi
+                        fi
                     fi
                 fi
             else
@@ -1824,7 +1879,8 @@ write_config() {
         
         # Write configuration lines in calendar order (Sun-Sat, indices 0-6)
         for day_index in 0 1 2 3 4 5 6; do
-            if [ -n "${config_lines[${day_index}]}" ] && [ "${config_lines[${day_index}]}" != "skip" ]; then
+            if [ -n "${config_lines[${day_index}]}" ]; then
+                # Write the line (includes empty values for explicitly skipped days)
                 echo "${config_lines[${day_index}]}"
             fi
         done
@@ -1849,8 +1905,10 @@ ${CONFIG_FILE}
 
 Check interval: Every ${check_interval} minute(s)
 
-The sleep warning system will use these settings the next time it checks.
-If the timer was already running, it has been updated with the new interval.
+All settings (restricted hours, popup size, position, etc.) will take effect on the next check.
+If the timer was already running, it has been automatically restarted with the new interval.
+No manual action is required - everything is ready to use!
+
 You can run this wizard again anytime to change your settings."
 
     if [ "${use_gui}" = "true" ] && has_zenity; then
@@ -1986,7 +2044,7 @@ main() {
                             if update_timer_file "${check_interval}"; then
                                 show_success "${use_gui}" "${check_interval}"
                             else
-                                local warning_msg="Configuration saved, but failed to update timer file.\n\nYou may need to manually update:\n${TIMER_FILE}\n\nOr run: systemctl --user daemon-reload"
+                                local warning_msg="Configuration saved, but failed to update timer file.\n\nYou may need to manually update:\n${TIMER_FILE}\n\nThen run:\nsystemctl --user daemon-reload\nsystemctl --user restart ${SERVICE_NAME}.timer"
                                 if [ "${use_gui}" = "true" ] && has_zenity; then
                                     zenity --warning --text="${warning_msg}" 2>/dev/null
                                 else

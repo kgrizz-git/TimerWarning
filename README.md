@@ -146,33 +146,33 @@ See [user-docs/CONFIGURATION.md](user-docs/CONFIGURATION.md) for complete config
 ### Time Range Options
 
 **Single Range**: One time period per day
-- `0-5` = Midnight (00:00) to 5:59 AM
+- `0-5` = Midnight (00:00) to 4:59 AM
 - `22-23` = 10:00 PM to 11:59 PM
 
 **Multiple Ranges**: Multiple time periods per day (comma-separated)
-- `0-5,22-23` = Midnight to 5:59 AM AND 10 PM to 11:59 PM
+- `0-5,22-23` = Midnight to 4:59 AM AND 10 PM to 11:59 PM
 - Useful for restricting both late night and early morning usage
 
 **Overnight Ranges**: Time periods that span midnight (start hour > end hour)
-- `23-6` = 11:00 PM to 6:00 AM (spans midnight to next day)
-- `22-8` = 10:00 PM to 8:00 AM (overnight)
+- `23-6` = 11:00 PM to 5:59 AM (spans midnight to next day)
+- `22-8` = 10:00 PM to 7:59 AM (overnight)
 
 **Important - Overnight Range Behavior**:
 When you specify an overnight range like `23-6` on Monday, it means:
-- **Monday 11:00 PM → Tuesday 6:00 AM**
+- **Monday 11:00 PM → Tuesday 5:59 AM**
 
-The range spans from the named day into the next day. If you also set `TUESDAY=0-5`, both ranges will cover Tuesday midnight to 5:59 AM. This is harmless (only one warning will be shown), but redundant.
+The range spans from the named day into the next day. If you also set `TUESDAY=0-5`, both ranges will cover Tuesday midnight to 4:59 AM. This is harmless (only one warning will be shown), but redundant.
 
 **Examples**:
 ```
-MONDAY=0-5,22-23    # Midnight to 5:59 AM AND 10 PM to 11:59 PM (same day)
-TUESDAY=23-6        # Tuesday 11:00 PM → Wednesday 6:00 AM (overnight)
-WEDNESDAY=0-5       # Midnight to 5:59 AM only (same day)
-THURSDAY=23-5       # Thursday 11:00 PM → Friday 5:00 AM (overnight)
+MONDAY=0-5,22-23    # Midnight to 4:59 AM AND 10 PM to 11:59 PM (same day)
+TUESDAY=23-6        # Tuesday 11:00 PM → Wednesday 5:59 AM (overnight)
+WEDNESDAY=0-5       # Midnight to 4:59 AM only (same day)
+THURSDAY=23-5       # Thursday 11:00 PM → Friday 4:59 AM (overnight)
 ```
 
 **Overlapping Ranges**:
-If you set overlapping ranges (e.g., `MONDAY=23-5` and `TUESDAY=0-5`), both will cover Tuesday midnight to 5:59 AM. The system will only show one warning during the overlap period, so this is harmless but redundant. The configuration wizard will warn you about overlaps when you save your settings.
+If you set overlapping ranges (e.g., `MONDAY=23-5` and `TUESDAY=0-5`), both will cover Tuesday midnight to 4:59 AM. The system will only show one warning during the overlap period, so this is harmless but redundant. The configuration wizard will warn you about overlaps when you save your settings.
 
 ## Usage
 

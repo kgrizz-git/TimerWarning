@@ -251,6 +251,106 @@ These enhancements can be integrated into the existing bash script suite without
   - Reduces need for user interaction while still ensuring warning visibility
 - **Related**: Complements minimum display time feature (#14 Immovable Popup Window), could work with visual countdown timer enhancement
 
+### 16. Visual Day/Time Configuration Grid
+- **Description**: Provide a visual grid interface for configuring day/time restrictions, showing days as rows and hours as columns, with visual indication of blocked time slots and interactive editing capabilities
+- **Implementation**: 
+  - Create grid visualization with days (Sunday-Saturday) as rows and hours (0-23) as columns
+  - Display blocked time slots with visual indicators (colored cells, checkmarks, or shading)
+  - Allow users to click/toggle individual hour cells to block/unblock specific times
+  - Support range selection (click and drag to select multiple consecutive hours)
+  - Display current configuration visually before editing
+  - Support multiple time ranges per day (show all blocked periods)
+  - Handle overnight ranges visually (e.g., highlight that 23-6 spans midnight)
+  - Provide bulk operations (e.g., "Block all weekdays 0-5", "Copy Monday to all weekdays")
+  - Export changes back to configuration file format (`DAY=START_HOUR-END_HOUR`)
+- **Files Affected**: `configure.sh`, `sleep-warning.conf` (read/write), potentially new `configure-grid.sh` script
+- **Priority**: Medium (significantly improves usability and reduces configuration errors)
+- **Status**: Not implemented
+- **Current Implementation**:
+  - Text-based configuration via `configure.sh` wizard
+  - Manual entry of time ranges in format: `DAY=START_HOUR-END_HOUR`
+  - Supports single ranges, multiple ranges (comma-separated), and overnight ranges
+  - Configuration stored in `~/.config/sleep-warning/sleep-warning.conf`
+- **Implementation Approaches**:
+  - **Option 1: GUI Grid with yad/zenity** (Recommended for bash-based implementation):
+    - Use `yad` with `--form` or custom dialog to create grid interface
+    - Create 7×24 grid (7 days × 24 hours) with checkboxes or toggle buttons
+    - Use `yad --list` with custom columns or `yad --form` with grid layout
+    - Parse grid selections and convert to configuration format
+    - May require multiple dialog windows (one per day) or single large grid
+    - **Limitations**: yad/zenity may not support full grid editing, may need workarounds
+  - **Option 2: Text-Based Grid with dialog/whiptail**:
+    - Use `dialog --checklist` or `dialog --form` to create text-based grid
+    - Display ASCII grid in terminal with checkboxes for each hour
+    - Navigate with arrow keys, toggle with spacebar
+    - Less visually appealing but works in all terminal environments
+  - **Option 3: Web-Based Grid Interface** (Alternative Approach):
+    - Create lightweight web server (Python Flask, Node.js) for configuration
+    - HTML/CSS/JavaScript grid interface with interactive cells
+    - Access via localhost in web browser
+    - More flexible and visually appealing, but requires web server
+    - See Alternative Approach #5 (Web-Based Configuration Interface)
+  - **Option 4: Native Desktop Application** (Alternative Approach):
+    - Part of GUI application wrapper (GTK/Qt/Electron)
+    - Full-featured grid widget with drag selection, visual feedback
+    - Best user experience but requires different technology stack
+    - See Alternative Approach #3 (Native Desktop Application)
+- **Implementation Notes**:
+  - **Grid Layout**:
+    - Rows: Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday (7 rows)
+    - Columns: 0, 1, 2, ..., 23 (24 columns for 24-hour format)
+    - Each cell represents one hour on one day
+    - Visual indicators: blocked cells (red/shaded), unblocked cells (green/white)
+  - **Interaction Methods**:
+    - **Single click/toggle**: Block/unblock individual hour
+    - **Range selection**: Click start hour, drag to end hour (or Shift+click end)
+    - **Bulk operations**: Select day row header to select all hours, or use context menu
+    - **Copy/paste**: Copy one day's pattern to other days
+  - **Overnight Range Handling**:
+    - Visual indication when range spans midnight (e.g., highlight both 23 on Monday and 0-6 on Tuesday)
+    - Option to show overnight ranges as single visual block across day boundary
+    - Warning/confirmation when creating overnight ranges
+  - **Multiple Ranges per Day**:
+    - Display all blocked periods for each day (may have multiple separate blocks)
+    - Allow editing each range independently
+    - Visual separation between different ranges on same day
+  - **Configuration Conversion**:
+    - Parse existing `DAY=START_HOUR-END_HOUR` format into grid representation
+    - Convert grid selections back to configuration format
+    - Handle edge cases: multiple ranges, overnight ranges, empty days
+    - Validate configuration before saving (check for overlaps, invalid ranges)
+  - **User Experience Features**:
+    - **Preview**: Show current configuration in grid before editing
+    - **Undo/Redo**: Allow users to undo changes
+    - **Presets**: Quick templates (e.g., "Weekdays 0-5", "Weekends 1-6", "All days 23-6")
+    - **Validation**: Warn about overlapping ranges, invalid configurations
+    - **Export/Import**: Save/load configuration profiles
+    - **Help/Tooltips**: Explain overnight ranges, multiple ranges, etc.
+  - **Technical Considerations**:
+    - Grid size: 7 days × 24 hours = 168 cells (manageable for GUI)
+    - For text-based interface, may need scrolling or pagination
+    - For GUI, ensure grid is readable and not too cramped
+    - Consider hour labels (0-23 vs 12 AM - 11 PM) - allow user preference
+    - Support 12-hour format display option (with 24-hour format storage)
+- **User Experience Benefits**:
+  - **Visual Clarity**: Immediately see which hours are blocked on which days
+  - **Easier Configuration**: No need to remember format syntax (`0-5,22-23`)
+  - **Error Prevention**: Visual feedback prevents invalid configurations
+  - **Quick Editing**: Click to toggle hours instead of typing ranges
+  - **Pattern Recognition**: Easily see patterns across days (e.g., all weekdays same)
+  - **Bulk Operations**: Quickly copy patterns from one day to others
+  - **Intuitive**: More natural than text-based range entry
+- **Compatibility Considerations**:
+  - **GUI Tools**: Requires yad, zenity, or kdialog for GUI implementation
+  - **Text Mode**: Falls back to current text-based wizard if GUI tools unavailable
+  - **Terminal Size**: Text-based grid needs adequate terminal size
+  - **Accessibility**: Grid interface should support keyboard navigation
+- **Related**: 
+  - Complements existing configuration system (#5 Configurable Warning Messages)
+  - Could be part of Native Desktop Application (Alternative Approach #3)
+  - Could use Web-Based Configuration Interface (Alternative Approach #5)
+  - Works with current day/time restriction format (no config file format changes needed)
+
 ## Alternative Approaches (Require Different Implementation)
 
 These approaches would require significant changes to the architecture or a completely different implementation strategy:
@@ -372,16 +472,17 @@ These approaches would require significant changes to the architecture or a comp
 10. Temporary Disable via Config
 11. Enhanced Window Size Options and Display-Based Sizing
 12. Auto-Close Popup Window
+13. Visual Day/Time Configuration Grid
 
 **Low Priority (Nice-to-Have Enhancements)**:
-13. Configurable Warning Messages
-14. Escalating Warnings
-15. Audio Alerts
-16. Distribution-Specific Optimizations
-17. Wayland support for minimum display time (would require different approach)
-18. More robust window control (prevent all close methods, not just window manager)
-19. Visual countdown timer in popup (instead of just text)
-20. Configurable auto-reopen behavior
+14. Configurable Warning Messages
+15. Escalating Warnings
+16. Audio Alerts
+17. Distribution-Specific Optimizations
+18. Wayland support for minimum display time (would require different approach)
+19. More robust window control (prevent all close methods, not just window manager)
+20. Visual countdown timer in popup (instead of just text)
+21. Configurable auto-reopen behavior
 
 ## Implementation Notes
 
