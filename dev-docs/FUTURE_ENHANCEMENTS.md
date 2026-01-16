@@ -252,7 +252,265 @@ These enhancements can be integrated into the existing bash script suite without
 - **Related**: Complements minimum display time feature (#14 Immovable Popup Window), could work with visual countdown timer enhancement
 
 ### 16. Visual Day/Time Configuration Grid
-- **Description**: Provide a visual grid interface for configuring day/time restrictions, showing days as rows and hours as columns, with visual indication of blocked time slots and interactive editing capabilities
+- **Description**: Provide a visual interface for configuring day/time restrictions, showing a summary grid of days and their configured time ranges, with easy access to edit any day. Implemented in two phases: Phase 1 provides visual summary and easy day-by-day editing, Phase 2 adds full interactive grid editing capabilities.
+- **Files Affected**: `configure.sh`, `sleep-warning.conf` (read/write), potentially new `configure-grid.sh` script
+- **Priority**: Medium (significantly improves usability and reduces configuration errors)
+- **Status**: Not implemented
+- **Current Implementation**:
+  - Text-based configuration via `configure.sh` wizard
+  - Manual entry of time ranges in format: `DAY=START_HOUR-END_HOUR`
+  - Supports single ranges, multiple ranges (comma-separated), and overnight ranges
+  - Configuration stored in `~/.config/sleep-warning/sleep-warning.conf`
+
+#### Phase 1: Visual Summary and Easy Day Access (Simpler Implementation)
+- **Description**: Display a visual summary grid showing all days and their configured time ranges, with clickable day entries that open the existing configuration dialog. Provides visual overview without requiring complex grid editing implementation.
+- **Priority**: Medium-High (easier to implement, provides immediate usability improvement)
+- **Status**: Not implemented
+- **Implementation**: 
+  - Create visual summary grid/table showing days (Sunday-Saturday) as rows
+  - Display configured time ranges for each day in human-readable format (e.g., "12:00 AM - 5:59 AM")
+  - Show visual indicators for days with restrictions (colored/shaded) vs. days without restrictions
+  - Make each day row clickable/selectable to edit that day's configuration
+  - When user clicks a weekday, ask if they want to apply same times to all weekdays
+  - When user clicks a weekend day, ask if they want to apply same times to both weekend days
+  - Use existing `get_day_hours()` function for editing (no changes needed to editing logic)
+  - Display summary in both GUI (yad/zenity list/table) and text mode (formatted table)
+  - Update summary display after each day is edited
+- **Implementation Approaches**:
+  - **GUI Mode**: Use `yad --list` or `zenity --list` to display days and time ranges in table format
+  - **Text Mode**: Display formatted ASCII table with numbered options, allow selection via menu
+  - Clicking/selecting a day opens existing configuration dialog for that day
+- **User Experience**:
+  - **Visual Overview**: User can see all days and their restrictions at a glance
+  - **Easy Access**: Click any day to edit it immediately
+  - **Bulk Operations**: Still prompts for weekday/weekend bulk apply when editing those days
+  - **No Grid Editing**: Time ranges still entered via existing text input (no complex grid widget needed)
+- **Technical Considerations**:
+  - Reuse existing `get_day_hours()` function from `configure.sh`
+  - Parse current configuration to build summary display
+  - Format time ranges using existing `format_range_human()` function (if available)
+  - Minimal changes to existing codebase
+  - Works with current configuration file format (no changes needed)
+- **User Experience Benefits**:
+  - **Visual Clarity**: Immediately see which days have restrictions and what they are
+  - **Easy Navigation**: Click any day to edit without going through sequential wizard
+  - **Quick Overview**: See entire week's configuration at once
+  - **Familiar Editing**: Uses existing time range input method (no learning curve)
+- **Limitations**:
+  - Time ranges still entered via text input (not visual grid editing)
+  - No drag-to-select hour ranges
+  - No visual hour-by-hour grid display
+  - No bulk copy/paste between days (except weekday/weekend prompts)
+
+#### Phase 2: Full Interactive Grid Editing (Advanced Implementation)
+- **Description**: Extend Phase 1 with full interactive grid editing, allowing users to click/toggle individual hours directly in the grid, with drag selection, visual feedback, and advanced bulk operations.
+- **Priority**: Medium (builds on Phase 1, more complex but provides maximum usability)
+- **Status**: Not implemented (depends on Phase 1 completion)
+- **Implementation**: 
+  - Extend Phase 1 grid to show hours (0-23) as columns
+  - Display blocked time slots with visual indicators (colored cells, checkmarks, or shading)
+  - Allow users to click/toggle individual hour cells to block/unblock specific times
+  - Support range selection (click and drag to select multiple consecutive hours)
+  - Support multiple time ranges per day (show all blocked periods visually)
+  - Handle overnight ranges visually (e.g., highlight that 23-6 spans midnight)
+  - Provide advanced bulk operations (e.g., "Block all weekdays 0-5", "Copy Monday to all weekdays")
+  - Export changes back to configuration file format (`DAY=START_HOUR-END_HOUR`)
+- **Implementation Approaches**:
+  - **Option 1: GUI Grid with yad/zenity** (Recommended for bash-based implementation):
+    - Use `yad` with `--form` or custom dialog to create grid interface
+    - Create 7×24 grid (7 days × 24 hours) with checkboxes or toggle buttons
+    - Use `yad --list` with custom columns or `yad --form` with grid layout
+    - Parse grid selections and convert to configuration format
+    - May require multiple dialog windows (one per day) or single large grid
+    - **Limitations**: yad/zenity may not support full grid editing, may need workarounds
+  - **Option 2: Text-Based Grid with dialog/whiptail**:
+    - Use `dialog --checklist` or `dialog --form` to create text-based grid
+    - Display ASCII grid in terminal with checkboxes for each hour
+    - Navigate with arrow keys, toggle with spacebar
+    - Less visually appealing but works in all terminal environments
+  - **Option 3: Web-Based Grid Interface** (Alternative Approach):
+    - Create lightweight web server (Python Flask, Node.js) for configuration
+    - HTML/CSS/JavaScript grid interface with interactive cells
+    - Access via localhost in web browser
+    - More flexible and visually appealing, but requires web server
+    - See Alternative Approach #5 (Web-Based Configuration Interface)
+  - **Option 4: Native Desktop Application** (Alternative Approach):
+    - Part of GUI application wrapper (GTK/Qt/Electron)
+    - Full-featured grid widget with drag selection, visual feedback
+    - Best user experience but requires different technology stack
+    - See Alternative Approach #3 (Native Desktop Application)
+- **Implementation Notes**:
+  - **Grid Layout**:
+    - Rows: Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday (7 rows)
+    - Columns: 0, 1, 2, ..., 23 (24 columns for 24-hour format)
+    - Each cell represents one hour on one day
+    - Visual indicators: blocked cells (red/shaded), unblocked cells (green/white)
+  - **Interaction Methods**:
+    - **Single click/toggle**: Block/unblock individual hour
+    - **Range selection**: Click start hour, drag to end hour (or Shift+click end)
+    - **Bulk operations**: Select day row header to select all hours, or use context menu
+    - **Copy/paste**: Copy one day's pattern to other days
+  - **Overnight Range Handling**:
+    - Visual indication when range spans midnight (e.g., highlight both 23 on Monday and 0-6 on Tuesday)
+    - Option to show overnight ranges as single visual block across day boundary
+    - Warning/confirmation when creating overnight ranges
+  - **Multiple Ranges per Day**:
+    - Display all blocked periods for each day (may have multiple separate blocks)
+    - Allow editing each range independently
+    - Visual separation between different ranges on same day
+  - **Configuration Conversion**:
+    - Parse existing `DAY=START_HOUR-END_HOUR` format into grid representation
+    - Convert grid selections back to configuration format
+    - Handle edge cases: multiple ranges, overnight ranges, empty days
+    - Validate configuration before saving (check for overlaps, invalid ranges)
+  - **User Experience Features**:
+    - **Preview**: Show current configuration in grid before editing
+    - **Undo/Redo**: Allow users to undo changes
+    - **Presets**: Quick templates (e.g., "Weekdays 0-5", "Weekends 1-6", "All days 23-6")
+    - **Validation**: Warn about overlapping ranges, invalid configurations
+    - **Export/Import**: Save/load configuration profiles
+    - **Help/Tooltips**: Explain overnight ranges, multiple ranges, etc.
+  - **Technical Considerations**:
+    - Grid size: 7 days × 24 hours = 168 cells (manageable for GUI)
+    - For text-based interface, may need scrolling or pagination
+    - For GUI, ensure grid is readable and not too cramped
+    - Consider hour labels (0-23 vs 12 AM - 11 PM) - allow user preference
+    - Support 12-hour format display option (with 24-hour format storage)
+  - **User Experience Benefits** (Phase 2):
+    - **Visual Clarity**: Immediately see which hours are blocked on which days
+    - **Easier Configuration**: No need to remember format syntax (`0-5,22-23`)
+    - **Error Prevention**: Visual feedback prevents invalid configurations
+    - **Quick Editing**: Click to toggle hours instead of typing ranges
+    - **Pattern Recognition**: Easily see patterns across days (e.g., all weekdays same)
+    - **Bulk Operations**: Quickly copy patterns from one day to others
+    - **Intuitive**: More natural than text-based range entry
+  - **Compatibility Considerations** (Phase 2):
+    - **GUI Tools**: Requires yad, zenity, or kdialog for GUI implementation
+    - **Text Mode**: Falls back to current text-based wizard if GUI tools unavailable
+    - **Terminal Size**: Text-based grid needs adequate terminal size
+    - **Accessibility**: Grid interface should support keyboard navigation
+
+- **Related**: 
+  - Complements existing configuration system (#5 Configurable Warning Messages)
+  - Could be part of Native Desktop Application (Alternative Approach #3)
+  - Could use Web-Based Configuration Interface (Alternative Approach #5)
+  - Works with current day/time restriction format (no config file format changes needed)
+  - Phase 1 can be implemented independently and provides immediate usability improvement
+  - Phase 2 builds on Phase 1 foundation for full interactive grid editing
+
+### 17. Multi-Display Popup Support
+- **Description**: Display warning popups on all available displays/monitors simultaneously, ensuring warnings are visible regardless of which screen the user is actively viewing
+- **Implementation**: 
+  - Detect all available displays (primary and secondary monitors)
+  - Spawn separate popup instance for each detected display
+  - Position each popup appropriately on its respective display (center, or configured position)
+  - Handle display-specific positioning and sizing
+  - Manage multiple popup processes (one per display)
+  - Ensure all popups can be dismissed independently or together
+  - Handle minimum display time enforcement across all popups
+  - Support immovable window feature on all displays
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`, `configure.sh`
+- **Priority**: Medium (useful for multi-monitor setups, improves visibility)
+- **Status**: Not implemented
+- **Current Implementation**:
+  - Single popup displayed on primary or detected display
+  - Uses `DISPLAY` environment variable (X11) or `WAYLAND_DISPLAY` (Wayland)
+  - Popup positioned using configured `POPUP_POSITION` setting
+  - Window positioning tools (wmctrl/xdotool) work on X11 only
+- **Implementation Approaches**:
+  - **X11 Multi-Monitor Detection**:
+    - Use `xrandr --query` to list all connected displays
+    - Parse output to identify active displays (e.g., `HDMI-1`, `DP-1`, `eDP-1`)
+    - Get display geometry (resolution, position) for each monitor
+    - Set `DISPLAY` environment variable to target specific display (may need X server configuration)
+    - Spawn popup process for each display with appropriate `DISPLAY` value
+  - **Wayland Multi-Monitor Detection**:
+    - Use `wlr-randr` (for wlroots-based compositors) to list displays
+    - Use `wayland-info` or compositor-specific tools if available
+    - Query display information via Wayland protocols (requires compositor support)
+    - May need compositor-specific solutions (gamescope, sway, GNOME, KDE)
+    - **Limitations**: Wayland security model may prevent multi-display control
+  - **Hybrid Approach**:
+    - Detect display environment (X11 vs Wayland)
+    - Use appropriate detection method for each protocol
+    - Fallback to single display if multi-monitor detection fails
+- **Implementation Notes**:
+  - **Display Detection**:
+    - **X11**: `xrandr --query` lists all connected displays with their status (connected, disconnected, active)
+    - Parse `xrandr` output to identify active displays and their geometry
+    - Example: `xrandr --query | grep " connected" | awk '{print $1}'`
+    - Get display resolution and position: `xrandr --query | grep -A1 " connected" | grep -E "[0-9]+x[0-9]+"`
+    - **Wayland**: More complex, requires compositor-specific tools
+      - `wlr-randr` for wlroots-based compositors (sway, river, etc.)
+      - `gnome-randr` or `gsettings` for GNOME
+      - `kscreen-doctor` for KDE Plasma
+      - May need to query Wayland protocols directly (complex)
+  - **Multi-Popup Management**:
+    - Spawn background process for each display
+    - Track popup PIDs for each display
+    - Ensure all popups are closed when user dismisses (or allow independent dismissal)
+    - Handle minimum display time across all popups (all must remain visible for configured duration)
+    - Coordinate immovable window feature across all displays
+  - **Display-Specific Configuration**:
+    - Allow per-display positioning (e.g., center on all, or specific position per display)
+    - Handle different display resolutions (popup size may need adjustment per display)
+    - Consider display scaling (high-DPI displays may need different sizing)
+  - **Process Management**:
+    - Use `DISPLAY=:0.1` or similar for X11 secondary displays (if X server configured for multi-display)
+    - For X11, may need to use `--display` flag if dialog tool supports it
+    - For Wayland, may need compositor-specific environment variables
+    - Track all popup processes to ensure cleanup on exit
+  - **User Experience**:
+    - **Option 1**: All popups must be dismissed (user closes all to proceed)
+    - **Option 2**: Dismissing one closes all (coordinated dismissal)
+    - **Option 3**: Independent dismissal (user can close individual popups)
+    - Configuration option: `MULTI_DISPLAY_MODE=single|all|independent`
+    - Default: `all` (show on all displays, all must be dismissed)
+  - **Edge Cases**:
+    - Handle displays being disconnected during popup display
+    - Handle displays being added during popup display (may need to spawn additional popup)
+    - Handle display resolution changes
+    - Handle display reordering (primary display changes)
+    - Graceful fallback if multi-display detection fails (show on primary display only)
+- **Technical Considerations**:
+  - **X11 Multi-Display Setup**:
+    - X server must be configured for multi-display (Xinerama, XRandR, or separate X servers)
+    - Most modern X11 setups use XRandR extension (standard)
+    - May need to set `DISPLAY` per popup process
+    - Some dialog tools may not support `--display` flag
+  - **Wayland Multi-Display**:
+    - Wayland compositors handle multi-display natively
+    - Detection and control more complex than X11
+    - May require compositor-specific APIs or tools
+    - gamescope (SteamOS Gaming Mode) may have limited multi-display support
+  - **Performance**:
+    - Multiple popup processes may have minimal performance impact
+    - Consider process overhead (7 displays = 7 popup processes)
+    - Ensure efficient display detection (cache results if possible)
+  - **Compatibility**:
+    - **X11**: Feasible with xrandr (standard on most X11 systems)
+    - **Wayland**: Feasibility varies by compositor (may require research per compositor)
+    - **gamescope**: May not support multi-display (SteamOS Gaming Mode typically single display)
+    - **Fallback**: Always fallback to single display if multi-display detection fails
+- **Configuration Options**:
+  - `MULTI_DISPLAY_ENABLED=true/false` - Enable/disable multi-display popups (default: `false`)
+  - `MULTI_DISPLAY_MODE=single|all|independent` - Dismissal behavior (default: `all`)
+  - `MULTI_DISPLAY_POSITION=center|inherit` - Position on each display (default: `center`, uses `POPUP_POSITION` if `inherit`)
+- **User Experience Benefits**:
+  - **Visibility**: Warnings appear on all screens, ensuring user sees them regardless of active display
+  - **Multi-Monitor Workflows**: Users with multiple monitors don't miss warnings on secondary displays
+  - **Gaming Setups**: Gamers with multiple monitors see warnings on all screens
+  - **Productivity**: Users working across multiple displays are always notified
+- **Compatibility Assessment**:
+  - **X11**: ✅ **Feasible** - xrandr provides reliable multi-display detection and control
+  - **Wayland**: ⚠️ **Partially Feasible** - Depends on compositor, may require compositor-specific tools
+  - **gamescope (SteamOS Gaming Mode)**: ❌ **Not Feasible** - Typically single display, limited multi-display support
+  - **Fallback Strategy**: Always fallback to single display if multi-display detection fails or is unavailable
+- **Related**: 
+  - Complements popup positioning feature (#3 Enhanced Window Size Options)
+  - Works with minimum display time feature (#14 Immovable Popup Window)
+  - May require enhanced display detection (#1 Enhanced Display Detection)
+  - Could benefit from Wayland-specific window management (#12 Wayland-Specific Window Management)
 - **Implementation**: 
   - Create grid visualization with days (Sunday-Saturday) as rows and hours (0-23) as columns
   - Display blocked time slots with visual indicators (colored cells, checkmarks, or shading)
@@ -473,6 +731,7 @@ These approaches would require significant changes to the architecture or a comp
 11. Enhanced Window Size Options and Display-Based Sizing
 12. Auto-Close Popup Window
 13. Visual Day/Time Configuration Grid
+14. Multi-Display Popup Support
 
 **Low Priority (Nice-to-Have Enhancements)**:
 14. Configurable Warning Messages
