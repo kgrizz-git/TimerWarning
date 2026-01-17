@@ -14,20 +14,20 @@ Add a new Checklist 1.4b to `dev-docs/linux-warning-system-plan.md` that specifi
 - `README.md` and/or `USER_GUIDE.md` if user-facing behavior needs clarification
 
 ## Checklist 1.4b (Draft)
-- [ ] **Define popup behavior expectations on Wayland/gamescope**
-  - [ ] Modal warning should appear when possible
-  - [ ] Document focus/always-on-top limitations
-  - [ ] Define acceptable degradation (e.g., visible but not guaranteed on top)
-- [ ] **Dialog tool behavior guidance**
-  - [ ] Prefer `yad` for Wayland/gamescope if available
-  - [ ] Document limitations of `zenity`/`kdialog` on Wayland
-- [ ] **Fallbacks when dialogs fail**
-  - [ ] Define notify-send fallback behavior (if dialogs fail)
-  - [ ] Define logging for fallback activation
-- [ ] **Logging requirements**
-  - [ ] Log dialog tool used
-  - [ ] Log any Wayland-specific limitations encountered
-  - [ ] Log if on-top enforcement is unavailable
+- [x] **Define popup behavior expectations on Wayland/gamescope**
+  - [x] Modal warning should appear when possible
+  - [x] Document focus/always-on-top limitations
+  - [x] Define acceptable degradation (e.g., visible but not guaranteed on top)
+- [x] **Dialog tool behavior guidance**
+  - [x] Prefer `yad` for Wayland/gamescope if available
+  - [x] Document limitations of `zenity`/`kdialog` on Wayland
+- [x] **Fallbacks when dialogs fail**
+  - [x] Define notify-send fallback behavior (if dialogs fail)
+  - [x] Define logging for fallback activation
+- [x] **Logging requirements**
+  - [x] Log dialog tool used
+  - [x] Log any Wayland-specific limitations encountered
+  - [x] Log if on-top enforcement is unavailable
 - [ ] **Manual testing checklist**
   - [ ] Wayland Desktop: popup appears and is dismissible
   - [ ] Gaming Mode (no game): popup appears

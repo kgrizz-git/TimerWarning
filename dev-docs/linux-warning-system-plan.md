@@ -241,6 +241,23 @@ The solution consists of eight main components:
   - [ ] Gaming Mode (windowed game): popup appears
   - [ ] Gaming Mode (full-screen game): record whether popup appears on top
 
+#### Checklist 1.4c: Dialog Tool Priority + Notify-Send Fallback
+- [x] **Dialog tool priority system**
+  - [x] Define environment-aware priority rules (gamescope/Wayland/KDE/Desktop)
+  - [x] Implement selection order:
+    - [x] Wayland/gamescope: `yad` → `kdialog` → `zenity`
+    - [x] KDE: `kdialog` → `yad` → `zenity`
+    - [x] Default: `zenity` → `yad` → `kdialog`
+  - [x] Log selected tool + environment
+  - [x] Document behavior and limitations
+- [x] **Notify-send fallback**
+  - [x] Add fallback in `show_warning()` when dialog tool fails
+  - [x] Log fallback usage and errors
+  - [x] Document that fallback is non-modal and best-effort
+- [ ] **Manual testing checklist**
+  - [ ] Wayland/gamescope: verify tool selection order in logs
+  - [ ] Dialog failure: verify notify-send fallback and log entry
+
 #### Checklist 1.5: Add Script Robustness
 - [x] Add shebang line (`#!/bin/bash`)
 - [x] Add error handling for missing dependencies

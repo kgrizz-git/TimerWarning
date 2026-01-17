@@ -429,7 +429,7 @@ The implementation should follow these principles to ensure maximum portability:
    - Fallback 1: `yad` (enhanced zenity alternative, better Wayland support, preferred for Gaming Mode)
    - Fallback 2: `kdialog` (KDE-specific, better on KDE systems like SteamOS Desktop Mode)
    - Fallback 3: `notify-send` (non-modal, last resort)
-   - Environment-aware selection: Prefer yad for Gaming Mode, kdialog for KDE systems
+   - Environment-aware selection: Prefer yad for Gaming Mode, kdialog for KDE systems; log selected tool and environment
 
    For detailed dialog tool selection strategies for SteamOS Gaming Mode, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#dialog-tool-selection).
 

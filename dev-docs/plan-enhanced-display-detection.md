@@ -21,34 +21,34 @@ Move the "Enhanced Display Detection" section from `dev-docs/FUTURE_ENHANCEMENTS
    - Include expected log outputs for success/failure scenarios.
 
 ## Detailed Checklist (Draft)
-- [ ] **Define detection priority order**
-  - [ ] X11: `DISPLAY` if present and valid
-  - [ ] Wayland: `WAYLAND_DISPLAY` if present and valid
-  - [ ] `loginctl` session discovery fallback
-  - [ ] gamescope-specific detection fallback
-- [ ] **Implement X11 detection details (doc spec)**
-  - [ ] Validate `DISPLAY` format (e.g., `:0`, `:1`)
-  - [ ] Confirm display accessibility (`xdpyinfo`/`xset` availability noted)
-  - [ ] Document fallback behavior if X11 tools missing
-- [ ] **Implement Wayland detection details (doc spec)**
-  - [ ] Check `WAYLAND_DISPLAY` and `XDG_RUNTIME_DIR`
-  - [ ] Document compositor-specific helpers (e.g., `swaymsg`, `wlr-randr`)
-  - [ ] Define fallback to `loginctl` if Wayland socket not accessible
-- [ ] **Implement gamescope detection details (doc spec)**
-  - [ ] Detect gamescope process (`pgrep gamescope`)
-  - [ ] Map gamescope environment variables (if present)
-  - [ ] Document display selection priority when gamescope is active
-- [ ] **Logging requirements**
-  - [ ] Log selected display type (X11/Wayland/gamescope)
-  - [ ] Log selected display identifier
-  - [ ] Log fallback path taken (if any)
-  - [ ] Log failure reason when no display is available
-- [ ] **Failure handling**
-  - [ ] Define "no display" behavior (silent exit + log)
-  - [ ] Define partial detection behavior (warn + continue)
-- [ ] **Documentation updates**
-  - [ ] Add references to `STEAMOS_GAMING_MODE.md` display detection section
-  - [ ] Keep cross-links consistent with plan format
+- [x] **Define detection priority order**
+  - [x] X11: `DISPLAY` if present and valid
+  - [x] Wayland: `WAYLAND_DISPLAY` if present and valid
+  - [x] `loginctl` session discovery fallback
+  - [x] gamescope-specific detection fallback
+- [x] **Implement X11 detection details (doc spec)**
+  - [x] Validate `DISPLAY` format (e.g., `:0`, `:1`)
+  - [x] Confirm display accessibility (`xdpyinfo`/`xset` availability noted)
+  - [x] Document fallback behavior if X11 tools missing
+- [x] **Implement Wayland detection details (doc spec)**
+  - [x] Check `WAYLAND_DISPLAY` and `XDG_RUNTIME_DIR`
+  - [x] Document compositor-specific helpers (e.g., `swaymsg`, `wlr-randr`)
+  - [x] Define fallback to `loginctl` if Wayland socket not accessible
+- [x] **Implement gamescope detection details (doc spec)**
+  - [x] Detect gamescope process (`pgrep gamescope`)
+  - [x] Map gamescope environment variables (if present)
+  - [x] Document display selection priority when gamescope is active
+- [x] **Logging requirements**
+  - [x] Log selected display type (X11/Wayland/gamescope)
+  - [x] Log selected display identifier
+  - [x] Log fallback path taken (if any)
+  - [x] Log failure reason when no display is available
+- [x] **Failure handling**
+  - [x] Define "no display" behavior (silent exit + log)
+  - [x] Define partial detection behavior (warn + continue)
+- [x] **Documentation updates**
+  - [x] Add references to `STEAMOS_GAMING_MODE.md` display detection section
+  - [x] Keep cross-links consistent with plan format
 - [ ] **Testing checklist (manual)**
   - [ ] Desktop Mode (X11): DISPLAY set, popup appears
   - [ ] Desktop Mode (Wayland): WAYLAND_DISPLAY set, popup appears

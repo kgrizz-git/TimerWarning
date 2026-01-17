@@ -96,7 +96,7 @@ These tools enable:
 - Popups to stay on top of other windows (`wmctrl`/`xdotool`)
 - Immovable popup windows during minimum display time (`wmctrl`/`xdotool`)
 
-The system works without these tools, but with reduced window management capabilities.
+The system works without these tools, but with reduced window management capabilities. If dialog tools fail entirely, a non-modal notification fallback (notify-send) is used when available.
 
 3. **Configure restricted hours** (recommended second step):
 ```bash

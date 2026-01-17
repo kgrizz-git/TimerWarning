@@ -411,16 +411,41 @@ is_kde() {
     return 1
 }
 
-# Check if a dialog tool is available (with environment-aware priority)
+# Check if a dialog tool is available (environment-aware priority)
 check_dialog_tool() {
-    # On KDE, prefer kdialog for better window manager integration
-    # TEMPORARILY DISABLED: kdialog appears to have issues with window manipulation on some KDE systems
-    # if is_kde && command -v kdialog >/dev/null 2>&1; then
-    #     echo "kdialog"
-    #     return 0
-    # fi
-    
-    # Otherwise, use standard priority
+    local env_type="$1"
+
+    # Wayland/gamescope: prefer yad for better Wayland behavior
+    if [ "${env_type}" = "wayland" ] || [ "${env_type}" = "gamescope" ]; then
+        if command -v yad >/dev/null 2>&1; then
+            echo "yad"
+            return 0
+        elif command -v kdialog >/dev/null 2>&1; then
+            echo "kdialog"
+            return 0
+        elif command -v zenity >/dev/null 2>&1; then
+            echo "zenity"
+            return 0
+        fi
+        return 1
+    fi
+
+    # KDE: prefer kdialog for KDE integration
+    if is_kde; then
+        if command -v kdialog >/dev/null 2>&1; then
+            echo "kdialog"
+            return 0
+        elif command -v yad >/dev/null 2>&1; then
+            echo "yad"
+            return 0
+        elif command -v zenity >/dev/null 2>&1; then
+            echo "zenity"
+            return 0
+        fi
+        return 1
+    fi
+
+    # Default: zenity -> yad -> kdialog
     if command -v zenity >/dev/null 2>&1; then
         echo "zenity"
         return 0
@@ -430,9 +455,9 @@ check_dialog_tool() {
     elif command -v kdialog >/dev/null 2>&1; then
         echo "kdialog"
         return 0
-    else
-        return 1
     fi
+
+    return 1
 }
 
 # Get DISPLAY environment variable, with fallback (enhanced for Wayland and gamescope)
@@ -1317,7 +1342,7 @@ show_warning() {
     log_to_file "INFO" "Window state: ${window_state}, Window title: ${window_title}"
     
     # Check for available dialog tool
-    dialog_tool=$(check_dialog_tool)
+    dialog_tool=$(check_dialog_tool "${env_type}")
     if [ -z "${dialog_tool}" ]; then
         log_message "warning" "No dialog tool available (zenity/yad/kdialog)"
         log_to_file "ERROR" "No dialog tool available (zenity/yad/kdialog), Display: ${env_type}, Display ID: ${display_id}"
@@ -1325,7 +1350,7 @@ show_warning() {
     fi
     
     # Log dialog tool used
-    log_to_file "INFO" "Using dialog tool: ${dialog_tool}"
+    log_to_file "INFO" "Using dialog tool: ${dialog_tool} (env: ${env_type})"
     
     # Get check interval for message
     local check_interval
@@ -1417,11 +1442,17 @@ This warning will appear ${interval_text} while you continue using your computer
             ;;
     esac
     
-    # Log popup display attempt
+    # Log popup display attempt or fallback to notify-send
     if [ -n "${popup_pid}" ]; then
         log_to_file "INFO" "Popup displayed successfully (PID: ${popup_pid}), Dialog tool: ${dialog_tool}, Size: ${popup_size}, Position: ${popup_position}, Min display time: ${min_display_time}s"
     else
         log_to_file "ERROR" "Failed to display popup, Dialog tool: ${dialog_tool}"
+        if command -v notify-send >/dev/null 2>&1; then
+            notify-send "Sleep Warning" "You are using your computer during restricted hours. Please consider resting." >/dev/null 2>&1
+            log_to_file "WARNING" "notify-send fallback used (non-modal)"
+            return 0
+        fi
+        log_to_file "ERROR" "notify-send fallback unavailable"
         return 1
     fi
     

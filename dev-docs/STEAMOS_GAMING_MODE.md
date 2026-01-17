@@ -109,11 +109,11 @@ For implementation checklists, see [linux-warning-system-plan.md](linux-warning-
 3. **zenity** (fallback): Standard GTK dialog, may have limitations in Gaming Mode
 
 **Implementation**:
-- [ ] Detect available dialog tools in priority order
-- [ ] Prefer yad for Gaming Mode if detected
-- [ ] Use kdialog as second choice (especially on SteamOS)
-- [ ] Fall back to zenity if others unavailable
-- [ ] Log which tool is used for troubleshooting
+- [x] Detect available dialog tools in priority order
+- [x] Prefer yad for Gaming Mode if detected
+- [x] Use kdialog as second choice (especially on SteamOS)
+- [x] Fall back to zenity if others unavailable
+- [x] Log which tool is used for troubleshooting
 
 For implementation checklists, see [linux-warning-system-plan.md](linux-warning-system-plan.md#checklist-14-implement-display-and-popup-functionality).
 

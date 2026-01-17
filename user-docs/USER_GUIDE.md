@@ -662,7 +662,7 @@ Future versions may support custom messages per day or time range.
 - Exclusive full-screen games may block popups
 - Window management tools don't work on Wayland
 - Always-on-top behavior is best-effort on Wayland/gamescope and may not work
-- Planned fallback: if dialog popups fail, use a notification fallback (not yet implemented)
+- If dialog popups fail, a non-modal notification fallback may be used (notify-send)
 
 **For Best Results:**
 - Use borderless windowed mode in games

@@ -14,31 +14,31 @@ Implement the "Checklist 1.4a: Enhanced Display Detection (Wayland/gamescope)" i
 - `dev-docs/STEAMOS_GAMING_MODE.md` (if detection behavior changes)
 
 ## Implementation Checklist
-- [ ] **Define detection priority order in code**
-  - [ ] Implement an explicit ordered detection flow: X11 -> Wayland -> loginctl -> gamescope fallback
-  - [ ] Ensure only one path is selected and logged per run
-- [ ] **Harden X11 detection**
-  - [ ] Validate `DISPLAY` format (e.g., `:0`, `:1`, `:0.0`)
-  - [ ] Confirm X11 accessibility (documented check via `xdpyinfo` or `xset` if available)
-  - [ ] If validation fails, fall back to the next detection step
-- [ ] **Harden Wayland detection**
-  - [ ] Require `XDG_RUNTIME_DIR` and `WAYLAND_DISPLAY` and verify the socket exists
-  - [ ] If socket inaccessible, fall back to `loginctl`
-  - [ ] Optional: attempt compositor helpers (`swaymsg`, `wlr-randr`) when available
-- [ ] **Gamescope detection**
-  - [ ] Detect `gamescope` process or known environment markers
-  - [ ] Define a consistent way to select display identifiers when gamescope is present
-- [ ] **Logging requirements**
-  - [ ] Log the final display type (x11/wayland/gamescope)
-  - [ ] Log the chosen display identifier
-  - [ ] Log the fallback path used (e.g., env -> loginctl -> fallback)
-  - [ ] Log failure reason when no display is available
-- [ ] **Failure handling**
-  - [ ] Ensure "no display" results in a clean exit with log entries
-  - [ ] Ensure "partial detection" logs a warning but continues
-- [ ] **Documentation updates (if behavior changes)**
-  - [ ] Update `TECHNICAL_DETAILS.md` display detection notes
-  - [ ] Update `STEAMOS_GAMING_MODE.md` display detection section
+- [x] **Define detection priority order in code**
+  - [x] Implement an explicit ordered detection flow: X11 -> Wayland -> loginctl -> gamescope fallback
+  - [x] Ensure only one path is selected and logged per run
+- [x] **Harden X11 detection**
+  - [x] Validate `DISPLAY` format (e.g., `:0`, `:1`, `:0.0`)
+  - [x] Confirm X11 accessibility (documented check via `xdpyinfo` or `xset` if available)
+  - [x] If validation fails, fall back to the next detection step
+- [x] **Harden Wayland detection**
+  - [x] Require `XDG_RUNTIME_DIR` and `WAYLAND_DISPLAY` and verify the socket exists
+  - [x] If socket inaccessible, fall back to `loginctl`
+  - [x] Optional: attempt compositor helpers (`swaymsg`, `wlr-randr`) when available
+- [x] **Gamescope detection**
+  - [x] Detect `gamescope` process or known environment markers
+  - [x] Define a consistent way to select display identifiers when gamescope is present
+- [x] **Logging requirements**
+  - [x] Log the final display type (x11/wayland/gamescope)
+  - [x] Log the chosen display identifier
+  - [x] Log the fallback path used (e.g., env -> loginctl -> fallback)
+  - [x] Log failure reason when no display is available
+- [x] **Failure handling**
+  - [x] Ensure "no display" results in a clean exit with log entries
+  - [x] Ensure "partial detection" logs a warning but continues
+- [x] **Documentation updates (if behavior changes)**
+  - [x] Update `TECHNICAL_DETAILS.md` display detection notes
+  - [x] Update `STEAMOS_GAMING_MODE.md` display detection section
 
 ## Manual Test Checklist (Do Not Run Without Approval)
 - [ ] Desktop Mode (X11): `DISPLAY` set and accessible -> popup appears

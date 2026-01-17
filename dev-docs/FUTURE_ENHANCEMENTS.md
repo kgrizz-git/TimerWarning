@@ -17,7 +17,7 @@ These enhancements can be integrated into the existing bash script suite without
 - **Implementation**: Enhance `check_dialog_tool()` function with environment-aware selection
 - **Files Affected**: `sleep-warning.sh`
 - **Priority**: High (improves Gaming Mode compatibility)
-- **Status**: Basic implementation exists, needs enhancement
+- **Status**: ✅ **Implemented** - Environment-aware selection added (Wayland/gamescope: yad → kdialog → zenity; KDE: kdialog → yad → zenity; default: zenity → yad → kdialog). See [linux-warning-system-plan.md](linux-warning-system-plan.md#checklist-14c-dialog-tool-priority--notify-send-fallback).
 - **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#dialog-tool-selection) for priority order and implementation details
 
 ### 3. Enhanced Window Size Options and Display-Based Sizing
@@ -131,12 +131,9 @@ These enhancements can be integrated into the existing bash script suite without
 - **Priority**: Low (enhancement feature)
 - **Status**: Not implemented
 
-### 11. Desktop Notification Fallback
-- **Description**: Use desktop notification system (notify-send) as fallback if dialog tools fail
-- **Implementation**: Add notify-send as last-resort fallback in `show_warning()` function
-- **Files Affected**: `sleep-warning.sh`
-- **Priority**: Medium (improves compatibility)
-- **Status**: Not implemented
+### 11. Desktop Notification Fallback (Moved)
+- **Status**: ✅ **Implemented** - Fallback is now in `sleep-warning.sh` and tracked in [linux-warning-system-plan.md](linux-warning-system-plan.md#checklist-14c-dialog-tool-priority--notify-send-fallback).
+- **Note**: Fallback is non-modal and best-effort; it is used only when dialog display fails.
 
 ### 12. Wayland-Specific Window Management
 - **Description**: Implement Wayland-native window control using wlr-randr or similar tools
@@ -144,7 +141,7 @@ These enhancements can be integrated into the existing bash script suite without
 - **Files Affected**: `sleep-warning.sh`
 - **Priority**: Medium (improves Wayland/gamescope compatibility)
 - **Status**: Not implemented (requires research into Wayland protocols)
-- **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md) for Wayland/gamescope considerations
+- **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md) for Wayland/gamescope considerations and [linux-warning-system-plan.md](linux-warning-system-plan.md#checklist-14b-waylandgamescope-popup-behavior) for current popup behavior expectations/limitations.
 
 ### 13. Distribution-Specific Optimizations
 - **Description**: Add optimizations for specific distributions (e.g., KDE-specific features on KDE systems)
