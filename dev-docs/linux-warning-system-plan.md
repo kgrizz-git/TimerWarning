@@ -18,39 +18,6 @@ This project implements a systemd-based monitoring system that displays interact
 
 The restricted hours for each day of the week are easily configurable through a simple configuration file, allowing users to customize the warning schedule to their needs. The popup dialogs are modal and require user interaction before they can be dismissed, ensuring the user is aware of the late-night usage. The system runs as a user service (not system-wide) to ensure proper display access and user context.
 
-## Disclaimer
-
-**IMPORTANT - PLEASE READ CAREFULLY**
-
-This software is provided "AS IS", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.
-
-**User Responsibility**:
-- Users are responsible for backing up important data before installing or using this software
-- Users are responsible for ensuring system stability and compatibility before installation
-- Users acknowledge that they use this software at their own risk
-- The developers are not responsible for any errors, data loss, system instability, or adverse effects resulting from the use of this software
-- The developers are not responsible for any consequences of missed warnings or system failures
-- Users should test the software in a safe environment before relying on it for important use cases
-
-**System Modifications**:
-- This software modifies systemd user services and system configuration
-- Improper installation or configuration may affect system behavior
-- Users should understand systemd services and Linux system administration before installing
-- Uninstallation should be performed using the provided uninstall script
-
-**Compatibility**:
-- While extensive testing is planned, compatibility cannot be guaranteed for all systems
-- Some features may not work on all Linux distributions or desktop environments
-- SteamOS Gaming Mode compatibility is actively being developed but may have limitations
-- Users should verify compatibility with their specific system before installation
-
-**Support**:
-- Support is provided on a best-effort basis
-- No guarantee is made regarding response time or resolution of issues
-- Users are encouraged to review logs and documentation before requesting support
-
-By installing or using this software, you acknowledge that you have read, understood, and agree to this disclaimer. If you do not agree, do not install or use this software.
-
 ## Architecture Overview
 
 The solution consists of eight main components:
@@ -126,48 +93,108 @@ Detailed checklists and implementation notes are split into phase-specific plan 
 - [plan-phase-5-documentation.md](plan-phase-5-documentation.md)
 - [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md)
 
-## Phase Summaries
+## Phase 1: Project Setup and Script Development
 
-### Phase 1: Project Setup and Script Development
-- Build core scripts, configuration system, and popup behavior
-- Ensure display detection and logging are robust
-- See detailed checklist in `plan-phase-1-setup-and-scripts.md`
+**Summary**: Build core scripts, configuration system, and popup behavior. Ensure display detection and logging are robust.
 
-### Phase 2: Systemd Integration
-- Define user service + timer units
-- Ensure user-session compatibility
-- See detailed checklist in `plan-phase-2-systemd.md`
+**Detailed Checklist**: See [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md)
 
-### Phase 3: Installation and Deployment
-- Installation/uninstall scripts and manual steps
-- Distribution-specific support
-- See detailed checklist in `plan-phase-3-installation.md`
+### Implementation Checklist
+- [x] Core bash script (`sleep-warning.sh`) - Configuration parsing, time checking, popup display
+- [x] Configuration system - File format, defaults, validation, configurable options
+- [x] Display detection - X11, Wayland, gamescope detection with fallbacks
+- [x] Dialog and popup functionality - Tool priority system, notification fallback, immovable window
+- [x] Logging system - Systemd journal logging and file-based logging with automatic rotation (10 MB limit, keeps last 1000 lines)
 
-### Phase 4: Testing and Validation
-- Functional, edge-case, install/uninstall, and integration testing
-- SteamOS Gaming Mode validation
-- See detailed checklist in `plan-phase-4-testing.md`
+**Status**: [x] **Complete** - All core functionality implemented including file-based logging with automatic rotation.
 
-### Phase 5: Documentation and Maintenance
-- User docs, technical docs, maintenance guidance
-- Licensing and donation considerations
-- See detailed checklist in `plan-phase-5-documentation.md`
+## Phase 2: Systemd Integration
 
-See also [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) for optional improvements and alternative approaches.
+**Summary**: Define user service + timer units. Ensure user-session compatibility.
 
-## Overall Checklists
+**Detailed Checklist**: See [plan-phase-2-systemd.md](plan-phase-2-systemd.md)
 
-### Implementation
-- [ ] Phase 1 complete
-- [ ] Phase 2 complete
-- [ ] Phase 3 complete
+### Implementation Checklist
+- [x] Systemd service unit - Service definition, environment handling, user service configuration
+- [x] Systemd timer unit - Timer schedule, calendar-based triggering, auto-start on boot/login
+- [x] User session compatibility - Service tested and verified working
 
-### Testing
-- [ ] Phase 4 complete
+**Status**: [x] **Complete** - Service and timer units created and tested.
 
-### Documentation
-- [ ] Phase 5 complete
+## Phase 3: Installation and Deployment
+
+**Summary**: Installation/uninstall scripts and manual steps. Distribution-specific support.
+
+**Detailed Checklist**: See [plan-phase-3-installation.md](plan-phase-3-installation.md)
+
+### Implementation Checklist
+- [x] Installation script (`install.sh`) - Distribution detection, dependency management, file installation, systemd setup
+- [x] Uninstall script (`uninstall.sh`) - Service/timer removal, file cleanup, config handling
+- [x] Configuration script (`configure.sh`) - Interactive wizard, visual grid, input validation
+- [x] Management script (`manage.sh`) - Service status, configuration viewing, disable/enable, logs
+- [x] Distribution support - Debian/Ubuntu, Fedora/RHEL, Arch/SteamOS, openSUSE, Alpine
+- [ ] Testing on multiple distributions - Installation scripts created but need testing
+
+**Status**: [-] **Partially Implemented** - All scripts created and functional, but distribution testing pending.
+
+## Phase 4: Testing and Validation
+
+**Summary**: Functional, edge-case, install/uninstall, and integration testing. SteamOS Gaming Mode validation.
+
+**Detailed Checklist**: See [plan-phase-4-testing.md](plan-phase-4-testing.md)
+
+### Testing Checklist
+- [-] Functional testing - Basic functionality tested, some edge cases pending
+- [ ] Edge case testing - Overnight ranges, invalid configs, missing dependencies
+- [ ] Installation/uninstall testing - Scripts need testing on clean systems
+- [-] Integration testing - Systemd service/timer tested, Desktop Mode tested
+- [ ] SteamOS Gaming Mode validation - Critical Gaming Mode testing not yet done
+
+**Status**: [-] **Partially Started** - Basic functional and integration testing done, Gaming Mode and edge cases pending.
+
+## Phase 5: Documentation and Maintenance
+
+**Summary**: User docs, technical docs, maintenance guidance. Licensing and donation considerations.
+
+**Detailed Checklist**: See [plan-phase-5-documentation.md](plan-phase-5-documentation.md)
+
+### Documentation Checklist
+- [x] User documentation - README.md, GETTING_STARTED.md, USER_GUIDE.md, CONFIGURATION.md
+- [x] Technical documentation - Architecture, technical details, SteamOS Gaming Mode compatibility
+- [-] Maintenance documentation - Contributing guidelines and development setup pending
+- [ ] Licensing and legal - License selection and application pending
+
+**Status**: [-] **Partially Implemented** - Comprehensive user and technical documentation complete, maintenance docs and licensing pending.
 
 ## Future Enhancements
 
-See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) for optional improvements and alternative approaches.
+See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) for detailed descriptions and implementation notes.
+
+### Complementary Enhancements
+
+- [x] **Dialog Tool Priority System** - Environment-aware dialog tool selection (Implemented)
+- [x] **Desktop Notification Fallback** - Non-modal notification when dialogs fail (Implemented)
+- [x] **Immovable Popup Window** - Prevent window movement during minimum display time (Implemented)
+- [x] **Visual Day/Time Configuration Grid** - Visual interface for configuring restrictions (Implemented)
+- [-] **Enhanced Display Detection** - Wayland/gamescope detection with multiple fallbacks (Partially implemented)
+- [ ] **Enhanced Window Size Options and Display-Based Sizing** - More size options and percentage-based sizing
+- [ ] **Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode
+- [ ] **Configurable Warning Messages** - Customize warning text per day/time range
+- [ ] **Escalating Warnings** - Progressively stronger warnings for continued usage
+- [ ] **Warning Event Logging** - File-based logging with window state information
+- [ ] **Temporary Disable via Config** - Allow temporary disabling via configuration
+- [ ] **System Sleep/Hibernate Detection** - Skip warnings after system resume
+- [ ] **Audio Alerts** - Optional audio notifications alongside visual popup
+- [ ] **Wayland-Specific Window Management** - Wayland-native window control
+- [ ] **Distribution-Specific Optimizations** - Optimizations for specific distributions
+- [ ] **Auto-Close Popup Window** - Automatically close popup after configured time
+- [ ] **12-Hour Format Time Input** - Support 12-hour format in configuration
+- [ ] **Multi-Display Popup Support** - Display popups on multiple monitors
+
+### Alternative Approaches
+
+- [ ] **Steam Overlay Integration** - C/C++ plugin using Steamworks SDK for maximum Gaming Mode effectiveness
+- [ ] **Custom Wayland Protocol Implementation** - Native Wayland protocol for window control
+- [ ] **Native Desktop Application (GUI Wrapper)** - GUI application wrapper (GTK/Qt/Electron)
+- [ ] **Systemd Timer Alternative (Cron-based)** - Cron-based alternative to systemd timers
+- [ ] **Web-Based Configuration Interface** - Web-based configuration and management interface
