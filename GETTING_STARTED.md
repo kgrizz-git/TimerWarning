@@ -227,7 +227,7 @@ Once installed and configured:
 3. Is a dialog tool installed? Check with `which zenity`
 4. Check the logs: `tail ~/.config/sleep-warning/warnings.log`
 
-For detailed troubleshooting, see [USER_GUIDE.md](USER_GUIDE.md#troubleshooting).
+For detailed troubleshooting, see [user-docs/USER_GUIDE.md](user-docs/USER_GUIDE.md#troubleshooting).
 
 ### "The popup doesn't stay on top"
 
@@ -247,7 +247,7 @@ systemctl --user stop sleep-warning.timer        # Stop temporarily
 systemctl --user disable sleep-warning.timer    # Disable (won't start on boot)
 ```
 
-For complete service management options, see [USER_GUIDE.md](USER_GUIDE.md#managing-the-service).
+For complete service management options, see [user-docs/USER_GUIDE.md](user-docs/USER_GUIDE.md#managing-the-service).
 
 ### "How do I change my restricted hours?"
 
@@ -283,7 +283,7 @@ Now that you have the system installed and configured:
 4. **Read the full documentation**:
    - [README.md](README.md) - Overview and features
    - [user-docs/CONFIGURATION.md](user-docs/CONFIGURATION.md) - Complete configuration guide
-   - [USER_GUIDE.md](USER_GUIDE.md) - Detailed user guide (when available)
+   - [user-docs/USER_GUIDE.md](user-docs/USER_GUIDE.md) - Detailed user guide
 
 ## Getting Help
 

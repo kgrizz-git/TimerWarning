@@ -6,7 +6,7 @@ A systemd-based monitoring system that displays interactive warning popups when 
 
 **IMPORTANT - PLEASE READ CAREFULLY**
 
-This software is provided "AS IS", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.
+This software is provided "AS IS", without warranty of any kind, express or implied. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability arising from the use of this software.
 
 **User Responsibility:**
 - Users are responsible for backing up important data before installing or using this software
@@ -24,9 +24,8 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 - SteamOS Gaming Mode compatibility is actively being developed but may have limitations
 
 **Support:**
-- Support is provided on a best-effort basis
-- No guarantee is made regarding response time or resolution of issues
-- Users are encouraged to review logs and documentation before requesting support
+- Provided on a best-effort basis with no guarantees
+- Please review logs and documentation before requesting help
 
 **By installing or using this software, you acknowledge that you have read, understood, and agree to this disclaimer. If you do not agree, do not install or use this software.**
 
@@ -191,7 +190,7 @@ This provides an interactive menu for service management, configuration viewing,
 - **Start again**: `systemctl --user start sleep-warning.timer`
 - **Disable**: `systemctl --user disable sleep-warning.timer`
 
-For complete service management documentation, see [USER_GUIDE.md](USER_GUIDE.md#managing-the-service).
+For complete service management documentation, see [user-docs/USER_GUIDE.md](user-docs/USER_GUIDE.md#managing-the-service).
 
 ## Uninstallation
 
@@ -286,7 +285,7 @@ Without these tools, popups will still appear but may not stay on top of other w
 - Ensure timer is enabled: `systemctl --user enable sleep-warning.timer`
 - Check user lingering: `loginctl show-user $USER | grep Lingering`
 
-For detailed troubleshooting with diagnosis steps and decision trees, see [USER_GUIDE.md](USER_GUIDE.md#troubleshooting).
+For detailed troubleshooting with diagnosis steps and decision trees, see [user-docs/USER_GUIDE.md](user-docs/USER_GUIDE.md#troubleshooting).
 
 ## Development
 

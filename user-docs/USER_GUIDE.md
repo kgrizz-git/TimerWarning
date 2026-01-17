@@ -87,7 +87,7 @@ sleep-warning-configure
 
 The **Visual Day/Time Grid** shows all 7 days at once with time ranges in human-readable format and allows quick editing of any day.
 
-For detailed information about the configuration wizard, see [user-docs/CONFIGURATION.md](user-docs/CONFIGURATION.md#editing-the-configuration-file).
+For detailed information about the configuration wizard, see [CONFIGURATION.md](CONFIGURATION.md#editing-the-configuration-file).
 
 ### Manual Configuration
 
@@ -125,7 +125,7 @@ FRIDAY=0-5
 SATURDAY=1-5
 ```
 
-**See [user-docs/CONFIGURATION.md](user-docs/CONFIGURATION.md) for complete configuration documentation.**
+**See [CONFIGURATION.md](CONFIGURATION.md) for complete configuration documentation.**
 
 ### Time Range Examples
 
@@ -152,7 +152,7 @@ SUNDAY=           # Leave empty or omit the line
 
 ### Configuration Examples
 
-For complete configuration examples including student schedules, work schedules, weekend-only restrictions, and multiple time ranges per day, see [user-docs/CONFIGURATION.md](user-docs/CONFIGURATION.md#configuration-examples-for-different-use-cases).
+For complete configuration examples including student schedules, work schedules, weekend-only restrictions, and multiple time ranges per day, see [CONFIGURATION.md](CONFIGURATION.md#configuration-examples-for-different-use-cases).
 
 ## Managing the Service
 
@@ -347,7 +347,7 @@ The user log file automatically rotates when it exceeds 10 MB:
 
 ## Common Use Cases
 
-This section provides guidance on configuring the system for different scenarios. For complete configuration examples with full file contents, see [user-docs/CONFIGURATION.md](user-docs/CONFIGURATION.md#configuration-examples-for-different-use-cases).
+This section provides guidance on configuring the system for different scenarios. For complete configuration examples with full file contents, see [CONFIGURATION.md](CONFIGURATION.md#configuration-examples-for-different-use-cases).
 
 ### Use Case 1: Student with Late Night Study Restrictions
 
@@ -663,7 +663,7 @@ Future versions may support custom messages per day or time range.
 - Install window management tools (may help on some systems)
 - Check logs to diagnose issues
 
-**See [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md) for detailed Gaming Mode compatibility information.**
+**See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md) for detailed Gaming Mode compatibility information.**
 
 ### Multiple User Sessions
 
@@ -693,11 +693,11 @@ cp ~/sleep-warning-backup.conf ~/.config/sleep-warning/sleep-warning.conf
 
 ## Additional Resources
 
-- **[README.md](README.md)** - Project overview and quick reference
-- **[GETTING_STARTED.md](GETTING_STARTED.md)** - Step-by-step installation guide
-- **[user-docs/CONFIGURATION.md](user-docs/CONFIGURATION.md)** - Complete configuration reference
-- **[dev-docs/TECHNICAL_DETAILS.md](dev-docs/TECHNICAL_DETAILS.md)** - Technical implementation details
-- **[dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md)** - SteamOS Gaming Mode compatibility
+- **[README.md](../README.md)** - Project overview and quick reference
+- **[GETTING_STARTED.md](../GETTING_STARTED.md)** - Step-by-step installation guide
+- **[CONFIGURATION.md](CONFIGURATION.md)** - Complete configuration reference
+- **[../dev-docs/TECHNICAL_DETAILS.md](../dev-docs/TECHNICAL_DETAILS.md)** - Technical implementation details
+- **[../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md)** - SteamOS Gaming Mode compatibility
 
 ## Getting Help
 
