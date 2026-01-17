@@ -2,6 +2,11 @@
 
 This document describes the configuration file format and all available options for the Sleep Warning System.
 
+**Related Documentation:**
+- [README.md](../README.md) - Project overview and quick start
+- [GETTING_STARTED.md](../GETTING_STARTED.md) - Step-by-step installation guide
+- [USER_GUIDE.md](../USER_GUIDE.md) - Complete user guide with troubleshooting
+
 ## Installation and Configuration Order
 
 **Important**: Both installation and configuration steps should be completed:

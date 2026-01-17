@@ -2,6 +2,34 @@
 
 A systemd-based monitoring system that displays interactive warning popups when your Linux system is being used during configurable restricted hours (e.g., late night/early morning).
 
+## ⚠️ Disclaimer
+
+**IMPORTANT - PLEASE READ CAREFULLY**
+
+This software is provided "AS IS", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.
+
+**User Responsibility:**
+- Users are responsible for backing up important data before installing or using this software
+- Users acknowledge that they use this software at their own risk
+- The developers are not responsible for any errors, data loss, system instability, or adverse effects resulting from the use of this software
+
+**System Modifications:**
+- This software modifies systemd user services and system configuration
+- Improper installation or configuration may affect system behavior
+- Uninstallation should be performed using the provided uninstall script
+
+**Compatibility:**
+- Compatibility cannot be guaranteed for all systems
+- Some features may not work on all Linux distributions or desktop environments
+- SteamOS Gaming Mode compatibility is actively being developed but may have limitations
+
+**Support:**
+- Support is provided on a best-effort basis
+- No guarantee is made regarding response time or resolution of issues
+- Users are encouraged to review logs and documentation before requesting support
+
+**By installing or using this software, you acknowledge that you have read, understood, and agree to this disclaimer. If you do not agree, do not install or use this software.**
+
 ## Features
 
 - ⏰ **Configurable restricted hours** - Set different hours for each day of the week
@@ -60,25 +88,9 @@ The installation script will:
 
 **Optional: Install window management tools for enhanced features**
 
-For the best experience with stay-on-top and immovable window features, install window management tools:
+For the best experience with stay-on-top and immovable window features, install window management tools. See [GETTING_STARTED.md](GETTING_STARTED.md#step-3-install-optional-window-management-tools-recommended) for installation commands for your distribution.
 
-```bash
-# Ubuntu/Debian
-sudo apt install wmctrl xdotool
-
-# Fedora
-sudo dnf install wmctrl xdotool
-
-# Arch/Steam OS
-sudo pacman -S wmctrl xdotool
-```
-
-These tools enable:
-- Keeping popups always on top of other windows
-- Preventing popups from being moved during the minimum display time
-- Better window state detection
-
-The system works without these tools, but with reduced window management capabilities.
+These tools enable popups to stay on top and remain immovable during the minimum display time. The system works without them, but with reduced window management capabilities.
 
 3. **Configure restricted hours** (recommended second step):
 ```bash
@@ -126,69 +138,25 @@ You can configure restricted hours using the interactive wizard:
 sleep-warning-configure
 ```
 
-The configuration wizard provides several options:
-- **Timer Settings** - Configure check interval
-- **Window Behavior** - Configure popup size, position, and display settings
-- **Weekdays/Weekends Configuration** - Set restricted hours for weekdays or weekends
-- **Visual Day/Time Grid** - View and edit all days in a visual grid format, showing all 7 days and their time ranges at a glance
-- **Review and Save** - Review your configuration before saving
+The configuration wizard provides options for timer settings, window behavior, and day-by-day hour configuration. The **Visual Day/Time Grid** is particularly useful for seeing your entire schedule at once and making quick edits.
 
-The **Visual Day/Time Grid** is particularly useful for seeing your entire schedule at once and making quick edits to individual days.
-
-Or edit the configuration file at `~/.config/sleep-warning/sleep-warning.conf`:
+Or edit the configuration file directly at `~/.config/sleep-warning/sleep-warning.conf`:
 
 ```
-# Sleep Warning Configuration
-# Format: DAY=START_HOUR-END_HOUR
-# Hours are in 24-hour format (0-23)
-
+# Format: DAY=START_HOUR-END_HOUR (24-hour format, 0-23)
 SUNDAY=1-5
 MONDAY=0-5
-TUESDAY=0-5
-WEDNESDAY=0-5
-THURSDAY=0-5
-FRIDAY=0-5
-SATURDAY=1-5
-
-# Optional: Minimum time popup must be visible (in seconds, 0-300)
-POPUP_MIN_DISPLAY_TIME=30
-
-# Optional: Prevent window movement during minimum display time (true/false)
-POPUP_IMMOVABLE=true
+# ... etc
 ```
 
-See [user-docs/CONFIGURATION.md](user-docs/CONFIGURATION.md) for complete configuration options including popup size, position, and advanced settings.
+**Time Range Options**:
+- **Single range**: `0-5` = Midnight to 4:59 AM
+- **Multiple ranges**: `0-5,22-23` = Midnight to 4:59 AM AND 10 PM to 11:59 PM (comma-separated)
+- **Overnight ranges**: `23-6` = 11:00 PM to 5:59 AM (spans midnight to next day)
 
-### Time Range Options
+**Note**: Overnight ranges span from the named day into the next day. For example, `MONDAY=23-6` means Monday 11:00 PM → Tuesday 5:59 AM.
 
-**Single Range**: One time period per day
-- `0-5` = Midnight (00:00) to 4:59 AM
-- `22-23` = 10:00 PM to 11:59 PM
-
-**Multiple Ranges**: Multiple time periods per day (comma-separated)
-- `0-5,22-23` = Midnight to 4:59 AM AND 10 PM to 11:59 PM
-- Useful for restricting both late night and early morning usage
-
-**Overnight Ranges**: Time periods that span midnight (start hour > end hour)
-- `23-6` = 11:00 PM to 5:59 AM (spans midnight to next day)
-- `22-8` = 10:00 PM to 7:59 AM (overnight)
-
-**Important - Overnight Range Behavior**:
-When you specify an overnight range like `23-6` on Monday, it means:
-- **Monday 11:00 PM → Tuesday 5:59 AM**
-
-The range spans from the named day into the next day. If you also set `TUESDAY=0-5`, both ranges will cover Tuesday midnight to 4:59 AM. This is harmless (only one warning will be shown), but redundant.
-
-**Examples**:
-```
-MONDAY=0-5,22-23    # Midnight to 4:59 AM AND 10 PM to 11:59 PM (same day)
-TUESDAY=23-6        # Tuesday 11:00 PM → Wednesday 5:59 AM (overnight)
-WEDNESDAY=0-5       # Midnight to 4:59 AM only (same day)
-THURSDAY=23-5       # Thursday 11:00 PM → Friday 4:59 AM (overnight)
-```
-
-**Overlapping Ranges**:
-If you set overlapping ranges (e.g., `MONDAY=23-5` and `TUESDAY=0-5`), both will cover Tuesday midnight to 4:59 AM. The system will only show one warning during the overlap period, so this is harmless but redundant. The configuration wizard will warn you about overlaps when you save your settings.
+See [user-docs/CONFIGURATION.md](user-docs/CONFIGURATION.md) for complete configuration options, detailed examples, and all available settings (popup size, position, minimum display time, etc.).
 
 ## Usage
 
@@ -215,19 +183,15 @@ This displays:
 sleep-warning-manage
 ```
 
-This provides an interactive menu to:
-- View service status
-- Start/stop the timer
-- Enable/disable the timer
-- View logs
-- Get help and information
+This provides an interactive menu for service management, configuration viewing, and troubleshooting.
 
-**Direct systemctl commands**:
+**Quick Commands**:
 - **Check status**: `systemctl --user status sleep-warning.timer`
-- **View logs**: `journalctl --user -u sleep-warning.service`
 - **Stop temporarily**: `systemctl --user stop sleep-warning.timer`
 - **Start again**: `systemctl --user start sleep-warning.timer`
 - **Disable**: `systemctl --user disable sleep-warning.timer`
+
+For complete service management documentation, see [USER_GUIDE.md](USER_GUIDE.md#managing-the-service).
 
 ## Uninstallation
 
@@ -302,25 +266,27 @@ Without these tools, popups will still appear but may not stay on top of other w
 
 ## Troubleshooting
 
-### Popup doesn't appear
-- Check if the timer is running: `systemctl --user status sleep-warning.timer`
-- Check logs: `journalctl --user -u sleep-warning.service`
-- Verify a dialog tool is installed: `which zenity` or `which yad` or `which kdialog`
-- Check the warning log: `tail ~/.config/sleep-warning/warnings.log`
+### Common Issues
 
-### Popup doesn't appear over full-screen games
+**Popup doesn't appear**:
+- Check if timer is running: `systemctl --user status sleep-warning.timer`
+- Verify it's during restricted hours: `sleep-warning-status`
+- Check logs: `tail ~/.config/sleep-warning/warnings.log`
+- Verify dialog tool installed: `which zenity`
+
+**Popup doesn't stay on top**:
+- Install window management tools: `sudo apt install wmctrl xdotool` (Ubuntu/Debian) or equivalent
+- These tools are required for stay-on-top functionality
+
+**Popup doesn't appear over full-screen games**:
 - Some exclusive full-screen games may block window manager dialogs
-- Try using borderless windowed mode in your game
-- Behavior varies by desktop environment and window manager
+- Try borderless windowed mode in your game settings
 
-### Popup doesn't stay on top
-- Install window management tools: `sudo apt install wmctrl xdotool` (Ubuntu/Debian) or equivalent for your distribution
-- The system requires `wmctrl` or `xdotool` for stay-on-top functionality
-- Check if tools are detected: Run the script and check `~/.config/sleep-warning/warnings.log`
+**Timer not starting on boot**:
+- Ensure timer is enabled: `systemctl --user enable sleep-warning.timer`
+- Check user lingering: `loginctl show-user $USER | grep Lingering`
 
-### Timer not starting on boot
-- Ensure the timer is enabled: `systemctl --user enable sleep-warning.timer`
-- Check if user services are enabled: `loginctl show-user $USER | grep Lingering`
+For detailed troubleshooting with diagnosis steps and decision trees, see [USER_GUIDE.md](USER_GUIDE.md#troubleshooting).
 
 ## Development
 

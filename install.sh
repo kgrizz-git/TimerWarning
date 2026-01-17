@@ -98,6 +98,48 @@ print_info() {
     echo -e "${BLUE}ℹ${NC} $1"
 }
 
+# Function to display disclaimer and get user confirmation
+show_disclaimer() {
+    echo ""
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}⚠️  IMPORTANT - PLEASE READ CAREFULLY${NC}"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "This software is provided \"AS IS\", without warranty of any kind, express or"
+    echo "implied, including but not limited to the warranties of merchantability,"
+    echo "fitness for a particular purpose and noninfringement."
+    echo ""
+    echo "By installing this software, you acknowledge that:"
+    echo "  • You use this software at your own risk"
+    echo "  • The developers are not responsible for any errors, data loss, or system"
+    echo "    instability resulting from the use of this software"
+    echo "  • This software modifies systemd user services and system configuration"
+    echo "  • Compatibility cannot be guaranteed for all systems"
+    echo "  • Support is provided on a best-effort basis"
+    echo ""
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    
+    if [ "$AUTO_YES" = false ]; then
+        echo -n "Do you agree to these terms and wish to continue? [y/N]: "
+        read -r response
+        case "$response" in
+            [yY]|[yY][eE][sS])
+                echo ""
+                print_info "Continuing with installation..."
+                ;;
+            *)
+                echo ""
+                print_info "Installation cancelled by user"
+                exit 0
+                ;;
+        esac
+    else
+        print_info "Auto-confirm mode: Proceeding with installation (--yes flag used)"
+    fi
+    echo ""
+}
+
 # Function to check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -489,7 +531,9 @@ print_summary() {
 # Main installation function
 main() {
     echo -e "${BLUE}Sleep Warning System - Installation${NC}"
-    echo ""
+    
+    # Show disclaimer and get user confirmation
+    show_disclaimer
     
     # Detect distribution and package manager
     print_info "Detecting Linux distribution..."
