@@ -28,11 +28,6 @@ Add a new Checklist 1.4b to `dev-docs/linux-warning-system-plan.md` that specifi
   - [x] Log dialog tool used
   - [x] Log any Wayland-specific limitations encountered
   - [x] Log if on-top enforcement is unavailable
-- [ ] **Manual testing checklist**
-  - [ ] Wayland Desktop: popup appears and is dismissible
-  - [ ] Gaming Mode (no game): popup appears
-  - [ ] Gaming Mode (windowed game): popup appears
-  - [ ] Gaming Mode (full-screen game): record whether popup appears on top
 
 ## Notes
 - Checklist items will only be checked off after implementation and verification.

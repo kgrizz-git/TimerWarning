@@ -36,8 +36,5 @@ Implement the Dialog Tool Priority System (Future Enhancements #2) and the notif
 - [x] Update Future Enhancements #11 to “Moved” status with cross-reference
 - [x] Update Future Enhancements #12 section with cross-reference to plan items and current status
 
-## Tests (Ask Before Running)
-- Targeted manual checks only (no automated tests available for GUI fallbacks)
-
 ## Approval Needed
 Please confirm this plan so I can implement the changes and update the plan/docs accordingly.

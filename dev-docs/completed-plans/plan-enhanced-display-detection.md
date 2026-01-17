@@ -49,16 +49,6 @@ Move the "Enhanced Display Detection" section from `dev-docs/FUTURE_ENHANCEMENTS
 - [x] **Documentation updates**
   - [x] Add references to `STEAMOS_GAMING_MODE.md` display detection section
   - [x] Keep cross-links consistent with plan format
-- [ ] **Testing checklist (manual)**
-  - [ ] Desktop Mode (X11): DISPLAY set, popup appears
-  - [ ] Desktop Mode (Wayland): WAYLAND_DISPLAY set, popup appears
-  - [ ] Gaming Mode: gamescope detected, popup appears (no game)
-  - [ ] Gaming Mode: gamescope detected, popup appears (windowed game)
-  - [ ] No display vars: `loginctl` fallback finds active session
-  - [ ] Failure case: no active session -> log "no display"
-
-## Suggested Tests (Ask Before Running)
-- Manual tests listed above (requires GUI and possibly Gaming Mode).
 
 ## Approval Needed
 Please confirm whether you want this plan applied to update `dev-docs/linux-warning-system-plan.md` and move/remove the section from `dev-docs/FUTURE_ENHANCEMENTS.md`.

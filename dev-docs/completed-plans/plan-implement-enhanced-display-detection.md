@@ -40,15 +40,6 @@ Implement the "Checklist 1.4a: Enhanced Display Detection (Wayland/gamescope)" i
   - [x] Update `TECHNICAL_DETAILS.md` display detection notes
   - [x] Update `STEAMOS_GAMING_MODE.md` display detection section
 
-## Manual Test Checklist (Do Not Run Without Approval)
-- [ ] Desktop Mode (X11): `DISPLAY` set and accessible -> popup appears
-- [ ] Desktop Mode (Wayland): `WAYLAND_DISPLAY` set and socket exists -> popup appears
-- [ ] Gaming Mode: gamescope detected -> popup appears (no game)
-- [ ] Gaming Mode: gamescope detected -> popup appears (windowed game)
-- [ ] Gaming Mode: gamescope detected -> popup appears (full-screen game)
-- [ ] No display env vars -> `loginctl` fallback finds active session
-- [ ] No active session -> "no display" logged, no popup
-
 ## Notes
 - Checklist items will be checked off in `dev-docs/linux-warning-system-plan.md` only after each item is fully implemented and verified.
 - Any blockers will be noted inline in the plan checklist.

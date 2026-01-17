@@ -307,7 +307,7 @@ For detailed troubleshooting with diagnosis steps and decision trees, see [user-
 
 ## Development
 
-See `dev-docs/linux-warning-system-plan.md` for the complete implementation plan and architecture details.
+See `dev-docs/linux-warning-system-plan.md` for the master plan and links to the detailed phase checklists.
 
 ## License
 

@@ -1,6 +1,6 @@
 # SteamOS Gaming Mode Compatibility and Effectiveness
 
-This document provides comprehensive information about SteamOS Gaming Mode compatibility, including challenges, implementation strategies, effectiveness assessment, and testing requirements. For the main implementation plan, see [linux-warning-system-plan.md](linux-warning-system-plan.md).
+This document provides comprehensive information about SteamOS Gaming Mode compatibility, including challenges, implementation strategies, effectiveness assessment, and testing requirements. For the master plan and detailed checklists, see [linux-warning-system-plan.md](linux-warning-system-plan.md) and the phase plans linked from it.
 
 ## Overview
 
@@ -63,7 +63,7 @@ SteamOS Gaming Mode presents unique challenges for systemd-based warning systems
 - [x] Implement multi-protocol display detection (try X11, then Wayland, then fallbacks)
 - [x] Log display environment information (X11/Wayland, display identifier) to log file
 
-For implementation details, see [linux-warning-system-plan.md](linux-warning-system-plan.md#checklist-14-implement-display-and-popup-functionality).
+For implementation details, see [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md#checklist-14-implement-display-and-popup-functionality).
 
 ### Window State Detection
 
@@ -99,7 +99,7 @@ For implementation details, see [linux-warning-system-plan.md](linux-warning-sys
 
 **Log File Location**: `~/.config/sleep-warning/warnings.log`
 
-For implementation checklists, see [linux-warning-system-plan.md](linux-warning-system-plan.md#checklist-14-implement-display-and-popup-functionality).
+For implementation checklists, see [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md#checklist-14-implement-display-and-popup-functionality).
 
 ### Dialog Tool Selection
 
@@ -115,7 +115,7 @@ For implementation checklists, see [linux-warning-system-plan.md](linux-warning-
 - [x] Fall back to zenity if others unavailable
 - [x] Log which tool is used for troubleshooting
 
-For implementation checklists, see [linux-warning-system-plan.md](linux-warning-system-plan.md#checklist-14-implement-display-and-popup-functionality).
+For implementation checklists, see [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md#checklist-14-implement-display-and-popup-functionality).
 
 ### Systemd Service Robustness
 
@@ -126,7 +126,7 @@ For implementation checklists, see [linux-warning-system-plan.md](linux-warning-
 - [ ] Test service status in both Desktop and Gaming Modes
 - [ ] Document any Gaming Mode-specific service configuration
 
-For testing requirements, see [linux-warning-system-plan.md](linux-warning-system-plan.md#phase-4-testing-and-validation).
+For testing requirements, see [plan-phase-4-testing.md](plan-phase-4-testing.md#phase-4-testing-and-validation).
 
 ## Effectiveness Assessment
 
@@ -323,7 +323,7 @@ For testing requirements, see [linux-warning-system-plan.md](linux-warning-syste
 **Timeline**: Can be implemented alongside current development
 **Compatibility**: Maintains backward compatibility
 
-For implementation checklists, see [linux-warning-system-plan.md](linux-warning-system-plan.md).
+For implementation checklists, see [linux-warning-system-plan.md](linux-warning-system-plan.md) and the phase plans linked from it.
 
 ### Phase 2: Steam Overlay Integration (Target: ~95% Overall Effectiveness)
 
@@ -400,7 +400,7 @@ May vary by game type, rendering technology, and full-screen mode
 
 ## Testing Requirements
 
-See [linux-warning-system-plan.md](linux-warning-system-plan.md#phase-4-testing-and-validation) for comprehensive SteamOS Gaming Mode testing checklists. Key test scenarios include:
+See [plan-phase-4-testing.md](plan-phase-4-testing.md#phase-4-testing-and-validation) for comprehensive SteamOS Gaming Mode testing checklists. Key test scenarios include:
 
 ### Critical Test Scenarios
 
@@ -432,7 +432,7 @@ See [linux-warning-system-plan.md](linux-warning-system-plan.md#phase-4-testing-
    - [ ] No frame drops or stuttering
    - [ ] Handles high CPU/GPU load
 
-For detailed testing checklists, see [linux-warning-system-plan.md](linux-warning-system-plan.md#checklist-41-functional-testing).
+For detailed testing checklists, see [plan-phase-4-testing.md](plan-phase-4-testing.md#checklist-41-functional-testing).
 
 ## Technical Constraints
 

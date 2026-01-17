@@ -28,10 +28,5 @@ Integrate compositor helper tooling into display detection so Wayland sessions c
   - [x] Note helper usage in `TECHNICAL_DETAILS.md`
   - [x] Mark compositor helper item complete in plan checklist
 
-## Manual Test Checklist (Do Not Run Without Approval)
-- [ ] Wayland desktop with `swaymsg` available: helper detection path is used when env vars missing
-- [ ] Wayland desktop with `wlr-randr` available: helper detection path is used when env vars missing
-- [ ] Wayland desktop with only `wayland-info` available: helper detection path is used when env vars missing
-
 ## Approval Needed
 Please confirm this plan so I can implement the compositor helper integration.

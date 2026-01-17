@@ -2,14 +2,14 @@
 
 This document outlines potential improvements and alternative approaches to enhance functionality, compatibility, and user experience for the Sleep Warning System. Each item is categorized as either **Complementary** (can be added to the current suite of scripts and files) or **Alternative Approach** (would require a different implementation strategy).
 
-For the main implementation plan, see [linux-warning-system-plan.md](linux-warning-system-plan.md). For SteamOS Gaming Mode compatibility details, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md).
+For the master plan and detailed checklists, see [linux-warning-system-plan.md](linux-warning-system-plan.md). For SteamOS Gaming Mode compatibility details, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md).
 
 ## Complementary Enhancements (Can Be Added to Current System)
 
 These enhancements can be integrated into the existing bash script suite without requiring a complete redesign:
 
 ### 1. Enhanced Display Detection (Moved)
-- **Status**: Moved to `dev-docs/linux-warning-system-plan.md` as a detailed checklist.
+- **Status**: Moved to the Phase 1 detailed plan as a checklist in `dev-docs/plan-phase-1-setup-and-scripts.md`.
 - **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#display-detection-enhancements) for detailed implementation strategies.
 
 ### 2. Dialog Tool Priority System
@@ -17,7 +17,7 @@ These enhancements can be integrated into the existing bash script suite without
 - **Implementation**: Enhance `check_dialog_tool()` function with environment-aware selection
 - **Files Affected**: `sleep-warning.sh`
 - **Priority**: High (improves Gaming Mode compatibility)
-- **Status**: ✅ **Implemented** - Environment-aware selection added (Wayland/gamescope: yad → kdialog → zenity; KDE: kdialog → yad → zenity; default: zenity → yad → kdialog). See [linux-warning-system-plan.md](linux-warning-system-plan.md#checklist-14c-dialog-tool-priority--notify-send-fallback).
+- **Status**: ✅ **Implemented** - Environment-aware selection added (Wayland/gamescope: yad → kdialog → zenity; KDE: kdialog → yad → zenity; default: zenity → yad → kdialog). See [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md#checklist-14c-dialog-tool-priority--notify-send-fallback).
 - **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#dialog-tool-selection) for priority order and implementation details
 
 ### 3. Enhanced Window Size Options and Display-Based Sizing
@@ -132,7 +132,7 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Not implemented
 
 ### 11. Desktop Notification Fallback (Moved)
-- **Status**: ✅ **Implemented** - Fallback is now in `sleep-warning.sh` and tracked in [linux-warning-system-plan.md](linux-warning-system-plan.md#checklist-14c-dialog-tool-priority--notify-send-fallback).
+- **Status**: ✅ **Implemented** - Fallback is now in `sleep-warning.sh` and tracked in [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md#checklist-14c-dialog-tool-priority--notify-send-fallback).
 - **Note**: Fallback is non-modal and best-effort; it is used only when dialog display fails.
 
 ### 12. Wayland-Specific Window Management
@@ -141,7 +141,7 @@ These enhancements can be integrated into the existing bash script suite without
 - **Files Affected**: `sleep-warning.sh`
 - **Priority**: Medium (improves Wayland/gamescope compatibility)
 - **Status**: Not implemented (requires research into Wayland protocols)
-- **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md) for Wayland/gamescope considerations and [linux-warning-system-plan.md](linux-warning-system-plan.md#checklist-14b-waylandgamescope-popup-behavior) for current popup behavior expectations/limitations.
+- **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md) for Wayland/gamescope considerations and [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md#checklist-14b-waylandgamescope-popup-behavior) for current popup behavior expectations/limitations.
 
 ### 13. Distribution-Specific Optimizations
 - **Description**: Add optimizations for specific distributions (e.g., KDE-specific features on KDE systems)
@@ -160,7 +160,7 @@ These enhancements can be integrated into the existing bash script suite without
 - **Files Affected**: `sleep-warning.sh` (enhance `make_window_unclosable()` function)
 - **Priority**: High (critical enhancement for minimum display time feature effectiveness)
 - **Status**: ✅ **Implemented** - Uses Method 4 (monitor and restore position) to prevent window movement during minimum display time. `POPUP_IMMOVABLE` configuration option added (true/false). Works on X11 with wmctrl/xdotool, not available on Wayland.
-- **Distribution Options**: Current implementation works with traditional installation method. For future GUI application wrapper (see [DISTRIBUTION_OPTIONS.md](DISTRIBUTION_OPTIONS.md)), this feature would be accessible via GUI configuration interface. Flatpak/Snap packaging would require appropriate permissions for window management tools (xdotool/wmctrl).
+- **Distribution Options**: Current implementation works with traditional installation method. For future GUI application wrapper (see [info/DISTRIBUTION_OPTIONS.md](info/DISTRIBUTION_OPTIONS.md)), this feature would be accessible via GUI configuration interface. Flatpak/Snap packaging would require appropriate permissions for window management tools (xdotool/wmctrl).
 - **Testing Results**:
   - Method 1 (xprop _NET_WM_ALLOWED_ACTIONS): Failed to set property (window manager may not support this)
   - Method 2 (xdotool/wmctrl properties): Applied but limited effect
@@ -895,7 +895,7 @@ These approaches would require significant changes to the architecture or a comp
 - **Complementary Option**: Could be developed alongside bash scripts as alternative interface
 - **Priority**: Medium (improves user experience but not Gaming Mode compatibility)
 - **Status**: Not implemented
-- **Related**: See [DISTRIBUTION_OPTIONS.md](DISTRIBUTION_OPTIONS.md) for packaging options
+- **Related**: See [info/DISTRIBUTION_OPTIONS.md](info/DISTRIBUTION_OPTIONS.md) for packaging options
 
 ### 4. Systemd Timer Alternative (Cron-based)
 - **Description**: Use cron instead of systemd timers for scheduling
@@ -971,4 +971,4 @@ These approaches would require significant changes to the architecture or a comp
 - **Alternative approaches** should be evaluated carefully as they may require significant development effort
 - **Steam Overlay Integration** is the most promising solution for full Gaming Mode compatibility but requires the most development effort. See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#path-to-maximum-effectiveness) for detailed effectiveness analysis.
 - All enhancements should maintain backward compatibility with existing configurations
-- Testing should be performed for each enhancement, especially Gaming Mode compatibility. See [linux-warning-system-plan.md](linux-warning-system-plan.md#phase-4-testing-and-validation) for testing checklists.
+- Testing should be performed for each enhancement, especially Gaming Mode compatibility. See [plan-phase-4-testing.md](plan-phase-4-testing.md#phase-4-testing-and-validation) for testing checklists.
