@@ -434,10 +434,15 @@ The implementation should follow these principles to ensure maximum portability:
    For detailed dialog tool selection strategies for SteamOS Gaming Mode, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#dialog-tool-selection).
 
 4. **Display Protocol Support**: Support both X11 and Wayland
-   - **X11**: Check `$DISPLAY` environment variable, use X11 tools (xrandr, xdpyinfo)
-   - **Wayland**: Check `$WAYLAND_DISPLAY` environment variable, detect gamescope compositor
+   - **X11**: Check `$DISPLAY` environment variable, validate format, and verify accessibility when tools are available
+   - **Wayland**: Check `$WAYLAND_DISPLAY` with `XDG_RUNTIME_DIR` socket validation, detect gamescope compositor
+   - **Wayland helpers**: If env vars are missing, attempt helper checks (`swaymsg`, `wlr-randr`, `wayland-info`) against available Wayland sockets before falling back to `loginctl`
    - **Fallback**: Use `loginctl` to find active sessions and extract display information
    - **Multi-protocol**: Try X11 first, then Wayland, then fallbacks
+   - **Wayland/gamescope popup behavior**:
+     - Dialogs may not stay on top of full-screen applications
+     - Window manager tools (wmctrl/xdotool) are unavailable, so on-top enforcement is best-effort
+     - Planned fallback: `notify-send` (non-modal) with explicit logging when dialogs fail
 
    For detailed display detection strategies, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#display-detection-enhancements).
 

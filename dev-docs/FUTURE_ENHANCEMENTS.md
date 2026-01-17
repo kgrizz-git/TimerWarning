@@ -8,13 +8,9 @@ For the main implementation plan, see [linux-warning-system-plan.md](linux-warni
 
 These enhancements can be integrated into the existing bash script suite without requiring a complete redesign:
 
-### 1. Enhanced Display Detection
-- **Description**: Improve display detection for Wayland/gamescope with multiple fallback strategies
-- **Implementation**: Add functions to detect `WAYLAND_DISPLAY`, gamescope compositor, and query Wayland sessions
-- **Files Affected**: `sleep-warning.sh`
-- **Priority**: High (required for SteamOS Gaming Mode compatibility)
-- **Status**: Partially implemented, needs enhancement
-- **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#display-detection-enhancements) for detailed implementation strategies
+### 1. Enhanced Display Detection (Moved)
+- **Status**: Moved to `dev-docs/linux-warning-system-plan.md` as a detailed checklist.
+- **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#display-detection-enhancements) for detailed implementation strategies.
 
 ### 2. Dialog Tool Priority System
 - **Description**: Implement intelligent dialog tool selection based on environment (prefer yad for Gaming Mode, kdialog for KDE)

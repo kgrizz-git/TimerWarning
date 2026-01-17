@@ -199,7 +199,7 @@ check_dependencies() {
         exit 1
     fi
     
-    # Check zenity
+    # Check zenity (required)
     if ! command_exists zenity; then
         missing_deps+=("zenity")
     fi
@@ -209,6 +209,29 @@ check_dependencies() {
     fi
     
     return 0  # All dependencies present
+}
+
+# Function to check for optional dependencies
+# Returns space-separated list of missing optional tools
+check_optional_dependencies() {
+    local missing_optional=()
+    
+    # Check yad (optional but recommended)
+    if ! command_exists yad; then
+        missing_optional+=("yad")
+    fi
+    
+    # Check window management tools (optional but recommended)
+    # We need at least one of wmctrl or xdotool
+    if ! command_exists wmctrl && ! command_exists xdotool; then
+        # Prefer wmctrl, but xdotool is also fine
+        missing_optional+=("wmctrl")
+    fi
+    
+    # Return as space-separated string
+    if [ ${#missing_optional[@]} -gt 0 ]; then
+        echo "${missing_optional[*]}"
+    fi
 }
 
 # Function to install dependencies
@@ -507,22 +530,22 @@ print_summary() {
     echo ""
     echo "Next steps:"
     echo "  1. Configure restricted hours (recommended):"
-    echo "     ${BLUE}sleep-warning-configure${NC}"
+    echo -e "     ${BLUE}sleep-warning-configure${NC}"
     echo "     This will help you set up your restricted hours schedule."
-    echo "     ${YELLOW}Note: If the command is not found, restart your terminal or run:${NC}"
-    echo "     ${YELLOW}     source ~/.bashrc${NC}"
+    echo -e "     ${YELLOW}Note: If the command is not found, restart your terminal or run:${NC}"
+    echo -e "     ${YELLOW}     source ~/.bashrc${NC}"
     echo ""
     echo "  2. Check system status:"
-    echo "     ${BLUE}sleep-warning-status${NC}"
+    echo -e "     ${BLUE}sleep-warning-status${NC}"
     echo ""
     echo "  3. Manage the system (start/stop/enable/disable):"
-    echo "     ${BLUE}sleep-warning-manage${NC}"
+    echo -e "     ${BLUE}sleep-warning-manage${NC}"
     echo ""
     echo "  4. View logs:"
-    echo "     ${BLUE}journalctl --user -u sleep-warning.service${NC}"
+    echo -e "     ${BLUE}journalctl --user -u sleep-warning.service${NC}"
     echo ""
     echo "  5. To uninstall later:"
-    echo "     ${BLUE}sleep-warning-uninstall${NC}"
+    echo -e "     ${BLUE}sleep-warning-uninstall${NC}"
     echo ""
     echo "The timer is now active and will check for restricted hours every $(get_check_interval) minutes."
     echo ""
@@ -544,12 +567,67 @@ main() {
     # Check for existing installation
     check_existing_installation
     
-    # Check dependencies
-    print_info "Checking dependencies..."
+    # Check required dependencies
+    print_info "Checking required dependencies..."
     if ! check_dependencies; then
         install_dependencies zenity
     else
-        print_success "All dependencies are installed"
+        print_success "All required dependencies are installed"
+    fi
+    
+    # Check optional dependencies
+    print_info "Checking optional dependencies..."
+    local missing_optional
+    missing_optional=$(check_optional_dependencies)
+    
+    if [ -n "$missing_optional" ]; then
+        print_info "Optional tools that enhance functionality:"
+        for tool in $missing_optional; do
+            case "$tool" in
+                yad)
+                    echo "  - yad: Enhanced dialog tool with better positioning and Wayland support"
+                    ;;
+                wmctrl)
+                    echo "  - wmctrl or xdotool: Window management tools for stay-on-top and immovable windows"
+                    ;;
+            esac
+        done
+        
+        if [ "$AUTO_YES" = false ]; then
+            # Check if we're in a terminal - if not, skip optional installs
+            if [ -t 0 ] && [ -t 1 ]; then
+                echo -n "Install optional tools for enhanced features? (y/N): "
+                read -r response
+                if [[ "$response" =~ ^[Yy]$ ]]; then
+                    # Install each missing optional tool
+                    for tool in $missing_optional; do
+                        install_dependencies "$tool"
+                    done
+                else
+                    print_info "Skipping optional tools. You can install them later:"
+                    for tool in $missing_optional; do
+                        case "$tool" in
+                            yad)
+                                echo "  - yad: sudo $PKG_INSTALL yad"
+                                ;;
+                            wmctrl)
+                                echo "  - wmctrl: sudo $PKG_INSTALL wmctrl"
+                                ;;
+                        esac
+                    done
+                fi
+            else
+                print_info "Not in a terminal - skipping optional tool installation"
+                print_info "You can install them manually later if desired"
+            fi
+        else
+            # Auto-yes mode: install optional tools automatically
+            for tool in $missing_optional; do
+                install_dependencies "$tool"
+            done
+        fi
+    else
+        print_success "All optional dependencies are installed"
     fi
     
     # Create directories

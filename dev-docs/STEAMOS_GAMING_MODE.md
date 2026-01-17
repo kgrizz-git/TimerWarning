@@ -38,6 +38,8 @@ SteamOS Gaming Mode presents unique challenges for systemd-based warning systems
 - Dialogs may not receive keyboard input from Steam Deck's on-screen keyboard
 - Window manager tools (wmctrl/xdotool) don't work on Wayland/gamescope
 - Full-screen games may block compositor-level dialogs
+- On Wayland/gamescope, always-on-top behavior is best-effort and not guaranteed
+- Planned fallback: if dialogs fail to appear, use a non-modal notification (`notify-send`) and log the fallback
 
 ### 4. Performance Considerations
 - Timer checks should not impact game performance
@@ -54,12 +56,12 @@ SteamOS Gaming Mode presents unique challenges for systemd-based warning systems
 - Tries common X11 display values
 
 **Required Enhancements for Gaming Mode**:
-- [ ] Detect `$WAYLAND_DISPLAY` environment variable
-- [ ] Detect gamescope compositor (check for gamescope process or environment)
-- [ ] Use `loginctl` to find Wayland sessions
+- [x] Detect `$WAYLAND_DISPLAY` environment variable
+- [x] Detect gamescope compositor (check for gamescope process or environment)
+- [x] Use `loginctl` to find Wayland sessions
 - [ ] Query gamescope-specific display information if available
-- [ ] Implement multi-protocol display detection (try X11, then Wayland, then fallbacks)
-- [ ] Log display environment information (X11/Wayland, display identifier) to log file
+- [x] Implement multi-protocol display detection (try X11, then Wayland, then fallbacks)
+- [x] Log display environment information (X11/Wayland, display identifier) to log file
 
 For implementation details, see [linux-warning-system-plan.md](linux-warning-system-plan.md#checklist-14-implement-display-and-popup-functionality).
 

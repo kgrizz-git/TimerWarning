@@ -22,6 +22,7 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 - Compatibility cannot be guaranteed for all systems
 - Some features may not work on all Linux distributions or desktop environments
 - SteamOS Gaming Mode compatibility is actively being developed but may have limitations
+- On Wayland/gamescope, always-on-top behavior is best-effort and full-screen games may block popups
 
 **Support:**
 - Provided on a best-effort basis with no guarantees
@@ -82,14 +83,20 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 The installation script will:
 - Detect your Linux distribution
 - Install required dependencies (zenity for dialog popups)
+- Offer to install optional tools (yad, wmctrl, xdotool) for enhanced features
 - Copy files to the correct locations
 - Enable and start the service
 
-**Optional: Install window management tools for enhanced features**
+**Optional: Install enhanced tools**
 
-For the best experience with stay-on-top and immovable window features, install window management tools. See [GETTING_STARTED.md](GETTING_STARTED.md#step-3-install-optional-window-management-tools-recommended) for installation commands for your distribution.
+The installation script will automatically offer to install optional tools (`yad`, `wmctrl`, `xdotool`) for enhanced features. See [GETTING_STARTED.md](GETTING_STARTED.md#step-3-install-optional-tools-recommended) for manual installation commands if needed.
 
-These tools enable popups to stay on top and remain immovable during the minimum display time. The system works without them, but with reduced window management capabilities.
+These tools enable:
+- Better popup positioning (`yad`)
+- Popups to stay on top of other windows (`wmctrl`/`xdotool`)
+- Immovable popup windows during minimum display time (`wmctrl`/`xdotool`)
+
+The system works without these tools, but with reduced window management capabilities.
 
 3. **Configure restricted hours** (recommended second step):
 ```bash
@@ -247,21 +254,32 @@ systemctl --user daemon-reload
 - **bash** - Pre-installed on all Linux systems
 - **Dialog tool** - At least one of:
   - **zenity** - GTK dialog tool (installed automatically by install script) - **Primary choice**
-  - **yad** - Enhanced GTK dialog tool (alternative)
+    - **Installation**: `sudo apt install zenity` (Ubuntu/Debian), `sudo dnf install zenity` (Fedora), `sudo pacman -S zenity` (Arch/SteamOS), `sudo zypper install zenity` (openSUSE)
+  - **yad** - Enhanced GTK dialog tool (alternative, offered during installation)
   - **kdialog** - KDE dialog tool (alternative, native on KDE systems)
 
 The system automatically detects which dialog tool is available and uses the most appropriate one for your desktop environment.
 
 ### Optional (Recommended for Enhanced Features)
+- **yad** - Enhanced GTK dialog tool with better positioning and Wayland support
+  - **Installation**: `sudo apt install yad` (Ubuntu/Debian), `sudo dnf install yad` (Fedora), `sudo pacman -S yad` (Arch/SteamOS), `sudo zypper install yad` (openSUSE)
+  - Required for popup position control (`POPUP_POSITION` configuration)
+  - Preferred for SteamOS Gaming Mode
+  - Better Wayland compatibility than zenity
 - **wmctrl** - X11 window manager control tool
 - **xdotool** - X11 automation tool
 
-These tools enable advanced window management features:
+**yad benefits:**
+- Better popup positioning control
+- Improved Wayland support
+- Enhanced window control options
+
+**Window management tools (wmctrl/xdotool) enable:**
 - Always-on-top popup windows
 - Immovable popup windows during minimum display time
 - Better window state detection
 
-Without these tools, popups will still appear but may not stay on top of other windows.
+Without these tools, popups will still appear but may not stay on top of other windows or support position control.
 
 ## Troubleshooting
 

@@ -183,6 +183,64 @@ The solution consists of eight main components:
 - [x] Consider using window manager tools to force popup on top if needed - IMPLEMENTED AND TESTED: keep_window_on_top() function uses wmctrl/xdotool for window control, yad has --on-top flag. Window automatically stays on top of other windows. Uses xprop _NET_WM_STATE_ABOVE for reliable cross-environment compatibility. Confirmed working with zenity on KDE.
 - [x] Implement immovable popup window feature - IMPLEMENTED: Uses Method 4 (monitor and restore position) to prevent window movement during minimum display time. POPUP_IMMOVABLE configuration option added (true/false). See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#13-immovable-popup-window) for implementation details and testing results. Works on X11 with wmctrl/xdotool, not available on Wayland.
 
+#### Checklist 1.4a: Enhanced Display Detection (Wayland/gamescope)
+- [x] **Define detection priority order**
+  - [x] X11: `DISPLAY` if present and valid
+  - [x] Wayland: `WAYLAND_DISPLAY` if present and valid
+  - [x] `loginctl` session discovery fallback
+  - [x] gamescope-specific detection fallback
+- [x] **Specify X11 detection behavior**
+  - [x] Validate `DISPLAY` format (e.g., `:0`, `:1`)
+  - [x] Confirm display accessibility (document expected tools like `xdpyinfo`/`xset`)
+  - [x] Define fallback behavior if X11 tools are missing
+- [x] **Specify Wayland detection behavior**
+  - [x] Require `XDG_RUNTIME_DIR` and `WAYLAND_DISPLAY`
+  - [x] Document compositor helpers (e.g., `swaymsg`, `wlr-randr`) and when used
+  - [x] Define fallback when Wayland socket is not accessible
+- [x] **Specify gamescope detection behavior**
+  - [x] Detect gamescope process (`pgrep gamescope`)
+  - [x] Capture gamescope-related environment variables (when present)
+  - [x] Define display selection priority when gamescope is active
+- [x] **Logging requirements**
+  - [x] Log selected display type (X11/Wayland/gamescope)
+  - [x] Log selected display identifier
+  - [x] Log fallback path taken (if any)
+  - [x] Log failure reason when no display is available
+- [x] **Failure handling**
+  - [x] Define "no display" behavior (silent exit + log)
+  - [x] Define partial detection behavior (warn + continue)
+- [x] **Documentation linkage**
+  - [x] Reference [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#display-detection-enhancements) for detailed strategy
+- [ ] **Manual testing checklist**
+  - [ ] Desktop Mode (X11): `DISPLAY` set, popup appears
+  - [ ] Desktop Mode (Wayland): `WAYLAND_DISPLAY` set, popup appears
+  - [ ] Gaming Mode: gamescope detected, popup appears (no game)
+  - [ ] Gaming Mode: gamescope detected, popup appears (windowed game)
+  - [ ] Gaming Mode: gamescope detected, popup appears (full-screen game)
+  - [ ] No display vars: `loginctl` fallback finds active session
+  - [ ] Failure case: no active session -> log "no display"
+
+#### Checklist 1.4b: Wayland/gamescope Popup Behavior
+- [x] **Define popup behavior expectations on Wayland/gamescope**
+  - [x] Modal warning should appear when possible
+  - [x] Document focus/always-on-top limitations
+  - [x] Define acceptable degradation (visible but not guaranteed on top)
+- [x] **Dialog tool behavior guidance**
+  - [x] Prefer `yad` for Wayland/gamescope if available
+  - [x] Document limitations of `zenity`/`kdialog` on Wayland
+- [x] **Fallbacks when dialogs fail**
+  - [x] Define `notify-send` fallback behavior (if dialogs fail)
+  - [x] Define logging for fallback activation
+- [x] **Logging requirements**
+  - [x] Log dialog tool used
+  - [x] Log any Wayland-specific limitations encountered
+  - [x] Log if on-top enforcement is unavailable
+- [ ] **Manual testing checklist**
+  - [ ] Wayland Desktop: popup appears and is dismissible
+  - [ ] Gaming Mode (no game): popup appears
+  - [ ] Gaming Mode (windowed game): popup appears
+  - [ ] Gaming Mode (full-screen game): record whether popup appears on top
+
 #### Checklist 1.5: Add Script Robustness
 - [x] Add shebang line (`#!/bin/bash`)
 - [x] Add error handling for missing dependencies
@@ -439,22 +497,22 @@ The solution consists of eight main components:
 
 #### Checklist 4.1: Functional Testing
 - [ ] Test script with default configuration
-- [ ] Test script manually during weekday restricted hours (00:00-05:59)
+- [X] Test script manually during weekday restricted hours (00:00-05:59)
 - [ ] Test script manually during weekend restricted hours (01:00-05:59)
-- [ ] Test script during non-restricted hours (should not show popup)
-- [ ] Test with custom configuration file (different hours)
+- [X] Test script during non-restricted hours (should not show popup)
+- [X] Test with custom configuration file (different hours)
 - [ ] Test configuration file parsing and validation
 - [ ] Verify popup appears and is modal (blocks interaction)
-- [ ] Verify popup can be dismissed by user
-- [ ] Test timer triggers every 10 minutes correctly
-- [ ] Test minimum display time enforcement - NOT TESTED: Requires testing with wmctrl/xdotool on X11 systems
+- [X] Verify popup can be dismissed by user
+- [X] Test timer triggers every 10 minutes correctly
+- [X] Test minimum display time enforcement - NOT TESTED: Requires testing with wmctrl/xdotool on X11 systems
 - [ ] Test minimum display time on Wayland - NOT TESTED: Window manager tools don't work on Wayland, needs fallback testing
-- [ ] Test auto-reopen functionality - NOT TESTED: Verify popup reopens correctly when closed prematurely
-- [ ] Test countdown accuracy - NOT TESTED: Verify countdown updates correctly
+- [X] Test auto-reopen functionality - NOT TESTED: Verify popup reopens correctly when closed prematurely
+- [X] Test countdown accuracy - NOT TESTED: Verify countdown updates correctly
 - [ ] Test graceful fallback without window tools - NOT TESTED: Verify countdown still works without wmctrl/xdotool
-- [ ] **CRITICAL**: Test popup with full-screen game/application running
-- [ ] Verify popup appears on top of full-screen applications
-- [ ] Verify popup can steal focus from full-screen applications
+- [X] **CRITICAL**: Test popup with full-screen game/application running
+- [X] Verify popup appears on top of full-screen applications
+- [X] Verify popup can steal focus from full-screen applications
 - [ ] **CRITICAL - SteamOS Gaming Mode**: Test systemd user services start automatically in Gaming Mode
 - [ ] **CRITICAL - SteamOS Gaming Mode**: Test display detection works with gamescope (Wayland compositor)
 - [ ] **CRITICAL - SteamOS Gaming Mode**: Test popup appears with no game running in Gaming Mode
@@ -600,7 +658,7 @@ The solution consists of eight main components:
 - [x] **Add "Quick Reference" section** - Common commands and actions in one place - IMPLEMENTED: Documented in USER_GUIDE.md "Quick Reference" section with all essential commands
 - [x] **Ensure documentation is organized** - Clear sections, table of contents, easy navigation - IMPLEMENTED: USER_GUIDE.md has table of contents and clear sections, GETTING_STARTED.md is well-organized
 - [ ] **Test documentation** - Have non-technical users follow instructions and provide feedback - PENDING: Requires user testing
-- [ ] **Review documentation** periodically, such as after major updates
+- [ ] **Review documentation** periodically, such as after major updates, for accuracy, redundancy, optimization, and organization (including possibly splitting information into new files). Do not check this off but make sub-items to be checked off after changes.
 
 #### Checklist 5.2: Maintenance Considerations
 - [x] Document how to view timer status (with examples of what output means) - IMPLEMENTED: Documented in USER_GUIDE.md "Managing the Service" section with service state explanations

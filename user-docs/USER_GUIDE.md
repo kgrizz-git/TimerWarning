@@ -418,7 +418,11 @@ This section provides guidance on configuring the system for different scenarios
 **Common Causes:**
 - Not during restricted hours (check configuration)
 - Timer not running (start with `systemctl --user start sleep-warning.timer`)
-- No dialog tool installed (install zenity: `sudo apt install zenity`)
+- No dialog tool installed (install zenity):
+  - **Ubuntu/Debian/Linux Mint**: `sudo apt install zenity`
+  - **Fedora/RHEL/CentOS**: `sudo dnf install zenity`
+  - **Arch Linux/Steam OS/Manjaro**: `sudo pacman -S zenity`
+  - **openSUSE**: `sudo zypper install zenity`
 - Display not available (not logged into graphical session)
 - Full-screen application blocking popup (see "Popup Doesn't Appear Over Full-Screen Games")
 
@@ -657,6 +661,8 @@ Future versions may support custom messages per day or time range.
 - Display detection in gamescope (Wayland compositor) may be limited
 - Exclusive full-screen games may block popups
 - Window management tools don't work on Wayland
+- Always-on-top behavior is best-effort on Wayland/gamescope and may not work
+- Planned fallback: if dialog popups fail, use a notification fallback (not yet implemented)
 
 **For Best Results:**
 - Use borderless windowed mode in games

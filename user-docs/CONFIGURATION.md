@@ -195,6 +195,12 @@ POPUP_POSITION=top-center     # Top center of screen
 - `zenity` does not support position control and will always center the popup.
 - Position control works best on X11; Wayland support is limited.
 
+**Installing yad:**
+- **Ubuntu/Debian/Linux Mint**: `sudo apt install yad`
+- **Fedora/RHEL/CentOS**: `sudo dnf install yad`
+- **Arch Linux/Steam OS/Manjaro**: `sudo pacman -S yad`
+- **openSUSE**: `sudo zypper install yad`
+
 ### Minimum Display Time
 
 **Option**: `POPUP_MIN_DISPLAY_TIME`

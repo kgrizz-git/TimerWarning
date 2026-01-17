@@ -66,7 +66,10 @@ Run the installation script:
 **What the installation script does:**
 1. Detects your Linux distribution
 2. Checks for required dependencies (zenity for dialog popups)
-3. Offers to install missing dependencies (you'll be prompted)
+3. Offers to install missing dependencies (you'll be prompted):
+   - **zenity** (required) - Will be installed automatically if missing
+   - **yad** (optional) - Enhanced dialog tool with better positioning
+   - **wmctrl** and **xdotool** (optional) - Window management tools for enhanced features
 4. Copies files to the correct locations:
    - Main script: `~/.local/bin/sleep-warning.sh`
    - Configuration wizard: `~/.local/bin/sleep-warning-configure`
@@ -75,6 +78,30 @@ Run the installation script:
    - Systemd service files: `~/.config/systemd/user/`
 5. Sets up the systemd timer
 6. Enables and starts the service
+
+**Manual Installation (if needed):**
+
+If the automatic installation doesn't work or you prefer to install manually, here are the commands for **zenity** (required):
+
+**Ubuntu/Debian/Linux Mint:**
+```bash
+sudo apt install zenity
+```
+
+**Fedora/RHEL/CentOS:**
+```bash
+sudo dnf install zenity
+```
+
+**Arch Linux/Steam OS/Manjaro:**
+```bash
+sudo pacman -S zenity
+```
+
+**openSUSE:**
+```bash
+sudo zypper install zenity
+```
 
 **If you get a permission error:**
 ```bash
@@ -89,7 +116,9 @@ chmod +x install.sh
 
 **Note**: After installation, you may need to restart your terminal or run `source ~/.bashrc` for the new commands to be available in your PATH.
 
-### Step 3: Install Optional Window Management Tools (Recommended)
+### Step 3: Install Optional Tools (Recommended)
+
+**Note**: The installation script will automatically offer to install these optional tools during installation. You can install them manually if you prefer or if the automatic installation was skipped.
 
 For the best experience with popups staying on top and immovable windows, install window management tools:
 
@@ -119,6 +148,40 @@ These tools enable:
 - Better window state detection
 
 **Note**: The system works without these tools, but with reduced window management capabilities.
+
+**Optional: Install yad for Enhanced Dialog Features**
+
+**Note**: The installation script will automatically offer to install `yad` during installation if it's not already installed.
+
+For better popup positioning and improved Wayland/Gaming Mode support, you can install `yad` (an enhanced alternative to zenity):
+
+**Ubuntu/Debian/Linux Mint:**
+```bash
+sudo apt install yad
+```
+
+**Fedora/RHEL/CentOS:**
+```bash
+sudo dnf install yad
+```
+
+**Arch Linux/Steam OS/Manjaro:**
+```bash
+sudo pacman -S yad
+```
+
+**openSUSE:**
+```bash
+sudo zypper install yad
+```
+
+**Benefits of yad:**
+- Better popup positioning control (required for `POPUP_POSITION` configuration)
+- Improved Wayland support
+- Preferred for SteamOS Gaming Mode
+- Enhanced window control options
+
+**Note**: `yad` is optional - the system works with `zenity` (installed automatically), but `yad` provides additional features.
 
 ### Step 4: Configure Your Restricted Hours
 
