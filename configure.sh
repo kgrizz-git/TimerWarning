@@ -352,7 +352,7 @@ confirm_skip_day() {
             2>/dev/null
         return $?
     else
-        echo ""
+        echo "" >&2
         if [ "${is_multiple}" = "true" ]; then
             read -p "Skip ${day_name}? No restrictions will be set. [y/N]: " answer
         else
@@ -1228,7 +1228,7 @@ get_day_hours() {
         echo "" >&2
         echo "Commands:" >&2
         echo "  • Enter time range(s) to configure" >&2
-        echo "  • Type 'skip' to skip this day" >&2
+        echo "  • Press Enter or type 's' to skip this day" >&2
         if [ "${allow_back}" = "true" ]; then
             echo "  • Type 'back' to go to previous day" >&2
         fi
@@ -1240,11 +1240,11 @@ get_day_hours() {
         
         while true; do
             local range_input
-            read -p "Time range(s) for ${day_name}: " range_input
+            read -p "Time range(s) for ${day_name} (or 's' to skip): " range_input
             
             # Handle special commands
             case "${range_input}" in
-                skip|"")
+                skip|s|S|"")
                     if confirm_skip_day "${day_name}" "${use_gui}"; then
                         echo "skip"
                         return 0
@@ -1892,8 +1892,8 @@ show_summary() {
     local popup_position="$4"
     local min_display_time="$5"
     local popup_immovable="$6"
-    shift 6
-    local summary_lines=("$@")
+    # Note: summary_lines must be accessed from global scope to preserve sparse array indices
+    # Passing sparse arrays as parameters re-indexes them from 0, causing display bugs
     
     # Build summary with human-readable time periods
     local summary="Configuration Summary:\n\n"
@@ -2441,7 +2441,8 @@ main() {
                 ;;
             6)
                 # Review and Save
-                if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${summary_lines[@]}"; then
+                # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
+                if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}"; then
                     # Write configuration
                     if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${config_lines[@]}"; then
                         # Update timer file if it exists
