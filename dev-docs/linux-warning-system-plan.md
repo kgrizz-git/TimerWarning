@@ -163,6 +163,7 @@ Detailed checklists and implementation notes are split into phase-specific plan 
 - [x] Technical documentation - Architecture, technical details, SteamOS Gaming Mode compatibility
 - [-] Maintenance documentation - Contributing guidelines and development setup pending
 - [ ] Licensing and legal - License selection and application pending
+- [ ] Donation links - PayPal donation setup and integration into README and documentation, explore GitHub sponsors, Patreon
 
 **Status**: [-] **Partially Implemented** - Comprehensive user and technical documentation complete, maintenance docs and licensing pending.
 
@@ -191,10 +192,15 @@ See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) for detailed descriptions a
 - [ ] **12-Hour Format Time Input** - Support 12-hour format in configuration
 - [ ] **Multi-Display Popup Support** - Display popups on multiple monitors
 
+### Distribution and Packaging Enhancements
+
+- [ ] **Single Executable Installer Script** - Self-extracting installer bundling all files for easy distribution - See [info/DISTRIBUTION_OPTIONS.md](info/DISTRIBUTION_OPTIONS.md#option-1-single-executable-installer-script)
+- [ ] **Desktop GUI Application Wrapper** - Native desktop application (GTK/Qt/Electron) for configuration and management - See [info/DISTRIBUTION_OPTIONS.md](info/DISTRIBUTION_OPTIONS.md#option-2-desktop-gui-application-wrapper)
+
 ### Alternative Approaches
 
 - [ ] **Steam Overlay Integration** - C/C++ plugin using Steamworks SDK for maximum Gaming Mode effectiveness
 - [ ] **Custom Wayland Protocol Implementation** - Native Wayland protocol for window control
-- [ ] **Native Desktop Application (GUI Wrapper)** - GUI application wrapper (GTK/Qt/Electron)
+- [ ] **Native Desktop Application (GUI Wrapper)** - GUI application wrapper (GTK/Qt/Electron) - See [info/DISTRIBUTION_OPTIONS.md](info/DISTRIBUTION_OPTIONS.md#option-2-desktop-gui-application-wrapper)
 - [ ] **Systemd Timer Alternative (Cron-based)** - Cron-based alternative to systemd timers
 - [ ] **Web-Based Configuration Interface** - Web-based configuration and management interface
