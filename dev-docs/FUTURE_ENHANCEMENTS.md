@@ -393,12 +393,12 @@ These enhancements can be integrated into the existing bash script suite without
   - [x] Implement grid refresh logic (rebuild display after edits)
   - [x] Add navigation loop in grid view (allow multiple edits without returning to main menu)
   - [ ] Update documentation if needed
-  - [ ] Test GUI mode with zenity
+  - [X] Test GUI mode with zenity
   - [x] Test text mode with terminal (test framework: 10 tests, all use --text mode)
   - [x] Test weekday bulk apply functionality (test 3: --text, config + status.sh verified)
   - [x] Test weekend bulk apply functionality (test 4: --text, config verified)
   - [x] Test individual day editing (test 9: --text, UX improvement verified - Enter/'s' to skip)
-  - [ ] Test cancellation handling (return to grid or main menu) - COMPLEX, low priority
+  - [X] Test cancellation handling (return to grid or main menu) - COMPLEX, low priority
   - [x] Test with empty/unconfigured days (test 7: --text, grid display verified)
   - [x] Test with days that have multiple time ranges (test 5: --text, config + status.sh verified)
   - [x] Test with overnight ranges (test 6: --text, config + status.sh verified)
@@ -523,6 +523,109 @@ These enhancements can be integrated into the existing bash script suite without
   - Works with current day/time restriction format (no config file format changes needed)
   - Phase 1 can be implemented independently and provides immediate usability improvement
   - Phase 2 builds on Phase 1 foundation for full interactive grid editing
+
+### 16.5. 12-Hour Format Time Input and GUI Spinbox Widgets
+- **Description**: Add support for 12-hour format time entry (e.g., "11pm-5am") in addition to 24-hour format, and provide GUI spinbox widgets for easier time selection with AM/PM toggle
+- **Files Affected**: `configure.sh`, `sleep-warning.conf` (read/write, but format conversion only)
+- **Priority**: Medium (improves usability, especially for users more familiar with 12-hour format)
+- **Status**: Not implemented
+- **Current Implementation**:
+  - Time ranges entered in 24-hour format only: `DAY=START_HOUR-END_HOUR` (e.g., `SUNDAY=23-5`)
+  - Text-based input via `get_day_hours()` function
+  - GUI mode uses text entry fields (zenity/yad text input)
+  - Configuration stored in 24-hour format internally
+- **Implementation Approaches**:
+  - **Option 1: Dual Format Support (Text Input)**:
+    - Accept both 24-hour format (`23-5`) and 12-hour format (`11pm-5am`, `11PM-5AM`, `11:00pm-5:00am`)
+    - Parse input to detect format automatically
+    - Convert 12-hour format to 24-hour format for internal storage
+    - Support common variations: `11pm`, `11PM`, `11:00pm`, `11:00 PM`, `11 pm`
+    - Handle midnight/noon edge cases: `12am` = `0`, `12pm` = `12`
+    - Display format preference: Allow user to choose display format (12-hour vs 24-hour) while storing in 24-hour format
+  - **Option 2: GUI Spinbox Widgets** (Recommended for GUI mode):
+    - **zenity/yad Implementation**:
+      - Use `yad --form` with spinbox widgets for hour selection (1-12) and AM/PM toggle
+      - Use `zenity --forms` with entry fields and separate AM/PM dropdown/radio buttons
+      - Create custom dialog with hour/minute spinboxes and AM/PM selector
+      - **Limitations**: zenity may not support native spinboxes, may need workarounds with entry fields
+      - **yad Advantages**: Better widget support, can use `--field` with spinbox type
+    - **kdialog Implementation**:
+      - Use `kdialog --combobox` or custom Qt widgets for time selection
+      - Better widget support than zenity for spinboxes
+    - **Text Mode Fallback**:
+      - Keep current text-based input for terminal mode
+      - Optionally add 12-hour format parsing support
+  - **Option 3: Hybrid Approach** (Recommended):
+    - **GUI Mode**: Use spinbox widgets (yad preferred, zenity fallback) with hour (1-12), minute (0-59), and AM/PM selector
+    - **Text Mode**: Accept both 24-hour and 12-hour format text input
+    - **Internal Storage**: Always store in 24-hour format (no config file format changes)
+    - **Display**: Show times in user's preferred format (12-hour or 24-hour) in summaries and status
+- **Implementation Notes**:
+  - **Format Parsing**:
+    - Create `parse_time_input()` function to detect and parse both formats
+    - Support formats: `23`, `23-5`, `11pm`, `11pm-5am`, `11:00pm-5:00am`, `11 PM - 5 AM`
+    - Handle case-insensitive parsing (`pm`, `PM`, `Pm`)
+    - Validate input ranges (1-12 for 12-hour, 0-23 for 24-hour)
+    - Convert to 24-hour format: `12am` → `0`, `1am-11am` → `1-11`, `12pm` → `12`, `1pm-11pm` → `13-23`
+  - **GUI Spinbox Implementation**:
+    - **yad (Preferred)**:
+      - Use `yad --form --field="Start Hour:NUM" --field="Start AM/PM:CB" --field="End Hour:NUM" --field="End AM/PM:CB"`
+      - Hour spinbox: `1..12` range
+      - AM/PM combobox: `AM!PM` options
+      - Parse selected values and convert to 24-hour format
+    - **zenity (Fallback)**:
+      - Use `zenity --forms` with entry fields for hour and separate radio buttons or combobox for AM/PM
+      - Less elegant but functional
+      - May need multiple dialogs or custom layout
+    - **kdialog (KDE)**:
+      - Use `kdialog --combobox` or Qt widgets if available
+      - Better widget support than zenity
+  - **Overnight Range Handling**:
+    - For 12-hour format, handle overnight ranges: `11pm-5am` should be recognized as spanning midnight
+    - Visual indication in GUI: Show that range crosses midnight
+    - Validation: Ensure end time is after start time (or handle overnight explicitly)
+  - **Configuration Format**:
+    - **No changes to config file format**: Continue storing in 24-hour format (`DAY=23-5`)
+    - **Display Format**: Add `TIME_DISPLAY_FORMAT=12hour|24hour` config option (default: `24hour`)
+    - **Input Format**: Accept both formats during configuration, convert to 24-hour for storage
+  - **User Experience**:
+    - **GUI Mode**: Spinbox widgets provide intuitive time selection (click up/down arrows, toggle AM/PM)
+    - **Text Mode**: Accept natural formats (`11pm-5am`, `23-5`, `11:00pm-5:00am`)
+    - **Display Preference**: Show times in user's preferred format in summaries, status, and grid views
+    - **Format Detection**: Automatically detect format from input (no need to specify format)
+  - **Backward Compatibility**:
+    - Existing 24-hour format configurations continue to work
+    - New 12-hour format input is converted to 24-hour for storage
+    - No migration needed for existing config files
+- **User Experience Benefits**:
+  - **Familiar Format**: Users more comfortable with 12-hour format can use natural time entry
+  - **Easier Input**: Spinbox widgets eliminate typing errors and provide visual feedback
+  - **Intuitive Selection**: Click to adjust hours, toggle AM/PM instead of calculating 24-hour equivalents
+  - **Reduced Errors**: GUI widgets prevent invalid time entries (e.g., hour 13-23 in 12-hour format)
+  - **Flexibility**: Support both formats based on user preference
+- **Technical Considerations**:
+  - **GUI Tool Support**: yad has better spinbox support than zenity
+  - **Text Mode**: Can be enhanced with format parsing without GUI dependencies
+  - **Validation**: Need robust parsing to handle various 12-hour format variations
+  - **Edge Cases**: Handle midnight (`12am`), noon (`12pm`), and overnight ranges correctly
+  - **Display Format**: Consider adding user preference for display format (12-hour vs 24-hour) in summaries
+- **Implementation Checklist**:
+  - [ ] Create `parse_time_input()` function to detect and parse both 12-hour and 24-hour formats
+  - [ ] Add format conversion functions (`12hour_to_24hour()`, `24hour_to_12hour()`)
+  - [ ] Update `get_day_hours()` to accept both formats in text mode
+  - [ ] Create GUI spinbox dialog function for time selection (yad preferred, zenity fallback)
+  - [ ] Integrate spinbox widgets into `get_day_hours()` GUI mode
+  - [ ] Add `TIME_DISPLAY_FORMAT` config option for user preference
+  - [ ] Update `format_ranges_human()` to respect display format preference
+  - [ ] Update status.sh and grid display to show times in preferred format
+  - [ ] Test format parsing with various input formats
+  - [ ] Test overnight range handling in 12-hour format
+  - [ ] Test GUI spinbox widgets in yad, zenity, and kdialog
+  - [ ] Verify backward compatibility with existing 24-hour format configs
+- **Related**: 
+  - Complements Visual Day/Time Configuration Grid (#16) - spinbox widgets would enhance grid editing
+  - Works with existing time range configuration system
+  - Could be integrated into Phase 2 of Visual Day/Time Configuration Grid (interactive grid editing)
 
 ### 17. Multi-Display Popup Support
 - **Description**: Display warning popups on all available displays/monitors simultaneously, ensuring warnings are visible regardless of which screen the user is actively viewing

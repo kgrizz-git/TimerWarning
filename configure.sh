@@ -1577,6 +1577,85 @@ configure_weekends_section() {
     fi
 }
 
+# Get inherited overnight restrictions from previous day
+# Returns formatted string if inherited restrictions exist, empty string otherwise
+get_inherited_restrictions() {
+    local day_index="$1"
+    local -n summary_ref="$2"  # Use different name to avoid circular reference
+    
+    # Get previous day index (wrapping around: Sunday (0) checks Saturday (6))
+    local prev_day_index
+    if [ "${day_index}" -eq 0 ]; then
+        prev_day_index=6  # Sunday checks Saturday
+    else
+        prev_day_index=$((day_index - 1))
+    fi
+    
+    # Check if previous day has restrictions
+    if [ -z "${summary_ref[${prev_day_index}]}" ]; then
+        return 1  # No previous day restrictions
+    fi
+    
+    local prev_line="${summary_ref[${prev_day_index}]}"
+    local prev_range
+    prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    
+    # Check if previous day is skipped or has no restrictions
+    if [ "${prev_range}" = "(no restrictions)" ] || [ -z "${prev_range}" ]; then
+        return 1  # No restrictions to inherit
+    fi
+    
+    # Check for overnight ranges in previous day (start > end)
+    local IFS=','
+    local inherited_ranges=()
+    for range in ${prev_range}; do
+        range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        local start_hour end_hour
+        start_hour=$(echo "${range}" | cut -d'-' -f1)
+        end_hour=$(echo "${range}" | cut -d'-' -f2)
+        
+        # If this is an overnight range (start > end), it extends into current day
+        if [ "${start_hour}" -gt "${end_hour}" ]; then
+            # Format the inherited portion: 0-end_hour on current day
+            local inherited_start="0"
+            local inherited_end="${end_hour}"
+            local inherited_range="${inherited_start}-${inherited_end}"
+            inherited_ranges+=("${inherited_range}")
+        fi
+    done
+    
+    # If we found inherited ranges, format them
+    if [ ${#inherited_ranges[@]} -gt 0 ]; then
+        local current_day_name="${DAY_NAMES[${day_index}]}"
+        local formatted_ranges=()
+        for inherited_range in "${inherited_ranges[@]}"; do
+            local inherited_end
+            inherited_end=$(echo "${inherited_range}" | cut -d'-' -f2)
+            local start_12h end_12h
+            start_12h=$(format_hour_12h "0")
+            end_12h=$(format_hour_12h "${inherited_end}")
+            formatted_ranges+=("${start_12h} → ${end_12h}")
+        done
+        
+        # Join multiple inherited ranges with " AND "
+        local result=""
+        local first=true
+        for formatted in "${formatted_ranges[@]}"; do
+            if [ "${first}" = "true" ]; then
+                result="${formatted}"
+                first=false
+            else
+                result="${result} AND ${formatted}"
+            fi
+        done
+        
+        echo "${result} (inherited)"
+        return 0
+    fi
+    
+    return 1  # No inherited restrictions
+}
+
 # Show visual grid of all days with their time restrictions
 show_visual_grid() {
     local use_gui="$1"
@@ -1596,7 +1675,6 @@ show_visual_grid() {
             
             for day_index in 0 1 2 3 4 5 6; do
                 local day_name="${DAY_NAMES[${day_index}]}"
-                local status_indicator=""
                 local time_ranges=""
                 
                 if [ -n "${summary_lines_ref[${day_index}]}" ]; then
@@ -1606,20 +1684,31 @@ show_visual_grid() {
                     range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                     
                     if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
-                        # No restrictions
-                        time_ranges="(no restrictions)"
+                        # No explicit restrictions - check for inherited overnight restrictions
+                        local inherited
+                        inherited=$(get_inherited_restrictions "${day_index}" summary_lines_ref)
+                        if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
+                            time_ranges="${inherited}"
+                        else
+                            time_ranges="(no restrictions)"
+                        fi
                     else
                         # Has restrictions - show formatted time ranges
-                        status_indicator="✗ "
                         time_ranges=$(format_ranges_human "${range}" "${day_name}")
                     fi
                 else
-                    # Day has no configuration
-                    time_ranges="(no restrictions)"
+                    # Day has no configuration - check for inherited overnight restrictions
+                    local inherited
+                    inherited=$(get_inherited_restrictions "${day_index}" summary_lines_ref)
+                    if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
+                        time_ranges="${inherited}"
+                    else
+                        time_ranges="(no restrictions)"
+                    fi
                 fi
                 
                 # Store separately
-                day_names+=("${status_indicator}${day_name}")
+                day_names+=("${day_name}")
                 time_ranges_list+=("${time_ranges}")
             done
             
@@ -1688,9 +1777,8 @@ show_visual_grid() {
             
             # Extract day name from selection
             # With --print-column=1, we get just the Day column (first column)
-            # Day may have "✗ " prefix for restricted days
             local selected_day
-            selected_day=$(echo "${selected}" | sed 's/^✗ //;s/^[[:space:]]*//;s/[[:space:]]*$//')
+            selected_day=$(echo "${selected}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             
             # Check if "Back to Menu" was selected
             if [ "${selected_day}" = "<<BACK>>" ]; then
@@ -1726,10 +1814,9 @@ show_visual_grid() {
             echo "Select a day to edit its restricted hours:"
             echo ""
             
-            # Display grid
+            # Display grid with tab-separated table format
             for day_index in 0 1 2 3 4 5 6; do
                 local day_name="${DAY_NAMES[${day_index}]}"
-                local status_indicator=""
                 local time_ranges=""
                 
                 if [ -n "${summary_lines_ref[${day_index}]}" ]; then
@@ -1739,25 +1826,31 @@ show_visual_grid() {
                     range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                     
                     if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
-                        # No restrictions - blank status
-                        time_ranges="(no restrictions)"
+                        # No explicit restrictions - check for inherited overnight restrictions
+                        local inherited
+                        inherited=$(get_inherited_restrictions "${day_index}" summary_lines_ref)
+                        if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
+                            time_ranges="${inherited}"
+                        else
+                            time_ranges="(no restrictions)"
+                        fi
                     else
-                        # Has restrictions - show X and formatted time ranges
-                        status_indicator="[✗]"
+                        # Has restrictions - show formatted time ranges
                         time_ranges=$(format_ranges_human "${range}" "${day_name}")
                     fi
                 else
-                    # Day has no configuration
-                    time_ranges="(no restrictions)"
+                    # Day has no configuration - check for inherited overnight restrictions
+                    local inherited
+                    inherited=$(get_inherited_restrictions "${day_index}" summary_lines_ref)
+                    if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
+                        time_ranges="${inherited}"
+                    else
+                        time_ranges="(no restrictions)"
+                    fi
                 fi
                 
-                # Display: [✗] 1. Sunday: 12:00 AM → 4:59 AM
-                # or: 1. Sunday: (no restrictions)
-                if [ -n "${status_indicator}" ]; then
-                    echo "${status_indicator} $((day_index + 1)). ${day_name}: ${time_ranges}"
-                else
-                    echo "  $((day_index + 1)). ${day_name}: ${time_ranges}"
-                fi
+                # Display as table: number, day name (tab-separated), time ranges
+                printf "%d.\t%-9s\t%s\n" $((day_index + 1)) "${day_name}:" "${time_ranges}"
             done
             
             echo ""

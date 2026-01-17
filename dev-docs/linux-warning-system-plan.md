@@ -414,7 +414,7 @@ The solution consists of eight main components:
 - [ ] Test uninstall script thoroughly - PENDING: Requires testing
 
 #### Checklist 3.3: Manual Installation Instructions
-- [ ] Create installation instructions document (README.md or INSTALL.md)
+- [ ] Create installation instructions document (INSTALLATION.md)
 - [ ] Document system requirements and compatibility
 - [ ] Document required dependencies (zenity, systemd, bash)
 - [ ] Include automated installation instructions (using install.sh)
