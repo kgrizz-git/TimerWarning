@@ -1061,6 +1061,12 @@ get_day_hours() {
         while true; do
             # Build prompt text with examples
             local prompt_text="Configure restricted hours for ${day_name}:\n\n"
+            prompt_text="${prompt_text}24-HOUR FORMAT:\n"
+            prompt_text="${prompt_text}• Hours use 24-hour format (0-23)\n"
+            prompt_text="${prompt_text}• 0 = midnight (12:00 AM)\n"
+            prompt_text="${prompt_text}• 12 = noon (12:00 PM)\n"
+            prompt_text="${prompt_text}• 22 = 10:00 PM\n"
+            prompt_text="${prompt_text}• 23 = 11:00 PM\n\n"
             prompt_text="${prompt_text}Format options:\n"
             prompt_text="${prompt_text}• Single: 0-5 (midnight to 4:59 AM)\n"
             prompt_text="${prompt_text}• Multiple: 0-5,22-23 (two periods)\n"
@@ -1216,6 +1222,13 @@ get_day_hours() {
         # Text mode
         echo "" >&2
         echo "=== Configuring ${day_name} ===" >&2
+        echo "" >&2
+        echo "24-HOUR FORMAT:" >&2
+        echo "  • Hours use 24-hour format (0-23)" >&2
+        echo "  • 0 = midnight (12:00 AM)" >&2
+        echo "  • 12 = noon (12:00 PM)" >&2
+        echo "  • 22 = 10:00 PM" >&2
+        echo "  • 23 = 11:00 PM" >&2
         echo "" >&2
         echo "IMPORTANT - Overnight ranges:" >&2
         echo "  If you enter '23-6' on ${day_name}, it means:" >&2

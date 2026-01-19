@@ -195,6 +195,7 @@ See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) for detailed descriptions a
 - [ ] **Prevent configure.sh During Restricted Hours** - Block configure.sh execution during restricted hours
 - [ ] **Additional Hours for Config Locking** - Configure separate hours for config locking/blocking
 - [ ] **One-Time Pause Feature** - Allow 5 or 10 minute pause of restrictions once per day, available from popup
+- [ ] **Display Restricted Times/Days in Popup** - Show configured restricted hours in the warning popup for transparency
 
 ### Distribution and Packaging Enhancements
 

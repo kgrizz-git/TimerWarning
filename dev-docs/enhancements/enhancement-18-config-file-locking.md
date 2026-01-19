@@ -4,14 +4,14 @@
 - **Files Affected**: `sleep-warning.sh`, `configure.sh`, `uninstall.sh`, `sleep-warning.conf`
 - **Priority**: Medium (security/self-control feature, but may be too restrictive for some users)
 - **Status**: Not implemented
-- **Feasibility Assessment**: ⚠️ **Partially Feasible** - File locking in Linux has limitations and can be bypassed
+- **Feasibility Assessment**: ⚠️ **Partially Feasible (Deterrence Only)** - User-space file locking/permissions can discourage edits but cannot fully prevent a determined user from changing a user-owned config file without a privileged boundary (root/Polkit, immutable attribute, etc.).
 - **Implementation Approaches**:
   - **Option 1: File Permissions (chmod)**:
     - Change file permissions to read-only (`chmod 444`) during restricted hours
     - Restore write permissions (`chmod 644`) when restrictions end
     - **Pros**: Simple, works on all filesystems, cannot be easily bypassed without root
-    - **Cons**: Can be bypassed by user with `chmod` command (if they remember), requires root or special permissions to change permissions back
-    - **Safety**: Medium - User can still bypass with `chmod` command, but requires knowledge
+    - **Cons**: Not a complete deterrent by itself: even if the file is read-only, many editors can still “edit” by writing a new file and renaming it over the original (rename/unlink permission is controlled by the *directory*). Users can also change permissions back on their own files.
+    - **Safety**: Low-Medium (as deterrence) - prevents straightforward in-place writes, but does not prevent replace/rename or deliberate chmod changes.
   - **Option 2: Advisory File Locking (flock)**:
     - Use `flock` to acquire exclusive lock on config file during restricted hours
     - `configure.sh` checks for lock before allowing edits
@@ -35,31 +35,57 @@
     - **Pros**: Very difficult to bypass without root access
     - **Cons**: Requires root privileges, complex setup, may interfere with other operations
     - **Safety**: High - Very difficult to bypass, but requires root and complex setup
-- **Recommended Approach**: **Hybrid - File Permissions + Lock File Marker**:
-  - Use file permissions (`chmod 444`) as primary mechanism (simple, effective)
-  - Create lock file marker for easy detection by scripts
-  - `configure.sh` checks both lock file and file permissions before allowing edits
-  - `sleep-warning.sh` changes permissions at start of restricted hours, restores at end
-  - **Uninstall Safety**: `uninstall.sh` should:
-    - Stop systemd timer/service first (prevents re-locking)
-    - Use `chmod 644` to restore write permissions (may require checking current permissions)
-    - Remove lock file if present
-    - Proceed with normal uninstall
-    - **Note**: Uninstall should always work - user must be able to remove the system
+- **Recommended Approach (Deterrence-Focused, No Root)**:
+  - **Option A (Strongest deterrence, moderate refactor)**: **Lock a dedicated config directory**
+    - **Rationale**: `chmod 444` on the file alone is bypassable via “replace/rename” edits because directory permissions control rename/unlink. Locking a dedicated directory blocks the common editor pattern of writing a temp file then renaming it over the config.
+    - **Implementation**:
+      - Move config file to a dedicated folder: `~/.config/sleep-warning/config/sleep-warning.conf`
+      - Keep logs/other runtime files in `~/.config/sleep-warning/` to avoid breaking logging when locking
+      - During restricted hours:
+        - `chmod a-w ~/.config/sleep-warning/config` (e.g., `555`)
+        - `chmod a-w ~/.config/sleep-warning/config/sleep-warning.conf` (e.g., `444`)
+      - Outside restricted hours: restore the prior directory/file modes (prefer restoring the previous mode rather than hardcoding)
+      - Add a one-time migration: if the old config exists at `~/.config/sleep-warning/sleep-warning.conf` and the new one does not, move/copy it into the new location
+  - **Option B (Minimal refactor, weaker deterrence)**: **Read-only file + marker + “self-heal”**
+    - **Rationale**: If we keep the config in the same directory as logs, we cannot safely make the whole directory non-writable without breaking log writes. In that case, we can still discourage edits by making the file read-only and reverting changes that occur during restricted hours.
+    - **Implementation**:
+      - During restricted hours:
+        - `chmod a-w ~/.config/sleep-warning/sleep-warning.conf`
+        - Create a marker file `~/.config/sleep-warning/.config_locked` containing: timestamp, reason, and the prior file mode (so it can be restored accurately)
+        - Save a snapshot copy at lock start (e.g., `~/.config/sleep-warning/.config_locked_snapshot`)
+      - While locked (each timer tick / each `sleep-warning.sh` run):
+        - Re-assert `chmod a-w`
+        - If the config file was replaced/modified/deleted, restore from snapshot and re-assert `chmod a-w`
+      - Outside restricted hours: restore prior file mode and remove marker/snapshot
 - **Implementation Notes**:
   - **Config Options**:
     - `CONFIG_LOCK_ENABLED=true/false` - Enable/disable config file locking (default: `false`)
-    - `CONFIG_LOCK_HOURS=DAY=START-END` - Additional hours for config locking (separate from restriction hours)
-    - Lock should apply during restricted hours AND any additional configured lock hours
+    - **⚠️ Safety Restriction**: Config file locking should **NOT** be enabled/allowed if the user has configured restrictions totaling more than 9660 minutes per week (> 23 hours/day). This prevents accidental lockout scenarios where users cannot modify their configuration during the very limited unrestricted time. See Enhancement #22 (Prevent 24/7 Restriction Configuration) for details on restriction coverage calculation and validation. If high restriction levels are detected, `CONFIG_LOCK_ENABLED` should be automatically set to `false` and the user should be informed why.
+    - **Additional lock hours (optional, separate from restriction hours)**:
+      - **Preferred (grep-friendly, matches existing day-based style)**:
+        - `CONFIG_LOCK_HOURS_SUNDAY=START-END`
+        - `CONFIG_LOCK_HOURS_MONDAY=START-END`
+        - `CONFIG_LOCK_HOURS_TUESDAY=START-END`
+        - `CONFIG_LOCK_HOURS_WEDNESDAY=START-END`
+        - `CONFIG_LOCK_HOURS_THURSDAY=START-END`
+        - `CONFIG_LOCK_HOURS_FRIDAY=START-END`
+        - `CONFIG_LOCK_HOURS_SATURDAY=START-END`
+        - Values may be empty to disable for that day; support comma-separated ranges if desired (same as restriction hours)
+      - **Alternative (compact)**:
+        - `CONFIG_LOCK_HOURS=SUNDAY=START-END,MONDAY=START-END,...`
+    - Lock should apply during restricted hours **and** any configured additional lock hours (see Enhancement #20 for the expanded UX/config UI).
   - **Lock Mechanism**:
-    - At start of restricted/lock hours: `chmod 444 ~/.config/sleep-warning/sleep-warning.conf` and create lock file
-    - At end of restricted/lock hours: `chmod 644 ~/.config/sleep-warning/sleep-warning.conf` and remove lock file
-    - `configure.sh` checks: `[ -w "$CONFIG_FILE" ] && [ ! -f "$LOCK_FILE" ]` before allowing edits
+    - Prefer idempotent “apply lock state” logic that runs every `sleep-warning.sh` invocation:
+      - If lock-active: ensure read-only file mode (and directory mode if using Option A), and ensure marker exists
+      - If not lock-active: ensure modes restored and marker removed
+    - Avoid hardcoding `644`/`444` where possible; store and restore the prior mode to reduce surprises for users who intentionally changed permissions.
   - **Uninstall Handling**:
     - `uninstall.sh` must stop timer/service first: `systemctl --user stop sleep-warning.timer`
     - Wait briefly for service to exit (prevents re-locking)
-    - Force restore permissions: `chmod 644 "$CONFIG_FILE"` (ignore errors)
-    - Remove lock file: `rm -f "$LOCK_FILE"`
+    - Force restore permissions (ignore errors):
+      - If using Option A: restore write permission on the config directory and config file
+      - If using Option B: restore write permission on config file
+    - Remove marker/snapshot files
     - Proceed with normal uninstall
   - **Edge Cases**:
     - Handle system time changes (clock adjustments)
@@ -67,7 +93,10 @@
     - Handle manual permission changes by user (detect and warn, or re-apply lock)
     - Handle config file deletion (should be prevented during lock hours)
 - **Safety Assessment**:
-  - **Bypass Risk**: Medium-High - Determined users can bypass with `chmod` command or by stopping service
+  - **Bypass Risk**: Medium-High - This is deterrence-only. Users can:
+    - Change permissions back (their own file)
+    - Replace the config file by writing a new file and renaming it over the original (unless the containing directory is non-writable)
+    - Stop the timer/service and edit freely
   - **Uninstall Safety**: ✅ **Safe** - Uninstall script can always restore permissions and remove lock
   - **Data Safety**: ✅ **Safe** - No risk of data loss, only prevents writes
   - **System Safety**: ✅ **Safe** - No risk to system stability
@@ -87,3 +116,4 @@
   - Works with "Prevent configure.sh During Restricted Hours" (#19) - complementary features
   - Could use same lock mechanism for both features
   - Complements restriction system by preventing circumvention
+  - **Enhancement #22 (Prevent 24/7 Restriction Configuration)**: Config file locking must be automatically disabled if restrictions exceed 9660 minutes per week (> 23 hours/day) to prevent accidental lockout. Enhancement #22 provides the validation logic to detect high restriction levels and automatically disable `CONFIG_LOCK_ENABLED` for safety.

@@ -160,6 +160,18 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Not implemented
 - **Details**: See [enhancements/enhancement-21-one-time-pause-feature.md](enhancements/enhancement-21-one-time-pause-feature.md)
 
+### 22. Prevent 24/7 Restriction Configuration
+- **Description**: Add validation in `configure.sh` to detect and prevent users from configuring restricted hours that cover 24 hours a day, 7 days a week. This prevents users from accidentally locking themselves out of their computer. The validation must evaluate the entire configuration holistically (not just individual days) to account for overnight time ranges that span multiple days. If 24/7 restrictions are detected, show a prominent warning popup and automatically disable config file locking (if implemented) and ensure configure.sh is not blocked during restricted hours.
+- **Priority**: High (critical safety feature to prevent accidental lockout)
+- **Status**: Not implemented
+- **Details**: See [enhancements/enhancement-22-prevent-24-7-restriction-configuration.md](enhancements/enhancement-22-prevent-24-7-restriction-configuration.md)
+
+### 23. Display Restricted Times/Days in Popup
+- **Description**: Enhance the warning popup to display the configured restricted hours and days, showing users exactly when restrictions are active. This provides transparency and helps users understand why they're seeing the warning. The popup should show the current day's restricted hours in a clear, readable format (12-hour format with AM/PM), and optionally show all days' restrictions or a summary.
+- **Priority**: Medium (improves user experience and transparency)
+- **Status**: Not implemented
+- **Details**: See [enhancements/enhancement-23-display-restricted-times-in-popup.md](enhancements/enhancement-23-display-restricted-times-in-popup.md)
+
 ## Alternative Approaches (Require Different Implementation)
 
 These approaches would require significant changes to the architecture or a completely different implementation strategy:
@@ -203,6 +215,7 @@ These approaches would require significant changes to the architecture or a comp
 4. File-Based Logging with Window State Information
 5. ~~Immovable Popup Window~~ ✅ **IMPLEMENTED** (critical for minimum display time feature effectiveness)
 6. System Sleep/Hibernate Detection (prevents false warnings after system resume)
+7. Prevent 24/7 Restriction Configuration (critical safety feature to prevent accidental lockout)
 
 **Medium Priority (Improves Compatibility/Usability)**:
 6. Steam Overlay Integration (Alternative, but best solution for SteamOS Gaming Mode full-screen games)
