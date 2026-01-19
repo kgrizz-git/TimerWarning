@@ -1,0 +1,89 @@
+# Enhancement 18: Config File Locking During Restricted Hours
+
+- **Description**: Prevent modification of the configuration file during restricted hours (and optionally during additional configurable hours) to prevent users from circumventing restrictions by changing settings
+- **Files Affected**: `sleep-warning.sh`, `configure.sh`, `uninstall.sh`, `sleep-warning.conf`
+- **Priority**: Medium (security/self-control feature, but may be too restrictive for some users)
+- **Status**: Not implemented
+- **Feasibility Assessment**: ⚠️ **Partially Feasible** - File locking in Linux has limitations and can be bypassed
+- **Implementation Approaches**:
+  - **Option 1: File Permissions (chmod)**:
+    - Change file permissions to read-only (`chmod 444`) during restricted hours
+    - Restore write permissions (`chmod 644`) when restrictions end
+    - **Pros**: Simple, works on all filesystems, cannot be easily bypassed without root
+    - **Cons**: Can be bypassed by user with `chmod` command (if they remember), requires root or special permissions to change permissions back
+    - **Safety**: Medium - User can still bypass with `chmod` command, but requires knowledge
+  - **Option 2: Advisory File Locking (flock)**:
+    - Use `flock` to acquire exclusive lock on config file during restricted hours
+    - `configure.sh` checks for lock before allowing edits
+    - **Pros**: Standard Unix mechanism, works across processes
+    - **Cons**: Advisory only (cooperative), can be bypassed by processes that don't check lock, requires all scripts to check lock
+    - **Safety**: Low - Advisory locks are cooperative and can be ignored
+  - **Option 3: Lock File Marker**:
+    - Create lock file (e.g., `~/.config/sleep-warning/.config_locked`) during restricted hours
+    - `configure.sh` checks for lock file existence before allowing edits
+    - **Pros**: Simple, easy to implement, clear indicator
+    - **Cons**: Can be bypassed by deleting lock file, requires all scripts to check lock file
+    - **Safety**: Low - User can delete lock file to bypass
+  - **Option 4: Systemd Service Lock**:
+    - Have systemd service hold exclusive lock on config file
+    - Service continuously monitors and re-locks file during restricted hours
+    - **Pros**: More persistent, harder to bypass without stopping service
+    - **Cons**: Requires service to run continuously, adds overhead, can still be bypassed by stopping service
+    - **Safety**: Medium - Requires stopping systemd service to bypass
+  - **Option 5: Read-Only Mount or Bind Mount**:
+    - Mount config directory as read-only during restricted hours (requires root)
+    - **Pros**: Very difficult to bypass without root access
+    - **Cons**: Requires root privileges, complex setup, may interfere with other operations
+    - **Safety**: High - Very difficult to bypass, but requires root and complex setup
+- **Recommended Approach**: **Hybrid - File Permissions + Lock File Marker**:
+  - Use file permissions (`chmod 444`) as primary mechanism (simple, effective)
+  - Create lock file marker for easy detection by scripts
+  - `configure.sh` checks both lock file and file permissions before allowing edits
+  - `sleep-warning.sh` changes permissions at start of restricted hours, restores at end
+  - **Uninstall Safety**: `uninstall.sh` should:
+    - Stop systemd timer/service first (prevents re-locking)
+    - Use `chmod 644` to restore write permissions (may require checking current permissions)
+    - Remove lock file if present
+    - Proceed with normal uninstall
+    - **Note**: Uninstall should always work - user must be able to remove the system
+- **Implementation Notes**:
+  - **Config Options**:
+    - `CONFIG_LOCK_ENABLED=true/false` - Enable/disable config file locking (default: `false`)
+    - `CONFIG_LOCK_HOURS=DAY=START-END` - Additional hours for config locking (separate from restriction hours)
+    - Lock should apply during restricted hours AND any additional configured lock hours
+  - **Lock Mechanism**:
+    - At start of restricted/lock hours: `chmod 444 ~/.config/sleep-warning/sleep-warning.conf` and create lock file
+    - At end of restricted/lock hours: `chmod 644 ~/.config/sleep-warning/sleep-warning.conf` and remove lock file
+    - `configure.sh` checks: `[ -w "$CONFIG_FILE" ] && [ ! -f "$LOCK_FILE" ]` before allowing edits
+  - **Uninstall Handling**:
+    - `uninstall.sh` must stop timer/service first: `systemctl --user stop sleep-warning.timer`
+    - Wait briefly for service to exit (prevents re-locking)
+    - Force restore permissions: `chmod 644 "$CONFIG_FILE"` (ignore errors)
+    - Remove lock file: `rm -f "$LOCK_FILE"`
+    - Proceed with normal uninstall
+  - **Edge Cases**:
+    - Handle system time changes (clock adjustments)
+    - Handle system sleep/resume (lock state should persist)
+    - Handle manual permission changes by user (detect and warn, or re-apply lock)
+    - Handle config file deletion (should be prevented during lock hours)
+- **Safety Assessment**:
+  - **Bypass Risk**: Medium-High - Determined users can bypass with `chmod` command or by stopping service
+  - **Uninstall Safety**: ✅ **Safe** - Uninstall script can always restore permissions and remove lock
+  - **Data Safety**: ✅ **Safe** - No risk of data loss, only prevents writes
+  - **System Safety**: ✅ **Safe** - No risk to system stability
+  - **User Experience**: ⚠️ **May Frustrate Users** - Prevents legitimate config changes during restricted hours
+- **Processing/Memory Burden**:
+  - **Minimal** - Only requires permission change operations (very fast)
+  - Lock file operations are trivial (file create/delete)
+  - No continuous monitoring needed (permissions checked at script execution time)
+  - **Memory**: Negligible (no additional processes or memory usage)
+  - **CPU**: Negligible (only during permission change operations, which are instant)
+- **User Experience Considerations**:
+  - **Warning Message**: Should inform user why config cannot be edited during restricted hours
+  - **Clear Feedback**: `configure.sh` should show clear message: "Configuration is locked during restricted hours. Please try again after [end time]."
+  - **Optional Feature**: Should be opt-in (default: disabled) to avoid frustrating users who want flexibility
+  - **Legitimate Use Cases**: May prevent users from making legitimate emergency config changes
+- **Related**: 
+  - Works with "Prevent configure.sh During Restricted Hours" (#19) - complementary features
+  - Could use same lock mechanism for both features
+  - Complements restriction system by preventing circumvention

@@ -1,0 +1,113 @@
+### 17. Multi-Display Popup Support
+- **Description**: Display warning popups on all available displays/monitors simultaneously, ensuring warnings are visible regardless of which screen the user is actively viewing
+- **Implementation**: 
+  - Detect all available displays (primary and secondary monitors)
+  - Spawn separate popup instance for each detected display
+  - Position each popup appropriately on its respective display (center, or configured position)
+  - Handle display-specific positioning and sizing
+  - Manage multiple popup processes (one per display)
+  - Ensure all popups can be dismissed independently or together
+  - Handle minimum display time enforcement across all popups
+  - Support immovable window feature on all displays
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`, `configure.sh`
+- **Priority**: Medium (useful for multi-monitor setups, improves visibility)
+- **Status**: Not implemented
+- **Current Implementation**:
+  - Single popup displayed on primary or detected display
+  - Uses `DISPLAY` environment variable (X11) or `WAYLAND_DISPLAY` (Wayland)
+  - Popup positioned using configured `POPUP_POSITION` setting
+  - Window positioning tools (wmctrl/xdotool) work on X11 only
+- **Implementation Approaches**:
+  - **X11 Multi-Monitor Detection**:
+    - Use `xrandr --query` to list all connected displays
+    - Parse output to identify active displays (e.g., `HDMI-1`, `DP-1`, `eDP-1`)
+    - Get display geometry (resolution, position) for each monitor
+    - Set `DISPLAY` environment variable to target specific display (may need X server configuration)
+    - Spawn popup process for each display with appropriate `DISPLAY` value
+  - **Wayland Multi-Monitor Detection**:
+    - Use `wlr-randr` (for wlroots-based compositors) to list displays
+    - Use `wayland-info` or compositor-specific tools if available
+    - Query display information via Wayland protocols (requires compositor support)
+    - May need compositor-specific solutions (gamescope, sway, GNOME, KDE)
+    - **Limitations**: Wayland security model may prevent multi-display control
+  - **Hybrid Approach**:
+    - Detect display environment (X11 vs Wayland)
+    - Use appropriate detection method for each protocol
+    - Fallback to single display if multi-monitor detection fails
+- **Implementation Notes**:
+  - **Display Detection**:
+    - **X11**: `xrandr --query` lists all connected displays with their status (connected, disconnected, active)
+    - Parse `xrandr` output to identify active displays and their geometry
+    - Example: `xrandr --query | grep " connected" | awk '{print $1}'`
+    - Get display resolution and position: `xrandr --query | grep -A1 " connected" | grep -E "[0-9]+x[0-9]+"`
+    - **Wayland**: More complex, requires compositor-specific tools
+      - `wlr-randr` for wlroots-based compositors (sway, river, etc.)
+      - `gnome-randr` or `gsettings` for GNOME
+      - `kscreen-doctor` for KDE Plasma
+      - May need to query Wayland protocols directly (complex)
+  - **Multi-Popup Management**:
+    - Spawn background process for each display
+    - Track popup PIDs for each display
+    - Ensure all popups are closed when user dismisses (or allow independent dismissal)
+    - Handle minimum display time across all popups (all must remain visible for configured duration)
+    - Coordinate immovable window feature across all displays
+  - **Display-Specific Configuration**:
+    - Allow per-display positioning (e.g., center on all, or specific position per display)
+    - Handle different display resolutions (popup size may need adjustment per display)
+    - Consider display scaling (high-DPI displays may need different sizing)
+  - **Process Management**:
+    - Use `DISPLAY=:0.1` or similar for X11 secondary displays (if X server configured for multi-display)
+    - For X11, may need to use `--display` flag if dialog tool supports it
+    - For Wayland, may need compositor-specific environment variables
+    - Track all popup processes to ensure cleanup on exit
+  - **User Experience**:
+    - **Option 1**: All popups must be dismissed (user closes all to proceed)
+    - **Option 2**: Dismissing one closes all (coordinated dismissal)
+    - **Option 3**: Independent dismissal (user can close individual popups)
+    - Configuration option: `MULTI_DISPLAY_MODE=single|all|independent`
+    - Default: `all` (show on all displays, all must be dismissed)
+  - **Edge Cases**:
+    - Handle displays being disconnected during popup display
+    - Handle displays being added during popup display (may need to spawn additional popup)
+    - Handle display resolution changes
+    - Handle display reordering (primary display changes)
+    - Graceful fallback if multi-display detection fails (show on primary display only)
+- **Technical Considerations**:
+  - **X11 Multi-Display Setup**:
+    - X server must be configured for multi-display (Xinerama, XRandR, or separate X servers)
+    - Most modern X11 setups use XRandR extension (standard)
+    - May need to set `DISPLAY` per popup process
+    - Some dialog tools may not support `--display` flag
+  - **Wayland Multi-Display**:
+    - Wayland compositors handle multi-display natively
+    - Detection and control more complex than X11
+    - May require compositor-specific APIs or tools
+    - gamescope (SteamOS Gaming Mode) may have limited multi-display support
+  - **Performance**:
+    - Multiple popup processes may have minimal performance impact
+    - Consider process overhead (7 displays = 7 popup processes)
+    - Ensure efficient display detection (cache results if possible)
+  - **Compatibility**:
+    - **X11**: Feasible with xrandr (standard on most X11 systems)
+    - **Wayland**: Feasibility varies by compositor (may require research per compositor)
+    - **gamescope**: May not support multi-display (SteamOS Gaming Mode typically single display)
+    - **Fallback**: Always fallback to single display if multi-display detection fails
+- **Configuration Options**:
+  - `MULTI_DISPLAY_ENABLED=true/false` - Enable/disable multi-display popups (default: `false`)
+  - `MULTI_DISPLAY_MODE=single|all|independent` - Dismissal behavior (default: `all`)
+  - `MULTI_DISPLAY_POSITION=center|inherit` - Position on each display (default: `center`, uses `POPUP_POSITION` if `inherit`)
+- **User Experience Benefits**:
+  - **Visibility**: Warnings appear on all screens, ensuring user sees them regardless of active display
+  - **Multi-Monitor Workflows**: Users with multiple monitors don't miss warnings on secondary displays
+  - **Gaming Setups**: Gamers with multiple monitors see warnings on all screens
+  - **Productivity**: Users working across multiple displays are always notified
+- **Compatibility Assessment**:
+  - **X11**: ✅ **Feasible** - xrandr provides reliable multi-display detection and control
+  - **Wayland**: ⚠️ **Partially Feasible** - Depends on compositor, may require compositor-specific tools
+  - **gamescope (SteamOS Gaming Mode)**: ❌ **Not Feasible** - Typically single display, limited multi-display support
+  - **Fallback Strategy**: Always fallback to single display if multi-display detection fails or is unavailable
+- **Related**: 
+  - Complements popup positioning feature (#3 Enhanced Window Size Options)
+  - Works with minimum display time feature (#14 Immovable Popup Window)
+  - May require enhanced display detection (#1 Enhanced Display Detection)
+  - Could benefit from Wayland-specific window management (#12 Wayland-Specific Window Management)

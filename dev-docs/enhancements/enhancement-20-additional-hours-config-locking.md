@@ -1,0 +1,43 @@
+### 20. Additional Hours for Config Locking and configure.sh Blocking
+- **Description**: Allow users to configure additional time ranges (separate from restriction hours) during which config file locking and configure.sh blocking are active. This allows users to lock configuration during specific hours even if those hours are not restricted (e.g., lock config during work hours to prevent distraction-related changes)
+- **Files Affected**: `sleep-warning.sh`, `configure.sh`, `sleep-warning.conf`, `configure.sh`
+- **Priority**: Low (nice-to-have feature, adds complexity)
+- **Status**: Not implemented
+- **Feasibility Assessment**: ✅ **Highly Feasible** - Simple extension of existing time range configuration
+- **Implementation Approach**:
+  - **Separate Time Range Configuration**:
+    - Add new config options: `CONFIG_LOCK_HOURS_SUNDAY=START-END`, `CONFIG_LOCK_HOURS_MONDAY=START-END`, etc.
+    - Or use single format: `CONFIG_LOCK_HOURS=SUNDAY=START-END,MONDAY=START-END,...`
+    - Reuse existing time range parsing logic from restriction hours
+    - Check both restriction hours AND lock hours when determining if config should be locked
+  - **Implementation Notes**:
+    - **Config Format**: Reuse existing `DAY=START-END` format (same as restriction hours)
+    - **Time Check Logic**: Extend `is_restricted_hour()` or create `is_lock_hour()` function
+    - **Combined Check**: Config is locked if current time is in restriction hours OR lock hours
+    - **Visual Grid**: Could add separate section in visual grid for lock hours (optional, Phase 2)
+  - **Configuration UI**:
+    - Add section in `configure.sh` for configuring lock hours
+    - Can reuse existing day/time configuration wizard
+    - Show clear distinction between restriction hours and lock hours
+    - Optional: Show in visual grid with different color/indicator
+- **Safety Assessment**:
+  - **Bypass Risk**: Same as #18 and #19 (depends on implementation)
+  - **Uninstall Safety**: ✅ **Safe** - Uninstall should always work regardless of lock hours
+  - **Data Safety**: ✅ **Safe** - No risk of data loss
+  - **System Safety**: ✅ **Safe** - No risk to system stability
+  - **User Experience**: ⚠️ **Adds Complexity** - More configuration options may confuse users
+- **Processing/Memory Burden**:
+  - **Minimal** - Only requires additional time range check (same overhead as restriction check)
+  - No additional processes or continuous monitoring
+  - **Memory**: Negligible (no additional memory usage)
+  - **CPU**: Negligible (additional time check is instant)
+- **User Experience Considerations**:
+  - **Clear Distinction**: Users should understand difference between restriction hours and lock hours
+  - **Use Cases**: Useful for users who want to prevent config changes during work hours, study hours, etc.
+  - **Optional Feature**: Should be optional (default: no additional lock hours)
+  - **Documentation**: Clear documentation needed to explain use cases and behavior
+- **Related**: 
+  - Extends "Config File Locking" (#18) and "Prevent configure.sh" (#19)
+  - Uses same time range configuration system as restriction hours
+  - Could be integrated into Visual Day/Time Configuration Grid (#16)
+

@@ -1,0 +1,53 @@
+# Enhancement 19: Prevent configure.sh Execution During Restricted Hours
+
+- **Description**: Prevent `configure.sh` from running during restricted hours (and optionally during additional configurable hours) to prevent users from circumventing restrictions by changing settings
+- **Files Affected**: `configure.sh`, `sleep-warning.sh`, `sleep-warning.conf`
+- **Priority**: Medium (security/self-control feature, complements config file locking)
+- **Status**: Not implemented
+- **Feasibility Assessment**: ✅ **Highly Feasible** - Simple time check at script start
+- **Implementation Approach**:
+  - **Time Check at Script Start**:
+    - `configure.sh` checks current day/time at startup
+    - If current time falls within restricted hours OR additional lock hours, exit with error message
+    - Use same time checking logic as `sleep-warning.sh` (reuse functions)
+    - **Pros**: Simple, effective, cannot be easily bypassed without modifying script
+    - **Cons**: Can be bypassed by modifying system time or editing script directly
+    - **Safety**: Medium - Determined users can bypass, but requires knowledge/effort
+- **Implementation Notes**:
+  - **Config Options**:
+    - `CONFIG_LOCK_ENABLED=true/false` - Enable/disable config locking (shared with #18)
+    - `CONFIG_LOCK_HOURS=DAY=START-END` - Additional hours for blocking configure.sh (separate from restriction hours)
+    - Block should apply during restricted hours AND any additional configured lock hours
+  - **Time Check Logic**:
+    - Reuse `is_restricted_hour()` function from `sleep-warning.sh` (or extract to shared function)
+    - Check both restriction hours and additional lock hours
+    - Exit early with clear error message if in restricted/lock hours
+  - **Error Message**:
+    - Clear, informative: "Configuration is locked during restricted hours ([current time range]). Please try again after [end time]."
+    - Show current time and when restrictions end
+  - **Bypass Prevention**:
+    - Script should check time, not rely on external locks (prevents lock file deletion bypass)
+    - Can combine with config file locking (#18) for defense in depth
+- **Safety Assessment**:
+  - **Bypass Risk**: Medium - Determined users can bypass by:
+    - Modifying system time (requires admin access or time change permissions)
+    - Editing `configure.sh` directly to remove time check
+    - Running `sleep-warning.sh` with modified time check
+  - **Uninstall Safety**: ✅ **Safe** - Uninstall script should not be blocked (always allow uninstall)
+  - **Data Safety**: ✅ **Safe** - No risk of data loss
+  - **System Safety**: ✅ **Safe** - No risk to system stability
+  - **User Experience**: ⚠️ **May Frustrate Users** - Prevents legitimate config changes during restricted hours
+- **Processing/Memory Burden**:
+  - **Minimal** - Only requires time check at script startup (same logic as restriction checking)
+  - No additional processes or continuous monitoring
+  - **Memory**: Negligible (no additional memory usage)
+  - **CPU**: Negligible (time check is instant, same as existing restriction checks)
+- **User Experience Considerations**:
+  - **Clear Error Message**: Should inform user why script cannot run and when they can try again
+  - **Optional Feature**: Should be opt-in (default: disabled) to avoid frustrating users
+  - **Emergency Override**: Consider allowing override with special flag (e.g., `--force`) for emergencies (defeats purpose but may be needed)
+  - **Uninstall Always Works**: `uninstall.sh` should never be blocked (critical for user control)
+- **Related**: 
+  - Works with "Config File Locking" (#18) - complementary features, defense in depth
+  - Uses same time checking logic as restriction system
+  - Complements restriction system by preventing circumvention

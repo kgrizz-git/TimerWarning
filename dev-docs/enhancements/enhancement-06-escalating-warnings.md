@@ -1,0 +1,24 @@
+# Enhancement 6: Escalating Warnings
+
+- **Description**: Show progressively stronger warnings if user continues using system during restricted hours
+- **Implementation**: 
+  - Track warning count in temporary file, adjust message intensity
+  - **Window Size Escalation**: Progressively increase popup window size with each warning
+    - Start with user's configured size (small, medium, large, or custom)
+    - Escalate to next larger predefined size with each warning: `small` → `medium` → `large`
+    - If user starts with `medium`, escalation goes: `medium` → `large`
+    - If user starts with `large` or custom size, escalation should max out at `large` (the largest predefined option) or custom, if larger
+    - Maximum size may be system-dependent (limited by display resolution), but should not exceed the `large` predefined size (or custom, if larger)
+    - Reset escalation level when user stops using system during restricted hours (e.g., after configurable timeout period)
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`
+- **Priority**: Low (enhancement feature)
+- **Status**: Not implemented
+- **Implementation Notes**:
+  - Store warning count and escalation level in temporary file (e.g., `~/.config/sleep-warning/.warning_count`)
+  - Map predefined sizes to escalation order: `small` (400x250) → `medium` (800x500) → `large` (2000x1350)
+  - Maximum escalation should cap at `large` predefined size, regardless of system capabilities
+  - For custom sizes, calculate escalation: increase by configurable percentage (e.g., 25% per warning) up to `large` size dimensions
+  - System-dependent maximums (e.g., display resolution limits) should be respected, but escalation should not attempt to exceed `large` size
+  - Reset escalation when user exits restricted hours or after configurable cooldown period
+  - Combine with message intensity changes for maximum effect
+  - Consider making escalation optional via config option: `ESCALATING_WARNINGS=true/false`

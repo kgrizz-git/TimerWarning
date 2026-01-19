@@ -1,0 +1,40 @@
+# Enhancement 3: Enhanced Window Size Options and Display-Based Sizing
+
+- **Description**: Add more predefined window size options and allow window sizes to be automatically calculated based on current display resolution
+- **Implementation**: 
+  - Add additional predefined size options (e.g., `xsmall`, `xlarge`, `xxlarge`) beyond current `small`, `medium`, `large`
+  - Add display resolution detection function (using `xrandr` for X11, `wlr-randr` or `wayland-info` for Wayland)
+  - Implement percentage-based sizing (e.g., `50%x30%` to use 50% of screen width and 30% of screen height)
+  - Add resolution-aware predefined sizes that scale with display (e.g., `medium` could be 30% of screen width by 20% of screen height)
+  - Update `configure.sh` to provide GUI/text options for selecting from expanded size list or entering custom dimensions
+  - Add option in `configure.sh` to enable/disable display-based sizing
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`, `configure.sh`
+- **Priority**: Medium (improves usability and adaptability across different display configurations)
+- **Status**: Not implemented
+- **Current Implementation**:
+  - Three predefined sizes: `small` (400x250), `medium` (800x500), `large` (2000x1350)
+  - Custom sizes via `WIDTHxHEIGHT` format (200-2000 width, 100-2000 height)
+  - Size configuration available in `configure.sh` "Window Behavior" section
+- **Display Resolution Detection Considerations**:
+  - **X11**: Can use `xrandr --query` to get screen resolution, supports multiple displays
+  - **Wayland**: More complex - may need `wlr-randr`, `wayland-info`, or compositor-specific tools
+  - **gamescope (SteamOS Gaming Mode)**: Resolution detection may be limited or require special handling
+  - **Multi-monitor setups**: Should detect primary display or allow user to specify which display to use for sizing calculations
+  - **Dynamic resolution changes**: May need to detect resolution at popup time rather than configuration time
+- **Implementation Notes**:
+  - Add `POPUP_SIZE_MODE` config option: `fixed` (current behavior) or `display-based` (percentage-based)
+  - When `display-based` is enabled, predefined sizes could map to screen percentages:
+    - `small`: 20% width × 15% height
+    - `medium`: 30% width × 20% height  
+    - `large`: 50% width × 35% height
+  - Custom sizes in display-based mode could accept percentage format: `50%x30%`
+  - Fallback to fixed pixel sizes if resolution detection fails
+  - Cache detected resolution to avoid repeated queries (with refresh option)
+  - Update `get_popup_dimensions()` function to handle percentage calculations
+  - Add resolution detection function that works across X11/Wayland with appropriate fallbacks
+- **User Experience Benefits**:
+  - Better popup sizing on high-resolution displays (4K, ultrawide monitors)
+  - Consistent visual appearance across different screen sizes
+  - Easier configuration for users with multiple displays or changing resolutions
+  - More intuitive sizing options (percentage-based feels more natural than pixel values)
+- **Related**: Complements existing window size configuration, works with popup position feature

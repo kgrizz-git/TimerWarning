@@ -1,0 +1,57 @@
+# Enhancement 14: Immovable Popup Window
+
+- **Description**: Prevent user from moving/dragging the popup window during the minimum display time countdown
+- **Implementation**: 
+  - **X11 Approach**: Use `xprop` to set `_NET_WM_ALLOWED_ACTIONS` property, removing `_NET_WM_ACTION_MOVE` action
+  - **Alternative X11**: Use `xdotool` or `wmctrl` to set window properties that prevent movement
+  - **Window Manager Hints**: Set window gravity and type hints via xprop after window creation
+  - **Fallback**: Monitor window position and restore if moved (less elegant but more compatible)
+- **Files Affected**: `sleep-warning.sh` (enhance `make_window_unclosable()` function)
+- **Priority**: High (critical enhancement for minimum display time feature effectiveness)
+- **Status**: ✅ **Implemented** - Uses Method 4 (monitor and restore position) to prevent window movement during minimum display time. `POPUP_IMMOVABLE` configuration option added (true/false). Works on X11 with wmctrl/xdotool, not available on Wayland.
+- **Distribution Options**: Current implementation works with traditional installation method. For future GUI application wrapper (see [info/DISTRIBUTION_OPTIONS.md](../info/DISTRIBUTION_OPTIONS.md)), this feature would be accessible via GUI configuration interface. Flatpak/Snap packaging would require appropriate permissions for window management tools (xdotool/wmctrl).
+- **Testing Results**:
+  - Method 1 (xprop _NET_WM_ALLOWED_ACTIONS): Failed to set property (window manager may not support this)
+  - Method 2 (xdotool/wmctrl properties): Applied but limited effect
+  - Method 3 (Window Manager Hints): Applied but effectiveness varies by window manager
+  - Method 4 (Monitor and Restore Position): **Tested and confirmed working** - This fallback method successfully prevents window movement by monitoring position and restoring it if moved
+- **Compatibility Assessment**:
+  - **X11**: Partially feasible
+    - Can use `xprop -id <window_id> -f _NET_WM_ALLOWED_ACTIONS 32a -set _NET_WM_ALLOWED_ACTIONS _NET_WM_ACTION_CLOSE _NET_WM_ACTION_RESIZE` to remove MOVE action
+    - Not all window managers honor `_NET_WM_ALLOWED_ACTIONS` hints (compliance varies)
+    - Some users may have custom keybindings (Alt+drag, Super+drag) that bypass window manager controls
+    - `override_redirect` flag would prevent movement but also removes decorations and may cause UX issues
+  - **Wayland**: Not feasible
+    - Wayland's security model prevents applications from controlling other windows' properties
+    - Would require compositor-specific solutions (gamescope, sway, etc.)
+    - gamescope (SteamOS Gaming Mode) likely won't support this
+    - Would need Wayland protocol extensions or compositor modifications
+  - **Toolkit Limitations**:
+    - `zenity`/`yad`/`kdialog` are GTK-based but don't expose window property APIs directly
+    - Must use external tools (`xprop`, `xdotool`) after window creation
+    - Window must be created first, then properties modified (timing-sensitive)
+  - **User Experience Considerations**:
+    - Preventing window movement may frustrate users if popup blocks important content
+    - Some window managers may ignore hints, leading to inconsistent behavior
+    - Users with accessibility needs may require window movement
+  - **Recommended Approach**:
+    - Implement for X11 only (skip Wayland)
+    - **Primary method**: Monitor window position and restore if moved (tested and confirmed working)
+    - Secondary attempt: Use `xprop` to set `_NET_WM_ALLOWED_ACTIONS` to remove MOVE action (fallback if window manager supports it)
+    - Make it optional/configurable (allow users to disable if causing issues)
+    - Test across multiple window managers (GNOME, KDE, XFCE, i3, etc.)
+    - Document limitations clearly (not all window managers support this)
+- **Research Findings**:
+  - EWMH (Extended Window Manager Hints) standard provides `_NET_WM_ALLOWED_ACTIONS` property
+  - Can remove `_NET_WM_ACTION_MOVE` from allowed actions list
+  - Window manager compliance varies: GNOME/KDE generally honor it, tiling WMs may ignore it
+  - `override_redirect` would work but removes window decorations and may cause issues
+  - Window gravity hints (`Gdk.Gravity.STATIC`) may help but not guaranteed
+  - Some window managers allow disabling move shortcuts in settings (user-level, not app-level)
+- **Implementation Notes**:
+  - Must find window ID after popup is created (use `xdotool search --name` or `wmctrl -l`)
+  - Set properties immediately after window appears (may need small delay)
+  - Restore original properties after minimum display time expires
+  - Consider making it a separate config option: `POPUP_IMMOVABLE=true/false`
+  - Log attempts to set immovable property and whether it succeeded
+- **Related**: Complements minimum display time feature (#15 in current implementation)

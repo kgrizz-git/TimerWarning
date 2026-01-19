@@ -191,6 +191,10 @@ See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) for detailed descriptions a
 - [ ] **Auto-Close Popup Window** - Automatically close popup after configured time
 - [ ] **12-Hour Format Time Input** - Support 12-hour format in configuration
 - [ ] **Multi-Display Popup Support** - Display popups on multiple monitors
+- [ ] **Config File Locking During Restricted Hours** - Prevent config file modification during restricted hours
+- [ ] **Prevent configure.sh During Restricted Hours** - Block configure.sh execution during restricted hours
+- [ ] **Additional Hours for Config Locking** - Configure separate hours for config locking/blocking
+- [ ] **One-Time Pause Feature** - Allow 5 or 10 minute pause of restrictions once per day, available from popup
 
 ### Distribution and Packaging Enhancements
 

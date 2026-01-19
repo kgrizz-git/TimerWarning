@@ -1,0 +1,37 @@
+# Enhancement 15: Auto-Close Popup Window
+
+- **Description**: Automatically close the popup window after a pre-configured time period, providing users with a non-interactive option for warning dismissal
+- **Implementation**: 
+  - Add configuration option to enable/disable auto-close: `POPUP_AUTO_CLOSE=true/false`
+  - Add configuration option for auto-close timeout: `POPUP_AUTO_CLOSE_TIME=<seconds>` or allow it to use the minimum display time value
+  - Implement timer mechanism that closes the window after the configured duration
+  - Support two modes:
+    - **Mode 1**: Use minimum display time as auto-close time (single variable controls both)
+    - **Mode 2**: Separate auto-close time independent of minimum display time (allows window to stay open longer than minimum but still auto-close)
+  - Close window using appropriate method for dialog tool (send close signal, kill process, or use tool-specific close command)
+  - Ensure auto-close respects minimum display time (auto-close time should be >= minimum display time if both are enabled)
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`, `configure.sh`
+- **Priority**: Medium (useful feature for users who want automatic dismissal without manual interaction)
+- **Status**: Not implemented
+- **Implementation Notes**:
+  - Add `POPUP_AUTO_CLOSE` config option: `false` (default, current behavior) or `true` (enable auto-close)
+  - Add `POPUP_AUTO_CLOSE_TIME` config option: 
+    - `0` or `auto` = use minimum display time value
+    - Positive integer = seconds until auto-close (must be >= minimum display time if both are enabled)
+  - When auto-close is enabled, start background timer after window is displayed
+  - Use `sleep` command or background process to track time
+  - Close window using appropriate method:
+    - For `zenity`: May need to find and kill the process
+    - For `yad`: May support timeout parameter or need process termination
+    - For `kdialog`: May need process termination
+    - For `dialog`: May need process termination
+  - Ensure auto-close doesn't interfere with minimum display time enforcement
+  - If user manually closes window before auto-close time, cancel the auto-close timer
+  - Consider showing countdown in window message if visual countdown feature is implemented
+  - Log auto-close events if logging is enabled
+- **User Experience Benefits**:
+  - Provides automatic dismissal option for users who don't want to manually close warnings
+  - Can be set to same as minimum display time for consistent behavior
+  - Can be set longer than minimum display time to ensure warning is seen but still auto-dismisses
+  - Reduces need for user interaction while still ensuring warning visibility
+- **Related**: Complements minimum display time feature (#14 Immovable Popup Window), could work with visual countdown timer enhancement

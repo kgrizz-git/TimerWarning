@@ -1,0 +1,36 @@
+### 2. Custom Wayland Protocol Implementation
+- **Description**: Develop custom Wayland protocol for notifications compatible with gamescope
+- **Why Alternative**: Requires deep Wayland protocol knowledge, C development, compositor integration
+- **Advantages**:
+  - Native Wayland support
+  - Works with gamescope
+  - Full control over notification behavior
+- **What This Would Mean for Our Popup Warning System**:
+  - **Native Wayland Integration**: Popups would use Wayland protocols directly instead of relying on dialog tools (zenity/yad/kdialog) that may have limitations
+  - **Gamescope Compatibility**: Would work natively with gamescope compositor in SteamOS Gaming Mode, potentially solving exclusive full-screen game limitations
+  - **Guaranteed Visibility**: Custom protocol could ensure popups appear over full-screen applications, including exclusive full-screen games
+  - **Window Control**: Could implement native Wayland window management features (stay-on-top, immovable windows) that currently don't work on Wayland
+  - **Better Performance**: Direct compositor integration could reduce latency and improve responsiveness
+  - **Minimum Display Time Enforcement**: Could implement native Wayland mechanisms to prevent window closing/moving during minimum display time (currently limited on Wayland)
+  - **Multi-Display Support**: Native Wayland protocols could provide better multi-monitor popup support
+  - **Compositor-Specific Features**: Could leverage gamescope-specific features or other compositor capabilities
+- **Disadvantages**:
+  - Very complex implementation
+  - Requires compositor modifications or extensions
+  - May not work with all compositors
+  - **Gamescope Limitations**: gamescope may not support custom protocol extensions (would require Valve cooperation or gamescope modifications)
+  - **Compositor Fragmentation**: Different compositors (GNOME, KDE, Sway, gamescope) would need different implementations or protocol support
+  - **Maintenance Burden**: Would need to maintain protocol implementation across compositor updates
+- **Implementation Approach**:
+  - Develop Wayland protocol extension (defines new protocol for system notifications/overlays)
+  - Create compositor plugin or modification (implements protocol in gamescope or other compositors)
+  - Integrate with existing system (bash script calls protocol client)
+  - **For gamescope specifically**: Would likely require gamescope source modifications or Valve cooperation
+- **Realistic Assessment**:
+  - **Feasibility**: Very low - gamescope is closed-source/limited access, and protocol extensions require compositor support
+  - **Alternative**: Steam Overlay Integration (Option 1) is more practical and achieves similar goals
+  - **Use Case**: Would only make sense if gamescope becomes open-source or Valve provides extension APIs
+- **Complementary Option**: Could be developed as optional enhancement, but Steam Overlay is more practical
+- **Priority**: Low (very complex, limited benefit over simpler solutions, Steam Overlay achieves similar goals more easily)
+- **Status**: Not implemented
+

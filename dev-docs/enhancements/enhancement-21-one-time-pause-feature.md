@@ -1,0 +1,80 @@
+### 21. One-Time Pause Feature (5 or 10 Minutes)
+- **Description**: Allow users to pause restrictions for a short period (5 or 10 minutes) once per day, with the pause option available directly from the warning popup. This provides users with flexibility for legitimate exceptions (e.g., finishing a task, handling an emergency) while maintaining overall restriction effectiveness
+- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`, `configure.sh`
+- **Priority**: Medium (improves user experience and flexibility while maintaining restriction effectiveness)
+- **Status**: Not implemented
+- **Feasibility Assessment**: ✅ **Highly Feasible** - Simple timer mechanism with state tracking
+- **Implementation Approach**:
+  - **Popup Button Integration**:
+    - Add "Pause for 5 minutes" and/or "Pause for 10 minutes" button to warning popup
+    - Use dialog tool's button support (zenity/yad/kdialog support custom buttons)
+    - **zenity**: `--extra-button` option for additional buttons
+    - **yad**: `--button` option for custom buttons
+    - **kdialog**: `--yesno` with custom button labels (limited)
+  - **Pause State Tracking**:
+    - Store pause state in temporary file: `~/.config/sleep-warning/.pause_state`
+    - File contains: pause end timestamp (Unix epoch)
+    - `sleep-warning.sh` checks pause state before showing warning
+    - If current time < pause end time, skip warning
+    - If current time >= pause end time, clear pause state and show warnings normally
+  - **Daily Reset**:
+    - Track last pause date in pause state file
+    - If last pause was on different day, allow new pause
+    - If last pause was today, prevent additional pauses (once per day limit)
+    - Reset at midnight (new day = new pause available)
+- **Implementation Notes**:
+  - **Config Options**:
+    - `PAUSE_ENABLED=true/false` - Enable/disable pause feature (default: `true`)
+    - `PAUSE_DURATION=5|10` - Pause duration in minutes (default: `10`)
+    - `PAUSE_ONCE_PER_DAY=true/false` - Limit to one pause per day (default: `true`)
+  - **Popup Integration**:
+    - **zenity**: `zenity --warning --text="..." --extra-button="Pause 5 min" --extra-button="Pause 10 min"`
+    - **yad**: `yad --warning --text="..." --button="Pause 5 min:5" --button="Pause 10 min:10"`
+    - **kdialog**: Limited support, may need to use separate dialog for pause option
+    - Parse button return code to determine which pause was selected
+  - **Pause State File Format**:
+    - Simple text file: `PAUSE_END_TIMESTAMP=<unix_timestamp>\nLAST_PAUSE_DATE=YYYY-MM-DD`
+    - Example: `PAUSE_END_TIMESTAMP=1704067200\nLAST_PAUSE_DATE=2024-01-01`
+  - **Time Check Logic**:
+    - Before showing warning, check: `[ -f "$PAUSE_STATE_FILE" ] && [ "$(get_pause_end_time)" -gt "$(date +%s)" ]`
+    - If paused, skip warning and log pause status
+    - After pause expires, clear pause state file
+  - **Daily Reset Logic**:
+    - Check last pause date: `LAST_PAUSE_DATE=$(date +%Y-%m-%d)`
+    - If last pause date != today, allow new pause
+    - If last pause date == today and `PAUSE_ONCE_PER_DAY=true`, prevent additional pauses
+  - **Popup Message Update**:
+    - If pause is available, show pause buttons in popup
+    - If pause already used today, hide pause buttons or show "Pause already used today" message
+    - Show remaining pause time if currently paused (in status/logs, not in popup)
+- **Safety Assessment**:
+  - **Bypass Risk**: Low-Medium - Users can manually edit/delete pause state file, but requires knowledge
+  - **Uninstall Safety**: ✅ **Safe** - Pause state file is temporary, uninstall removes it
+  - **Data Safety**: ✅ **Safe** - No risk of data loss, pause state is temporary
+  - **System Safety**: ✅ **Safe** - No risk to system stability
+  - **User Experience**: ✅ **Positive** - Provides flexibility while maintaining restrictions
+  - **Effectiveness**: ⚠️ **May Reduce Effectiveness** - Pause feature may be overused, defeating purpose
+- **Processing/Memory Burden**:
+  - **Minimal** - Only requires file read/write operations and timestamp comparison
+  - Pause state file is small (few bytes)
+  - No additional processes or continuous monitoring
+  - **Memory**: Negligible (no additional memory usage)
+  - **CPU**: Negligible (file I/O and timestamp comparison are instant)
+- **User Experience Considerations**:
+  - **Clear UI**: Pause buttons should be clearly labeled and easy to access
+  - **Feedback**: Show confirmation when pause is activated (e.g., "Restrictions paused until [time]")
+  - **Status Display**: `manage.sh` or status command could show pause status
+  - **Flexibility**: Allow users to configure pause duration (5 or 10 minutes, or custom)
+  - **Once Per Day Limit**: Prevents abuse while allowing legitimate exceptions
+  - **Popup Integration**: Having pause option in popup itself is most convenient (no need to open separate tool)
+- **Edge Cases**:
+  - **System Time Changes**: Handle clock adjustments (pause end time should be relative, not absolute)
+  - **System Sleep/Resume**: Pause should continue after resume (use relative time, not absolute)
+  - **Multiple Pause Attempts**: Prevent multiple pauses if already paused (check pause state before allowing)
+  - **Pause Expiration**: Clear pause state when expired, resume normal warnings
+  - **Config Changes**: Pause should persist even if config is changed during pause
+- **Related**: 
+  - Complements restriction system by providing flexibility
+  - Could work with "Temporary Disable via Config" (#8) - pause is time-limited, disable is manual
+  - Enhances user experience while maintaining restriction effectiveness
+

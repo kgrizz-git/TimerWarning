@@ -546,7 +546,8 @@ The project currently uses a traditional installation approach:
   - If user says yes, plugin binary is installed alongside main scripts
   - Plugin is registered/integrated with the systemd service
   - Main `sleep-warning.sh` script automatically detects and uses the plugin when Steam is running
-  - If Steam is not running or plugin unavailable, script falls back to regular popup dialogs
+  - **Dual notification strategy**: If Steam is running and plugin available, shows BOTH Steam overlay notification AND regular popup (maximum visibility)
+  - If Steam is not running or plugin unavailable, shows regular popup only
 - **Installation Process**:
   1. User runs main `install.sh` script (standard installation)
   2. Installer checks for Steam installation automatically:
