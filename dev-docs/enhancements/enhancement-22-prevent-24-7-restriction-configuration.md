@@ -1,7 +1,7 @@
 # Enhancement 22: Prevent 24/7 Restriction Configuration
 
 - **Description**: Add validation in `configure.sh` to detect and prevent users from configuring restricted hours that cover 24 hours a day, 7 days a week (or close to it). This prevents users from accidentally locking themselves out of their computer. The validation must evaluate the entire configuration holistically (not just individual days) to account for overnight time ranges that span multiple days. **Critical**: When counting restricted minutes, the system must detect and merge overlapping intervals both within the same day (e.g., "0-10,9-23" overlaps at hour 9) and across day boundaries due to overnight ranges (e.g., Monday "23-6" and Tuesday "0-5" overlap). Overnight ranges are identified when start hour > end hour (e.g., "23-6" spans midnight). If 24/7 restrictions (>= 10080 minutes) are detected, show a prominent error dialog and block saving. If restrictions exceed 9660 minutes (23 hours/day but < 10080), show a warning dialog, apply automatic safety overrides (disable config locking, configure.sh blocking, and restrict popup window sizes to "small" and "medium" only), and allow user to confirm or modify. Note: Hour ranges are inclusive of start hour, exclusive of end hour (e.g., "0-23" covers hours 0-22 = 23 hours total; "0-12,12-0" covers all 24 hours).
-- **Files Affected**: `configure.sh`, `sleep-warning.sh`, `sleep-warning.conf`
+- **Files Affected**: `configure.sh`, `lib/configure-validation.sh` (new), `lib/configure-ui.sh`, `sleep-warning.conf`
 - **Priority**: High (critical safety feature to prevent accidental lockout)
 - **Status**: Not implemented
 - **Feasibility Assessment**: ✅ **Highly Feasible** - Time range calculation and validation logic
@@ -13,7 +13,10 @@
     - Calculate total restricted minutes across the entire week
     - If total restricted minutes >= 10080 (7 days × 24 hours × 60 minutes = 10080), configuration is 24/7
   - **Validation Trigger**:
-    - Run validation check in `lib/configure-config.sh` (in `write_config()` function) before saving configuration
+    - Run validation check in `configure.sh` (in case 6: "Review and Save") AFTER `show_summary()` confirms but BEFORE calling `write_config()`
+    - This keeps `write_config()` as a pure file I/O function (consistent with codebase patterns)
+    - Validation function lives in new module `lib/configure-validation.sh`
+    - Dialog functions for errors/warnings live in `lib/configure-ui.sh` (consistent with existing UI functions)
     - Check occurs after all day/time configurations are collected
     - Validation runs regardless of whether GUI or text mode is used
   - **Warning and Protection**:
@@ -23,17 +26,29 @@
     - Ensure `CONFIGURE_BLOCK_ENABLED=false` (if configure.sh blocking is implemented)
     - Provide clear explanation of why 24/7 restrictions are problematic
 - **Implementation Notes**:
+  - **Config Line Format** (from `config_lines[]` array):
+    - Format: `"DAYVAR=RANGE"` (e.g., `"SUNDAY=0-5"` or `"MONDAY="` for skipped days)
+    - `DAYVAR` is one of: `SUNDAY`, `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY`
+    - `RANGE` is empty string `""` for skipped days, or time range like `"0-5"` or `"0-5,22-23"`
+    - Array indices 0-6 correspond to Sunday-Saturday (matching `DAY_VARS[]` in `lib/configure-core.sh`)
+    - Parsing example:
+      ```bash
+      local line="${config_lines[$i]}"
+      local range="${line#*=}"  # Extract everything after '='
+      # If range is empty, day is skipped (0 restricted minutes)
+      ```
   - **Time Range Format**:
     - Hour ranges are inclusive of start hour, exclusive of end hour (following logic in `lib/time-validation.sh`)
     - Example: "0-23" covers hours 0 through 22 (23 hours total: 00:00-22:59)
     - Example: "0-5" covers hours 0 through 4 (5 hours total: 00:00-04:59)
     - To cover all 24 hours, use combination like "0-12,12-0" (12 hours + 12 hours = 24 hours)
-  - **Time Range Calculation**:
+  - **Time Range Calculation** (minute-level precision):
+    - Hour H converts to minute H × 60 (e.g., hour 0 = minute 0, hour 23 = minute 1380)
+    - Range "START-END" covers interval [START×60, END×60) - inclusive start, exclusive end
     - For each day, parse time ranges (e.g., "22-6", "14-16")
-    - Convert to minutes since start of day (e.g., hour 22 = 1320 minutes, hour 6 = 360 minutes)
     - For overnight ranges (start > end), split into two segments:
-      - Segment 1: start hour to end of day (hour 23:59)
-      - Segment 2: start of day (hour 00:00) to (end hour - 1):59
+      - Segment 1: [start×60, 1440) on current day (e.g., "23-6" → [1380, 1440) = minutes 1380-1439)
+      - Segment 2: [0, end×60) on next day (e.g., "23-6" → [0, 360) = minutes 0-359 of next day)
     - Map each segment to a unified weekly timeline (day 0-6, minutes 0-10079)
   - **Coverage Calculation**:
     - Create array or set of all restricted minute intervals for the week
@@ -46,60 +61,172 @@
     - If count > 9660 (23 hours/day), show warning dialog (user can confirm or modify)
   - **Validation Function**:
     ```bash
-    # Pseudocode
+    # Pseudocode for lib/configure-validation.sh
     check_restriction_coverage() {
-      total_restricted_minutes = 0
-      restricted_intervals = []
+      local config_lines=("$@")
+      local all_intervals=()
       
-      for each day (Mon-Sun):
-        day_intervals = []
-        for each time_range in day:
-          if time_range is overnight (start > end):
-            # Split overnight range into two segments
-            add interval [start, 23:59] for current day to day_intervals
-            add interval [00:00, end] for next day to restricted_intervals (map to next day)
-          else:
-            add interval [start, end] for current day to day_intervals
+      for i in 0 1 2 3 4 5 6; do  # Sunday=0 through Saturday=6
+        local line="${config_lines[$i]}"
+        [ -z "${line}" ] && continue  # Day not configured
         
-        # Merge overlaps within the same day first (e.g., "0-10,9-23" → "0-23")
-        day_intervals = merge_overlapping_intervals(day_intervals)
-        restricted_intervals.extend(day_intervals)
+        local range="${line#*=}"  # Extract after '='
+        [ -z "${range}" ] && continue  # Day explicitly skipped
+        
+        local day_offset=$((i * 1440))  # Minutes offset for this day
+        
+        # Parse comma-separated ranges
+        IFS=',' read -ra ranges <<< "${range}"
+        for r in "${ranges[@]}"; do
+          local start_hour="${r%%-*}"
+          local end_hour="${r##*-}"
+          
+          if [ "${start_hour}" -gt "${end_hour}" ]; then
+            # Overnight range: split into two segments
+            # Segment 1: [start×60, 1440) on current day
+            all_intervals+=("$((day_offset + start_hour * 60)):$((day_offset + 1440))")
+            # Segment 2: [0, end×60) on next day (wrap Saturday→Sunday)
+            local next_day=$(( (i + 1) % 7 ))
+            local next_offset=$((next_day * 1440))
+            all_intervals+=("${next_offset}:$((next_offset + end_hour * 60))")
+          else
+            # Normal range: [start×60, end×60) on current day
+            all_intervals+=("$((day_offset + start_hour * 60)):$((day_offset + end_hour * 60))")
+          fi
+        done
+      done
       
-      # Merge overlaps across day boundaries (e.g., Monday "23-6" and Tuesday "0-5")
-      restricted_intervals = merge_overlapping_intervals(restricted_intervals)
-      total_restricted_minutes = sum of all interval lengths
+      # Sort intervals by start minute and merge overlapping/adjacent
+      local merged_intervals=($(merge_overlapping_intervals "${all_intervals[@]}"))
       
-      if total_restricted_minutes >= 10080:
-        return "block"  # 24/7 detected - block configuration
-      elif total_restricted_minutes > 9660:
-        return "warn"  # > 23 hours/day - show warning, allow confirmation
-      else:
-        return "ok"  # Valid configuration
+      # Calculate total restricted minutes
+      local total=0
+      for interval in "${merged_intervals[@]}"; do
+        local start="${interval%%:*}"
+        local end="${interval##*:}"
+        total=$((total + end - start))
+      done
+      
+      if [ "${total}" -ge 10080 ]; then
+        echo "block"  # 24/7 detected - block configuration
+      elif [ "${total}" -gt 9660 ]; then
+        echo "warn"   # > 23 hours/day - show warning, allow confirmation
+      else
+        echo "ok"     # Valid configuration
+      fi
+    }
+    
+    # Merge overlapping/adjacent intervals
+    # Input: array of "start:end" strings
+    # Output: merged "start:end" strings (one per line)
+    merge_overlapping_intervals() {
+      local intervals=("$@")
+      [ ${#intervals[@]} -eq 0 ] && return
+      
+      # Sort by start minute
+      IFS=$'\n' sorted=($(sort -t: -k1 -n <<< "${intervals[*]}"))
+      unset IFS
+      
+      local current_start="${sorted[0]%%:*}"
+      local current_end="${sorted[0]##*:}"
+      
+      for interval in "${sorted[@]:1}"; do
+        local start="${interval%%:*}"
+        local end="${interval##*:}"
+        
+        if [ "${start}" -le "${current_end}" ]; then
+          # Overlap or adjacent: extend current interval
+          [ "${end}" -gt "${current_end}" ] && current_end="${end}"
+        else
+          # No overlap: output current, start new
+          echo "${current_start}:${current_end}"
+          current_start="${start}"
+          current_end="${end}"
+        fi
+      done
+      echo "${current_start}:${current_end}"  # Output last interval
     }
     ```
   - **Error Dialog (24/7 detected, >= 10080 minutes)**:
-    - Use error dialog (not warning/info) for maximum visibility
-    - Title: "24/7 Restrictions Detected - Configuration Blocked"
+    - Create `show_24_7_error()` function in `lib/configure-ui.sh`
+    - Use existing `show_info_dialog()` from `lib/configure-dialogs.sh` with "ERROR:" prefix in title (consistent with codebase patterns)
+    - Title: "ERROR: 24/7 Restrictions Detected"
     - Message should explain:
       - "You have configured restrictions for all 24 hours, 7 days a week."
       - "This would effectively lock you out of your computer."
       - "Please modify your settings to leave at least some unrestricted time."
       - "Configuration cannot be saved until you reduce the restriction level."
     - Dialog should be modal and require user acknowledgment
-    - After acknowledgment, return to configuration (don't save, block write_config())
+    - After acknowledgment, return to configuration menu (continue in main loop, don't call `write_config()`)
+    - Text mode: Use `echo "ERROR: ..." >&2` followed by `read -p "Press Enter to continue..."`
+    - Implementation pattern (follows existing functions like `confirm_cancel()` and `show_help_dialog()`):
+      ```bash
+      show_24_7_error() {
+          local use_gui="$1"
+          local title="ERROR: 24/7 Restrictions Detected"
+          local message="You have configured restrictions for all 24 hours, 7 days a week.\n\nThis would effectively lock you out of your computer.\n\nPlease modify your settings to leave at least some unrestricted time.\n\nConfiguration cannot be saved until you reduce the restriction level."
+          
+          if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+              show_info_dialog "${title}" "${message}" 550 280
+          else
+              echo "" >&2
+              echo "========================================" >&2
+              echo "ERROR: 24/7 Restrictions Detected" >&2
+              echo "========================================" >&2
+              echo "" >&2
+              echo "You have configured restrictions for all 24 hours, 7 days a week." >&2
+              echo "This would effectively lock you out of your computer." >&2
+              echo "Please modify your settings to leave at least some unrestricted time." >&2
+              echo "Configuration cannot be saved until you reduce the restriction level." >&2
+              echo "" >&2
+              read -p "Press Enter to continue..."
+          fi
+      }
+      ```
   
   - **Warning Dialog (> 9660 minutes, > 23 hours/day)**:
-    - Use warning dialog (not error) - less severe but still important
-    - Title: "Very High Restriction Level Detected"
+    - Create `show_high_restriction_warning()` function in `lib/configure-ui.sh`
+    - Use existing `show_question_dialog()` from `lib/configure-dialogs.sh` (consistent with codebase patterns)
+    - Title: "Warning: Very High Restriction Level"
     - Message should explain:
-      - "You have configured restrictions for more than 23 hours per day, 7 days a week."
+      - "You have configured restrictions for more than 23 hours per day."
       - "This leaves very little unrestricted time and may effectively lock you out."
-      - "Are you sure you want to save this configuration?"
-      - "Config file locking, configure.sh blocking, and large popup window sizes have been automatically disabled for your safety."
+      - "Safety measures will be applied: config locking features disabled, popup size limited to small/medium."
+      - "Do you want to save this configuration anyway?"
     - Dialog should offer two options:
-      - "Yes, Save Anyway" - proceed with saving (user acknowledges risk)
-      - "No, Modify Settings" - return to configuration menu
-    - If user confirms, allow saving but log the high restriction level
+      - "Yes, Save Anyway" - returns 0, proceed with saving (user acknowledges risk)
+      - "No, Modify Settings" - returns 1, return to configuration menu
+    - If user confirms, apply safety overrides in `configure.sh` before calling `write_config()`
+    - Text mode: Use `read -p "Save anyway? [y/N]: "` pattern (follows existing `confirm_cancel()` pattern)
+    - Implementation pattern:
+      ```bash
+      show_high_restriction_warning() {
+          local use_gui="$1"
+          local title="Warning: Very High Restriction Level"
+          local message="You have configured restrictions for more than 23 hours per day.\n\nThis leaves very little unrestricted time and may effectively lock you out.\n\nSafety measures will be applied:\n• Config locking features will be disabled\n• Popup size will be limited to small/medium\n\nDo you want to save this configuration anyway?"
+          
+          if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+              show_question_dialog "${title}" "${message}" "Yes, Save Anyway" "No, Modify Settings"
+              return $?
+          else
+              echo "" >&2
+              echo "WARNING: Very High Restriction Level" >&2
+              echo "" >&2
+              echo "You have configured restrictions for more than 23 hours per day." >&2
+              echo "This leaves very little unrestricted time and may effectively lock you out." >&2
+              echo "" >&2
+              echo "Safety measures will be applied:" >&2
+              echo "• Config locking features will be disabled" >&2
+              echo "• Popup size will be limited to small/medium" >&2
+              echo "" >&2
+              read -p "Save anyway? [y/N]: " answer
+              case "${answer}" in
+                  [Yy]*) return 0 ;;
+                  *) return 1 ;;
+              esac
+          fi
+      }
+      ```
   - **Automatic Safety Overrides**:
     - When restrictions >= 10080 minutes (24/7) detected: configuration is BLOCKED (not saved), error dialog shown
     - When restrictions > 9660 minutes but < 10080 minutes (> 23 hours/day) detected, automatically set in configuration before writing:
@@ -123,7 +250,7 @@
     - In text mode: validate after all prompts are completed
     - If validation fails, allow user to go back and modify settings
 - **Safety Assessment**:
-  - **Bypass Risk**: Low - Validation runs in `lib/configure-config.sh`, user would need to manually edit config file to bypass
+  - **Bypass Risk**: Low - Validation runs in `configure.sh` before `write_config()`, user would need to manually edit config file to bypass
   - **Uninstall Safety**: ✅ **Safe** - Does not affect uninstall process
   - **Data Safety**: ✅ **Safe** - No risk of data loss, only prevents saving invalid config
   - **System Safety**: ✅ **Safe** - Prevents dangerous configuration, improves safety
@@ -158,108 +285,133 @@
 ## Implementation Checklist
 
 ### Phase 1: Core Validation Function
-- [ ] **Create `check_restriction_coverage()` function** in `lib/configure-config.sh` (or new module `lib/configure-validation.sh`)
-  - [ ] Function accepts config_lines array (or summary_lines) as input
-  - [ ] Iterate through all 7 days (indices 0-6: Sunday-Saturday)
-  - [ ] For each day, parse time ranges from config (handle empty/skipped days)
-  - [ ] For each time range on each day:
-    - [ ] Parse range format: "START-END" or "START-END,START-END"
-    - [ ] Handle normal ranges (start < end): convert to minutes within same day
-    - [ ] Handle overnight ranges (start > end): split into two segments:
-      - [ ] Segment 1: start hour to 23:59 on current day
-      - [ ] Segment 2: 00:00 to end hour on next day (handle wrap-around: Saturday → Sunday)
-  - [ ] Convert each segment to unified weekly timeline (minutes 0-10079)
-    - [ ] Day 0 (Sunday): minutes 0-1439
-    - [ ] Day 1 (Monday): minutes 1440-2879
-    - [ ] Day 2 (Tuesday): minutes 2880-4319
-    - [ ] Day 3 (Wednesday): minutes 4320-5759
-    - [ ] Day 4 (Thursday): minutes 5760-7199
-    - [ ] Day 5 (Friday): minutes 7200-8639
-    - [ ] Day 6 (Saturday): minutes 8640-10079
-  - [ ] **CRITICAL: Merge overlaps within the same day first**
-    - [ ] For each day, collect all intervals for that day
-    - [ ] Merge overlapping intervals within the day (e.g., "0-10,9-23" → "0-23")
-    - [ ] Example: Monday "0-10,9-23" should merge to "0-23" (24 hours) before counting
-  - [ ] Store all intervals as [start_minute, end_minute] pairs
-  - [ ] **CRITICAL: Merge overlapping intervals across day boundaries**
-    - [ ] Merge overlaps between days (e.g., Monday "23-6" and Tuesday "0-5" overlap at hours 0-5)
-    - [ ] Handle wrap-around: Saturday overnight ranges may overlap with Sunday ranges
-  - [ ] Calculate total restricted minutes across all merged intervals
-  - [ ] Return "block" if total >= 10080 (24/7), "warn" if total > 9660 (23 hours/day), "ok" otherwise
+- [x] **Create new module `lib/configure-validation.sh`**
+  - [x] Add module header comment explaining purpose: configuration validation (24/7 detection, high restriction detection)
+  - [x] Add dependency note: requires `configure-core.sh` (for `DAY_VARS` array)
+  - [x] Source this module in `configure.sh` after `configure-config.sh`
 
-- [ ] **Implement interval merging logic**
-  - [ ] **Two-phase merging approach**:
-    - [ ] **Phase 1: Within-day merging** - Merge overlaps within each day first
-      - [ ] For each day, collect all intervals for that day
-      - [ ] Sort intervals by start minute
-      - [ ] Merge overlapping/adjacent intervals within the day
-      - [ ] Example: "0-10,9-23" → [0, 600] and [540, 1380] → [0, 1380] (24 hours)
-    - [ ] **Phase 2: Cross-day merging** - Merge overlaps across day boundaries
-      - [ ] Collect all intervals (after within-day merging) into single array
-      - [ ] Sort intervals by start minute (across entire week)
-      - [ ] Merge overlapping/adjacent intervals across day boundaries
-      - [ ] Example: Monday [1320, 1440] (23-0) and Tuesday [0, 300] (0-5) → [1320, 1740]
-  - [ ] Handle wrap-around intervals (Saturday overnight → Sunday)
-  - [ ] Calculate total minutes from merged intervals (avoid double-counting)
+- [x] **Create `check_restriction_coverage()` function** in `lib/configure-validation.sh`
+  - [x] Function accepts config_lines array as positional parameters: `check_restriction_coverage "${config_lines[@]}"`
+  - [x] Iterate through all 7 days (indices 0-6: Sunday-Saturday)
+  - [x] For each day, parse time ranges from config (handle empty/skipped days)
+  - [x] For each time range on each day:
+    - [x] Parse range format: "START-END" or "START-END,START-END"
+    - [x] Handle normal ranges (start < end): convert to minutes within same day
+    - [x] Handle overnight ranges (start > end): split into two segments:
+      - [x] Segment 1: start hour to 23:59 on current day
+      - [x] Segment 2: 00:00 to end hour on next day (handle wrap-around: Saturday → Sunday)
+  - [x] Convert each segment to unified weekly timeline (minutes 0-10079)
+    - [x] Day 0 (Sunday): minutes 0-1439
+    - [x] Day 1 (Monday): minutes 1440-2879
+    - [x] Day 2 (Tuesday): minutes 2880-4319
+    - [x] Day 3 (Wednesday): minutes 4320-5759
+    - [x] Day 4 (Thursday): minutes 5760-7199
+    - [x] Day 5 (Friday): minutes 7200-8639
+    - [x] Day 6 (Saturday): minutes 8640-10079
+  - [x] **CRITICAL: Merge overlaps within the same day first**
+    - [x] For each day, collect all intervals for that day
+    - [x] Merge overlapping intervals within the day (e.g., "0-10,9-23" → "0-23")
+    - [x] Example: Monday "0-10,9-23" should merge to "0-23" (24 hours) before counting
+  - [x] Store all intervals as [start_minute, end_minute] pairs
+  - [x] **CRITICAL: Merge overlapping intervals across day boundaries**
+    - [x] Merge overlaps between days (e.g., Monday "23-6" and Tuesday "0-5" overlap at hours 0-5)
+    - [x] Handle wrap-around: Saturday overnight ranges may overlap with Sunday ranges
+  - [x] Calculate total restricted minutes across all merged intervals
+  - [x] Return "block" if total >= 10080 (24/7), "warn" if total > 9660 (23 hours/day), "ok" otherwise
 
-- [ ] **Handle edge cases in validation**
-  - [ ] Empty days (no restrictions) - count as 0 restricted minutes
-  - [ ] Days with empty string "" (explicitly skipped) - count as 0 restricted minutes
-  - [ ] Multiple ranges per day (e.g., "0-5,22-23") - process all ranges
-  - [ ] **Overlapping ranges within same day** (e.g., "0-10,9-23" should merge to "0-23") - CRITICAL
-  - [ ] **Overlapping ranges across day boundaries** (e.g., Monday "23-6" and Tuesday "0-5" overlap) - CRITICAL
-  - [ ] Overnight ranges that wrap around week (Saturday 23-6 → Sunday)
-  - [ ] Boundary cases: exactly 10080 minutes (24/7) vs 10079 minutes (not 24/7)
-  - [ ] Boundary cases: exactly 9660 minutes (23 hours/day) vs 9661 minutes (should warn)
+- [x] **Implement interval merging logic**
+  - [x] **Single-phase merging approach** (Note: implemented as single-phase since all intervals mapped to absolute minutes 0-10079, which correctly handles both within-day and cross-day overlaps):
+    - [x] **Within-day merging** - Handled by single merge pass (intervals sorted by absolute minute)
+      - [x] For each day, collect all intervals for that day
+      - [x] Sort intervals by start minute
+      - [x] Merge overlapping/adjacent intervals within the day
+      - [x] Example: "0-10,9-23" → [0, 600] and [540, 1380] → [0, 1380] (24 hours)
+    - [x] **Cross-day merging** - Handled by same single merge pass
+      - [x] Collect all intervals into single array
+      - [x] Sort intervals by start minute (across entire week)
+      - [x] Merge overlapping/adjacent intervals across day boundaries
+      - [x] Example: Monday [1320, 1440] (23-0) and Tuesday [0, 300] (0-5) → [1320, 1740]
+  - [x] Handle wrap-around intervals (Saturday overnight → Sunday)
+  - [x] Calculate total minutes from merged intervals (avoid double-counting)
+
+- [x] **Handle edge cases in validation**
+  - [x] Empty days (no restrictions) - count as 0 restricted minutes
+  - [x] Days with empty string "" (explicitly skipped) - count as 0 restricted minutes
+  - [x] Multiple ranges per day (e.g., "0-5,22-23") - process all ranges
+  - [x] **Overlapping ranges within same day** (e.g., "0-10,9-23" should merge to "0-23") - CRITICAL
+  - [x] **Overlapping ranges across day boundaries** (e.g., Monday "23-6" and Tuesday "0-5" overlap) - CRITICAL
+  - [x] Overnight ranges that wrap around week (Saturday 23-6 → Sunday)
+  - [x] Boundary cases: exactly 10080 minutes (24/7) vs 10079 minutes (not 24/7)
+  - [x] Boundary cases: exactly 9660 minutes (23 hours/day = "ok", should NOT warn) vs 9661 minutes (should warn)
 
 ### Phase 2: Integration into configure.sh
-- [ ] **Add validation call before saving**
-  - [ ] Locate `write_config()` function in `lib/configure-config.sh`
-  - [ ] Add validation check at start of `write_config()` function
-  - [ ] Call `check_restriction_coverage()` with current config_lines array
-  - [ ] Handle three return values: "block" (>= 10080), "warn" (> 9660), "ok" (valid)
+- [x] **Source the new validation module in configure.sh**
+  - [x] Add `source "${LIB_DIR}/configure-validation.sh" || exit 1` after `configure-config.sh` source line
+  - [x] This makes `check_restriction_coverage()` available in `configure.sh`
 
-- [ ] **Create error dialog function (24/7 detected)**
-  - [ ] Create `show_24_7_error()` function in `lib/configure-ui.sh` (or `lib/configure-dialogs.sh`)
-  - [ ] Support both GUI mode (yad/zenity/kdialog) and text mode
-  - [ ] Use error dialog (not warning/info) for maximum visibility
-  - [ ] Title: "24/7 Restrictions Detected - Configuration Blocked"
-  - [ ] Message includes:
-    - [ ] "You have configured restrictions for all 24 hours, 7 days a week."
-    - [ ] "This would effectively lock you out of your computer."
-    - [ ] "Please modify your settings to leave at least some unrestricted time."
-    - [ ] "Configuration cannot be saved until you reduce the restriction level."
-  - [ ] Dialog is modal and requires user acknowledgment
-  - [ ] After acknowledgment, return to configuration menu (don't save)
+- [x] **Create error dialog function (24/7 detected)**
+  - [x] Create `show_24_7_error()` function in `lib/configure-ui.sh`
+  - [x] Support both GUI mode (yad/zenity/kdialog) and text mode
+  - [x] Use existing `show_info_dialog()` with "ERROR:" prefix in title (consistent with codebase)
+  - [x] Title: "ERROR: 24/7 Restrictions Detected"
+  - [x] Message includes:
+    - [x] "You have configured restrictions for all 24 hours, 7 days a week."
+    - [x] "This would effectively lock you out of your computer."
+    - [x] "Please modify your settings to leave at least some unrestricted time."
+    - [x] "Configuration cannot be saved until you reduce the restriction level."
+  - [x] Dialog is modal and requires user acknowledgment
+  - [x] Text mode: `echo "ERROR: ..." >&2` followed by `read -p "Press Enter to continue..."`
 
-- [ ] **Create warning dialog function (> 9660 minutes)**
-  - [ ] Create `show_high_restriction_warning()` function in `lib/configure-ui.sh` (or `lib/configure-dialogs.sh`)
-  - [ ] Support both GUI mode (yad/zenity/kdialog) and text mode
-  - [ ] Use warning dialog (not error) - less severe but still important
-  - [ ] Title: "Very High Restriction Level Detected"
-  - [ ] Message includes:
-    - [ ] "You have configured restrictions for more than 23 hours per day, 7 days a week."
-    - [ ] "This leaves very little unrestricted time and may effectively lock you out."
-    - [ ] "Are you sure you want to save this configuration?"
-    - [ ] "Config file locking, configure.sh blocking, and large popup window sizes have been automatically disabled for your safety."
-  - [ ] Dialog offers two options:
-    - [ ] "Yes, Save Anyway" - proceed with saving (user acknowledges risk)
-    - [ ] "No, Modify Settings" - return to configuration menu
-  - [ ] If user confirms, allow saving but log the high restriction level
+- [x] **Create warning dialog function (> 9660 minutes)**
+  - [x] Create `show_high_restriction_warning()` function in `lib/configure-ui.sh`
+  - [x] Support both GUI mode (yad/zenity/kdialog) and text mode
+  - [x] Use existing `show_question_dialog()` (consistent with codebase)
+  - [x] Title: "Warning: Very High Restriction Level"
+  - [x] Message includes:
+    - [x] "You have configured restrictions for more than 23 hours per day."
+    - [x] "This leaves very little unrestricted time and may effectively lock you out."
+    - [x] "Safety measures will be applied: config locking features disabled, popup size limited."
+    - [x] "Do you want to save this configuration anyway?"
+  - [x] Dialog offers two options:
+    - [x] "Yes, Save Anyway" (returns 0) - proceed with saving
+    - [x] "No, Modify Settings" (returns 1) - return to configuration menu
+  - [x] Text mode: `read -p "Save anyway? [y/N]: "` pattern (follows `confirm_cancel()` pattern)
 
-- [ ] **Update write_config() to handle validation results**
-  - [ ] If validation returns "block", call `show_24_7_error()` and return error (prevent saving)
-  - [ ] If validation returns "warn", call `show_high_restriction_warning()`:
-    - [ ] If user confirms, proceed with saving
-    - [ ] If user cancels, return to configuration menu (don't save)
-  - [ ] If validation returns "ok", proceed with normal save
-  - [ ] Ensure config file is NOT written if validation blocks or user cancels warning
-
-- [ ] **Integrate validation into save flow**
-  - [ ] Locate "Review and Save" option (menu choice 6) in `configure.sh` main() function
-  - [ ] Ensure validation runs after user confirms save but before `write_config()` is called
-  - [ ] Or integrate validation inside `write_config()` in `lib/configure-config.sh` (preferred - single point of validation)
-  - [ ] If validation fails, show warning and return to menu (don't exit)
+- [x] **Integrate validation into save flow (case 6 in configure.sh)**
+  - [x] Locate "Review and Save" option (menu choice 6) in `configure.sh` main() function
+  - [x] **DO NOT modify `write_config()`** - keep it as a pure file I/O function
+  - [x] Add validation check AFTER `show_summary()` returns true, BEFORE calling `write_config()`
+  - [x] Implementation pattern:
+    ```bash
+    # In configure.sh, case 6:
+    if show_summary "${use_gui}" ...; then
+        # Validate restriction coverage before saving
+        local validation_result
+        validation_result=$(check_restriction_coverage "${config_lines[@]}")
+        
+        case "${validation_result}" in
+            "block")
+                show_24_7_error "${use_gui}"
+                continue  # Return to menu, don't call write_config
+                ;;
+            "warn")
+                if ! show_high_restriction_warning "${use_gui}"; then
+                    continue  # User cancelled, return to menu
+                fi
+                # User confirmed - apply safety overrides before saving
+                if [ "${popup_size}" = "large" ] || [ "${popup_size}" = "fullscreen" ]; then
+                    popup_size="medium"
+                fi
+                # Future: disable CONFIG_LOCK_ENABLED, CONFIGURE_BLOCK_ENABLED if implemented
+                ;;
+            # "ok" - proceed normally
+        esac
+        
+        # Now call write_config with (possibly modified) values
+        if write_config "${check_interval}" "${popup_size}" ...; then
+            ...
+    ```
+  - [x] Ensure config file is NOT written if validation returns "block" or user cancels warning
 
 ### Phase 3: Automatic Safety Overrides
 - [ ] **Disable config locking features when high restrictions detected**
@@ -305,29 +457,29 @@
   - [ ] Test with multiple ranges per day that don't cover 24/7
 
 - [ ] **Test 24/7 configurations (validation should detect and block) - DO NOT AUTO-RUN!**
-  - [ ] **Note**: "should fail" means the validation should detect 24/7 restrictions and prevent saving the configuration (show warning dialog, block write_config(), return error)
+**Note**: "should fail" means the validation should detect 24/7 restrictions and prevent saving the configuration (show warning dialog, block write_config(), return error)
   - [ ] **IMPORTANT**: DO NOT AUTO-RUN. Before running any of these, set popup frequency to 15 minutes, minimum time 5 seconds, immovable window to off, and config file lock and configure.sh prevention both to off (if implemented).
   - [ ] Test with all days set to "0-23" (23 hours each day: 00:00-22:59) - Note: This is 161 hours/week = 9660 minutes, exactly at threshold, so validation should pass (not warn or block)
-  - [ ] Test with configurations that actually total 24/7 (10080 minutes):
-    - [ ] Each day has "0-12,12-0" (overnight range "12-0" covers hours 12-23, so "0-12" + "12-0" = 24 hours) - validation should detect and block
-    - [ ] Each day has multiple ranges that together cover all 24 hours (e.g., "0-8,8-16,16-0" where "16-0" overnight covers hours 16-23) - validation should detect and block
+  - [X] Test with configurations that actually total 24/7 (10080 minutes):
+    - [X] Each day has "0-12,12-0" (overnight range "12-0" covers hours 12-23, so "0-12" + "12-0" = 24 hours) - validation should detect and block
+    - [X] Each day has multiple ranges that together cover all 24 hours (e.g., "0-8,8-16,16-0" where "16-0" overnight covers hours 16-23) - validation should detect and block
     - [ ] Each day has "23-23" (wraps around, but invalid - start == end) - should be caught by format validation first, before 24/7 check
     - [ ] Each day has "23-0" as overnight range (covers only hour 23: 23:00-23:59, not 24 hours) - verify this is NOT detected as 24/7
-  - [ ] Test with combination of normal and overnight ranges that total 24/7 - validation should detect and block
-  - [ ] Test with exactly 10080 minutes (24/7) - validation should detect and block
+  - [X] Test with combination of normal and overnight ranges that total 24/7 - validation should detect and block
+  - [X] Test with exactly 10080 minutes (24/7) - validation should detect and block
   - [ ] Test with 10079 minutes (not 24/7) - validation should pass, allow saving
 
 - [ ] **Test high restriction level (> 9660 minutes, > 23 hours/day) - should warn - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
-  - [ ] **Note**: "should warn" means validation should show warning dialog, but allow user to confirm and save
+**Note**: "should warn" means validation should show warning dialog, but allow user to confirm and save
   - [ ] Test with exactly 9661 minutes (just over 23 hours/day) - validation should show warning, allow confirmation
   - [ ] Test with all days set to "0-23" plus one day with additional hour (e.g., Monday "0-23,23-0") - should warn
-  - [ ] Test with overlapping ranges that total > 9660 minutes:
+  - [X] Test with overlapping ranges that total > 9660 minutes:
     - [ ] Each day has "0-10,9-23" (overlaps at hours 9-10, should merge to "0-23" = 23 hours) - exactly 9660, should pass
     - [ ] Each day has "0-10,8-23" (overlaps at hours 8-10, should merge to "0-23" = 23 hours) - exactly 9660, should pass
     - [ ] Each day has "0-12,11-23" (overlaps at hours 11-12, should merge to "0-23" = 23 hours) - exactly 9660, should pass
-    - [ ] Each day has "0-12,12-0" (no overlap, covers all 24 hours) - should block (10080 minutes)
+    - [X] Each day has "0-12,12-0" (no overlap, covers all 24 hours) - should block (10080 minutes)
   - [ ] Test warning dialog behavior:
-    - [ ] User confirms warning → configuration saves successfully
+    - [X] User confirms warning → configuration saves successfully
     - [ ] User cancels warning → returns to configuration menu, no save
 
 - [ ] **Test edge cases - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
@@ -336,26 +488,30 @@
   - [ ] Test empty days mixed with 24-hour restricted days
   - [ ] Test multiple ranges per day (e.g., "0-12,12-23" = 24 hours)
   - [ ] **Test within-day overlaps** (CRITICAL):
-    - [ ] "0-10,9-23" on single day (overlaps at hours 9-10, should merge to "0-23" = 23 hours)
+    - [X] "0-10,9-23" on single day (overlaps at hours 9-10, should merge to "0-23" = 23 hours)
     - [ ] "0-5,4-8,7-12" on single day (multiple overlaps, should merge correctly)
     - [ ] "0-12,11-23" on single day (overlaps at hour 11-12, should merge to "0-23" = 23 hours)
     - [ ] "0-12,12-0" on single day (no overlap, covers all 24 hours) - should be detected as 24 hours
-  - [ ] **Test cross-day overlaps** (CRITICAL):
-    - [ ] Monday "23-6" and Tuesday "0-5" (overlap at hours 0-5, should merge correctly)
-    - [ ] Saturday "23-6" and Sunday "0-5" (wrap-around overlap, should merge correctly)
+  - [X] **Test cross-day overlaps** (CRITICAL):
+    - [X] Monday "23-6" and Tuesday "0-5" (overlap at hours 0-5, should merge correctly)
+    - [X] Saturday "23-6" and Sunday "0-5" (wrap-around overlap, should merge correctly)
 
 - [ ] **Test error dialog (24/7 detected) - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
+  - [X] Test in GUI mode (yad)
   - [ ] Test in GUI mode (zenity)
+  - [ ] Test in GUI mode (kdialog)
   - [ ] Test in text mode
-  - [ ] Verify dialog is modal and blocks saving
-  - [ ] Verify user can return to configuration after seeing error
+  - [X] Verify dialog is modal and blocks saving
+  - [X] Verify user can return to configuration after seeing error
   - [ ] Verify config file is NOT written when validation blocks
 
 - [ ] **Test warning dialog (> 9660 minutes) - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
+  - [X] Test in GUI mode (yad)
   - [ ] Test in GUI mode (zenity)
+  - [ ] Test in GUI mode (kdialog)
   - [ ] Test in text mode
-  - [ ] Verify dialog offers "Yes, Save Anyway" and "No, Modify Settings" options
-  - [ ] Verify "Yes, Save Anyway" allows saving
+  - [X] Verify dialog offers "Yes, Save Anyway" and "No, Modify Settings" options
+  - [X] Verify "Yes, Save Anyway" allows saving
   - [ ] Verify "No, Modify Settings" returns to configuration menu without saving
   - [ ] Verify config file is written only if user confirms
 
@@ -377,7 +533,7 @@
 - [ ] **Test popup window size restrictions (if implemented) - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] Test with high restrictions (> 9660 minutes):
     - [ ] Configure restrictions > 9660 minutes with POPUP_SIZE set to "large"
-    - [ ] Verify POPUP_SIZE is automatically changed to "medium" after validation
+    - [X] Verify POPUP_SIZE is automatically changed to "medium" after validation
     - [ ] Verify config file comment explains popup size restriction
     - [ ] Configure restrictions > 9660 minutes with POPUP_SIZE set to "fullscreen"
     - [ ] Verify POPUP_SIZE is automatically changed to "medium" after validation
@@ -393,66 +549,74 @@
     - [ ] Verify all four options (small, medium, large, fullscreen) are available
 
 - [ ] **Test user workflow - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
-  - [ ] User configures 24/7 restrictions → warning appears → user modifies → saves successfully
+  - [X] User configures 24/7 restrictions → warning appears → user modifies → saves successfully
   - [ ] User configures 24/7 restrictions → warning appears → user cancels → no config saved
   - [ ] User configures valid restrictions → no warning → saves successfully
 
 ### Phase 5: Code Quality and Documentation
-- [ ] **Code documentation**
-  - [ ] Add function header comment for `check_restriction_coverage()` in `lib/configure-config.sh` (or validation module) explaining:
-    - [ ] Purpose: prevent 24/7 restriction configuration and detect high restriction levels
-    - [ ] Input: config_lines array or summary_lines array
-    - [ ] Output: returns "block" if >= 10080 minutes (24/7), "warn" if > 9660 minutes (> 23 hours/day), "ok" if valid
-    - [ ] Algorithm: converts all ranges to unified timeline, merges overlaps, calculates total restricted minutes
-  - [ ] Add inline comments explaining:
-    - [ ] How overnight ranges are split
-    - [ ] How intervals are merged
-    - [ ] How weekly timeline mapping works
-    - [ ] Why 10080 is the threshold
+- [x] **Code documentation**
+  - [x] Add module header comment for `lib/configure-validation.sh` explaining:
+    - [x] Purpose: configuration validation functions for 24/7 restriction detection
+    - [x] Dependencies: `configure-core.sh` (for `DAY_VARS` array, though not strictly required)
+    - [x] Functions: `check_restriction_coverage()`, `merge_overlapping_intervals()`
+  - [x] Add function header comment for `check_restriction_coverage()` in `lib/configure-validation.sh` explaining:
+    - [x] Purpose: prevent 24/7 restriction configuration and detect high restriction levels
+    - [x] Input: config_lines array or summary_lines array
+    - [x] Output: returns "block" if >= 10080 minutes (24/7), "warn" if > 9660 minutes (> 23 hours/day), "ok" if valid
+    - [x] Algorithm: converts all ranges to unified timeline, merges overlaps, calculates total restricted minutes
+  - [x] Add inline comments explaining:
+    - [x] How overnight ranges are split
+    - [x] How intervals are merged
+    - [x] How weekly timeline mapping works
+    - [x] Why 10080 is the threshold
+  - [ ] After completing the automatic safety overrides once config locking and blocking of manage and configure scripts are implemented, review code and update comments as necessary
 
-- [ ] **Error handling**
-  - [ ] Handle invalid time range formats gracefully
-  - [ ] Handle missing config_lines entries (undefined array indices)
-  - [ ] Handle edge cases in interval merging (empty arrays, single interval, etc.)
-  - [ ] Add error logging if validation encounters unexpected data
+- [x] **Error handling**
+  - [x] Handle invalid time range formats gracefully
+  - [x] Handle missing config_lines entries (undefined array indices)
+  - [x] Handle edge cases in interval merging (empty arrays, single interval, etc.)
+  - [x] Add error logging if validation encounters unexpected data (handled via graceful skipping of invalid ranges)
+  - [ ] After completing the automatic safety overrides once config locking and blocking of manage and configure scripts are implemented, verify error handling is robust
 
-- [ ] **Performance considerations**
-  - [ ] Validation should complete quickly (< 1 second)
-  - [ ] Use efficient algorithms for interval merging (O(n log n) sort + O(n) merge)
-  - [ ] Avoid unnecessary calculations or loops
+- [x] **Performance considerations**
+  - [x] Validation should complete quickly (< 1 second)
+  - [x] Use efficient algorithms for interval merging (O(n log n) sort + O(n) merge)
+  - [x] Avoid unnecessary calculations or loops
 
-- [ ] **Technical documentation**
-  - [ ] Add section to `dev-docs/TECHNICAL_DETAILS.md` about 24/7 restriction prevention feature
-  - [ ] Document the validation algorithm and approach
-  - [ ] Explain how overnight ranges are handled in the validation
-  - [ ] Document the interval merging logic
-  - [ ] Explain the automatic safety feature disabling (config locking, configure.sh blocking, popup size restrictions)
-  - [ ] Document the popup size restriction logic (why only small/medium are allowed for > 9660 minutes)
-  - [ ] Include examples of valid vs invalid configurations
-  - [ ] Reference this enhancement document for detailed implementation notes
+- [x] **Technical documentation**
+  - [x] Add section to `dev-docs/TECHNICAL_DETAILS.md` about 24/7 restriction prevention feature
+  - [x] Document the validation algorithm and approach
+  - [x] Explain how overnight ranges are handled in the validation
+  - [x] Document the interval merging logic
+  - [x] Explain the automatic safety feature disabling (config locking, configure.sh blocking, popup size restrictions)
+  - [x] Document the popup size restriction logic (why only small/medium are allowed for > 9660 minutes)
+  - [x] Include examples of valid vs invalid configurations
+  - [x] Reference this enhancement document for detailed implementation notes
+  - [ ] After completing the automatic safety overrides once config locking and blocking of manage and configure scripts are implemented, update technical documentation
 
 ### Phase 6: User Documentation
-- [ ] **Update user documentation**
-  - [ ] Add note in `user-docs/CONFIGURATION.md` about 24/7 restriction prevention
-  - [ ] Explain why 24/7 restrictions are blocked
-  - [ ] Provide examples of valid vs invalid configurations
-  - [ ] Document the automatic safety feature disabling (config locking, configure.sh blocking, popup size restrictions)
-  - [ ] Explain popup size restrictions for high restriction levels (> 9660 minutes): only small/medium allowed
-  - [ ] Document rationale: prevents overly intrusive popups when user has very limited unrestricted time
+- [x] **Update user documentation**
+  - [x] Add note in `user-docs/CONFIGURATION.md` about 24/7 restriction prevention
+  - [x] Explain why 24/7 restrictions are blocked
+  - [x] Provide examples of valid vs invalid configurations
+  - [x] Document the automatic safety feature disabling (config locking, configure.sh blocking, popup size restrictions)
+  - [x] Explain popup size restrictions for high restriction levels (> 9660 minutes): only small/medium allowed
+  - [x] Document rationale: prevents overly intrusive popups when user has very limited unrestricted time
+  - [ ] After completing the automatic safety overrides once config locking and blocking of manage and configure scripts are implemented, update user documentation
 
-- [ ] **Update help text in configure modules**
-  - [ ] Add note in welcome message (`lib/configure-ui.sh`) about 24/7 restriction prevention
-  - [ ] Update help dialog (`lib/configure-ui.sh`) to mention this safety feature
-  - [ ] Add info message in popup size configuration menu (`lib/configure-input.sh`) when high restrictions are detected
+- [x] **Update help text in configure modules**
+  - [x] Add note in welcome message (`lib/configure-ui.sh`) about 24/7 restriction prevention
+  - [x] Update help dialog (`lib/configure-ui.sh`) to mention this safety feature
+  - [ ] Add info message in popup size configuration menu (`lib/configure-input.sh`) when high restrictions are detected (Note: Will be completed when Phase 3 automatic safety overrides are implemented)
 
 ### Phase 7: Integration Testing
 **⚠️ DO NOT RUN TESTS WITHOUT USER CONFIRMATION! ⚠️**
 
-- [ ] **Test with existing features - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
-  - [ ] Verify validation doesn't break existing configuration workflow
-  - [ ] Verify validation works with visual grid (option 5)
-  - [ ] Verify validation works with weekdays/weekends bulk configuration
-  - [ ] Verify validation works when loading existing config and modifying it
+- [X] **Test with existing features - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
+  - [X] Verify validation doesn't break existing configuration workflow
+  - [X] Verify validation works with visual grid (option 5)
+  - [X] Verify validation works with weekdays/weekends bulk configuration
+  - [X] Verify validation works when loading existing config and modifying it
 
 - [ ] **Test backward compatibility - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] Existing valid configs should still work

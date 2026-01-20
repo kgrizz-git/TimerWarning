@@ -35,8 +35,10 @@ show_info_dialog() {
     
     case "${tool}" in
         yad)
+            # Use --fixed to enforce dimensions (prevents YAD from auto-resizing based on text)
             yad --info --title="${title}" --text="${text}" \
                 --width="${width}" --height="${height}" \
+                --fixed \
                 --button="OK:0" 2>/dev/null
             ;;
         zenity)
@@ -58,18 +60,24 @@ show_question_dialog() {
     local text="$2"
     local ok_label="${3:-Yes}"
     local cancel_label="${4:-No}"
+    local width="${5:-600}"
+    local height="${6:-400}"
     
     local tool
     tool=$(get_dialog_tool)
     
     case "${tool}" in
         yad)
+            # Use --fixed to enforce dimensions (prevents YAD from auto-resizing based on text)
             yad --question --title="${title}" --text="${text}" \
+                --width="${width}" --height="${height}" \
+                --fixed \
                 --button="${ok_label}:0" --button="${cancel_label}:1" \
                 2>/dev/null
             ;;
         zenity)
             zenity --question --title="${title}" --text="${text}" \
+                --width="${width}" \
                 --ok-label="${ok_label}" --cancel-label="${cancel_label}" \
                 2>/dev/null
             ;;
@@ -174,8 +182,8 @@ show_entry_dialog() {
 show_list_dialog() {
     local title="$1"
     local text="$2"
-    local width="$3"
-    local height="$4"
+    local width="${3:-500}"
+    local height="${4:-350}"
     shift 4
     local items=("$@")
     
@@ -185,6 +193,7 @@ show_list_dialog() {
     case "${tool}" in
         yad)
             # YAD uses --list with column format
+            # Use --fixed to enforce dimensions (prevents YAD from auto-resizing based on text)
             # Convert items array to column format
             local yad_args=()
             for item in "${items[@]}"; do
@@ -193,6 +202,7 @@ show_list_dialog() {
             local result
             result=$(yad --list --title="${title}" --text="${text}" \
                 --width="${width}" --height="${height}" \
+                --fixed \
                 --column="Option" "${yad_args[@]}" \
                 --print-column=1 \
                 --separator="" \
@@ -214,6 +224,7 @@ show_list_dialog() {
             ;;
         kdialog)
             # KDialog uses --menu format: tag1 "item1" tag2 "item2"
+            # kdialog doesn't support size parameters - always auto-sizes
             local kdialog_args=()
             local tag=1
             for item in "${items[@]}"; do
@@ -246,8 +257,10 @@ show_text_info_dialog() {
     
     case "${tool}" in
         yad)
+            # Use --fixed to enforce dimensions (prevents YAD from auto-resizing based on text)
             echo "${text}" | yad --text-info --title="${title}" \
                 --width="${width}" --height="${height}" \
+                --fixed \
                 --button="Close:0" 2>/dev/null
             ;;
         zenity)
@@ -314,8 +327,10 @@ show_multi_column_list_dialog() {
         yad)
             # YAD uses same format as Zenity: --column flags + flat data array
             # YAD uses pipe (|) as default separator, so we need to handle it
+            # Use --fixed to enforce dimensions (prevents YAD from auto-resizing based on text)
             local yad_args=("--list" "--title=${title}" "--text=${text}" \
                 "--width=${width}" "--height=${height}" \
+                "--fixed" \
                 "--print-column=${print_column}" \
                 "--separator=")
             

@@ -92,6 +92,60 @@ TUESDAY=0-5       # Tuesday midnight → 4:59 AM
 
 Both ranges cover Tuesday midnight to 4:59 AM. This is harmless (only one warning will be shown during the overlap), but redundant. The configuration wizard will warn you about overlaps when you save your settings.
 
+**24/7 Restriction Prevention (Safety Feature)**:
+The configuration wizard includes a critical safety feature that prevents you from accidentally configuring restrictions for all 24 hours, 7 days a week, which would effectively lock you out of your computer.
+
+**How It Works**:
+- When you save your configuration, the system automatically checks the total restriction coverage across all 7 days
+- If you configure restrictions for **all 24 hours, 7 days a week** (10080 minutes total), the configuration will be **blocked** and you'll see an error message
+- If you configure restrictions for **more than 23 hours per day** (> 9660 minutes total), you'll see a **warning** and can choose to save anyway or modify your settings
+
+**Why This Matters**:
+- Configuring 24/7 restrictions would leave no unrestricted time to modify settings or use your computer
+- The system prevents this accidental lockout scenario
+- If you need very high restriction levels (> 23 hours/day), you can still save, but safety features will be automatically applied (see below)
+
+**Examples**:
+```
+# This configuration would be BLOCKED (24/7 restrictions):
+SUNDAY=0-12,12-0    # 24 hours
+MONDAY=0-12,12-0    # 24 hours
+TUESDAY=0-12,12-0   # 24 hours
+WEDNESDAY=0-12,12-0 # 24 hours
+THURSDAY=0-12,12-0  # 24 hours
+FRIDAY=0-12,12-0    # 24 hours
+SATURDAY=0-12,12-0  # 24 hours
+# Total: 10080 minutes (24 hours × 7 days) - BLOCKED
+
+# This configuration would show a WARNING (> 23 hours/day):
+SUNDAY=0-23         # 23 hours (00:00-22:59)
+MONDAY=0-23         # 23 hours
+TUESDAY=0-23        # 23 hours
+WEDNESDAY=0-23      # 23 hours
+THURSDAY=0-23       # 23 hours
+FRIDAY=0-23         # 23 hours
+SATURDAY=0-23,23-0  # 24 hours (0-23 + 23-0)
+# Total: 9661 minutes (> 23 hours/day) - WARNING shown
+
+# This configuration is VALID (<= 23 hours/day):
+SUNDAY=0-23         # 23 hours
+MONDAY=0-23         # 23 hours
+TUESDAY=0-23        # 23 hours
+WEDNESDAY=0-23      # 23 hours
+THURSDAY=0-23       # 23 hours
+FRIDAY=0-23         # 23 hours
+SATURDAY=0-23       # 23 hours
+# Total: 9660 minutes (exactly 23 hours/day) - VALID, no warning
+```
+
+**Automatic Safety Overrides** (when high restrictions are detected):
+If you configure restrictions for more than 23 hours per day and choose to save anyway, the system automatically applies safety measures:
+- **Popup size restriction**: Popup size is limited to "small" or "medium" only (prevents overly intrusive popups when you have very limited unrestricted time)
+- **Config locking disabled**: Config file locking features are automatically disabled (prevents locking yourself out during very limited unrestricted time)
+- **Transparency**: The config file includes comments explaining why these safety features are disabled
+
+**Note**: The validation correctly handles overlapping ranges (both within the same day and across day boundaries) to accurately calculate total restricted time. For example, if you have Monday "23-6" and Tuesday "0-5", the overlap at hours 0-5 is correctly detected and counted only once.
+
 **Combining Multiple and Overnight Ranges**:
 You can combine multiple ranges, including overnight ranges:
 ```

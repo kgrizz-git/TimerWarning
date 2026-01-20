@@ -246,8 +246,9 @@ show_visual_grid() {
             done
             
             # Add "Back to Menu" option
-            day_names+=("<<BACK>>")
-            time_ranges_list+=("Back to Main Menu")
+            # Note: Use plain text for display (YAD interprets << as Pango markup)
+            day_names+=("[Back]")
+            time_ranges_list+=("Return to Main Menu")
             
             # Build data array in alternating format for multi-column dialog
             # Format: col1_row1, col2_row1, col1_row2, col2_row2, ...
@@ -302,7 +303,7 @@ show_visual_grid() {
             selected_day=$(echo "${selected}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             
             # Check if "Back to Menu" was selected
-            if [ "${selected_day}" = "<<BACK>>" ]; then
+            if [ "${selected_day}" = "[Back]" ]; then
                 declare -g grid_result_var="BACK"
                 return 0
             fi
@@ -505,7 +506,9 @@ show_summary() {
             "Sleep Warning Configuration" \
             "${summary}" \
             "Yes, Save" \
-            "Cancel"
+            "Cancel" \
+            700 \
+            500
         return $?
     else
         echo ""

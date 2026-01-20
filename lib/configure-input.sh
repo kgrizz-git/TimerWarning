@@ -43,9 +43,7 @@ get_hour_zenity() {
     if ! [[ "${hour}" =~ ^[0-9]+$ ]] || [ "${hour}" -lt 0 ] || [ "${hour}" -gt 23 ]; then
         show_info_dialog \
             "Invalid Hour" \
-            "Invalid hour. Please enter a number between 0 and 23." \
-            400 \
-            150
+            "Invalid hour. Please enter a number between 0 and 23."
         echo ""
         return 1
     fi
@@ -89,31 +87,17 @@ get_popup_size_config() {
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
-            local size
-            local tmpfile
-            tmpfile=$(mktemp)
-            
             local size_result
             size_result=$(show_list_dialog \
                 "Sleep Warning Configuration" \
                 "Select popup size (current: ${default_size}):" \
                 500 \
-                350 \
+                300 \
                 "small" "medium" "large")
             local exit_code=$?
             
-            if [ ${exit_code} -eq 0 ] && [ -n "${size_result}" ]; then
-                size="${size_result}"
-            else
-                size=""
-            fi
-            local exit_code=$?
-            
-            size=$(cat "${tmpfile}" 2>/dev/null)
-            rm -f "${tmpfile}"
-            
             # User cancelled
-            if [ "${exit_code}" -ne 0 ] || [ -z "${size}" ]; then
+            if [ ${exit_code} -ne 0 ] || [ -z "${size_result}" ]; then
                 if confirm_cancel "${use_gui}"; then
                     echo "CANCELLED"
                     return 2  # Special return code for cancellation
@@ -122,7 +106,8 @@ get_popup_size_config() {
                 fi
             fi
             
-            echo "${size}"
+            # Valid selection
+            echo "${size_result}"
             return 0
         done
     else
@@ -184,9 +169,7 @@ get_min_display_time_config() {
             if ! [[ "${time}" =~ ^[0-9]+$ ]] || [ "${time}" -lt 0 ] || [ "${time}" -gt 300 ]; then
                 show_info_dialog \
                     "Invalid Time" \
-                    "Invalid time. Please enter a number between 0 and 300 seconds." \
-                    400 \
-                    150
+                    "Invalid time. Please enter a number between 0 and 300 seconds."
                 continue
             fi
             
@@ -238,8 +221,8 @@ get_popup_immovable_config() {
             immovable_result=$(show_list_dialog \
                 "Sleep Warning Configuration" \
                 "Prevent popup window from being moved during minimum display time?\n(Current: ${default_immovable})" \
-                500 \
-                250 \
+                600 \
+                300 \
                 "true" "false")
             local exit_code=$?
             
@@ -319,7 +302,7 @@ get_popup_position_config() {
                 "Sleep Warning Configuration" \
                 "Select popup position on screen:\n(Current: ${default_position})" \
                 500 \
-                200 \
+                300 \
                 "center" "top-left")
             local exit_code=$?
             
@@ -409,9 +392,7 @@ get_check_interval() {
             if ! [[ "${interval}" =~ ^[0-9]+$ ]] || [ "${interval}" -lt 1 ] || [ "${interval}" -gt 60 ]; then
                 show_info_dialog \
                     "Invalid Interval" \
-                    "Invalid interval. Please enter a number between 1 and 60 minutes." \
-                    400 \
-                    150
+                    "Invalid interval. Please enter a number between 1 and 60 minutes."
                 continue
             fi
             
@@ -495,8 +476,8 @@ get_day_hours() {
                 choice=$(show_list_dialog \
                     "What would you like to do?" \
                     "You cancelled or left ${day_name} empty. What would you like to do?" \
-                    350 \
-                    200 \
+                    500 \
+                    300 \
                     "${menu_options[@]}")
                 local menu_exit=$?
                 
@@ -552,8 +533,8 @@ get_day_hours() {
                 show_info_dialog \
                     "Invalid Format" \
                     "Invalid format. Use: START-END or START-END,START-END\n\nExamples:\n• 0-5 (midnight to 4:59 AM)\n• 0-5,22-23 (two periods)\n• 23-6 (11 PM to 5:59 AM, overnight)" \
-                    500 \
-                    250
+                    550 \
+                    280
                 continue
             fi
             
@@ -583,9 +564,7 @@ get_day_hours() {
             if [ "${valid}" = "false" ]; then
                 show_info_dialog \
                     "Invalid Hour Values" \
-                    "Invalid hour values. Hours must be 0-23, and start cannot equal end." \
-                    400 \
-                    150
+                    "Invalid hour values. Hours must be 0-23, and start cannot equal end."
                 continue
             fi
             
@@ -596,7 +575,9 @@ get_day_hours() {
                 "Confirm Time Range" \
                 "You entered: ${range_input}\n\nThis means:\n${preview}\n\nIs this correct?" \
                 "Yes" \
-                "No, Edit"; then
+                "No, Edit" \
+                600 \
+                350; then
                 echo "${range_input}"
                 return 0
             fi

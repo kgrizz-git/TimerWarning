@@ -113,19 +113,22 @@ show_warning() {
         interval_text="every ${check_interval} minutes"
     fi
     
-    # Add countdown message if minimum display time is set
-    local countdown_msg=""
-    if [ "${min_display_time}" -gt 0 ]; then
-        countdown_msg="\n\nThis popup must remain visible for ${min_display_time} seconds."
-    fi
-    
-    local message="⚠️  Late Night Usage Warning ⚠️
+    # Build base message (without countdown - countdown will be added dynamically)
+    local base_message="⚠️  Late Night Usage Warning ⚠️
 
 You are using your computer during restricted hours.
 
 It's recommended to get some rest. Consider taking a break or going to sleep.
 
-This warning will appear ${interval_text} while you continue using your computer during these hours.${countdown_msg}"
+This warning will appear ${interval_text} while you continue using your computer during these hours."
+    
+    # Add initial countdown message if minimum display time is set
+    local countdown_msg=""
+    if [ "${min_display_time}" -gt 0 ]; then
+        countdown_msg="\n\n⏱️  This popup must remain visible for ${min_display_time} more second(s) before it can be closed."
+    fi
+    
+    local message="${base_message}${countdown_msg}"
     
     # Check for window manager tools (needed for stay-on-top and minimum display time)
     local window_tool
@@ -154,22 +157,48 @@ This warning will appear ${interval_text} while you continue using your computer
             fi
             ;;
         yad)
-            # yad supports both size and position via --geometry
-            local geometry
-            geometry=$(calculate_popup_geometry "${popup_position}" "${width}" "${height}")
-            
-            yad --warning \
-                --title="${window_title}" \
-                --text="${message}" \
-                --modal \
-                --geometry="${geometry}" \
-                --on-top \
-                2>/dev/null &
-            popup_pid=$!
-            
-            # Also reposition as backup in case --geometry doesn't work properly (top-left only)
-            if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
-                reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
+            # yad supports both size and position via --geometry, --posx/--posy, or --center
+            # Use --fixed to enforce dimensions (prevents YAD from auto-resizing based on text)
+            # For center position, use --center flag (more reliable than geometry calculation)
+            # For top-left, use --posx and --posy flags (more reliable than --geometry)
+            if [ "${popup_position}" = "center" ]; then
+                # Use --center flag for proper centering
+                yad --warning \
+                    --title="${window_title}" \
+                    --text="${message}" \
+                    --modal \
+                    --width="${width}" \
+                    --height="${height}" \
+                    --center \
+                    --fixed \
+                    --on-top \
+                    2>/dev/null &
+                popup_pid=$!
+            else
+                # For top-left or other positions, calculate coordinates and use --posx/--posy
+                local coords
+                coords=$(calculate_popup_geometry "${popup_position}" "${width}" "${height}" "true")
+                local pos_x pos_y
+                pos_x=$(echo "${coords}" | cut -d' ' -f1)
+                pos_y=$(echo "${coords}" | cut -d' ' -f2)
+                
+                yad --warning \
+                    --title="${window_title}" \
+                    --text="${message}" \
+                    --modal \
+                    --width="${width}" \
+                    --height="${height}" \
+                    --posx="${pos_x}" \
+                    --posy="${pos_y}" \
+                    --fixed \
+                    --on-top \
+                    2>/dev/null &
+                popup_pid=$!
+                
+                # Also reposition as backup in case --posx/--posy doesn't work properly (top-left only)
+                if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
+                    reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
+                fi
             fi
             ;;
         kdialog)
@@ -223,6 +252,102 @@ This warning will appear ${interval_text} while you continue using your computer
         keep_window_on_top_periodic "${window_title}" "${window_tool}" "${popup_pid}" "${on_top_duration}" &
     fi
     
+    # Function to update popup with current countdown
+    # This function closes and reopens the popup with updated countdown text
+    update_popup_countdown() {
+        local remaining_seconds=$1
+        
+        # Build updated message with countdown
+        local countdown_msg="\n\n⏱️  This popup must remain visible for ${remaining_seconds} more second(s) before it can be closed."
+        local updated_message="${base_message}${countdown_msg}"
+        
+        # Kill existing popup if still running
+        if kill -0 "${popup_pid}" 2>/dev/null; then
+            kill "${popup_pid}" 2>/dev/null
+            wait "${popup_pid}" 2>/dev/null
+        fi
+        
+        # Reopen popup with updated message
+        case "${dialog_tool}" in
+            zenity)
+                zenity --warning \
+                    --title="${window_title}" \
+                    --text="${updated_message}" \
+                    --modal \
+                    --width="${width}" \
+                    --height="${height}" \
+                    2>/dev/null &
+                popup_pid=$!
+                
+                # Reposition if needed (top-left only)
+                if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
+                    reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
+                fi
+                ;;
+            yad)
+                # Use same positioning approach as initial popup
+                if [ "${popup_position}" = "center" ]; then
+                    # Use --center flag for proper centering
+                    yad --warning \
+                        --title="${window_title}" \
+                        --text="${updated_message}" \
+                        --modal \
+                        --width="${width}" \
+                        --height="${height}" \
+                        --center \
+                        --fixed \
+                        --on-top \
+                        2>/dev/null &
+                    popup_pid=$!
+                else
+                    # For top-left or other positions, calculate coordinates and use --posx/--posy
+                    local coords
+                    coords=$(calculate_popup_geometry "${popup_position}" "${width}" "${height}" "true")
+                    local pos_x pos_y
+                    pos_x=$(echo "${coords}" | cut -d' ' -f1)
+                    pos_y=$(echo "${coords}" | cut -d' ' -f2)
+                    
+                    yad --warning \
+                        --title="${window_title}" \
+                        --text="${updated_message}" \
+                        --modal \
+                        --width="${width}" \
+                        --height="${height}" \
+                        --posx="${pos_x}" \
+                        --posy="${pos_y}" \
+                        --fixed \
+                        --on-top \
+                        2>/dev/null &
+                    popup_pid=$!
+                    
+                    # Reposition as backup (top-left only)
+                    if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
+                        reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
+                    fi
+                fi
+                ;;
+            kdialog)
+                kdialog --title "${window_title}" \
+                    --sorry "${updated_message}" \
+                    2>/dev/null &
+                popup_pid=$!
+                
+                # Reposition if needed (top-left only)
+                if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
+                    reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
+                fi
+                ;;
+        esac
+        
+        # Re-apply window restrictions and keep on top
+        if [ -n "${window_tool}" ]; then
+            sleep 0.3
+            make_window_unclosable "${window_title}" "${window_tool}" "${remaining_seconds}"
+            keep_window_on_top "${window_title}" "${window_tool}"
+            keep_window_on_top_periodic "${window_title}" "${window_tool}" "${popup_pid}" "${remaining_seconds}" &
+        fi
+    }
+    
     # If minimum display time is set, enforce it
     if [ "${min_display_time}" -gt 0 ] && [ -n "${popup_pid}" ]; then
         # Try to make window unclosable if window tools are available
@@ -241,65 +366,11 @@ This warning will appear ${interval_text} while you continue using your computer
             
             # Check if popup is still running
             if ! kill -0 "${popup_pid}" 2>/dev/null; then
-                # Popup was closed prematurely, reopen it with updated countdown
-                local countdown_msg="\n\n⏱️  This popup must remain visible for ${remaining} more second(s) before it can be closed."
-                local updated_message="${message%${countdown_msg}*}${countdown_msg}"
-                
-                case "${dialog_tool}" in
-                    zenity)
-                        zenity --warning \
-                            --title="${window_title}" \
-                            --text="${updated_message}" \
-                            --modal \
-                            --width="${width}" \
-                            --height="${height}" \
-                            2>/dev/null &
-                        popup_pid=$!
-                        
-                        # Reposition if needed (top-left only)
-                        if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
-                            reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
-                        fi
-                        ;;
-                    yad)
-                        local geometry
-                        geometry=$(calculate_popup_geometry "${popup_position}" "${width}" "${height}")
-                        yad --warning \
-                            --title="${window_title}" \
-                            --text="${updated_message}" \
-                            --modal \
-                            --geometry="${geometry}" \
-                            --on-top \
-                            2>/dev/null &
-                        popup_pid=$!
-                        
-                        # Reposition as backup (top-left only)
-                        if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
-                            reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
-                        fi
-                        ;;
-                    kdialog)
-                        kdialog --title "${window_title}" \
-                            --sorry "${updated_message}" \
-                            2>/dev/null &
-                        popup_pid=$!
-                        
-                        # Reposition if needed (top-left only)
-                        if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
-                            reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
-                        fi
-                        ;;
-                esac
-                
-                # Re-apply window restrictions and keep on top
-                if [ -n "${window_tool}" ]; then
-                    sleep 0.5
-                    make_window_unclosable "${window_title}" "${window_tool}" "${remaining}"
-                    # Also ensure it stays on top
-                    keep_window_on_top "${window_title}" "${window_tool}"
-                    # Restart periodic on-top enforcement for remaining time
-                    keep_window_on_top_periodic "${window_title}" "${window_tool}" "${popup_pid}" "${remaining}" &
-                fi
+                # Popup was closed prematurely, reopen it with updated countdown immediately
+                update_popup_countdown "${remaining}"
+            elif [ $((elapsed % 5)) -eq 0 ] && [ "${elapsed}" -gt 0 ]; then
+                # Update countdown every 5 seconds (at 5, 10, 15, etc.)
+                update_popup_countdown "${remaining}"
             fi
         done
         

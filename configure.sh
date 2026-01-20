@@ -36,6 +36,7 @@ source "${LIB_DIR}/display-detection.sh" || exit 1
 source "${LIB_DIR}/desktop-environment.sh" || exit 1
 source "${LIB_DIR}/configure-dialogs.sh" || exit 1
 source "${LIB_DIR}/configure-config.sh" || exit 1
+source "${LIB_DIR}/configure-validation.sh" || exit 1
 source "${LIB_DIR}/configure-time.sh" || exit 1
 source "${LIB_DIR}/configure-ui.sh" || exit 1
 source "${LIB_DIR}/configure-input.sh" || exit 1
@@ -233,7 +234,32 @@ main() {
                 # Review and Save
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
                 if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}"; then
-                    # Write configuration
+                    # Validate restriction coverage before saving
+                    local validation_result
+                    validation_result=$(check_restriction_coverage "${config_lines[@]}")
+                    
+                    case "${validation_result}" in
+                        "block")
+                            # 24/7 restrictions detected - show error and block saving
+                            show_24_7_error "${use_gui}"
+                            continue  # Return to menu, don't call write_config
+                            ;;
+                        "warn")
+                            # High restrictions detected - show warning and get confirmation
+                            if ! show_high_restriction_warning "${use_gui}"; then
+                                # User cancelled - return to menu
+                                continue
+                            fi
+                            # User confirmed - apply safety overrides before saving
+                            if [ "${popup_size}" = "large" ] || [ "${popup_size}" = "fullscreen" ]; then
+                                popup_size="medium"
+                            fi
+                            # Future: disable CONFIG_LOCK_ENABLED, CONFIGURE_BLOCK_ENABLED if implemented
+                            ;;
+                        # "ok" - proceed normally with saving
+                    esac
+                    
+                    # Write configuration (with possibly modified popup_size after safety overrides)
                     if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${config_lines[@]}"; then
                         # Update timer file if it exists
                         if [ -f "${TIMER_FILE}" ]; then
@@ -242,7 +268,7 @@ main() {
                             else
                                 local warning_msg="Configuration saved, but failed to update timer file.\n\nYou may need to manually update:\n${TIMER_FILE}\n\nThen run:\nsystemctl --user daemon-reload\nsystemctl --user restart ${SERVICE_NAME}.timer"
                                 if [ "${use_gui}" = "true" ] && has_dialog_tool; then
-                                    show_info_dialog "Warning" "${warning_msg}" 500 200
+                                    show_info_dialog "Warning" "${warning_msg}" 600 300
                                 else
                                     echo "${warning_msg}" >&2
                                 fi
@@ -254,7 +280,7 @@ main() {
                     else
                         local error_msg="Error: Failed to write configuration file.\n\nPlease check permissions for:\n${CONFIG_DIR}"
                         if [ "${use_gui}" = "true" ] && has_dialog_tool; then
-                            show_info_dialog "Error" "${error_msg}" 500 200
+                            show_info_dialog "Error" "${error_msg}" 600 250
                         else
                             echo "${error_msg}" >&2
                         fi

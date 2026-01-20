@@ -229,9 +229,11 @@ The `configure.sh` script provides a user-friendly way to set up restricted hour
 
 3. **Validation**:
    - Ensure hours are in range 0-23
-   - Ensure start hour < end hour
+   - Ensure start hour < end hour (for normal ranges)
+   - Validate overnight ranges (start > end)
    - Provide clear error messages for invalid input
    - Allow user to correct mistakes
+   - **24/7 Restriction Prevention**: Validates total restriction coverage to prevent accidental lockout (see section below)
 
 4. **Config File Writing**:
    - Write in the day-based format: `DAY=START_HOUR-END_HOUR`
@@ -255,6 +257,127 @@ The `configure.sh` script provides a user-friendly way to set up restricted hour
 8. Show summary: "Your configuration: Monday-Friday: 0-5, Saturday-Sunday: 1-5"
 9. Confirm: "Save this configuration? (Yes/No)"
 10. Write to config file
+
+## 24/7 Restriction Prevention
+
+The configuration wizard includes a critical safety feature that prevents users from accidentally configuring restrictions for all 24 hours, 7 days a week, which would effectively lock them out of their computer.
+
+### Overview
+
+**Purpose**: Detect and prevent dangerous restriction configurations that would leave no unrestricted time for the user to modify settings or use their computer.
+
+**Implementation**: Validation runs automatically when the user attempts to save their configuration (in `configure.sh`, case 6: "Review and Save"), after the summary is confirmed but before writing to the config file.
+
+### Validation Algorithm
+
+The validation uses a **holistic time coverage analysis** that evaluates all 7 days together:
+
+1. **Unified Timeline Mapping**: All time ranges are converted to a unified weekly timeline (minutes 0-10079)
+   - Day 0 (Sunday): minutes 0-1439
+   - Day 1 (Monday): minutes 1440-2879
+   - Day 2 (Tuesday): minutes 2880-4319
+   - Day 3 (Wednesday): minutes 4320-5759
+   - Day 4 (Thursday): minutes 5760-7199
+   - Day 5 (Friday): minutes 7200-8639
+   - Day 6 (Saturday): minutes 8640-10079
+
+2. **Overnight Range Handling**: Overnight ranges (start hour > end hour, e.g., "23-6") are split into two segments:
+   - Segment 1: [start_hour×60, 1440) on current day
+   - Segment 2: [0, end_hour×60) on next day
+   - Handles wrap-around: Saturday overnight ranges wrap to Sunday
+
+3. **Overlap Detection and Merging**: **Critical** - The system detects and merges overlapping intervals:
+   - **Within-day overlaps**: Multiple ranges on the same day (e.g., "0-10,9-23" overlaps at hours 9-10)
+   - **Cross-day overlaps**: Overnight ranges overlapping with next day's ranges (e.g., Monday "23-6" and Tuesday "0-5" overlap at hours 0-5)
+   - All overlapping intervals are merged to avoid double-counting restricted minutes
+
+4. **Total Calculation**: After merging, total restricted minutes are calculated from all merged intervals
+
+5. **Threshold Comparison**: Total is compared against two thresholds:
+   - **THRESHOLD_BLOCK = 10080 minutes** (7 days × 24 hours × 60 minutes)
+     - If total >= 10080: Configuration is **blocked** (24/7 detected)
+   - **THRESHOLD_WARN = 9660 minutes** (7 days × 23 hours × 60 minutes)
+     - If total > 9660 but < 10080: **Warning** shown (high restriction level)
+     - If total <= 9660: Configuration is **valid** (proceeds normally)
+
+### Time Range Semantics
+
+**Important**: Hour ranges use **inclusive start, exclusive end** semantics:
+- "0-23" covers hours 0-22 (23 hours total: 00:00-22:59)
+- "0-5" covers hours 0-4 (5 hours total: 00:00-04:59)
+- To cover all 24 hours, use combination like "0-12,12-0" (12 hours + 12 hours = 24 hours)
+
+### Validation Results
+
+The validation function (`check_restriction_coverage()` in `lib/configure-validation.sh`) returns one of three results:
+
+1. **"block"** (24/7 detected, >= 10080 minutes):
+   - Error dialog shown: "ERROR: 24/7 Restrictions Detected"
+   - Configuration is **blocked from saving**
+   - User must modify settings to reduce restriction level
+   - Prevents accidental lockout
+
+2. **"warn"** (High restriction level, > 9660 but < 10080 minutes):
+   - Warning dialog shown: "Warning: Very High Restriction Level"
+   - User can confirm to save anyway or modify settings
+   - **Automatic safety overrides applied** if user confirms:
+     - Popup size restricted to "small" or "medium" only (if "large" or "fullscreen" was selected)
+     - Config locking features automatically disabled (if implemented)
+     - Configure.sh blocking automatically disabled (if implemented)
+   - Config file includes comments explaining why safety features are disabled
+
+3. **"ok"** (Valid configuration, <= 9660 minutes):
+   - Configuration proceeds normally
+   - No warnings or restrictions
+
+### Implementation Details
+
+**Module**: `lib/configure-validation.sh`
+- `check_restriction_coverage()`: Main validation function
+- `merge_overlapping_intervals()`: Interval merging algorithm
+
+**Integration**: Validation is called in `configure.sh` (case 6: "Review and Save") after `show_summary()` confirms but before `write_config()` is called.
+
+**Dialog Functions**: Error and warning dialogs are in `lib/configure-ui.sh`:
+- `show_24_7_error()`: Error dialog for 24/7 restrictions
+- `show_high_restriction_warning()`: Warning dialog for high restriction levels
+
+**Performance**: 
+- Time complexity: O(n log n) where n = total number of time ranges
+- Runs once per configuration save (not continuously)
+- Minimal memory and CPU overhead
+
+### Edge Cases Handled
+
+- **Empty days**: Counted as 0 restricted minutes
+- **Explicitly skipped days**: Days with empty string "" are counted as 0 restricted minutes
+- **Multiple ranges per day**: All ranges are processed and merged correctly
+- **Overnight ranges**: Correctly split and mapped to unified timeline
+- **Week wrap-around**: Saturday overnight ranges correctly wrap to Sunday
+- **Boundary cases**: 
+  - Exactly 9660 minutes (23 hours/day): returns "ok" (no warning)
+  - Exactly 10080 minutes (24/7): returns "block" (prevents saving)
+- **Invalid ranges**: Skipped silently (should be caught by format validation first)
+
+### Safety Features
+
+When high restrictions (> 9660 minutes) are detected and user confirms:
+- **Popup size restriction**: Automatically limits popup size to "small" or "medium" only
+  - Prevents overly intrusive popups when user has very limited unrestricted time
+  - Config file comment explains: "POPUP_SIZE has been restricted to small/medium only because restrictions exceed 23 hours/day"
+- **Config locking disabled**: Automatically disables config file locking features (if implemented)
+  - Prevents users from locking themselves out during very limited unrestricted time
+  - Config file comment explains: "CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because restrictions exceed 23 hours/day"
+- **Transparency**: Config file comments clearly explain why safety features are disabled
+
+### Related Enhancements
+
+- **Enhancement #18 (Config File Locking)**: Automatically disabled if restrictions > 9660 minutes
+- **Enhancement #19 (Prevent configure.sh Execution)**: Automatically disabled if restrictions > 9660 minutes
+- **Enhancement #20 (Additional Hours for Config Locking)**: Automatically cleared if restrictions > 9660 minutes
+- **Enhancement #03 (Enhanced Window Size Options)**: Popup size automatically restricted to small/medium only if restrictions > 9660 minutes
+
+For detailed implementation notes, see [enhancements/enhancement-22-prevent-24-7-restriction-configuration.md](enhancements/enhancement-22-prevent-24-7-restriction-configuration.md).
 
 ## Management/Help Script Details
 
