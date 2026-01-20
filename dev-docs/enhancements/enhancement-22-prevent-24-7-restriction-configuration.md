@@ -1,6 +1,6 @@
 # Enhancement 22: Prevent 24/7 Restriction Configuration
 
-- **Description**: Add validation in `configure.sh` to detect and prevent users from configuring restricted hours that cover 24 hours a day, 7 days a week (or close to it). This prevents users from accidentally locking themselves out of their computer. The validation must evaluate the entire configuration holistically (not just individual days) to account for overnight time ranges that span multiple days. **Critical**: When counting restricted minutes, the system must detect and merge overlapping intervals both within the same day (e.g., "0-10,9-23" overlaps at hour 9) and across day boundaries due to overnight ranges (e.g., Monday "23-6" and Tuesday "0-5" overlap). If 24/7 restrictions (>= 10080 minutes) are detected, show a prominent error dialog and block saving. If restrictions exceed 9660 minutes (23 hours/day), show a warning dialog and allow user to confirm or modify. Automatically disable config file locking (if implemented) and ensure configure.sh is not blocked during restricted hours.
+- **Description**: Add validation in `configure.sh` to detect and prevent users from configuring restricted hours that cover 24 hours a day, 7 days a week (or close to it). This prevents users from accidentally locking themselves out of their computer. The validation must evaluate the entire configuration holistically (not just individual days) to account for overnight time ranges that span multiple days. **Critical**: When counting restricted minutes, the system must detect and merge overlapping intervals both within the same day (e.g., "0-10,9-23" overlaps at hour 9) and across day boundaries due to overnight ranges (e.g., Monday "23-6" and Tuesday "0-5" overlap). Overnight ranges are identified when start hour > end hour (e.g., "23-6" spans midnight). If 24/7 restrictions (>= 10080 minutes) are detected, show a prominent error dialog and block saving. If restrictions exceed 9660 minutes (23 hours/day but < 10080), show a warning dialog, apply automatic safety overrides (disable config locking, configure.sh blocking, and restrict popup window sizes to "small" and "medium" only), and allow user to confirm or modify. Note: Hour ranges are inclusive of start hour, exclusive of end hour (e.g., "0-23" covers hours 0-22 = 23 hours total; "0-12,12-0" covers all 24 hours).
 - **Files Affected**: `configure.sh`, `sleep-warning.sh`, `sleep-warning.conf`
 - **Priority**: High (critical safety feature to prevent accidental lockout)
 - **Status**: Not implemented
@@ -23,12 +23,17 @@
     - Ensure `CONFIGURE_BLOCK_ENABLED=false` (if configure.sh blocking is implemented)
     - Provide clear explanation of why 24/7 restrictions are problematic
 - **Implementation Notes**:
+  - **Time Range Format**:
+    - Hour ranges are inclusive of start hour, exclusive of end hour (following sleep-warning.sh logic at lines 1256)
+    - Example: "0-23" covers hours 0 through 22 (23 hours total: 00:00-22:59)
+    - Example: "0-5" covers hours 0 through 4 (5 hours total: 00:00-04:59)
+    - To cover all 24 hours, use combination like "0-12,12-0" (12 hours + 12 hours = 24 hours)
   - **Time Range Calculation**:
-    - For each day, parse time ranges (e.g., "22:00-06:00", "14:00-16:00")
-    - Convert to minutes since start of day (e.g., 22:00 = 1320 minutes, 06:00 = 360 minutes)
-    - For overnight ranges (end < start), split into two segments:
-      - Segment 1: start time to end of day (23:59)
-      - Segment 2: start of day (00:00) to end time
+    - For each day, parse time ranges (e.g., "22-6", "14-16")
+    - Convert to minutes since start of day (e.g., hour 22 = 1320 minutes, hour 6 = 360 minutes)
+    - For overnight ranges (start > end), split into two segments:
+      - Segment 1: start hour to end of day (hour 23:59)
+      - Segment 2: start of day (hour 00:00) to (end hour - 1):59
     - Map each segment to a unified weekly timeline (day 0-6, minutes 0-10079)
   - **Coverage Calculation**:
     - Create array or set of all restricted minute intervals for the week
@@ -49,7 +54,7 @@
       for each day (Mon-Sun):
         day_intervals = []
         for each time_range in day:
-          if time_range is overnight (end < start):
+          if time_range is overnight (start > end):
             # Split overnight range into two segments
             add interval [start, 23:59] for current day to day_intervals
             add interval [00:00, end] for next day to restricted_intervals (map to next day)
@@ -79,7 +84,7 @@
       - "You have configured restrictions for all 24 hours, 7 days a week."
       - "This would effectively lock you out of your computer."
       - "Please modify your settings to leave at least some unrestricted time."
-      - "Config file locking and configure.sh blocking have been automatically disabled for your safety."
+      - "Configuration cannot be saved until you reduce the restriction level."
     - Dialog should be modal and require user acknowledgment
     - After acknowledgment, return to configuration (don't save, block write_config())
   
@@ -90,19 +95,22 @@
       - "You have configured restrictions for more than 23 hours per day, 7 days a week."
       - "This leaves very little unrestricted time and may effectively lock you out."
       - "Are you sure you want to save this configuration?"
-      - "Config file locking and configure.sh blocking have been automatically disabled for your safety."
+      - "Config file locking, configure.sh blocking, and large popup window sizes have been automatically disabled for your safety."
     - Dialog should offer two options:
       - "Yes, Save Anyway" - proceed with saving (user acknowledges risk)
       - "No, Modify Settings" - return to configuration menu
     - If user confirms, allow saving but log the high restriction level
   - **Automatic Safety Overrides**:
-    - When restrictions >= 10080 minutes (24/7) OR > 9660 minutes (23 hours/day) detected, automatically set in configuration:
+    - When restrictions >= 10080 minutes (24/7) detected: configuration is BLOCKED (not saved), error dialog shown
+    - When restrictions > 9660 minutes but < 10080 minutes (> 23 hours/day) detected, automatically set in configuration before writing:
       - `CONFIG_LOCK_ENABLED=false` (prevents config file locking)
       - `CONFIGURE_BLOCK_ENABLED=false` (prevents configure.sh blocking)
+      - Restrict popup window size to "small" or "medium" only (if user had "large" or "fullscreen" selected, automatically change to "medium")
     - These overrides should be applied even if user previously enabled them
     - Add comment in config file explaining why these are disabled:
-      - For 24/7: "# CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because 24/7 restrictions were detected."
-      - For > 9660: "# CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because restrictions exceed 23 hours/day."
+      - For 24/7 (>= 10080): "# CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because 24/7 restrictions were detected. This prevents accidental lockout."
+      - For > 9660 (but < 10080): "# CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because restrictions exceed 23 hours/day. This prevents accidental lockout."
+      - For > 9660: "# POPUP_SIZE has been restricted to small/medium only because restrictions exceed 23 hours/day. This prevents overly intrusive popups."
   - **Edge Cases**:
     - **Overnight Ranges**: Must correctly handle ranges like "22:00-06:00" that span midnight
     - **Overlapping Ranges**: Must merge overlapping intervals correctly (e.g., "22:00-06:00" and "05:00-07:00")
@@ -130,9 +138,10 @@
 - **User Experience Considerations**:
   - **Clear Warning**: Error dialog should be prominent and clearly explain the problem
   - **Helpful Guidance**: Suggest that users need at least some unrestricted time
-  - **Automatic Protection**: Automatically disabling config locking and configure.sh blocking provides safety net
+  - **Automatic Protection**: Automatically disabling config locking, configure.sh blocking, and large popup sizes provides safety net
   - **Non-Blocking**: User can still modify configuration after seeing warning (just can't save 24/7 config)
   - **Transparency**: Config file comment explains why safety features are disabled
+  - **Less Intrusive Popups**: Restricting popup sizes to small/medium prevents overly intrusive warnings when user has very limited unrestricted time
 - **Edge Cases**:
   - **System Time Changes**: Not applicable (validation is based on configuration, not system time)
   - **System Sleep/Resume**: Not applicable (validation runs during configuration, not during runtime)
@@ -143,6 +152,7 @@
   - **Enhancement 18 (Config File Locking)**: This enhancement automatically disables config file locking if 24/7 restrictions are detected
   - **Enhancement 19 (Prevent configure.sh Execution)**: This enhancement automatically disables configure.sh blocking if 24/7 restrictions are detected
   - **Enhancement 20 (Additional Hours for Config Locking)**: Should also be disabled if 24/7 restrictions are detected
+  - **Enhancement 03 (Enhanced Window Size Options)**: This enhancement restricts popup window sizes to small/medium only when restrictions > 9660 minutes
   - **Safety Feature**: Complements other safety features by preventing the most dangerous configuration scenario
 
 ## Implementation Checklist
@@ -218,7 +228,7 @@
     - [ ] "You have configured restrictions for all 24 hours, 7 days a week."
     - [ ] "This would effectively lock you out of your computer."
     - [ ] "Please modify your settings to leave at least some unrestricted time."
-    - [ ] "Config file locking and configure.sh blocking have been automatically disabled for your safety."
+    - [ ] "Configuration cannot be saved until you reduce the restriction level."
   - [ ] Dialog is modal and requires user acknowledgment
   - [ ] After acknowledgment, return to configuration menu (don't save)
 
@@ -231,7 +241,7 @@
     - [ ] "You have configured restrictions for more than 23 hours per day, 7 days a week."
     - [ ] "This leaves very little unrestricted time and may effectively lock you out."
     - [ ] "Are you sure you want to save this configuration?"
-    - [ ] "Config file locking and configure.sh blocking have been automatically disabled for your safety."
+    - [ ] "Config file locking, configure.sh blocking, and large popup window sizes have been automatically disabled for your safety."
   - [ ] Dialog offers two options:
     - [ ] "Yes, Save Anyway" - proceed with saving (user acknowledges risk)
     - [ ] "No, Modify Settings" - return to configuration menu
@@ -253,14 +263,28 @@
 
 ### Phase 3: Automatic Safety Overrides
 - [ ] **Disable config locking features when high restrictions detected**
-  - [ ] When restrictions >= 10080 minutes (24/7) OR > 9660 minutes (23 hours/day) detected, automatically set in memory (before write):
+  - [ ] When restrictions >= 10080 minutes (24/7) detected:
+    - [ ] Configuration is BLOCKED from being saved (validation returns "block")
+    - [ ] Error dialog is shown (no config file is written)
+  - [ ] When restrictions > 9660 minutes but < 10080 minutes (> 23 hours/day) detected, automatically set in memory (before write):
     - [ ] `CONFIG_LOCK_ENABLED=false` (if enhancement #18 is implemented)
     - [ ] `CONFIGURE_BLOCK_ENABLED=false` (if enhancement #19 is implemented)
     - [ ] `CONFIG_LOCK_ADDITIONAL_HOURS=""` (if enhancement #20 is implemented)
   - [ ] These overrides apply even if user previously enabled them
   - [ ] Add comment in config file explaining why these are disabled:
-    - [ ] For 24/7 (>= 10080): "# CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because 24/7 restrictions were detected. This prevents accidental lockout."
-    - [ ] For > 9660: "# CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because restrictions exceed 23 hours/day. This prevents accidental lockout."
+    - [ ] For > 9660 (but < 10080): "# CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because restrictions exceed 23 hours/day. This prevents accidental lockout."
+
+- [ ] **Restrict popup window size when high restrictions detected**
+  - [ ] When restrictions > 9660 minutes (> 23 hours/day) detected, automatically restrict popup window size:
+    - [ ] If `POPUP_SIZE` is currently set to "large" or "fullscreen", change it to "medium"
+    - [ ] Only allow "small" or "medium" options for popup size
+    - [ ] This prevents excessively intrusive popups when user has very limited unrestricted time
+  - [ ] Add comment in config file explaining the popup size restriction:
+    - [ ] "# POPUP_SIZE has been restricted to small/medium only because restrictions exceed 23 hours/day. This prevents overly intrusive popups."
+  - [ ] If user later reduces restrictions to <= 9660 minutes, they can manually re-enable large/fullscreen if desired
+  - [ ] In configure.sh popup size configuration:
+    - [ ] During configuration, if high restrictions (> 9660) are present, only show "small" and "medium" options
+    - [ ] Show info message explaining: "Due to high restriction level (> 23 hours/day), only small and medium popup sizes are available for safety."
 
 - [ ] **Handle conditional implementation**
   - [ ] Check if config locking features exist before trying to disable them
@@ -268,7 +292,10 @@
   - [ ] If features don't exist yet, validation still works (just skip override step)
 
 ### Phase 4: Testing
-- [ ] **Test normal configurations (validation should pass, allow saving)**
+**⚠️ IMPORTANT: DO NOT RUN ANY TESTS FROM THIS ENHANCEMENT WITHOUT EXPLICIT USER CONFIRMATION! ⚠️**
+**These tests modify system configuration and could impact computer access. Always confirm with user before running any tests.**
+
+- [ ] **Test normal configurations (validation should pass, allow saving) - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] **Note**: "should pass" means the validation should allow the configuration to be saved (no 24/7 detected, write_config() succeeds)
   - [ ] Test with no restrictions (all days empty)
   - [ ] Test with partial restrictions (e.g., only weekdays 0-5)
@@ -290,7 +317,7 @@
   - [ ] Test with exactly 10080 minutes (24/7) - validation should detect and block
   - [ ] Test with 10079 minutes (not 24/7) - validation should pass, allow saving
 
-- [ ] **Test high restriction level (> 9660 minutes, > 23 hours/day) - should warn**
+- [ ] **Test high restriction level (> 9660 minutes, > 23 hours/day) - should warn - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] **Note**: "should warn" means validation should show warning dialog, but allow user to confirm and save
   - [ ] Test with exactly 9661 minutes (just over 23 hours/day) - validation should show warning, allow confirmation
   - [ ] Test with all days set to "0-23" plus one day with additional hour (e.g., Monday "0-23,23-0") - should warn
@@ -303,7 +330,7 @@
     - [ ] User confirms warning → configuration saves successfully
     - [ ] User cancels warning → returns to configuration menu, no save
 
-- [ ] **Test edge cases**
+- [ ] **Test edge cases - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] Test overnight range on Saturday (23-6) that wraps to Sunday
   - [ ] Test multiple overlapping ranges that merge to 24/7
   - [ ] Test empty days mixed with 24-hour restricted days
@@ -317,14 +344,14 @@
     - [ ] Monday "23-6" and Tuesday "0-5" (overlap at hours 0-5, should merge correctly)
     - [ ] Saturday "23-6" and Sunday "0-5" (wrap-around overlap, should merge correctly)
 
-- [ ] **Test error dialog (24/7 detected)**
+- [ ] **Test error dialog (24/7 detected) - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] Test in GUI mode (zenity)
   - [ ] Test in text mode
   - [ ] Verify dialog is modal and blocks saving
   - [ ] Verify user can return to configuration after seeing error
   - [ ] Verify config file is NOT written when validation blocks
 
-- [ ] **Test warning dialog (> 9660 minutes)**
+- [ ] **Test warning dialog (> 9660 minutes) - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] Test in GUI mode (zenity)
   - [ ] Test in text mode
   - [ ] Verify dialog offers "Yes, Save Anyway" and "No, Modify Settings" options
@@ -332,7 +359,7 @@
   - [ ] Verify "No, Modify Settings" returns to configuration menu without saving
   - [ ] Verify config file is written only if user confirms
 
-- [ ] **Test integration with config locking features (if implemented)**
+- [ ] **Test integration with config locking features (if implemented) - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] Test with 24/7 restrictions (>= 10080 minutes):
     - [ ] If enhancement #18 is implemented, verify CONFIG_LOCK_ENABLED is set to false
     - [ ] If enhancement #19 is implemented, verify CONFIGURE_BLOCK_ENABLED is set to false
@@ -347,18 +374,36 @@
     - [ ] Verify config locking features are NOT automatically disabled
     - [ ] User can still enable/disable config locking features normally
 
-- [ ] **Test user workflow**
+- [ ] **Test popup window size restrictions (if implemented) - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
+  - [ ] Test with high restrictions (> 9660 minutes):
+    - [ ] Configure restrictions > 9660 minutes with POPUP_SIZE set to "large"
+    - [ ] Verify POPUP_SIZE is automatically changed to "medium" after validation
+    - [ ] Verify config file comment explains popup size restriction
+    - [ ] Configure restrictions > 9660 minutes with POPUP_SIZE set to "fullscreen"
+    - [ ] Verify POPUP_SIZE is automatically changed to "medium" after validation
+    - [ ] Configure restrictions > 9660 minutes with POPUP_SIZE already set to "small" or "medium"
+    - [ ] Verify POPUP_SIZE is NOT changed (already compliant)
+  - [ ] Test with normal restrictions (<= 9660 minutes):
+    - [ ] Verify POPUP_SIZE is NOT automatically restricted
+    - [ ] User can select "large" or "fullscreen" options normally
+  - [ ] Test popup size configuration menu with high restrictions:
+    - [ ] During configure.sh, if restrictions > 9660 detected, verify only "small" and "medium" options are shown
+    - [ ] Verify info message explaining popup size restriction is displayed
+  - [ ] Test popup size configuration menu with normal restrictions:
+    - [ ] Verify all four options (small, medium, large, fullscreen) are available
+
+- [ ] **Test user workflow - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] User configures 24/7 restrictions → warning appears → user modifies → saves successfully
   - [ ] User configures 24/7 restrictions → warning appears → user cancels → no config saved
   - [ ] User configures valid restrictions → no warning → saves successfully
 
 ### Phase 5: Code Quality and Documentation
 - [ ] **Code documentation**
-  - [ ] Add function header comment for `check_24_7_restrictions()` explaining:
-    - [ ] Purpose: prevent 24/7 restriction configuration
+  - [ ] Add function header comment for `check_restriction_coverage()` explaining:
+    - [ ] Purpose: prevent 24/7 restriction configuration and detect high restriction levels
     - [ ] Input: config_lines array or summary_lines array
-    - [ ] Output: returns 0 if valid (not 24/7), 1 if invalid (24/7 detected)
-    - [ ] Algorithm: converts all ranges to unified timeline, merges overlaps, calculates total
+    - [ ] Output: returns "block" if >= 10080 minutes (24/7), "warn" if > 9660 minutes (> 23 hours/day), "ok" if valid
+    - [ ] Algorithm: converts all ranges to unified timeline, merges overlaps, calculates total restricted minutes
   - [ ] Add inline comments explaining:
     - [ ] How overnight ranges are split
     - [ ] How intervals are merged
@@ -381,7 +426,8 @@
   - [ ] Document the validation algorithm and approach
   - [ ] Explain how overnight ranges are handled in the validation
   - [ ] Document the interval merging logic
-  - [ ] Explain the automatic safety feature disabling (config locking, configure.sh blocking)
+  - [ ] Explain the automatic safety feature disabling (config locking, configure.sh blocking, popup size restrictions)
+  - [ ] Document the popup size restriction logic (why only small/medium are allowed for > 9660 minutes)
   - [ ] Include examples of valid vs invalid configurations
   - [ ] Reference this enhancement document for detailed implementation notes
 
@@ -390,25 +436,32 @@
   - [ ] Add note in `user-docs/CONFIGURATION.md` about 24/7 restriction prevention
   - [ ] Explain why 24/7 restrictions are blocked
   - [ ] Provide examples of valid vs invalid configurations
-  - [ ] Document the automatic safety feature disabling
+  - [ ] Document the automatic safety feature disabling (config locking, configure.sh blocking, popup size restrictions)
+  - [ ] Explain popup size restrictions for high restriction levels (> 9660 minutes): only small/medium allowed
+  - [ ] Document rationale: prevents overly intrusive popups when user has very limited unrestricted time
 
 - [ ] **Update help text in configure.sh**
   - [ ] Add note in welcome message about 24/7 restriction prevention
   - [ ] Update help dialog to mention this safety feature
+  - [ ] Add info message in popup size configuration menu when high restrictions are detected
 
 ### Phase 7: Integration Testing
-- [ ] **Test with existing features**
+**⚠️ DO NOT RUN TESTS WITHOUT USER CONFIRMATION! ⚠️**
+
+- [ ] **Test with existing features - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] Verify validation doesn't break existing configuration workflow
   - [ ] Verify validation works with visual grid (option 5)
   - [ ] Verify validation works with weekdays/weekends bulk configuration
   - [ ] Verify validation works when loading existing config and modifying it
 
-- [ ] **Test backward compatibility**
+- [ ] **Test backward compatibility - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] Existing valid configs should still work
   - [ ] Existing invalid configs (if any exist) should be caught on next save
   - [ ] Config file format remains unchanged
 
 ### Phase 8: Final Validation
+**⚠️ DO NOT RUN TESTS WITHOUT USER CONFIRMATION! ⚠️**
+
 - [ ] **Code review checklist**
   - [ ] All functions have proper error handling
   - [ ] All edge cases are handled
@@ -416,14 +469,14 @@
   - [ ] No hardcoded values (use constants for 10080, 1440, etc.)
   - [ ] Functions are well-documented
 
-- [ ] **Manual testing**
+- [ ] **Manual testing - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] Run through complete configuration workflow
   - [ ] Test both GUI and text modes
   - [ ] Verify warning appears at correct time
   - [ ] Verify config file is not saved when validation fails
   - [ ] Verify user can modify and save after seeing warning
 
-- [ ] **Edge case validation**
+- [ ] **Edge case validation - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [ ] Test with all possible overnight range combinations
   - [ ] Test with maximum number of ranges per day
   - [ ] Test with boundary values (10079 vs 10080 minutes)

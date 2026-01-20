@@ -1,0 +1,8 @@
+---
+name: tests
+description: Running tests and configuration
+---
+
+# Overview
+
+When running tests on this project, make sure any configurations you set for restricted times, frequencies, and minimum popup times are restriced to no more than 6 hours per day, no more frequent than every 5 minutes, and no longer than 60 seconds.

@@ -2,6 +2,29 @@
 
 This document provides detailed technical specifications for the Sleep Warning System implementation. For the master plan and detailed checklists, see [linux-warning-system-plan.md](linux-warning-system-plan.md) and the phase plans linked from it.
 
+## Code Architecture
+
+The Sleep Warning System uses a **modular architecture** for improved maintainability and testability:
+
+- **Main Script**: `sleep-warning.sh` (~128 lines) - Streamlined entry point
+- **Library Modules**: 7 focused modules in `lib/` directory (~1500 lines total)
+  - `config.sh` - Configuration management
+  - `logging.sh` - Logging functions
+  - `display-detection.sh` - Display environment detection
+  - `desktop-environment.sh` - Desktop/dialog tool detection
+  - `window-management.sh` - Window manipulation
+  - `time-validation.sh` - Time range validation
+  - `popup-display.sh` - Warning popup display
+
+**Benefits**:
+- Clear separation of concerns
+- Individual modules can be tested in isolation
+- Easier to understand and maintain
+- Explicit dependency management
+- 92% reduction in main script size (from 1667 to 128 lines)
+
+**For detailed module documentation**, including dependencies, function lists, and development guidelines, see [info/modular-architecture.md](info/modular-architecture.md).
+
 ## Configuration File Format
 
 The configuration file uses a simple day-based format that is easy to edit:

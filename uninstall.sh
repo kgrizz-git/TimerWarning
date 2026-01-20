@@ -25,6 +25,7 @@ set -e  # Exit on error
 
 # Script configuration
 INSTALL_DIR="${HOME}/.local/bin"
+LIB_DIR="${HOME}/.local/lib/sleep-warning"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 
@@ -151,6 +152,13 @@ remove_scripts() {
     if [ -f "$INSTALL_DIR/sleep-warning-manage" ]; then
         rm -f "$INSTALL_DIR/sleep-warning-manage"
         print_success "Management script removed"
+        removed=true
+    fi
+    
+    # Remove library directory and modules
+    if [ -d "$LIB_DIR" ]; then
+        rm -rf "$LIB_DIR"
+        print_success "Library modules removed"
         removed=true
     fi
     

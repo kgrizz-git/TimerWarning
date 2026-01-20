@@ -36,6 +36,7 @@ set -e  # Exit on error
 # Script configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="${HOME}/.local/bin"
+LIB_DIR="${HOME}/.local/lib/sleep-warning"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 
@@ -413,8 +414,22 @@ EOF
 install_files() {
     print_info "Installing files..."
     
-    # Copy main script
-    cp "$SCRIPT_DIR/sleep-warning.sh" "$INSTALL_DIR/sleep-warning.sh"
+    # Create library directory
+    mkdir -p "$LIB_DIR"
+    print_success "Library directory created"
+    
+    # Copy library modules
+    if [ -d "$SCRIPT_DIR/lib" ]; then
+        cp "$SCRIPT_DIR/lib"/*.sh "$LIB_DIR/"
+        chmod +x "$LIB_DIR"/*.sh
+        print_success "Library modules installed (7 modules)"
+    else
+        print_error "Library directory not found"
+        exit 1
+    fi
+    
+    # Copy main script and update library paths to use installed location
+    sed "s|LIB_DIR=\"\${SCRIPT_DIR}/lib\"|LIB_DIR=\"${LIB_DIR}\"|" "$SCRIPT_DIR/sleep-warning.sh" > "$INSTALL_DIR/sleep-warning.sh"
     chmod +x "$INSTALL_DIR/sleep-warning.sh"
     print_success "Main script installed"
     

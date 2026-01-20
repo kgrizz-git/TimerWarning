@@ -42,6 +42,15 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 - 📌 **Immovable windows** - Prevents popup from being moved during countdown (optional)
 - ⬆️ **Always on top** - Popup windows automatically stay above other windows
 
+## Architecture
+
+The system uses a **modular architecture** for improved maintainability:
+- **Main script**: Streamlined 128-line entry point (down from 1667 lines)
+- **7 library modules**: Focused, testable components for specific functionality
+- **Clear dependencies**: Explicit module relationships and loading order
+
+This architecture makes the codebase easier to understand, modify, and extend. For technical details, see [dev-docs/info/modular-architecture.md](dev-docs/info/modular-architecture.md).
+
 ## Quick Start
 
 ### Prerequisites
