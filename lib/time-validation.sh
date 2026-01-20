@@ -129,3 +129,82 @@ is_restricted_hour() {
     
     return 1
 }
+
+# Check if configuration scripts should be blocked due to restricted hours
+# Returns 0 if execution is allowed, 1 if execution should be blocked
+# This function checks CONFIGURE_BLOCK_ENABLED and current time against restricted hours
+# This is for Enhancement #19 (Prevent configure.sh and manage.sh Execution)
+# Dependencies: config.sh (for get_configure_block_enabled, parse_config)
+check_config_lock_time() {
+    # Check if configure blocking is enabled
+    local block_enabled
+    block_enabled=$(get_configure_block_enabled)
+    
+    # If blocking is disabled, allow execution
+    if [ "${block_enabled}" != "true" ]; then
+        return 0
+    fi
+    
+    # Get current day of week (0=Sunday, 6=Saturday)
+    local current_day
+    current_day=$(date +%w)
+    
+    # Get current hour (0-23)
+    local current_hour
+    current_hour=$(date +%H)
+    # Remove leading zero if present
+    current_hour=$((10#${current_hour}))
+    
+    # Parse configuration for current day
+    local restricted_range
+    restricted_range=$(parse_config "${current_day}")
+    
+    # Check if current hour is within restricted range for current day
+    if is_restricted_hour "${current_hour}" "${restricted_range}"; then
+        # Current hour is restricted - block execution
+        return 1
+    fi
+    
+    # Current day may not have restrictions, but check if previous day has overnight ranges
+    # that extend into current day (same logic as sleep-warning.sh)
+    if [ -z "${restricted_range}" ]; then
+        # Current day is empty/skipped (no restrictions for this day)
+        # Check if previous day has an overnight range that extends into current day
+        # Calculate previous day (handle wrap-around: Sunday (0) -> Saturday (6))
+        local prev_day
+        if [ "${current_day}" -eq 0 ]; then
+            prev_day=6  # Sunday -> Saturday
+        else
+            prev_day=$((current_day - 1))
+        fi
+        
+        # Get previous day's configuration
+        local prev_day_range
+        prev_day_range=$(parse_config "${prev_day}")
+        
+        # Check if previous day has overnight ranges that extend into current day
+        if [ -n "${prev_day_range}" ]; then
+            # Check each range in previous day's configuration
+            local IFS=','
+            for range in ${prev_day_range}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                # Check if this is an overnight range (start > end) that extends into current day
+                if [ "${start_hour}" -gt "${end_hour}" ]; then
+                    # Overnight range: check if current hour falls within the end portion (before end_hour)
+                    # Example: prev_day has 23-5, current hour is 2, then 2 < 5, so it's restricted
+                    if [ "${current_hour}" -lt "${end_hour}" ]; then
+                        # Current hour is within overnight range from previous day - block execution
+                        return 1
+                    fi
+                fi
+            done
+        fi
+    fi
+    
+    # Not in restricted hours - allow execution
+    return 0
+}

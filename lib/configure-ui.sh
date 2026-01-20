@@ -16,6 +16,8 @@
 # - ask_weekend_together()        - Ask if configuring weekends together
 # - show_24_7_error()             - Show error dialog for 24/7 restrictions detected
 # - show_high_restriction_warning() - Show warning dialog for high restriction levels
+# - calculate_restriction_end_time() - Calculate when current restriction period ends
+# - show_config_locked_error()    - Show error when configure.sh/manage.sh is blocked (Enhancement #19)
 #
 # Dependencies:
 # - configure-core.sh (for has_dialog_tool, CONFIG_FILE)
@@ -347,5 +349,267 @@ Do you want to save this configuration anyway?"
             [Yy]*) return 0 ;;
             *) return 1 ;;
         esac
+    fi
+}
+
+# Calculate when the current restriction period ends
+# This function finds which restriction range the current hour falls into and calculates when it ends
+# Handles overnight ranges and multiple ranges per day
+# Parameters:
+#   $1 - current_hour (0-23)
+#   $2 - current_day (0-6, Sunday=0)
+#   $3 - restricted_range (optional, comma-separated ranges for current day)
+# Returns: "END_HOUR_12H|END_DAY_NAME|IS_OVERNIGHT" or empty string if not in restriction
+# Dependencies: configure-core.sh (for format_hour_12h, DAY_NAMES), time-validation.sh (for is_hour_in_single_range), config.sh (for parse_config)
+calculate_restriction_end_time() {
+    local current_hour="$1"
+    local current_day="$2"
+    local restricted_range="$3"
+    
+    # Source required modules if not already sourced
+    if ! type format_hour_12h >/dev/null 2>&1 || [ -z "${DAY_NAMES}" ]; then
+        local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+        source "${SCRIPT_DIR}/lib/configure-core.sh" 2>/dev/null || return 1
+    fi
+    
+    if ! type parse_config >/dev/null 2>&1; then
+        local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+        source "${SCRIPT_DIR}/lib/config.sh" 2>/dev/null || return 1
+    fi
+    
+    # Check if we're in an overnight range from previous day
+    local prev_day
+    if [ "${current_day}" -eq 0 ]; then
+        prev_day=6  # Sunday -> Saturday
+    else
+        prev_day=$((current_day - 1))
+    fi
+    
+    local prev_day_range
+    prev_day_range=$(parse_config "${prev_day}" 2>/dev/null || echo "")
+    
+    # Check previous day's overnight ranges first
+    if [ -n "${prev_day_range}" ]; then
+        local IFS=','
+        for range in ${prev_day_range}; do
+            range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            local start_hour end_hour
+            start_hour=$(echo "${range}" | cut -d'-' -f1)
+            end_hour=$(echo "${range}" | cut -d'-' -f2)
+            
+            # Check if this is an overnight range that extends to current day
+            if [ "${start_hour}" -gt "${end_hour}" ]; then
+                # Overnight range: check if current hour falls within the end portion (before end_hour)
+                if [ "${current_hour}" -lt "${end_hour}" ]; then
+                    # We're in the overnight range from previous day
+                    local end_12h
+                    end_12h=$(format_hour_12h "${end_hour}")
+                    local current_day_name="${DAY_NAMES[${current_day}]}"
+                    echo "${end_12h}|${current_day_name}|true"
+                    return 0
+                fi
+            fi
+        done
+    fi
+    
+    # Check current day's ranges
+    if [ -z "${restricted_range}" ]; then
+        return 1
+    fi
+    
+    local IFS=','
+    for range in ${restricted_range}; do
+        range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        
+        # Check if current hour is in this range
+        if type is_hour_in_single_range >/dev/null 2>&1; then
+            if is_hour_in_single_range "${current_hour}" "${range}"; then
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                local end_12h
+                end_12h=$(format_hour_12h "${end_hour}")
+                local current_day_name="${DAY_NAMES[${current_day}]}"
+                
+                # Check if overnight range
+                if [ "${start_hour}" -gt "${end_hour}" ]; then
+                    # Get next day name
+                    local next_day_index=$(( (current_day + 1) % 7 ))
+                    local next_day_name="${DAY_NAMES[${next_day_index}]}"
+                    echo "${end_12h}|${next_day_name}|true"
+                else
+                    echo "${end_12h}|${current_day_name}|false"
+                fi
+                return 0
+            fi
+        else
+            # Fallback: simple check
+            local start_hour end_hour
+            start_hour=$(echo "${range}" | cut -d'-' -f1)
+            end_hour=$(echo "${range}" | cut -d'-' -f2)
+            
+            local in_range=false
+            if [ "${start_hour}" -gt "${end_hour}" ]; then
+                # Overnight range
+                if [ "${current_hour}" -ge "${start_hour}" ] || [ "${current_hour}" -lt "${end_hour}" ]; then
+                    in_range=true
+                fi
+            else
+                # Normal range
+                if [ "${current_hour}" -ge "${start_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                    in_range=true
+                fi
+            fi
+            
+            if [ "${in_range}" = "true" ]; then
+                local end_12h
+                end_12h=$(format_hour_12h "${end_hour}")
+                local current_day_name="${DAY_NAMES[${current_day}]}"
+                
+                if [ "${start_hour}" -gt "${end_hour}" ]; then
+                    local next_day_index=$(( (current_day + 1) % 7 ))
+                    local next_day_name="${DAY_NAMES[${next_day_index}]}"
+                    echo "${end_12h}|${next_day_name}|true"
+                else
+                    echo "${end_12h}|${current_day_name}|false"
+                fi
+                return 0
+            fi
+        fi
+    done
+    
+    return 1  # Not in any range
+}
+
+# Show error message when configure.sh or manage.sh is blocked during restricted hours
+# This is for Enhancement #19 (Prevent configure.sh and manage.sh Execution)
+# Parameters:
+#   $1 - use_gui (true/false)
+#   $2 - script_name ("Configuration" or "Management" or custom)
+# Dependencies: configure-core.sh (for format_hour_12h, DAY_NAMES), configure-time.sh (for format_ranges_human), config.sh (for parse_config), time-validation.sh (for is_hour_in_single_range)
+show_config_locked_error() {
+    local use_gui="$1"
+    local script_name="${2:-Configuration}"
+    
+    # Get current time information
+    local current_day current_hour
+    current_day=$(date +%w)
+    current_hour=$(date +%H)
+    current_hour=$((10#${current_hour}))
+    
+    # Source required modules if not already sourced
+    if ! type format_hour_12h >/dev/null 2>&1 || ! type format_ranges_human >/dev/null 2>&1; then
+        local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+        source "${SCRIPT_DIR}/lib/configure-core.sh" 2>/dev/null || true
+        source "${SCRIPT_DIR}/lib/configure-time.sh" 2>/dev/null || true
+    fi
+    
+    local day_name="${DAY_NAMES[${current_day}]}"
+    local current_time_12h
+    current_time_12h=$(format_hour_12h "${current_hour}")
+    
+    # Get restricted range for current day
+    if ! type parse_config >/dev/null 2>&1; then
+        local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+        source "${SCRIPT_DIR}/lib/config.sh" 2>/dev/null || true
+    fi
+    
+    local restricted_range
+    restricted_range=$(parse_config "${current_day}" 2>/dev/null || echo "")
+    
+    # Check for overnight range from previous day
+    local prev_day
+    if [ "${current_day}" -eq 0 ]; then
+        prev_day=6
+    else
+        prev_day=$((current_day - 1))
+    fi
+    
+    local prev_day_range
+    prev_day_range=$(parse_config "${prev_day}" 2>/dev/null || echo "")
+    
+    local active_range="${restricted_range}"
+    local active_range_formatted=""
+    local end_time_info=""
+    
+    # Check if we're in an overnight range from previous day
+    if [ -n "${prev_day_range}" ]; then
+        local IFS=','
+        for range in ${prev_day_range}; do
+            range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            local start_hour end_hour
+            start_hour=$(echo "${range}" | cut -d'-' -f1)
+            end_hour=$(echo "${range}" | cut -d'-' -f2)
+            
+            if [ "${start_hour}" -gt "${end_hour}" ]; then
+                # Overnight range: check if current hour falls within the end portion
+                if [ "${current_hour}" -lt "${end_hour}" ]; then
+                    active_range="${range}"
+                    local prev_day_name="${DAY_NAMES[${prev_day}]}"
+                    active_range_formatted=$(format_range_human "${range}" "${prev_day_name}")
+                    break
+                fi
+            fi
+        done
+    fi
+    
+    # If not in previous day's overnight range, check current day
+    if [ -z "${active_range_formatted}" ] && [ -n "${restricted_range}" ]; then
+        active_range_formatted=$(format_ranges_human "${restricted_range}" "${day_name}")
+    fi
+    
+    # Calculate when restrictions end
+    local end_info
+    end_info=$(calculate_restriction_end_time "${current_hour}" "${current_day}" "${restricted_range}" 2>/dev/null || echo "")
+    
+    # Build error message
+    local error_msg="${script_name} is locked during restricted hours.\n\n"
+    error_msg="${error_msg}Current time: ${day_name}, ${current_time_12h}\n"
+    
+    if [ -n "${active_range_formatted}" ] && [ "${active_range_formatted}" != "(no restrictions)" ]; then
+        error_msg="${error_msg}Active restriction: ${active_range_formatted}\n"
+    fi
+    
+    if [ -n "${end_info}" ]; then
+        local end_time end_day is_overnight
+        end_time=$(echo "${end_info}" | cut -d'|' -f1)
+        end_day=$(echo "${end_info}" | cut -d'|' -f2)
+        is_overnight=$(echo "${end_info}" | cut -d'|' -f3)
+        
+        if [ "${is_overnight}" = "true" ]; then
+            error_msg="${error_msg}Restrictions end: ${end_time} on ${end_day}\n"
+        else
+            error_msg="${error_msg}Restrictions end: ${end_time} today\n"
+        fi
+    fi
+    
+    error_msg="${error_msg}\nPlease try again after the restricted hours end."
+    
+    # Display error message
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_info_dialog "${script_name} Locked" "${error_msg}" 650 350
+    else
+        echo "" >&2
+        echo "Error: ${script_name} is locked during restricted hours." >&2
+        echo "" >&2
+        echo "Current time: ${day_name}, ${current_time_12h}" >&2
+        if [ -n "${active_range_formatted}" ] && [ "${active_range_formatted}" != "(no restrictions)" ]; then
+            echo "Active restriction: ${active_range_formatted}" >&2
+        fi
+        if [ -n "${end_info}" ]; then
+            local end_time end_day is_overnight
+            end_time=$(echo "${end_info}" | cut -d'|' -f1)
+            end_day=$(echo "${end_info}" | cut -d'|' -f2)
+            is_overnight=$(echo "${end_info}" | cut -d'|' -f3)
+            if [ "${is_overnight}" = "true" ]; then
+                echo "Restrictions end: ${end_time} on ${end_day}" >&2
+            else
+                echo "Restrictions end: ${end_time} today" >&2
+            fi
+        fi
+        echo "" >&2
+        echo "Please try again after the restricted hours end." >&2
+        echo "" >&2
     fi
 }

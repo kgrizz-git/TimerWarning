@@ -186,6 +186,12 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Not implemented
 - **Details**: See [enhancements/enhancement-25-user-selectable-dialog-tool.md](enhancements/enhancement-25-user-selectable-dialog-tool.md)
 
+### 26. Prevent uninstall.sh Execution During Restricted Hours
+- **Description**: Prevent `uninstall.sh` from running during restricted hours (and optionally during additional configurable hours) to prevent users from circumventing restrictions by uninstalling the system. **Phase 1 (Initial Implementation)**: Implement "difficult uninstall" mode requiring users to type a confirmation phrase and answer 10 algebra questions before uninstalling during restricted hours. This allows legitimate uninstalls while deterring impulsive ones. **Future Phase**: Total block mode (completely prevent uninstall) may be considered but is not included in initial implementation due to high risk of preventing legitimate uninstall needs. A companion script (`manual-uninstall-guide.sh`) will provide step-by-step instructions for manual uninstallation even during restricted hours.
+- **Priority**: Medium (security/self-control feature; difficult mode has lower risk than total block)
+- **Status**: Not implemented
+- **Details**: See [enhancements/enhancement-26-prevent-uninstall-during-restricted-hours.md](enhancements/enhancement-26-prevent-uninstall-during-restricted-hours.md)
+
 ## Alternative Approaches (Require Different Implementation)
 
 These approaches would require significant changes to the architecture or a completely different implementation strategy:
@@ -244,8 +250,9 @@ These approaches would require significant changes to the architecture or a comp
 15. Multi-Display Popup Support
 16. Config File Locking During Restricted Hours
 17. Prevent configure.sh and manage.sh During Restricted Hours
-18. One-Time Pause Feature (5 or 10 minutes, available from popup)
-19. Display Restricted Times/Days in Popup
+18. Prevent uninstall.sh During Restricted Hours - Difficult uninstall mode (Phase 1), total block may be future phase (⚠️ **RISKY** for total block - requires manual uninstall guide script)
+19. One-Time Pause Feature (5 or 10 minutes, available from popup)
+20. Display Restricted Times/Days in Popup
 
 **Low Priority (Nice-to-Have Enhancements)**:
 14. Configurable Warning Messages

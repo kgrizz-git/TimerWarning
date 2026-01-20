@@ -63,6 +63,7 @@ show_main_menu() {
     local popup_immovable="$6"
     local weekdays_status="$7"
     local weekends_status="$8"
+    local configure_block_enabled="$9"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
@@ -90,21 +91,30 @@ show_main_menu() {
             window_desc="${window_desc}, Immovable: Off"
         fi
         
+        # Build security settings status indicator
+        local security_status=""
+        if [ "${configure_block_enabled}" = "true" ]; then
+            security_status=" (Enabled)"
+        else
+            security_status=" (Disabled)"
+        fi
+        
         local choice
         choice=$(show_multi_column_list_dialog \
             "Sleep Warning Configuration" \
             "Select a section to configure:" \
             700 \
-            400 \
+            450 \
             1 \
             "Option" \
             "Description" \
             "1" "Timer Settings (Check Interval: ${check_interval} min)" \
             "2" "Window Behavior (${window_desc})" \
             "3" "Weekdays Configuration ${weekdays_status}" \
-            "4" "Weekends Configuration ${weekdays_status}" \
+            "4" "Weekends Configuration ${weekends_status}" \
             "5" "Visual Day/Time Grid" \
-            "6" "Review and Save")
+            "6" "Security Settings${security_status}" \
+            "7" "Review and Save")
         local exit_code=$?
         
         # Check if user cancelled (empty choice and non-zero exit)
@@ -124,9 +134,9 @@ show_main_menu() {
             fi
         fi
         
-        # If OK was clicked but no item selected, default to "Review and Save" (option 6)
+        # If OK was clicked but no item selected, default to "Review and Save" (option 7)
         if [ -z "${choice}" ]; then
-            choice="6"
+            choice="7"
         fi
         
         echo "${choice}"
@@ -172,21 +182,31 @@ show_main_menu() {
         echo "5. Visual Day/Time Grid" >&2
         echo "   View and edit all days in a visual grid format" >&2
         echo "" >&2
-        echo "6. Review and Save" >&2
+        # Build security settings status indicator
+        local security_status=""
+        if [ "${configure_block_enabled}" = "true" ]; then
+            security_status=" (Enabled)"
+        else
+            security_status=" (Disabled)"
+        fi
+        echo "6. Security Settings${security_status}" >&2
+        echo "   Configure blocking of configure.sh and manage.sh during restricted hours" >&2
+        echo "" >&2
+        echo "7. Review and Save" >&2
         echo "   Review your configuration and save changes" >&2
         echo "" >&2
         echo "To cancel and exit without saving, press Ctrl+C" >&2
         echo "" >&2
         
         while true; do
-            read -p "Select option [1-6]: " choice >&2
+            read -p "Select option [1-7]: " choice >&2
             case "${choice}" in
-                1|2|3|4|5|6)
+                1|2|3|4|5|6|7)
                     echo "${choice}"
                     return 0
                     ;;
                 *)
-                    echo "Invalid option. Please enter 1-6." >&2
+                    echo "Invalid option. Please enter 1-7." >&2
                     ;;
             esac
         done
@@ -412,6 +432,7 @@ show_summary() {
     local popup_position="$4"
     local min_display_time="$5"
     local popup_immovable="$6"
+    local configure_block_enabled="$7"
     # Note: summary_lines must be accessed from global scope to preserve sparse array indices
     # Passing sparse arrays as parameters re-indexes them from 0, causing display bugs
     
@@ -429,6 +450,11 @@ show_summary() {
         summary="${summary}Prevent Window Movement: Enabled\n"
     else
         summary="${summary}Prevent Window Movement: Disabled\n"
+    fi
+    if [ "${configure_block_enabled}" = "true" ]; then
+        summary="${summary}Block Scripts During Restricted Hours: Enabled\n"
+    else
+        summary="${summary}Block Scripts During Restricted Hours: Disabled\n"
     fi
     summary="${summary}\nRestricted Hours:\n"
     
@@ -526,6 +552,11 @@ show_summary() {
             echo "Prevent Window Movement: Enabled"
         else
             echo "Prevent Window Movement: Disabled"
+        fi
+        if [ "${configure_block_enabled}" = "true" ]; then
+            echo "Block Scripts During Restricted Hours: Enabled"
+        else
+            echo "Block Scripts During Restricted Hours: Disabled"
         fi
         echo ""
         echo "Restricted Hours:"

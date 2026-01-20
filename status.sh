@@ -360,6 +360,18 @@ show_configuration() {
     fi
     print_status "Prevent Window Movement" "${popup_immovable}"
     
+    # Read configure block enabled setting (Enhancement #19)
+    local configure_block_enabled
+    configure_block_enabled=$(grep -E "^[[:space:]]*CONFIGURE_BLOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    if [ -z "${configure_block_enabled}" ]; then
+        configure_block_enabled="Disabled (default)"
+    elif [ "${configure_block_enabled}" = "true" ] || [ "${configure_block_enabled}" = "1" ] || [ "${configure_block_enabled}" = "yes" ]; then
+        configure_block_enabled="Enabled"
+    else
+        configure_block_enabled="Disabled"
+    fi
+    print_status "Block Scripts During Restricted Hours" "${configure_block_enabled}"
+    
     # Detect and display dialog tool
     local dialog_tool
     local dialog_tool_status=""

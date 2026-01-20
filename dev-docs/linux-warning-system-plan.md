@@ -203,6 +203,7 @@ See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) for detailed descriptions a
 - [ ] **23. Display Restricted Times/Days in Popup** - Show configured restricted hours in the warning popup for transparency - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#23-display-restricted-timesdays-in-popup)
 - [x] **24. Unified Dialog Tool Priority (YAD → Zenity → KDialog)** - Standardize dialog tool selection across all scripts (Mostly Implemented - core implementation complete, abstraction layer in place) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#24-unified-dialog-tool-priority-yad--zenity--kdialog)
 - [ ] **25. User-Selectable Dialog Tool** - Allow users to manually choose dialog tool from installed options - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#25-user-selectable-dialog-tool)
+- [ ] **26. Prevent uninstall.sh Execution During Restricted Hours** - Implement difficult uninstall mode (confirmation phrase + algebra questions) during restricted hours to prevent circumvention while allowing legitimate uninstalls. Total block mode may be considered as future phase (⚠️ **RISKY** - requires manual uninstall guide script) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#26-prevent-uninstallsh-execution-during-restricted-hours)
 
 ### Distribution and Packaging Enhancements
 

@@ -28,6 +28,7 @@ load_existing_config() {
     declare -g popup_position="center"
     declare -g min_display_time="30"
     declare -g popup_immovable="true"
+    declare -g configure_block_enabled="false"
     
     # Clear existing arrays (they should already be declared as global by caller)
     config_lines=()
@@ -74,6 +75,17 @@ load_existing_config() {
             declare -g popup_immovable="true"
         elif [ "${existing_immovable}" = "false" ] || [ "${existing_immovable}" = "0" ] || [ "${existing_immovable}" = "no" ]; then
             declare -g popup_immovable="false"
+        fi
+    fi
+    
+    # Read configure block enabled setting (Enhancement #19)
+    local existing_block_enabled
+    existing_block_enabled=$(grep -E "^[[:space:]]*CONFIGURE_BLOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    if [ -n "${existing_block_enabled}" ]; then
+        if [ "${existing_block_enabled}" = "true" ] || [ "${existing_block_enabled}" = "1" ] || [ "${existing_block_enabled}" = "yes" ]; then
+            declare -g configure_block_enabled="true"
+        elif [ "${existing_block_enabled}" = "false" ] || [ "${existing_block_enabled}" = "0" ] || [ "${existing_block_enabled}" = "no" ]; then
+            declare -g configure_block_enabled="false"
         fi
     fi
     
@@ -181,8 +193,14 @@ extract_user_comments() {
         "^# Leave a day empty"
         "^# CHECK_INTERVAL:"
         "^# POPUP_SIZE:"
+        "^# POPUP_SIZE has been restricted"
+        "^# This prevents overly intrusive popups"
         "^# POPUP_POSITION:"
         "^# POPUP_MIN_DISPLAY_TIME:"
+        "^# POPUP_IMMOVABLE:"
+        "^# CONFIGURE_BLOCK_ENABLED:"
+        "^# CONFIGURE_BLOCK_ENABLED has been disabled"
+        "^# This prevents accidental lockout"
         "^# Default:"
         "^# Minimum:"
         "^# Maximum:"
@@ -192,6 +210,8 @@ extract_user_comments() {
         "^POPUP_SIZE="
         "^POPUP_POSITION="
         "^POPUP_MIN_DISPLAY_TIME="
+        "^POPUP_IMMOVABLE="
+        "^CONFIGURE_BLOCK_ENABLED="
         "^# This file was generated"
         "^# *$"  # Empty comment lines
     )
@@ -224,14 +244,53 @@ extract_user_comments() {
 }
 
 # Write configuration file
+# Parameters:
+#   $1-$6: Standard configuration parameters (check_interval, popup_size, popup_position, min_display_time, popup_immovable, configure_block_enabled)
+#   $7+: config_lines array (7 day configurations: Sunday-Saturday)
+#   Optional (if 9+ total arguments after shift 6): 
+#     Second-to-last: popup_size_overridden ("true" if popup_size was restricted due to high restrictions)
+#     Last: configure_block_overridden ("true" if configure_block_enabled was disabled due to high restrictions)
 write_config() {
     local check_interval="$1"
     local popup_size="$2"
     local popup_position="$3"
     local min_display_time="$4"
     local popup_immovable="$5"
-    shift 5
-    local config_lines=("$@")
+    local configure_block_enabled="$6"
+    shift 6
+    
+    # Extract config_lines array and optional override flags
+    # config_lines is a sparse array (indices 0-6 for Sunday-Saturday, but may not have all 7 elements)
+    # Override flags are always the last two arguments if provided, and are always "true" or empty string
+    # We detect them by checking if the last two arguments match the override flag pattern
+    local popup_size_overridden=""
+    local configure_block_overridden=""
+    local config_lines=()
+    local all_args=("$@")
+    local arg_count=${#all_args[@]}
+    
+    # Check if last two arguments look like override flags (empty string or "true")
+    # This is safe because config_lines values are always "DAYVAR=RANGE" format (contain "=")
+    if [ $arg_count -ge 2 ]; then
+        local second_to_last="${all_args[$((arg_count - 2))]}"
+        local last="${all_args[$((arg_count - 1))]}"
+        
+        # Override flags are either empty string or "true", and never contain "=" (unlike config_lines)
+        if ([ -z "${second_to_last}" ] || [ "${second_to_last}" = "true" ]) && \
+           ([ -z "${last}" ] || [ "${last}" = "true" ]) && \
+           [[ ! "${second_to_last}" =~ = ]] && [[ ! "${last}" =~ = ]]; then
+            # Last two arguments are override flags
+            popup_size_overridden="${second_to_last}"
+            configure_block_overridden="${last}"
+            config_lines=("${all_args[@]:0:$((arg_count - 2))}")
+        else
+            # All arguments are config_lines (no override flags)
+            config_lines=("${all_args[@]}")
+        fi
+    else
+        # Less than 2 arguments - all are config_lines
+        config_lines=("${all_args[@]}")
+    fi
     
     # Create config directory if it doesn't exist
     mkdir -p "${CONFIG_DIR}"
@@ -258,6 +317,11 @@ write_config() {
         echo "# POPUP_SIZE: Size of warning popup (small, medium, large, or custom WIDTHxHEIGHT)"
         echo "# Default: medium"
         echo "POPUP_SIZE=${popup_size}"
+        # Add comment if popup size was restricted due to high restrictions
+        if [ "${popup_size_overridden}" = "true" ]; then
+            echo "# POPUP_SIZE has been restricted to small/medium only because restrictions exceed 23 hours/day."
+            echo "# This prevents overly intrusive popups when user has very limited unrestricted time."
+        fi
         echo "#"
         echo "# POPUP_POSITION: Position of warning popup on screen"
         echo "# Default: center"
@@ -270,6 +334,18 @@ write_config() {
         echo "# POPUP_IMMOVABLE: Prevent popup window from being moved during minimum display time"
         echo "# Default: true"
         echo "POPUP_IMMOVABLE=${popup_immovable}"
+        echo "#"
+        echo "# CONFIGURE_BLOCK_ENABLED: Prevent configure.sh and manage.sh from running during restricted hours"
+        echo "# Default: false (opt-in feature)"
+        echo "# When enabled, configuration and management scripts are blocked during restricted hours"
+        echo "# to prevent users from circumventing restrictions by changing settings"
+        echo "# This is Enhancement #19 (Prevent configure.sh and manage.sh Execution)"
+        echo "CONFIGURE_BLOCK_ENABLED=${configure_block_enabled}"
+        # Add comment if configure block was disabled due to high restrictions
+        if [ "${configure_block_overridden}" = "true" ]; then
+            echo "# CONFIGURE_BLOCK_ENABLED has been disabled because restrictions exceed 23 hours/day."
+            echo "# This prevents accidental lockout when user has very limited unrestricted time."
+        fi
         echo "#"
         echo "# This file was generated by the configuration wizard on $(date)"
         

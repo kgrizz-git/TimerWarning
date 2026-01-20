@@ -17,15 +17,29 @@
 #   sleep-warning-manage (after installation)
 ###############################################################################
 
+# Determine script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/lib"
+
 SCRIPT_NAME="sleep-warning-manage"
 SERVICE_NAME="sleep-warning"
 TIMER_NAME="${SERVICE_NAME}.timer"
 SCRIPT_PATH="${HOME}/.local/bin/${SERVICE_NAME}.sh"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
-CONFIG_FILE="${CONFIG_DIR}/${SERVICE_NAME}.conf"
+CONFIG_FILE="${CONFIG_DIR}/sleep-warning.conf"
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 SERVICE_FILE="${SYSTEMD_USER_DIR}/${SERVICE_NAME}.service"
 TIMER_FILE="${SYSTEMD_USER_DIR}/${TIMER_NAME}"
+
+# Source required library modules for time check
+source "${LIB_DIR}/config.sh" 2>/dev/null || true
+source "${LIB_DIR}/logging.sh" 2>/dev/null || true
+source "${LIB_DIR}/time-validation.sh" 2>/dev/null || true
+# Source configure modules for error message display
+source "${LIB_DIR}/configure-core.sh" 2>/dev/null || true
+source "${LIB_DIR}/configure-time.sh" 2>/dev/null || true
+source "${LIB_DIR}/configure-ui.sh" 2>/dev/null || true
+source "${LIB_DIR}/configure-dialogs.sh" 2>/dev/null || true
 
 # Check if zenity is available
 has_zenity() {
@@ -444,6 +458,13 @@ main() {
     local use_gui="false"
     if has_gui && has_zenity; then
         use_gui="true"
+    fi
+    
+    # Check if configuration is locked due to restricted hours
+    if ! check_config_lock_time 2>/dev/null; then
+        # Configuration is locked - show error and exit
+        show_config_locked_error "${use_gui}" "Management interface"
+        exit 1
     fi
     
     # Check if installed

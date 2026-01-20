@@ -36,6 +36,10 @@ DEFAULT_MIN_DISPLAY_TIME=30
 # Default popup immovable setting - used if config file missing or invalid
 DEFAULT_POPUP_IMMOVABLE=true
 
+# Default configure block enabled setting - used if config file missing or invalid
+# This controls whether configure.sh and manage.sh are blocked during restricted hours (Enhancement #19)
+DEFAULT_CONFIGURE_BLOCK_ENABLED=false
+
 # Default restricted hours (used if config file missing or invalid)
 # Format: day_number=start_hour-end_hour
 # Day numbers: 0=Sunday, 1=Monday, ..., 6=Saturday
@@ -222,6 +226,33 @@ get_popup_immovable() {
     else
         # Invalid or missing, use default
         echo "${DEFAULT_POPUP_IMMOVABLE}"
+        return 0
+    fi
+}
+
+# Get configure block enabled setting from configuration file
+# Returns "true" if configure.sh and manage.sh blocking is enabled, "false" otherwise
+# This is for Enhancement #19 (Prevent configure.sh and manage.sh Execution)
+get_configure_block_enabled() {
+    # Check if config file exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "${DEFAULT_CONFIGURE_BLOCK_ENABLED}"
+        return 0
+    fi
+    
+    # Read CONFIGURE_BLOCK_ENABLED from config file
+    local block_enabled
+    block_enabled=$(grep -E "^[[:space:]]*CONFIGURE_BLOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    
+    if [ "${block_enabled}" = "true" ] || [ "${block_enabled}" = "1" ] || [ "${block_enabled}" = "yes" ]; then
+        echo "true"
+        return 0
+    elif [ "${block_enabled}" = "false" ] || [ "${block_enabled}" = "0" ] || [ "${block_enabled}" = "no" ]; then
+        echo "false"
+        return 0
+    else
+        # Invalid or missing, use default
+        echo "${DEFAULT_CONFIGURE_BLOCK_ENABLED}"
         return 0
     fi
 }

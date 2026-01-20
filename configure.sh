@@ -32,6 +32,9 @@ LIB_DIR="${SCRIPT_DIR}/lib"
 
 # Source library modules in dependency order
 source "${LIB_DIR}/configure-core.sh" || exit 1
+source "${LIB_DIR}/config.sh" || exit 1
+source "${LIB_DIR}/logging.sh" || exit 1
+source "${LIB_DIR}/time-validation.sh" || exit 1
 source "${LIB_DIR}/display-detection.sh" || exit 1
 source "${LIB_DIR}/desktop-environment.sh" || exit 1
 source "${LIB_DIR}/configure-dialogs.sh" || exit 1
@@ -97,6 +100,13 @@ main() {
         fi
     fi
     
+    # Check if configuration is locked due to restricted hours
+    if ! check_config_lock_time; then
+        # Configuration is locked - show error and exit
+        show_config_locked_error "${use_gui}" "Configuration"
+        exit 1
+    fi
+    
     # Show welcome
     show_welcome "${use_gui}"
     
@@ -104,7 +114,7 @@ main() {
     # This ensures they exist in the parent shell
     declare -g -a config_lines=()
     declare -g -a summary_lines=()
-    declare -g check_interval popup_size popup_position min_display_time popup_immovable
+    declare -g check_interval popup_size popup_position min_display_time popup_immovable configure_block_enabled
     
     # Load existing configuration
     # Function sets global variables and populates global arrays directly
@@ -120,7 +130,7 @@ main() {
         
         # Show main menu
         local menu_choice
-        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}")
+        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}")
         local menu_exit=$?
         
         if [ "${menu_exit}" -eq 2 ] || [ "${menu_choice}" = "CANCELLED" ]; then
@@ -231,12 +241,27 @@ main() {
                 done
                 ;;
             6)
+                # Security Settings
+                local new_block_enabled
+                new_block_enabled=$(get_configure_block_enabled_config "${use_gui}")
+                if [ "${new_block_enabled}" = "CANCELLED" ]; then
+                    # User already confirmed cancellation
+                    exit 0
+                else
+                    configure_block_enabled="${new_block_enabled}"
+                fi
+                ;;
+            7)
                 # Review and Save
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
-                if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}"; then
+                if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}"; then
                     # Validate restriction coverage before saving
                     local validation_result
                     validation_result=$(check_restriction_coverage "${config_lines[@]}")
+                    
+                    # Track whether safety overrides were applied (for config file comments)
+                    local popup_size_overridden=""
+                    local configure_block_overridden=""
                     
                     case "${validation_result}" in
                         "block")
@@ -251,16 +276,35 @@ main() {
                                 continue
                             fi
                             # User confirmed - apply safety overrides before saving
+                            # Safety override 1: Restrict popup size to small/medium only
+                            # This prevents overly intrusive popups when user has very limited unrestricted time
+                            local original_popup_size="${popup_size}"
                             if [ "${popup_size}" = "large" ] || [ "${popup_size}" = "fullscreen" ]; then
                                 popup_size="medium"
+                                popup_size_overridden="true"
                             fi
-                            # Future: disable CONFIG_LOCK_ENABLED, CONFIGURE_BLOCK_ENABLED if implemented
+                            
+                            # Safety override 2: Disable configure.sh blocking (Enhancement #19)
+                            # This prevents accidental lockout when user has very limited unrestricted time
+                            # Conditional check: Only disable if the feature is enabled (not empty and not already false)
+                            # Note: CONFIG_LOCK_ENABLED (Enhancement #18) is not yet implemented, so we skip it
+                            local original_configure_block="${configure_block_enabled}"
+                            if [ -n "${configure_block_enabled}" ] && [ "${configure_block_enabled}" != "false" ]; then
+                                configure_block_enabled="false"
+                                configure_block_overridden="true"
+                            fi
+                            
+                            # Future: When Enhancement #18 (Config File Locking) is implemented, also disable:
+                            # - CONFIG_LOCK_ENABLED (set to false)
+                            # - CONFIG_LOCK_ADDITIONAL_HOURS (clear/empty)
+                            # Use feature detection: check if variables/functions exist before trying to disable
                             ;;
-                        # "ok" - proceed normally with saving
+                        # "ok" - proceed normally with saving (no overrides)
                     esac
                     
-                    # Write configuration (with possibly modified popup_size after safety overrides)
-                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${config_lines[@]}"; then
+                    # Write configuration (with possibly modified values after safety overrides)
+                    # Pass override flags so write_config can add explanatory comments
+                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${config_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
                         # Update timer file if it exists
                         if [ -f "${TIMER_FILE}" ]; then
                             if update_timer_file "${check_interval}"; then

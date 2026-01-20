@@ -9,6 +9,7 @@ Comprehensive automated test suite for `configure.sh --text` mode using `expect`
 - **test-configure-comprehensive.sh** - Main test runner (bash)
 - **test-configure-comprehensive.exp** - Expect automation script
 - **test-with-expect.sh** - Original prototype (kept for reference)
+- **test-write-config-override-flags.sh** - Unit tests for write_config() override flag detection edge cases
 
 ## Running Tests
 
@@ -239,6 +240,38 @@ run_test_N() {
 ```
 
 3. Update test runner to include new test number
+
+## Unit Tests
+
+### test-write-config-override-flags.sh
+
+**Purpose**: Tests the `write_config()` function's handling of safety override flags to ensure correct detection and processing in various edge cases.
+
+**Coverage**:
+- Normal cases with override flags
+- Backward compatibility (without override flags)
+- Sparse config_lines arrays
+- Empty config_lines with override flags
+- Edge cases that could cause false positives (empty restrictions, exactly 2 config_lines, etc.)
+
+**Run**:
+```bash
+./tests/test-write-config-override-flags.sh
+```
+
+**Status**: ✅ All 17 test assertions passing
+
+**Test Cases**:
+1. Normal case with both override flags set
+2. Normal case without override flags (backward compatibility)
+3. Sparse config_lines array (only some days configured)
+4. Empty config_lines with override flags
+5. Empty restrictions not mistaken for override flags
+6. Two config_lines not mistaken for override flags
+7. Mixed override flags (one empty, one set)
+8. Single config_line with override flags
+9. All 7 days configured with override flags
+10. Override flags as empty strings
 
 ## Known Limitations
 

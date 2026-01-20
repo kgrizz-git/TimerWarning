@@ -12,6 +12,7 @@
 # - get_popup_size_config()        - Get popup size from user
 # - get_min_display_time_config()  - Get minimum display time
 # - get_popup_immovable_config()   - Get immovable setting
+# - get_configure_block_enabled_config() - Get configure block enabled setting (Enhancement #19)
 # - get_popup_position_config()    - Get popup position
 # - get_check_interval()           - Get check interval
 # - get_day_hours()                - Get time ranges for a day (complex with navigation)
@@ -266,6 +267,108 @@ get_popup_immovable_config() {
                     ;;
                 "")
                     echo "${default_immovable}"
+                    return 0
+                    ;;
+                *)
+                    echo "Invalid choice. Please enter 'y' for yes or 'n' for no." >&2
+                    ;;
+            esac
+        done
+    fi
+}
+
+# Get configure block enabled setting from user
+# This function prompts the user to enable or disable blocking of configure.sh and manage.sh
+# during restricted hours. This is an opt-in security feature (Enhancement #19).
+#
+# Parameters:
+#   $1 - use_gui (true/false) - Whether to use GUI dialogs or text prompts
+#
+# Returns:
+#   "true" - User enabled blocking
+#   "false" - User disabled blocking
+#   "CANCELLED" - User cancelled the operation
+#
+# Exit Codes:
+#   0 - Success (returns "true" or "false")
+#   2 - User cancelled (returns "CANCELLED")
+#
+# Dependencies:
+#   - configure-core.sh (for has_dialog_tool, CONFIG_FILE)
+#   - configure-dialogs.sh (for show_list_dialog)
+#   - configure-ui.sh (for confirm_cancel)
+#
+# This is for Enhancement #19 (Prevent configure.sh and manage.sh Execution)
+get_configure_block_enabled_config() {
+    local use_gui="$1"
+    local default_block_enabled="false"
+    
+    # Try to get existing setting from config
+    if [ -f "${CONFIG_FILE}" ]; then
+        local existing_block_enabled
+        existing_block_enabled=$(grep -E "^[[:space:]]*CONFIGURE_BLOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ -n "${existing_block_enabled}" ]; then
+            if [ "${existing_block_enabled}" = "true" ] || [ "${existing_block_enabled}" = "1" ] || [ "${existing_block_enabled}" = "yes" ]; then
+                default_block_enabled="true"
+            elif [ "${existing_block_enabled}" = "false" ] || [ "${existing_block_enabled}" = "0" ] || [ "${existing_block_enabled}" = "no" ]; then
+                default_block_enabled="false"
+            fi
+        fi
+    fi
+    
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        # GUI mode
+        while true; do
+            local block_enabled
+            local block_enabled_result
+            block_enabled_result=$(show_list_dialog \
+                "Sleep Warning Configuration - Security Settings" \
+                "Block configure.sh and manage.sh during restricted hours?\n\nWhen enabled, the configuration and management scripts will be blocked from running during restricted hours to prevent circumventing restrictions.\n\nCurrent setting: ${default_block_enabled}" \
+                650 \
+                400 \
+                "true" "false")
+            local exit_code=$?
+            
+            if [ ${exit_code} -eq 0 ] && [ -n "${block_enabled_result}" ]; then
+                block_enabled="${block_enabled_result}"
+            else
+                block_enabled=""
+            fi
+            
+            # User cancelled
+            if [ "${exit_code}" -ne 0 ] || [ -z "${block_enabled}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2  # Special return code for cancellation
+                else
+                    continue  # User wants to continue, re-prompt
+                fi
+            fi
+            
+            echo "${block_enabled}"
+            return 0
+        done
+    else
+        # Text mode
+        echo "" >&2
+        echo "Security Settings - Configure Blocking:" >&2
+        echo "  When enabled, configure.sh and manage.sh will be blocked from running" >&2
+        echo "  during restricted hours to prevent circumventing restrictions." >&2
+        echo "" >&2
+        while true; do
+            read -p "Block configure.sh and manage.sh during restricted hours? [y/n, default: ${default_block_enabled}]: " choice
+            choice=${choice:-${default_block_enabled}}
+            case "${choice}" in
+                y|Y|yes|YES|true|TRUE|1)
+                    echo "true"
+                    return 0
+                    ;;
+                n|N|no|NO|false|FALSE|0)
+                    echo "false"
+                    return 0
+                    ;;
+                "")
+                    echo "${default_block_enabled}"
                     return 0
                     ;;
                 *)

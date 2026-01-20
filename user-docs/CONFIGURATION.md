@@ -307,6 +307,50 @@ POPUP_IMMOVABLE=false  # Allow window movement
 - The popup window will also stay on top of other windows automatically.
 - Setting this to `false` allows users to move the popup window, which may be useful if it blocks important content.
 
+### Block Scripts During Restricted Hours
+
+**Option**: `CONFIGURE_BLOCK_ENABLED`
+
+**Description**: When enabled, prevents `configure.sh` and `manage.sh` from running during restricted hours. This is a security feature that helps prevent circumventing restrictions by changing settings or disabling the system during restricted periods.
+
+**Format**: `true` or `false`
+
+**Default**: `false` (disabled - opt-in feature)
+
+**Examples**:
+```
+CONFIGURE_BLOCK_ENABLED=true   # Enable blocking (recommended for self-control)
+CONFIGURE_BLOCK_ENABLED=false  # Disable blocking (default)
+```
+
+**How It Works**:
+- When enabled (`true`), the configuration wizard (`configure.sh`) and management interface (`manage.sh`) will check the current time at startup.
+- If the current time falls within your configured restricted hours, these scripts will exit with a clear error message showing:
+  - Current time (in 12-hour format)
+  - Active restriction period
+  - When restrictions end
+- This prevents you from modifying settings or disabling the system during restricted hours.
+- The uninstall script (`uninstall.sh`) is **never blocked** - you can always uninstall the system if needed.
+
+**Important Notes**:
+- This is an **opt-in feature** - it is disabled by default to avoid frustrating users.
+- You can only enable/disable this feature when you are **not** in restricted hours.
+- If you enable this feature and later need to change settings during restricted hours, you would need to wait until restrictions end or temporarily modify the config file directly.
+- The blocking uses the same time checking logic as the main warning system for consistency.
+- Overnight ranges (e.g., `23-6`) are handled correctly - if you're in the early morning portion of an overnight range, the scripts will be blocked.
+
+**Use Cases**:
+- **Self-control**: Prevents you from easily disabling restrictions during restricted hours when willpower is low.
+- **Accountability**: Makes it harder to circumvent restrictions without waiting for unrestricted time.
+- **Security**: Adds an additional layer of protection against accidental or intentional configuration changes during restricted periods.
+
+**Limitations**:
+- This feature can be bypassed by:
+  - Modifying system time (requires admin access)
+  - Editing the scripts or configuration file directly
+  - Removing the time check code from the scripts
+- It is designed as a **self-control aid**, not a security measure against determined users with system access.
+
 ## Complete Configuration Example
 
 Here is a complete example configuration file with all options:
@@ -332,6 +376,10 @@ POPUP_MIN_DISPLAY_TIME=30
 
 # Prevent window movement: Prevent popup from being moved during minimum display time (true/false)
 POPUP_IMMOVABLE=true
+
+# Block scripts during restricted hours: Prevent configure.sh and manage.sh from running during restricted hours (true/false)
+# This is an opt-in security feature - disabled by default
+CONFIGURE_BLOCK_ENABLED=false
 
 # Restricted hours for each day
 SUNDAY=1-5
