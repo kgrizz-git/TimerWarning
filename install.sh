@@ -18,7 +18,8 @@
 # Requirements:
 # - bash
 # - systemd (for user services)
-# - sudo (for installing dependencies)
+# - sudo (only required if dependencies need to be installed - if all dependencies
+#   are already installed, sudo is not needed)
 #
 # Usage:
 #   ./install.sh              # Interactive installation
@@ -177,7 +178,7 @@ detect_package_manager() {
         PKG_INSTALL="zypper install -y"
     elif command_exists apk; then
         PKG_MANAGER="apk"
-        PKG_INSTALL="apk add"
+        PKG_INSTALL="apk add --non-interactive"
     else
         print_error "Cannot detect package manager"
         exit 1
@@ -235,6 +236,16 @@ check_optional_dependencies() {
     fi
 }
 
+# Function to check if sudo password is cached (non-interactive check)
+check_sudo_access() {
+    # Use sudo -n (non-interactive) to check if password is cached
+    if sudo -n true 2>/dev/null; then
+        return 0  # Sudo access available without password
+    else
+        return 1  # Sudo requires password
+    fi
+}
+
 # Function to install dependencies
 install_dependencies() {
     local deps=("$@")
@@ -259,18 +270,32 @@ install_dependencies() {
             print_error "Installation cancelled"
             exit 1
         fi
+    else
+        # In auto-yes mode, check if sudo password is cached
+        if ! check_sudo_access; then
+            print_warning "Sudo password is required for package installation"
+            print_warning "Please ensure sudo password is cached (run 'sudo -v' first) or install dependencies manually"
+            print_warning "For fully non-interactive installation, configure passwordless sudo or cache password first"
+        fi
     fi
     
     print_info "Installing dependencies using $PKG_MANAGER..."
     
-    if [ "$PKG_MANAGER" = "pacman" ]; then
+    # Set DEBIAN_FRONTEND=noninteractive for apt-based systems to prevent interactive prompts
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        # Use DEBIAN_FRONTEND=noninteractive to prevent interactive prompts
+        if ! DEBIAN_FRONTEND=noninteractive sudo $PKG_INSTALL "${deps[@]}"; then
+            print_error "Failed to install dependencies"
+            exit 1
+        fi
+    elif [ "$PKG_MANAGER" = "pacman" ]; then
         # pacman needs sudo
         if ! sudo $PKG_INSTALL "${deps[@]}"; then
             print_error "Failed to install dependencies"
             exit 1
         fi
     else
-        # Other package managers
+        # Other package managers (dnf, yum, zypper, apk)
         if ! sudo $PKG_INSTALL "${deps[@]}"; then
             print_error "Failed to install dependencies"
             exit 1

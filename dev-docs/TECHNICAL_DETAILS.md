@@ -103,9 +103,10 @@ Set appropriate display environment variable (DISPLAY or WAYLAND_DISPLAY) before
 For detailed display detection strategies for SteamOS Gaming Mode, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#display-detection-enhancements).
 
 ## Modal Popup
-- Use `zenity --warning --modal` to ensure user must interact
+- Uses dialog tools (YAD preferred, Zenity/KDialog fallback) with `--modal` flag to ensure user must interact
 - Popup will block until user clicks OK/dismisses
 - Supports configurable minimum display time (prevents closing/minimizing for set duration)
+- Dialog tool priority: YAD → Zenity → KDialog (unified across all environments)
 
 ## Minimum Display Time Feature
 
@@ -166,18 +167,27 @@ For detailed display detection strategies for SteamOS Gaming Mode, see [STEAMOS_
 - Behavior varies between different desktop environments and compositors
 - Behavior should be tested with actual full-screen games on target systems, especially SteamOS Gaming Mode
 
+**SteamOS Desktop Mode Testing**:
+- Limited testing indicates popups work with some full-screen games in SteamOS Desktop Mode (X11 environment)
+- Results vary by game - some full-screen games allow popups to appear, while exclusive full-screen games may still block them
+- No guarantees can be made for all games, as behavior depends on individual game implementation
+
 **For detailed SteamOS Gaming Mode compatibility information**, including specific considerations, limitations, and solutions, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#full-screen-application-compatibility).
 
 **Implemented Solutions**:
-1. **Multi-tool support**: System supports zenity, yad, and kdialog with automatic detection
-   - zenity: Primary choice, good cross-platform compatibility
-   - yad: Alternative with `--on-top` flag and better positioning control
-   - kdialog: KDE native tool (currently not preferred due to compatibility issues)
+1. **Multi-tool support**: System supports yad, zenity, and kdialog with unified priority (YAD → Zenity → KDialog)
+   - **YAD**: Preferred choice - native positioning, reliable sizing, better window management
+   - **Zenity**: Reliable fallback - pre-installed on most systems, good cross-platform compatibility
+   - **KDialog**: Last resort - KDE native tool, provides KDE integration when needed
+   - **Unified Priority**: Same priority across all environments (including KDE) - technical advantages take precedence
 2. **Window manager tools**: Implemented using `wmctrl` or `xdotool` for stay-on-top functionality
    - Uses `xprop _NET_WM_STATE_ABOVE` for reliable on-top behavior
-   - Confirmed working with zenity on KDE/KWin
+   - Confirmed working with all dialog tools on KDE/KWin
    - Requires X11 (not available on Wayland/gamescope)
 3. **Periodic enforcement**: Background process continuously reapplies stay-on-top settings
+4. **Positioning Simplification**: Only `center` and `top-left` positions supported
+   - Center: Default fallback, works with all tools
+   - Top-left: Simple fixed margins, no window size calculations required
 
 **Additional Solutions if Issues Arise**:
 4. **Steam Overlay Integration**: Consider integrating with Steam overlay for Gaming Mode compatibility (see [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md))
@@ -200,17 +210,19 @@ For detailed display detection strategies for SteamOS Gaming Mode, see [STEAMOS_
 The `configure.sh` script provides a user-friendly way to set up restricted hours without manually editing the configuration file.
 
 **Implementation Approach:**
-1. **GUI Interface**: Primary interface uses dialog tools (zenity/yad/kdialog) for dialogs
-   - System automatically detects available dialog tool
+1. **GUI Interface**: Primary interface uses dialog abstraction layer (yad/zenity/kdialog) for dialogs
+   - System automatically detects available dialog tool using unified priority (YAD → Zenity → KDialog)
+   - Dialog abstraction functions in `lib/configure-dialogs.sh` provide tool-agnostic interface
    - Welcome dialog explaining the process
    - Day-by-day hour selection dialogs
    - Summary dialog showing all configured hours
    - Confirmation dialog before saving
+   - Multi-column list dialogs for menus and visual grid
 
 2. **Input Collection**:
    - For each day (Sunday through Saturday), prompt for:
-     - Start hour (0-23) using `zenity --entry` or `zenity --scale`
-     - End hour (0-23) using `zenity --entry` or `zenity --scale`
+     - Start hour (0-23) using dialog abstraction functions (`show_entry_dialog`)
+     - End hour (0-23) using dialog abstraction functions
    - Provide option to skip day (no restrictions)
    - Provide option to apply weekday settings to all weekdays at once
    - Provide option to apply weekend settings to both weekend days at once
@@ -249,7 +261,7 @@ The `configure.sh` script provides a user-friendly way to set up restricted hour
 The `manage.sh` script provides a central interface for managing and understanding the sleep warning system.
 
 **Implementation Approach:**
-1. **Main Menu**: Use `zenity --list` or text menu for options
+1. **Main Menu**: Use multi-column list dialog abstraction or text menu for options
    - Each option launches a specific function
    - Menu should be easy to navigate
 
@@ -262,7 +274,7 @@ The `manage.sh` script provides a central interface for managing and understandi
 3. **Configuration View Function**:
    - Read and display `~/.config/sleep-warning/sleep-warning.conf`
    - Format nicely for display
-   - Show in `zenity --text-info` dialog or `less` for text mode
+   - Show in text info dialog abstraction or `less` for text mode
 
 4. **Disable/Enable Functions**:
    - **Disable**: `systemctl --user stop sleep-warning.timer && systemctl --user disable sleep-warning.timer`
@@ -470,12 +482,13 @@ The implementation should follow these principles to ensure maximum portability:
    - Check for GUI environment (DISPLAY variable, WAYLAND_DISPLAY variable, or active session)
    - Check for gamescope compositor (SteamOS Gaming Mode). For details, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md).
 
-3. **Fallback Options**: Implement comprehensive fallback dialog tools
-   - Primary: `zenity` (GTK, works on most systems)
-   - Fallback 1: `yad` (enhanced zenity alternative, better Wayland support, preferred for Gaming Mode)
-   - Fallback 2: `kdialog` (KDE-specific, better on KDE systems like SteamOS Desktop Mode)
-   - Fallback 3: `notify-send` (non-modal, last resort)
-   - Environment-aware selection: Prefer yad for Gaming Mode, kdialog for KDE systems; log selected tool and environment
+3. **Fallback Options**: Implement comprehensive fallback dialog tools with unified priority
+   - **Primary**: `yad` (enhanced GTK dialog, native positioning, reliable sizing, better window management)
+   - **Fallback 1**: `zenity` (GTK, works on most systems, pre-installed on SteamOS)
+   - **Fallback 2**: `kdialog` (KDE-specific, provides KDE integration when needed)
+   - **Fallback 3**: `notify-send` (non-modal, last resort)
+   - **Unified Priority**: YAD → Zenity → KDialog across all environments (including KDE)
+   - Technical advantages of YAD take precedence over visual consistency considerations
 
    For detailed dialog tool selection strategies for SteamOS Gaming Mode, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#dialog-tool-selection).
 

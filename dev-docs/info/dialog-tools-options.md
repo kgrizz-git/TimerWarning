@@ -486,7 +486,26 @@ yad --info --text="Positioned dialog" --geometry="${width}x${height}+${x}+${y}"
 
 ## 9. Implementation in This Project
 
-### Current Approach (Pre-Enhancement #24)
+### Current Approach (Post-Enhancement #24 - Implemented)
+
+**Unified Priority**: YAD → Zenity → KDialog (all environments, all components)
+
+**Popup Warnings** (`sleep-warning.sh`): Unified priority
+- **All Environments**: yad → zenity → kdialog
+- Same priority regardless of Wayland/Gamescope, KDE, or X11
+
+**Configuration Wizard** (`configure.sh`): Dialog abstraction layer
+- Uses `lib/configure-dialogs.sh` abstraction functions
+- Tool-agnostic interface: `show_info_dialog()`, `show_question_dialog()`, `show_entry_dialog()`, `show_list_dialog()`, `show_multi_column_list_dialog()`, `show_text_info_dialog()`
+- Unified priority: yad → zenity → kdialog
+
+**Positioning Strategy** (Simplified):
+- Only `center` and `top-left` positions supported
+- Center: Default fallback, works with all tools
+- Top-left: Simple fixed margins, no window size calculations required
+- Removed complex corner positions (top-right, bottom-left, bottom-right, top-center, bottom-center)
+
+### Previous Approach (Pre-Enhancement #24)
 
 **Popup Warnings** (`sleep-warning.sh`): Environment-aware priority
 - **Wayland/Gamescope**: yad → kdialog → zenity
@@ -495,36 +514,7 @@ yad --info --text="Positioned dialog" --geometry="${width}x${height}+${x}+${y}"
 
 **Configuration Wizard** (`configure.sh`): Zenity only (hardcoded)
 
-### Planned Approach (Enhancement #24)
-
-**Unified Priority**: YAD → Zenity → KDialog (all environments)
-
-```bash
-# From lib/desktop-environment.sh (planned)
-check_dialog_tool() {
-    local env_type="$1"
-    
-    # Unified priority for ALL environments: YAD -> Zenity -> KDialog
-    if command -v yad >/dev/null 2>&1; then
-        echo "yad"
-        return 0
-    elif command -v zenity >/dev/null 2>&1; then
-        echo "zenity"
-        return 0
-    elif command -v kdialog >/dev/null 2>&1; then
-        echo "kdialog"
-        return 0
-    fi
-    
-    return 1
-}
-```
-
-### Positioning Strategy
-
-**Current**: Supports center, top-left, top-right, bottom-left, bottom-right, top-center, bottom-center
-
-**Planned (Enhancement #24)**: Simplified to **center** and **top-left** only
+**Positioning**: Supported center, top-left, top-right, bottom-left, bottom-right, top-center, bottom-center
 - **YAD**: Use native `--geometry` flag (center/top-left)
 - **Zenity/KDialog**: Use post-creation repositioning via `wmctrl` or `xdotool` (X11 only, top-left only)
 - **Top-left**: Simplest positioning (fixed margins only, no window size calculations needed)
@@ -780,16 +770,14 @@ As part of the unified priority implementation, popup positioning options are si
 
 ### Implementation Status
 
-**Current State** (as of enhancement #24):
-- Popup warnings (`sleep-warning.sh`): Environment-aware priority (varies by environment)
-- Configuration wizard (`configure.sh`): Zenity only (hardcoded)
+**Current State** (post-enhancement #24 - **IMPLEMENTED**):
+- **All dialogs**: Unified YAD → Zenity → KDialog priority ✅
+- **All environments**: Same priority regardless of desktop environment ✅
+- **Positioning**: Simplified to center and top-left only ✅
+- **Configuration wizard**: Dialog abstraction layer with tool-agnostic functions ✅
+- **Multi-column lists**: Abstraction function supports all three tools ✅
 
-**Planned State** (enhancement #24):
-- **All dialogs**: Unified YAD → Zenity → KDialog priority
-- **All environments**: Same priority regardless of desktop environment
-- **Positioning**: Simplified to center and top-left only
-
-See [enhancement-24-unified-dialog-priority-yad-first.md](../enhancements/enhancement-24-unified-dialog-priority-yad-first.md) for implementation details.
+See [enhancement-24-unified-dialog-priority-yad-first.md](../enhancements/enhancement-24-unified-dialog-priority-yad-first.md) for implementation details and checklist.
 
 ---
 
@@ -797,14 +785,14 @@ See [enhancement-24-unified-dialog-priority-yad-first.md](../enhancements/enhanc
 
 **For this project (SteamOS sleep warning system)**:
 
-**Current Implementation** (pre-enhancement #24):
+**Current Implementation** (post-enhancement #24 - **IMPLEMENTED**):
+1. **Primary**: YAD (superior capabilities when available) ✅
+2. **Secondary**: Zenity (guaranteed fallback, pre-installed on SteamOS) ✅
+3. **Tertiary**: KDialog (last resort fallback) ✅
+
+**Previous Implementation** (pre-enhancement #24):
 1. **Primary**: Zenity (guaranteed availability, reliable in Gaming Mode)
 2. **Secondary**: KDialog (better for Desktop Mode, native to KDE)
 3. **Tertiary**: YAD (most powerful, but requires manual installation)
-
-**Planned Implementation** (enhancement #24):
-1. **Primary**: YAD (superior capabilities when available)
-2. **Secondary**: Zenity (guaranteed fallback, pre-installed on SteamOS)
-3. **Tertiary**: KDialog (last resort fallback)
 
 **Key takeaway**: The chosen priority (YAD → Zenity → KDialog) prioritizes **technical capabilities** (native positioning, reliable sizing, window management) over **visual consistency** or **environment-specific preferences**. This ensures the best user experience when advanced tools are available, while maintaining robust fallback support for all systems.

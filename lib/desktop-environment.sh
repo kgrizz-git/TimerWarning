@@ -6,7 +6,7 @@
 # This module handles desktop environment and dialog tool detection including:
 # - KDE desktop environment detection
 # - Dialog tool availability checking (zenity/yad/kdialog)
-# - Environment-aware dialog tool priority selection
+# - Unified dialog tool priority selection (YAD → Zenity → KDialog)
 #
 # Dependencies: None (standalone module)
 #
@@ -26,46 +26,18 @@ is_kde() {
     return 1
 }
 
-# Check if a dialog tool is available (environment-aware priority)
+# Check if a dialog tool is available (unified priority: YAD → Zenity → KDialog)
+# YAD's superior capabilities (native positioning, reliable sizing, window management)
+# outweigh visual consistency considerations, even on KDE
 check_dialog_tool() {
     local env_type="$1"
 
-    # Wayland/gamescope: prefer yad for better Wayland behavior
-    if [ "${env_type}" = "wayland" ] || [ "${env_type}" = "gamescope" ]; then
-        if command -v yad >/dev/null 2>&1; then
-            echo "yad"
-            return 0
-        elif command -v kdialog >/dev/null 2>&1; then
-            echo "kdialog"
-            return 0
-        elif command -v zenity >/dev/null 2>&1; then
-            echo "zenity"
-            return 0
-        fi
-        return 1
-    fi
-
-    # KDE: prefer kdialog for KDE integration
-    if is_kde; then
-        if command -v kdialog >/dev/null 2>&1; then
-            echo "kdialog"
-            return 0
-        elif command -v yad >/dev/null 2>&1; then
-            echo "yad"
-            return 0
-        elif command -v zenity >/dev/null 2>&1; then
-            echo "zenity"
-            return 0
-        fi
-        return 1
-    fi
-
-    # Default: zenity -> yad -> kdialog
-    if command -v zenity >/dev/null 2>&1; then
-        echo "zenity"
-        return 0
-    elif command -v yad >/dev/null 2>&1; then
+    # Unified priority for ALL environments: YAD -> Zenity -> KDialog
+    if command -v yad >/dev/null 2>&1; then
         echo "yad"
+        return 0
+    elif command -v zenity >/dev/null 2>&1; then
+        echo "zenity"
         return 0
     elif command -v kdialog >/dev/null 2>&1; then
         echo "kdialog"

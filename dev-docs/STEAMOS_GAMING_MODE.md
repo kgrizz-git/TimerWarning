@@ -159,6 +159,16 @@ For testing requirements, see [plan-phase-4-testing.md](plan-phase-4-testing.md#
 - **Reliability**: Same as Desktop Mode experience with full window control capabilities
 - **Status**: Should work perfectly
 
+##### 3a. Full-Screen Games in Desktop Mode
+- **Expected Effectiveness**: Variable (game-dependent)
+- **Why**: Desktop Mode uses X11, enabling window manager tools and better dialog visibility
+- **Implementation**: 
+  - Window manager tools (`wmctrl`/`xdotool`) work in Desktop Mode (X11)
+  - Dialog tools can appear over full-screen applications more reliably than in Gaming Mode
+  - Some full-screen games may still block dialogs depending on their implementation
+- **Reliability**: Moderate to high, highly game-dependent
+- **Status**: ⚠️ Limited testing indicates popups work with some full-screen games in Desktop Mode, but results vary by game. Exclusive full-screen games may still block popups. No guarantees can be made for all games.
+
 ##### 4. Windowed Games
 - **Expected Effectiveness**: ~85-90%
 - **Why**: Dialog tools work reliably over windowed applications
@@ -266,6 +276,7 @@ For testing requirements, see [plan-phase-4-testing.md](plan-phase-4-testing.md#
    - Works identically to standard desktop environments
    - Uses X11, so window manager tools (`wmctrl`/`xdotool`) work
    - Full window control features available (immovable windows, prevent closing, etc.)
+   - **Full-Screen Games**: Limited testing indicates popups work with some full-screen games in Desktop Mode, but results vary by game. Exclusive full-screen games may still block popups. No guarantees can be made for all games.
 
 #### ⚠️ Partial Success Areas
 

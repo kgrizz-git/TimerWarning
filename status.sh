@@ -37,6 +37,13 @@ elif [ -f "/usr/local/bin/sleep-warning-lib/config.sh" ]; then
     source "/usr/local/bin/sleep-warning-lib/config.sh"
 fi
 
+# Source desktop environment library if available (for dialog tool detection)
+if [ -f "${SCRIPT_DIR}/lib/desktop-environment.sh" ]; then
+    source "${SCRIPT_DIR}/lib/desktop-environment.sh"
+elif [ -f "/usr/local/bin/sleep-warning-lib/desktop-environment.sh" ]; then
+    source "/usr/local/bin/sleep-warning-lib/desktop-environment.sh"
+fi
+
 # ANSI color codes
 COLOR_RESET="\033[0m"
 COLOR_BOLD="\033[1m"
@@ -352,6 +359,73 @@ show_configuration() {
         popup_immovable="Disabled"
     fi
     print_status "Prevent Window Movement" "${popup_immovable}"
+    
+    # Detect and display dialog tool
+    local dialog_tool
+    local dialog_tool_status=""
+    local dialog_tool_display=""
+    
+    # Check if DIALOG_TOOL is configured (for future enhancement #25)
+    local configured_dialog_tool
+    configured_dialog_tool=$(grep -E "^[[:space:]]*DIALOG_TOOL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    
+    if [ -n "${configured_dialog_tool}" ] && [ "${configured_dialog_tool}" != "auto" ]; then
+        # User has manually selected a dialog tool
+        if command -v "${configured_dialog_tool}" >/dev/null 2>&1; then
+            dialog_tool="${configured_dialog_tool}"
+            dialog_tool_display="${configured_dialog_tool} (user-selected)"
+            dialog_tool_status="good"
+        else
+            # Selected tool not installed, will fall back to automatic
+            dialog_tool_display="${configured_dialog_tool} (not installed, will use automatic)"
+            dialog_tool_status="warning"
+        fi
+    else
+        # Use automatic priority system (YAD → Zenity → KDialog)
+        if type check_dialog_tool >/dev/null 2>&1; then
+            # Use the function from desktop-environment.sh if available
+            local env_type
+            env_type=$(echo "${XDG_SESSION_TYPE:-x11}" | tr '[:upper:]' '[:lower:]')
+            dialog_tool=$(check_dialog_tool "${env_type}")
+        else
+            # Fallback: check tools manually in priority order
+            if command -v yad >/dev/null 2>&1; then
+                dialog_tool="yad"
+            elif command -v zenity >/dev/null 2>&1; then
+                dialog_tool="zenity"
+            elif command -v kdialog >/dev/null 2>&1; then
+                dialog_tool="kdialog"
+            fi
+        fi
+        
+        if [ -n "${dialog_tool}" ]; then
+            dialog_tool_display="${dialog_tool} (automatic selection)"
+            dialog_tool_status="good"
+        else
+            dialog_tool_display="None available"
+            dialog_tool_status="error"
+        fi
+    fi
+    
+    # Show installed tools for reference
+    local installed_tools=()
+    if command -v yad >/dev/null 2>&1; then
+        installed_tools+=("yad")
+    fi
+    if command -v zenity >/dev/null 2>&1; then
+        installed_tools+=("zenity")
+    fi
+    if command -v kdialog >/dev/null 2>&1; then
+        installed_tools+=("kdialog")
+    fi
+    
+    if [ ${#installed_tools[@]} -gt 0 ]; then
+        local tools_list
+        tools_list=$(IFS=', '; echo "${installed_tools[*]}")
+        dialog_tool_display="${dialog_tool_display} [Installed: ${tools_list}]"
+    fi
+    
+    print_status "Dialog Tool" "${dialog_tool_display}" "${dialog_tool_status}"
     
     # Read restricted hours
     print_header "RESTRICTED HOURS"

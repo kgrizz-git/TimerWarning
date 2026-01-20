@@ -148,8 +148,8 @@ This warning will appear ${interval_text} while you continue using your computer
                 2>/dev/null &
             popup_pid=$!
             
-            # Reposition window after creation if position is not center
-            if [ -n "${window_tool}" ] && [ "${popup_position}" != "center" ]; then
+            # Reposition window after creation if position is top-left
+            if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
                 reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
             fi
             ;;
@@ -167,8 +167,8 @@ This warning will appear ${interval_text} while you continue using your computer
                 2>/dev/null &
             popup_pid=$!
             
-            # Also reposition as backup in case --geometry doesn't work properly
-            if [ -n "${window_tool}" ] && [ "${popup_position}" != "center" ]; then
+            # Also reposition as backup in case --geometry doesn't work properly (top-left only)
+            if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
                 reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
             fi
             ;;
@@ -187,8 +187,8 @@ This warning will appear ${interval_text} while you continue using your computer
                 popup_pid=""
             fi
             
-            # Reposition window after creation if position is not center
-            if [ -n "${popup_pid}" ] && [ -n "${window_tool}" ] && [ "${popup_position}" != "center" ]; then
+            # Reposition window after creation if position is top-left
+            if [ -n "${popup_pid}" ] && [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
                 reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
             fi
             ;;
@@ -256,8 +256,8 @@ This warning will appear ${interval_text} while you continue using your computer
                             2>/dev/null &
                         popup_pid=$!
                         
-                        # Reposition if needed
-                        if [ -n "${window_tool}" ] && [ "${popup_position}" != "center" ]; then
+                        # Reposition if needed (top-left only)
+                        if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
                             reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
                         fi
                         ;;
@@ -273,8 +273,8 @@ This warning will appear ${interval_text} while you continue using your computer
                             2>/dev/null &
                         popup_pid=$!
                         
-                        # Reposition as backup
-                        if [ -n "${window_tool}" ] && [ "${popup_position}" != "center" ]; then
+                        # Reposition as backup (top-left only)
+                        if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
                             reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
                         fi
                         ;;
@@ -284,8 +284,8 @@ This warning will appear ${interval_text} while you continue using your computer
                             2>/dev/null &
                         popup_pid=$!
                         
-                        # Reposition if needed
-                        if [ -n "${window_tool}" ] && [ "${popup_position}" != "center" ]; then
+                        # Reposition if needed (top-left only)
+                        if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
                             reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
                         fi
                         ;;

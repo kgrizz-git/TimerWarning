@@ -4,7 +4,7 @@
 # Sleep Warning System - User Interface Dialogs Module
 #
 # This module provides basic UI dialog functions for user interaction in both
-# GUI (zenity) and text modes.
+# GUI (YAD/Zenity/KDialog) and text modes.
 #
 # Functions:
 # - confirm_cancel()        - Confirm cancellation dialog
@@ -16,20 +16,20 @@
 # - ask_weekend_together()  - Ask if configuring weekends together
 #
 # Dependencies:
-# - configure-core.sh (for has_zenity, CONFIG_FILE)
+# - configure-core.sh (for has_dialog_tool, CONFIG_FILE)
+# - configure-dialogs.sh (for dialog abstraction functions)
 ###############################################################################
 
 # Confirm cancellation with user
 confirm_cancel() {
     local use_gui="$1"
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
-        zenity --question \
-            --title="Cancel Configuration?" \
-            --text="Are you sure you want to cancel?\n\nAll unsaved changes will be lost." \
-            --ok-label="Yes, Cancel" \
-            --cancel-label="No, Continue" \
-            2>/dev/null
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_question_dialog \
+            "Cancel Configuration?" \
+            "Are you sure you want to cancel?\n\nAll unsaved changes will be lost." \
+            "Yes, Cancel" \
+            "No, Continue"
         return $?
     else
         echo ""
@@ -59,13 +59,12 @@ confirm_skip_day() {
         skip_message="Are you sure you want to skip ${day_name}?\n\nNo restrictions will be set for this day."
     fi
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
-        zenity --question \
-            --title="Skip ${day_name}?" \
-            --text="${skip_message}" \
-            --ok-label="Yes, Skip" \
-            --cancel-label="No, Configure" \
-            2>/dev/null
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_question_dialog \
+            "Skip ${day_name}?" \
+            "${skip_message}" \
+            "Yes, Skip" \
+            "No, Configure"
         return $?
     else
         echo "" >&2
@@ -122,13 +121,12 @@ EXAMPLES:
   • '23-6' = 11:00 PM to 5:59 AM (overnight)
   • '0-5,22-23' = Midnight-4:59 AM AND 10 PM-11:59 PM"
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
-        echo "${help_text}" | zenity --text-info \
-            --title="Configuration Help" \
-            --width=600 \
-            --height=500 \
-            --font="monospace" \
-            2>/dev/null
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_text_info_dialog \
+            "Configuration Help" \
+            "${help_text}" \
+            600 \
+            500
     else
         echo ""
         echo "=== CONFIGURATION HELP ==="
@@ -172,12 +170,12 @@ Examples:
 
 Let's get started!"
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
-        zenity --info \
-            --title="Sleep Warning Configuration" \
-            --text="${message}" \
-            --width=500 \
-            2>/dev/null
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_info_dialog \
+            "Sleep Warning Configuration" \
+            "${message}" \
+            500 \
+            200
     else
         echo "${message}"
         echo ""
@@ -189,13 +187,12 @@ Let's get started!"
 ask_weekday_together() {
     local use_gui="$1"
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
-        zenity --question \
-            --title="Sleep Warning Configuration" \
-            --text="Would you like to use the same restricted hours for all weekdays (Monday-Friday)?" \
-            --ok-label="Yes" \
-            --cancel-label="No" \
-            2>/dev/null
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_question_dialog \
+            "Sleep Warning Configuration" \
+            "Would you like to use the same restricted hours for all weekdays (Monday-Friday)?" \
+            "Yes" \
+            "No"
         return $?
     else
         read -p "Use same hours for all weekdays (Monday-Friday)? [y/N]: " answer
@@ -210,13 +207,12 @@ ask_weekday_together() {
 ask_weekend_together() {
     local use_gui="$1"
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
-        zenity --question \
-            --title="Sleep Warning Configuration" \
-            --text="Would you like to use the same restricted hours for both weekend days (Saturday and Sunday)?" \
-            --ok-label="Yes" \
-            --cancel-label="No" \
-            2>/dev/null
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_question_dialog \
+            "Sleep Warning Configuration" \
+            "Would you like to use the same restricted hours for both weekend days (Saturday and Sunday)?" \
+            "Yes" \
+            "No"
         return $?
     else
         read -p "Use same hours for both weekend days (Saturday and Sunday)? [y/N]: " answer
@@ -245,12 +241,12 @@ No manual action is required - everything is ready to use!
 
 You can run this wizard again anytime to change your settings."
 
-    if [ "${use_gui}" = "true" ] && has_zenity; then
-        zenity --info \
-            --title="Sleep Warning Configuration" \
-            --text="${message}" \
-            --width=500 \
-            2>/dev/null
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_info_dialog \
+            "Sleep Warning Configuration" \
+            "${message}" \
+            500 \
+            200
     else
         echo ""
         echo "${message}"

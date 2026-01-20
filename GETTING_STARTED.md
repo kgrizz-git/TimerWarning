@@ -175,13 +175,14 @@ sudo pacman -S yad
 sudo zypper install yad
 ```
 
-**Benefits of yad:**
-- Better popup positioning control (required for `POPUP_POSITION` configuration)
+**Benefits of yad** (preferred dialog tool):
+- Native popup positioning control (required for `POPUP_POSITION` configuration)
+- Reliable window sizing
 - Improved Wayland support
-- Preferred for SteamOS Gaming Mode
-- Enhanced window control options
+- Enhanced window management options
+- Better overall dialog capabilities
 
-**Note**: `yad` is optional - the system works with `zenity` (installed automatically), but `yad` provides additional features.
+**Note**: The system uses a unified priority (YAD → Zenity → KDialog) across all environments. YAD is preferred when available for its superior technical capabilities. The system works with `zenity` (installed automatically) or `kdialog` as fallbacks, but YAD provides the best experience.
 
 ### Step 4: Configure Your Restricted Hours
 
@@ -215,8 +216,10 @@ You can customize these to match your schedule. For complete configuration optio
 
 **Command-line options:**
 - `--text` or `--no-gui`: Force text mode (useful for SSH sessions)
-- `--gui`: Force GUI mode (requires zenity)
+- `--gui`: Force GUI mode (requires yad, zenity, or kdialog)
 - `--help` or `-h`: Show help message
+
+**Note**: The configuration wizard automatically uses the best available dialog tool in priority order (YAD → Zenity → KDialog). YAD is preferred for its superior capabilities.
 
 ### Step 5: Verify Installation
 

@@ -403,6 +403,7 @@ reenable_window_closing() {
 }
 
 # Calculate popup position coordinates (for yad --geometry or window repositioning)
+# Supports only center and top-left positions (simplified for maintainability)
 # Returns format: "WIDTHxHEIGHT+X+Y" for yad geometry or "X Y" if only_coords is true
 calculate_popup_geometry() {
     local position="$1"
@@ -469,28 +470,8 @@ calculate_popup_geometry() {
             x=${margin_x}
             y=${margin_y_top}
             ;;
-        top-right)
-            x=$(( screen_width - width - margin_x ))
-            y=${margin_y_top}
-            ;;
-        bottom-left)
-            x=${margin_x}
-            y=$(( screen_height - height - margin_y_bottom ))
-            ;;
-        bottom-right)
-            x=$(( screen_width - width - margin_x ))
-            y=$(( screen_height - height - margin_y_bottom ))
-            ;;
-        top-center)
-            x=$(( (screen_width - width) / 2 ))
-            y=${margin_y_top}
-            ;;
-        bottom-center)
-            x=$(( (screen_width - width) / 2 ))
-            y=$(( screen_height - height - margin_y_bottom ))
-            ;;
         *)
-            # Default to center
+            # Default to center for invalid positions
             x=$(( (screen_width - width) / 2 ))
             y=$(( (screen_height - height) / 2 ))
             ;;

@@ -4,10 +4,10 @@
 # Sleep Warning System - User Input Collection Module
 #
 # This module provides all user input collection functions for the configuration
-# wizard, supporting both GUI (zenity) and text modes.
+# wizard, supporting both GUI (YAD/Zenity/KDialog) and text modes.
 #
 # Functions:
-# - get_hour_zenity()              - Get hour input using zenity
+# - get_hour_zenity()              - Get hour input using dialog tool (legacy name)
 # - get_hour_text()                - Get hour input using text prompt
 # - get_popup_size_config()        - Get popup size from user
 # - get_min_display_time_config()  - Get minimum display time
@@ -17,22 +17,22 @@
 # - get_day_hours()                - Get time ranges for a day (complex with navigation)
 #
 # Dependencies:
-# - configure-core.sh (for has_zenity, CONFIG_FILE)
+# - configure-core.sh (for has_dialog_tool, CONFIG_FILE)
+# - configure-dialogs.sh (for dialog abstraction functions)
 # - configure-ui.sh (for confirm_cancel, confirm_skip_day, show_help_dialog)
 # - configure-time.sh (for format_ranges_human)
 ###############################################################################
 
-# Get hour input using zenity
+# Get hour input using dialog tool (legacy name: get_hour_zenity)
 get_hour_zenity() {
     local prompt="$1"
     local default="$2"
     
     local hour
-    hour=$(zenity --entry \
-        --title="Sleep Warning Configuration" \
-        --text="${prompt}" \
-        --entry-text="${default}" \
-        2>/dev/null)
+    hour=$(show_entry_dialog \
+        "Sleep Warning Configuration" \
+        "${prompt}" \
+        "${default}")
     
     if [ -z "${hour}" ]; then
         echo ""
@@ -41,7 +41,11 @@ get_hour_zenity() {
     
     # Validate hour
     if ! [[ "${hour}" =~ ^[0-9]+$ ]] || [ "${hour}" -lt 0 ] || [ "${hour}" -gt 23 ]; then
-        zenity --error --text="Invalid hour. Please enter a number between 0 and 23." 2>/dev/null
+        show_info_dialog \
+            "Invalid Hour" \
+            "Invalid hour. Please enter a number between 0 and 23." \
+            400 \
+            150
         echo ""
         return 1
     fi
@@ -82,24 +86,27 @@ get_popup_size_config() {
         fi
     fi
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
             local size
             local tmpfile
             tmpfile=$(mktemp)
             
-            zenity --list \
-                --title="Sleep Warning Configuration" \
-                --text="Select popup size (current: ${default_size}):" \
-                --column="Size" --column="Dimensions" \
-                "small" "400x250 pixels" \
-                "medium" "800x500 pixels" \
-                "large" "2000x1350 pixels" \
-                --width=500 \
-                --height=350 \
-                --print-column=1 \
-                > "${tmpfile}" 2>/dev/null
+            local size_result
+            size_result=$(show_list_dialog \
+                "Sleep Warning Configuration" \
+                "Select popup size (current: ${default_size}):" \
+                500 \
+                350 \
+                "small" "medium" "large")
+            local exit_code=$?
+            
+            if [ ${exit_code} -eq 0 ] && [ -n "${size_result}" ]; then
+                size="${size_result}"
+            else
+                size=""
+            fi
             local exit_code=$?
             
             size=$(cat "${tmpfile}" 2>/dev/null)
@@ -153,22 +160,15 @@ get_min_display_time_config() {
         fi
     fi
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
             local time
-            local tmpfile
-            tmpfile=$(mktemp)
-            
-            zenity --entry \
-                --title="Sleep Warning Configuration" \
-                --text="Minimum time popup must be visible before it can be closed:\n\nEnter time in seconds (0-300):\n(0 = disabled, 30 = default)" \
-                --entry-text="${default_time}" \
-                > "${tmpfile}" 2>/dev/null
+            time=$(show_entry_dialog \
+                "Sleep Warning Configuration" \
+                "Minimum time popup must be visible before it can be closed:\n\nEnter time in seconds (0-300):\n(0 = disabled, 30 = default)" \
+                "${default_time}")
             local exit_code=$?
-            
-            time=$(cat "${tmpfile}" 2>/dev/null)
-            rm -f "${tmpfile}"
             
             # User cancelled
             if [ "${exit_code}" -ne 0 ] || [ -z "${time}" ]; then
@@ -182,7 +182,11 @@ get_min_display_time_config() {
             
             # Validate time
             if ! [[ "${time}" =~ ^[0-9]+$ ]] || [ "${time}" -lt 0 ] || [ "${time}" -gt 300 ]; then
-                zenity --error --text="Invalid time. Please enter a number between 0 and 300 seconds." 2>/dev/null
+                show_info_dialog \
+                    "Invalid Time" \
+                    "Invalid time. Please enter a number between 0 and 300 seconds." \
+                    400 \
+                    150
                 continue
             fi
             
@@ -223,28 +227,27 @@ get_popup_immovable_config() {
         fi
     fi
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
             local immovable
             local tmpfile
             tmpfile=$(mktemp)
             
-            zenity --list \
-                --title="Sleep Warning Configuration" \
-                --text="Prevent popup window from being moved during minimum display time?\n(Current: ${default_immovable})" \
-                --column="Option" --column="Description" \
-                --width=500 \
-                --height=250 \
-                "true" "Prevent window movement (recommended)" \
-                "false" "Allow window movement" \
-                --hide-column=2 \
-                --print-column=1 \
-                > "${tmpfile}" 2>/dev/null
+            local immovable_result
+            immovable_result=$(show_list_dialog \
+                "Sleep Warning Configuration" \
+                "Prevent popup window from being moved during minimum display time?\n(Current: ${default_immovable})" \
+                500 \
+                250 \
+                "true" "false")
             local exit_code=$?
             
-            immovable=$(cat "${tmpfile}" 2>/dev/null)
-            rm -f "${tmpfile}"
+            if [ ${exit_code} -eq 0 ] && [ -n "${immovable_result}" ]; then
+                immovable="${immovable_result}"
+            else
+                immovable=""
+            fi
             
             # User cancelled
             if [ "${exit_code}" -ne 0 ] || [ -z "${immovable}" ]; then
@@ -304,31 +307,27 @@ get_popup_position_config() {
         fi
     fi
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
             local position
             local tmpfile
             tmpfile=$(mktemp)
             
-            zenity --list \
-                --title="Sleep Warning Configuration" \
-                --text="Select popup position on screen:\n(Current: ${default_position})" \
-                --column="Position" \
-                --width=500 \
-                --height=500 \
-                "center" \
-                "top-left" \
-                "top-right" \
-                "bottom-left" \
-                "bottom-right" \
-                "top-center" \
-                "bottom-center" \
-                > "${tmpfile}" 2>/dev/null
+            local position_result
+            position_result=$(show_list_dialog \
+                "Sleep Warning Configuration" \
+                "Select popup position on screen:\n(Current: ${default_position})" \
+                500 \
+                200 \
+                "center" "top-left")
             local exit_code=$?
             
-            position=$(cat "${tmpfile}" 2>/dev/null)
-            rm -f "${tmpfile}"
+            if [ ${exit_code} -eq 0 ] && [ -n "${position_result}" ]; then
+                position="${position_result}"
+            else
+                position=""
+            fi
             
             # User cancelled
             if [ "${exit_code}" -ne 0 ] || [ -z "${position}" ]; then
@@ -349,24 +348,14 @@ get_popup_position_config() {
         echo "Popup Position Options:" >&2
         echo "  1) center" >&2
         echo "  2) top-left" >&2
-        echo "  3) top-right" >&2
-        echo "  4) bottom-left" >&2
-        echo "  5) bottom-right" >&2
-        echo "  6) top-center" >&2
-        echo "  7) bottom-center" >&2
         echo "" >&2
         while true; do
-            read -p "Select position [1-7, default: ${default_position}]: " choice
+            read -p "Select position [1-2, default: ${default_position}]: " choice
             case "${choice}" in
                 1|center) echo "center"; return 0 ;;
                 2|top-left) echo "top-left"; return 0 ;;
-                3|top-right) echo "top-right"; return 0 ;;
-                4|bottom-left) echo "bottom-left"; return 0 ;;
-                5|bottom-right) echo "bottom-right"; return 0 ;;
-                6|top-center) echo "top-center"; return 0 ;;
-                7|bottom-center) echo "bottom-center"; return 0 ;;
                 "") echo "${default_position}"; return 0 ;;
-                *) echo "Invalid choice. Please select 1-7." >&2 ;;
+                *) echo "Invalid choice. Please select 1-2." >&2 ;;
             esac
         done
     fi
@@ -386,24 +375,19 @@ get_check_interval() {
         fi
     fi
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
             local interval
             local tmpfile
             tmpfile=$(mktemp)
             
-            # Run zenity directly (not in command substitution) and capture exit code
-            zenity --entry \
-                --title="Sleep Warning Configuration" \
-                --text="How often should the system check for restricted hours?\n\nEnter interval in minutes (1-60):" \
-                --entry-text="${default_interval}" \
-                > "${tmpfile}" 2>/dev/null
+            # Get interval using dialog tool
+            interval=$(show_entry_dialog \
+                "Sleep Warning Configuration" \
+                "How often should the system check for restricted hours?\n\nEnter interval in minutes (1-60):" \
+                "${default_interval}")
             local exit_code=$?
-            
-            # Read the output
-            interval=$(cat "${tmpfile}" 2>/dev/null)
-            rm -f "${tmpfile}"
             
             # Check exit code - non-zero means Cancel was clicked
             if [ ${exit_code} -ne 0 ]; then
@@ -423,7 +407,11 @@ get_check_interval() {
             
             # Validate interval
             if ! [[ "${interval}" =~ ^[0-9]+$ ]] || [ "${interval}" -lt 1 ] || [ "${interval}" -gt 60 ]; then
-                zenity --error --text="Invalid interval. Please enter a number between 1 and 60 minutes." 2>/dev/null
+                show_info_dialog \
+                    "Invalid Interval" \
+                    "Invalid interval. Please enter a number between 1 and 60 minutes." \
+                    400 \
+                    150
                 continue
             fi
             
@@ -454,7 +442,7 @@ get_day_hours() {
     local allow_back="$4"  # true/false - whether back button should be shown
     local allow_cancel="$5"  # true/false - whether cancel should be available
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
             # Build prompt text with examples
@@ -475,22 +463,15 @@ get_day_hours() {
             
             # Ask for time range (supports single range, multiple ranges, or overnight)
             local range_input
-            local tmpfile
-            tmpfile=$(mktemp)
-            
-            zenity --entry \
-                --title="Sleep Warning Configuration - ${day_name}" \
-                --text="${prompt_text}" \
-                --width=550 \
-                --extra-button="Help" \
-                > "${tmpfile}" 2>/dev/null
+            range_input=$(show_entry_dialog \
+                "Sleep Warning Configuration - ${day_name}" \
+                "${prompt_text}" \
+                "" \
+                "Help")
             local exit_code=$?
             
-            range_input=$(cat "${tmpfile}" 2>/dev/null)
-            rm -f "${tmpfile}"
-            
             # Handle extra button (Help)
-            if [ "${exit_code}" -eq 1 ] && [ "${range_input}" = "Help" ]; then
+            if [ ${exit_code} -ne 0 ] && echo "${range_input}" | grep -q "^EXTRA_BUTTON:Help$"; then
                 show_help_dialog "${use_gui}"
                 continue
             fi
@@ -510,16 +491,14 @@ get_day_hours() {
                 fi
                 menu_options+=("Continue configuring")
                 
-                printf '%s\n' "${menu_options[@]}" | zenity --list \
-                    --title="What would you like to do?" \
-                    --text="You cancelled or left ${day_name} empty. What would you like to do?" \
-                    --column="Option" \
-                    --width=350 \
-                    --height=200 \
-                    > "${tmpfile}" 2>/dev/null
+                local choice
+                choice=$(show_list_dialog \
+                    "What would you like to do?" \
+                    "You cancelled or left ${day_name} empty. What would you like to do?" \
+                    350 \
+                    200 \
+                    "${menu_options[@]}")
                 local menu_exit=$?
-                local choice=$(cat "${tmpfile}" 2>/dev/null)
-                rm -f "${tmpfile}"
                 
                 if [ "${menu_exit}" -ne 0 ] || [ -z "${choice}" ]; then
                     # User cancelled the menu - treat as cancel whole config
@@ -570,7 +549,11 @@ get_day_hours() {
             # Validate the input (could be single range, multiple ranges, or overnight)
             # Check if it's a valid format
             if ! echo "${range_input}" | grep -qE '^([0-9]+-[0-9]+)(,[0-9]+-[0-9]+)*$'; then
-                zenity --error --text="Invalid format. Use: START-END or START-END,START-END\n\nExamples:\n• 0-5 (midnight to 4:59 AM)\n• 0-5,22-23 (two periods)\n• 23-6 (11 PM to 5:59 AM, overnight)" 2>/dev/null
+                show_info_dialog \
+                    "Invalid Format" \
+                    "Invalid format. Use: START-END or START-END,START-END\n\nExamples:\n• 0-5 (midnight to 4:59 AM)\n• 0-5,22-23 (two periods)\n• 23-6 (11 PM to 5:59 AM, overnight)" \
+                    500 \
+                    250
                 continue
             fi
             
@@ -598,19 +581,22 @@ get_day_hours() {
             done
             
             if [ "${valid}" = "false" ]; then
-                zenity --error --text="Invalid hour values. Hours must be 0-23, and start cannot equal end." 2>/dev/null
+                show_info_dialog \
+                    "Invalid Hour Values" \
+                    "Invalid hour values. Hours must be 0-23, and start cannot equal end." \
+                    400 \
+                    150
                 continue
             fi
             
             # Show preview of what will be restricted
             local preview
             preview=$(format_ranges_human "${range_input}" "${day_name}")
-            if zenity --question \
-                --title="Confirm Time Range" \
-                --text="You entered: ${range_input}\n\nThis means:\n${preview}\n\nIs this correct?" \
-                --ok-label="Yes" \
-                --cancel-label="No, Edit" \
-                2>/dev/null; then
+            if show_question_dialog \
+                "Confirm Time Range" \
+                "You entered: ${range_input}\n\nThis means:\n${preview}\n\nIs this correct?" \
+                "Yes" \
+                "No, Edit"; then
                 echo "${range_input}"
                 return 0
             fi

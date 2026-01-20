@@ -1,7 +1,7 @@
 # Enhancement 23: Display Restricted Times/Days in Popup
 
 - **Description**: Enhance the warning popup to display the configured restricted hours and days, showing users exactly when restrictions are active and **when the next unrestricted time will be**. This provides transparency and helps users understand why they're seeing the warning and plan accordingly. The popup should show the current day's restricted hours in a clear, readable format, and calculate the next unrestricted time by evaluating the entire week's configuration (not just the current day). This requires careful analysis of all restricted time ranges, including overnight ranges that span multiple days and overlapping ranges across day boundaries.
-- **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`
+- **Files Affected**: `lib/popup-display.sh`, `lib/config.sh`, `sleep-warning.conf` (optionally `lib/configure-time.sh` if reusing formatting functions)
 - **Priority**: Medium (improves user experience and transparency)
 - **Status**: Not implemented
 - **Feasibility Assessment**: ✅ **Highly Feasible** - Read configuration and format for display
@@ -28,7 +28,7 @@
     - Allow users to disable this feature if they prefer shorter popup messages
 - **Implementation Notes**:
   - **Time Range Formatting**:
-    - Reuse existing `format_ranges_human()` function from `configure.sh` if possible, or implement similar logic in `sleep-warning.sh`
+    - Reuse existing `format_ranges_human()` function from `lib/configure-time.sh` if possible, or implement similar logic in `lib/popup-display.sh` (consider moving shared formatting functions to a common module)
     - Convert 24-hour format to 12-hour format with AM/PM for readability
     - Handle overnight ranges clearly (show "next day" indicator)
     - Format multiple ranges with "AND" separator
@@ -64,7 +64,7 @@
   - **Configuration Option**:
     - `POPUP_SHOW_RESTRICTED_TIMES=true/false` - Enable/disable display of restricted times in popup (default: `true`)
     - Add to config file with comment explaining the feature
-    - Can be configured via `configure.sh` in future (optional, not required for initial implementation)
+    - Can be configured via `configure.sh` (using `lib/configure-config.sh` and `lib/configure-input.sh`) in future (optional, not required for initial implementation)
   - **Edge Cases**:
     - **Overnight Ranges**: Must clearly indicate when range spans to next day
     - **Multiple Ranges**: Format clearly with "AND" separator
@@ -125,7 +125,7 @@
         - Log warning: this should never happen if Enhancement 22 is implemented
         - Consider showing uninstall instructions or emergency override
   - **Implementation Location**:
-    - Modify `show_warning()` function in `sleep-warning.sh`
+    - Modify `show_warning()` function in `lib/popup-display.sh`
     - Read current day's restrictions using existing `parse_config()` function
     - Format time ranges using new or existing formatting function
     - Calculate next unrestricted time using new `get_next_unrestricted_time()` function
@@ -166,13 +166,13 @@
 ## Implementation Details
 
 ### Code Location Reference
-- **Existing formatting functions** (to adapt): `configure.sh` lines 865-942
-  - `format_hour_12h()` - Line 865
-  - `format_range_human()` - Line 879
-  - `format_ranges_human()` - Line 918
-- **Target function to modify**: `sleep-warning.sh` `show_warning()` - Line 1295
+- **Existing formatting functions** (can reuse from modules):
+  - `format_hour_12h()` - Already exists in `lib/configure-core.sh` (can be reused or moved to shared location)
+  - `format_range_human()` - Already exists in `lib/configure-time.sh` (can be reused or moved to shared location)
+  - `format_ranges_human()` - Already exists in `lib/configure-time.sh` (can be reused or moved to shared location)
+- **Target function to modify**: `lib/popup-display.sh` `show_warning()` function
 - **Config file to update**: `sleep-warning.conf`
-- **Message construction**: Currently at lines 1389-1395 in `sleep-warning.sh`
+- **Message construction**: Modify message building logic in `lib/popup-display.sh` `show_warning()` function
 
 ### Message Format Examples
 
@@ -329,8 +329,8 @@ When current hour is restricted due to previous day's overnight range:
 - Need to detect this suffix and format appropriately
 - Show previous day name in message, not current day
 
-**3. Function Placement in sleep-warning.sh**
-Add new functions before `show_warning()` function (around line 1294):
+**3. Function Placement in lib/popup-display.sh**
+Add new functions in `lib/popup-display.sh` module (before or within `show_warning()` function):
 - Keep similar functions together (formatting functions in one block)
 - Add clear comments explaining each function's purpose
 - Follow existing code style (function names, variable naming, etc.)
@@ -466,40 +466,40 @@ fi
   - [ ] Add config option with default value `true`
   - [ ] Add explanatory comment describing the feature
   - [ ] Place it logically with other popup-related options
-- [ ] Add function to read config option in `sleep-warning.sh`
+- [ ] Add function to read config option in `lib/config.sh` (or extend existing config reading functions)
   - [ ] Create `get_popup_show_restricted_times()` function
   - [ ] Follow pattern of existing config getters (e.g., `get_popup_size()`)
   - [ ] Handle true/false/yes/no/1/0 values
   - [ ] Return default value if config missing or invalid
 
 ### Phase 2: Implement Time Formatting Functions
-- [ ] Add `format_hour_12h()` function to `sleep-warning.sh`
+- [ ] Reuse `format_hour_12h()` function from `lib/configure-core.sh` OR add to `lib/popup-display.sh` if not sharing modules
   - [ ] Convert 24-hour format (0-23) to 12-hour format with AM/PM
   - [ ] Handle special cases: 0 (12:00 AM), 12 (12:00 PM)
   - [ ] Format: "HH:00 AM/PM" (e.g., "1:00 AM", "12:00 PM")
-- [ ] Add `format_time_12h()` function to `sleep-warning.sh` (NEW)
+- [ ] Add `format_time_12h()` function to `lib/popup-display.sh` (NEW)
   - [ ] Convert 24-hour format with minutes (HH:MM) to 12-hour format
   - [ ] Handle special cases: 0:00 (12:00 AM), 12:00 (12:00 PM)
   - [ ] Format: "HH:MM AM/PM" (e.g., "1:30 AM", "12:45 PM")
-- [ ] Add `get_day_name()` function to `sleep-warning.sh`
+- [ ] Add `get_day_name()` function to `lib/popup-display.sh` (or reuse from configure modules if shared)
   - [ ] Convert day number (0-6) to full day name
   - [ ] Use array: 0=Sunday, 1=Monday, etc.
-- [ ] Add `get_next_day_name()` function to `sleep-warning.sh`
+- [ ] Add `get_next_day_name()` function to `lib/popup-display.sh`
   - [ ] Get next day name for overnight ranges
   - [ ] Handle wrap-around: Saturday → Sunday
-- [ ] Add `format_range_human()` function to `sleep-warning.sh`
+- [ ] Reuse `format_range_human()` function from `lib/configure-time.sh` OR add to `lib/popup-display.sh` if not sharing modules
   - [ ] Format single range: "START → END"
   - [ ] Handle overnight ranges: "START → END (NextDay)"
   - [ ] Use 12-hour format for times
   - [ ] Handle empty/invalid ranges: return empty or skip
-- [ ] Add `format_ranges_human()` function to `sleep-warning.sh`
+- [ ] Reuse `format_ranges_human()` function from `lib/configure-time.sh` OR add to `lib/popup-display.sh` if not sharing modules
   - [ ] Parse comma-separated ranges
   - [ ] Format each range using `format_range_human()`
   - [ ] Join multiple ranges with " AND "
   - [ ] Return formatted string
 
 ### Phase 3: Implement Weekly Timeline and Interval Building (NEW)
-- [ ] Add `build_weekly_restricted_intervals()` function to `sleep-warning.sh`
+- [ ] Add `build_weekly_restricted_intervals()` function to `lib/popup-display.sh`
   - [ ] Create array to store all restricted intervals as [start_minute, end_minute] pairs
   - [ ] For each day (0-6):
     - [ ] Get day's configuration using `parse_config()`
@@ -517,7 +517,7 @@ fi
       - [ ] Add interval to array
   - [ ] Return array of all restricted intervals (before merging)
 
-- [ ] Add `merge_intervals()` function to `sleep-warning.sh`
+- [ ] Add `merge_intervals()` function to `lib/popup-display.sh`
   - [ ] Take array of [start, end] intervals as input
   - [ ] Sort intervals by start time
   - [ ] Merge overlapping or adjacent intervals:
@@ -529,20 +529,20 @@ fi
     - [ ] Single interval
     - [ ] All intervals overlap → single merged interval
 
-- [ ] Add `is_minute_restricted()` function to `sleep-warning.sh`
+- [ ] Add `is_minute_restricted()` function to `lib/popup-display.sh`
   - [ ] Take minute offset (0-10079) and merged intervals array
   - [ ] Check if minute falls within any restricted interval
   - [ ] Return 0 if restricted, 1 if unrestricted
   - [ ] Use binary search or linear search for efficiency
 
 ### Phase 4: Implement Next Unrestricted Time Calculation (NEW)
-- [ ] Add `get_current_minute_offset()` function to `sleep-warning.sh`
+- [ ] Add `get_current_minute_offset()` function to `lib/popup-display.sh`
   - [ ] Get current day of week (0-6)
   - [ ] Get current hour (0-23) and minute (0-59)
   - [ ] Calculate minute offset from start of week: `day * 1440 + hour * 60 + minute`
   - [ ] Return minute offset (0-10079)
 
-- [ ] Add `minute_offset_to_day_hour_minute()` function to `sleep-warning.sh`
+- [ ] Add `minute_offset_to_day_hour_minute()` function to `lib/popup-display.sh`
   - [ ] Take minute offset (0-10079) as input
   - [ ] Calculate day: `minute_offset / 1440` (integer division)
   - [ ] Calculate remaining minutes: `minute_offset % 1440`
@@ -550,7 +550,7 @@ fi
   - [ ] Calculate minute: `remaining_minutes % 60`
   - [ ] Return day, hour, minute as separate values
 
-- [ ] Add `find_next_unrestricted_minute()` function to `sleep-warning.sh`
+- [ ] Add `find_next_unrestricted_minute()` function to `lib/popup-display.sh`
   - [ ] Take current minute offset and merged intervals array as input
   - [ ] Start from current minute offset
   - [ ] Check if current minute is restricted
@@ -562,7 +562,7 @@ fi
   - [ ] Stop if return to starting point (means 24/7 restrictions)
   - [ ] Return minute offset of first unrestricted time, or -1 if none found
 
-- [ ] Add `format_next_unrestricted_time()` function to `sleep-warning.sh`
+- [ ] Add `format_next_unrestricted_time()` function to `lib/popup-display.sh`
   - [ ] Take next unrestricted minute offset and current minute offset as input
   - [ ] Convert minute offset to day/hour/minute using `minute_offset_to_day_hour_minute()`
   - [ ] Calculate time difference (in minutes)
@@ -575,7 +575,7 @@ fi
   - [ ] Use `get_day_name()` for day name
   - [ ] Return formatted string
 
-- [ ] Add `get_next_unrestricted_time()` function to `sleep-warning.sh` (main orchestrator)
+- [ ] Add `get_next_unrestricted_time()` function to `lib/popup-display.sh` (main orchestrator)
   - [ ] Build weekly restricted intervals using `build_weekly_restricted_intervals()`
   - [ ] Merge intervals using `merge_intervals()`
   - [ ] Get current minute offset using `get_current_minute_offset()`
@@ -587,7 +587,7 @@ fi
   - [ ] Return formatted string
 
 ### Phase 5: Implement Restriction Display Logic
-- [ ] Add `get_restricted_times_message()` function to `sleep-warning.sh`
+- [ ] Add `get_restricted_times_message()` function to `lib/popup-display.sh`
   - [ ] Get current day number
   - [ ] Get current day name using `get_day_name()`
   - [ ] Get current day's restrictions (reuse existing logic from `main()`)
@@ -605,7 +605,7 @@ fi
     - [ ] 24/7 restrictions (show appropriate error message)
 
 ### Phase 6: Integrate into Popup Display
-- [ ] Modify `show_warning()` function in `sleep-warning.sh`
+- [ ] Modify `show_warning()` function in `lib/popup-display.sh`
   - [ ] Read `POPUP_SHOW_RESTRICTED_TIMES` config option
   - [ ] If enabled:
     - [ ] Call `get_restricted_times_message()` to get restriction info and next unrestricted time
@@ -814,7 +814,7 @@ Both enhancements work with weekly timelines and need to:
 
 **Code Reuse Opportunity**:
 - Extract shared functions: `build_weekly_restricted_intervals()`, `merge_intervals()`
-- Place in common utility section of `sleep-warning.sh`
+- Place in `lib/popup-display.sh` module (or create shared utility module if functions are needed by both sleep-warning.sh and configure.sh)
 - Enhancement 22 uses these for validation (checking if total >= 10080 minutes)
 - Enhancement 23 uses these for next unrestricted time calculation
 - Implementing Enhancement 22 first reduces Enhancement 23 effort by ~30%

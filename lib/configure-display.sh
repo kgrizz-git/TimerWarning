@@ -13,7 +13,8 @@
 # - show_summary()        - Show configuration summary with overlap detection
 #
 # Dependencies:
-# - configure-core.sh (for has_zenity, DAY_NAMES, CONFIG_FILE)
+# - configure-core.sh (for has_dialog_tool, DAY_NAMES, CONFIG_FILE)
+# - configure-dialogs.sh (for dialog abstraction functions)
 # - configure-time.sh (for format_ranges_human, detect_overlaps, get_inherited_restrictions)
 # - configure-ui.sh (for confirm_cancel)
 ###############################################################################
@@ -63,7 +64,7 @@ show_main_menu() {
     local weekdays_status="$7"
     local weekends_status="$8"
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         local tmpfile
         tmpfile=$(mktemp)
@@ -89,23 +90,29 @@ show_main_menu() {
             window_desc="${window_desc}, Immovable: Off"
         fi
         
-        zenity --list \
-            --title="Sleep Warning Configuration" \
-            --text="Select a section to configure:" \
-            --column="Option" --column="Description" \
-            --hide-column=1 \
-            --width=700 \
-            --height=400 \
+        local choice
+        choice=$(show_multi_column_list_dialog \
+            "Sleep Warning Configuration" \
+            "Select a section to configure:" \
+            700 \
+            400 \
+            1 \
+            "Option" \
+            "Description" \
             "1" "Timer Settings (Check Interval: ${check_interval} min)" \
             "2" "Window Behavior (${window_desc})" \
             "3" "Weekdays Configuration ${weekdays_status}" \
-            "4" "Weekends Configuration ${weekends_status}" \
+            "4" "Weekends Configuration ${weekdays_status}" \
             "5" "Visual Day/Time Grid" \
-            "6" "Review and Save" \
-            > "${tmpfile}" 2>/dev/null
+            "6" "Review and Save")
         local exit_code=$?
-        local choice=$(cat "${tmpfile}" 2>/dev/null)
-        rm -f "${tmpfile}"
+        
+        # Check if user cancelled (empty choice and non-zero exit)
+        if [ ${exit_code} -ne 0 ] && [ -z "${choice}" ]; then
+            exit_code=1
+        elif [ -n "${choice}" ]; then
+            exit_code=0
+        fi
         
         if [ "${exit_code}" -ne 0 ]; then
             # User cancelled - ask if they want to cancel whole config
@@ -191,14 +198,11 @@ show_visual_grid() {
     local -n config_lines_ref="$2"  # Pass by reference
     local -n summary_lines_ref="$3"  # Pass by reference
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
-            local tmpfile
-            tmpfile=$(mktemp)
-            
-            # Build grid data for zenity list
-            # Store day names and time ranges separately, then combine with pipe
+            # Build grid data for multi-column list
+            # Store day names and time ranges separately for alternating format
             local day_names=()
             local time_ranges_list=()
             
@@ -245,56 +249,44 @@ show_visual_grid() {
             day_names+=("<<BACK>>")
             time_ranges_list+=("Back to Main Menu")
             
-            # Build pipe-separated lines manually
+            # Build data array in alternating format for multi-column dialog
+            # Format: col1_row1, col2_row1, col1_row2, col2_row2, ...
             local grid_data=()
             for i in "${!day_names[@]}"; do
-                grid_data+=("${day_names[${i}]}|${time_ranges_list[${i}]}")
+                grid_data+=("${day_names[${i}]}")
+                grid_data+=("${time_ranges_list[${i}]}")
             done
             
-            # Debug: Log what we're sending to zenity (if DEBUG_GRID is set)
+            # Debug: Log what we're sending to dialog (if DEBUG_GRID is set)
             if [ -n "${DEBUG_GRID:-}" ]; then
-                echo "DEBUG: Grid data array contents:" >&2
+                echo "DEBUG: Grid data array (alternating Day, Time):" >&2
                 for i in "${!grid_data[@]}"; do
                     echo "  [${i}]: '${grid_data[${i}]}'" >&2
                 done
-                echo "DEBUG: Sending to zenity (pipe-separated):" >&2
-                printf '%s\n' "${grid_data[@]}" >&2
             fi
             
-            # Display grid using zenity
-            # Use two columns: Day (with status indicator) and Time Ranges
-            # zenity --list expects data as separate arguments, alternating between columns
-            # For 2 columns, format is: col1_row1 col2_row1 col1_row2 col2_row2 ...
-            local zenity_data=()
-            for i in "${!day_names[@]}"; do
-                zenity_data+=("${day_names[${i}]}")
-                zenity_data+=("${time_ranges_list[${i}]}")
-            done
-            
-            if [ -n "${DEBUG_GRID:-}" ]; then
-                echo "DEBUG: Zenity data array (alternating Day, Time):" >&2
-                for i in "${!zenity_data[@]}"; do
-                    echo "  [${i}]: '${zenity_data[${i}]}'" >&2
-                done
-            fi
-            
-            # Pass data as separate arguments - zenity will group them into rows
-            zenity --list \
-                --title="Visual Day/Time Grid" \
-                --text="Select a day to edit its restricted hours:" \
-                --column="Day" --column="Time Ranges" \
-                --width=800 \
-                --height=450 \
-                --print-column=1 \
-                "${zenity_data[@]}" \
-                > "${tmpfile}" 2>/dev/null
+            # Use multi-column abstraction function
+            local selected
+            selected=$(show_multi_column_list_dialog \
+                "Visual Day/Time Grid" \
+                "Select a day to edit its restricted hours:" \
+                800 \
+                450 \
+                1 \
+                "Day" \
+                "Time Ranges" \
+                "${grid_data[@]}")
             local exit_code=$?
             
-            local selected=$(cat "${tmpfile}" 2>/dev/null)
-            rm -f "${tmpfile}"
+            # Check if user cancelled (empty choice and non-zero exit)
+            if [ ${exit_code} -ne 0 ] && [ -z "${selected}" ]; then
+                exit_code=1
+            elif [ -n "${selected}" ]; then
+                exit_code=0
+            fi
             
             if [ -n "${DEBUG_GRID:-}" ]; then
-                echo "DEBUG: zenity exit code: ${exit_code}" >&2
+                echo "DEBUG: dialog exit code: ${exit_code}" >&2
                 echo "DEBUG: Selected value: '${selected}'" >&2
             fi
             
@@ -326,7 +318,11 @@ show_visual_grid() {
             
             if [ "${day_index}" -lt 0 ]; then
                 # Invalid selection
-                zenity --error --text="Invalid day selection." 2>/dev/null
+                show_info_dialog \
+                    "Invalid Selection" \
+                    "Invalid day selection." \
+                    400 \
+                    150
                 continue
             fi
             
@@ -504,14 +500,12 @@ show_summary() {
     
     summary="${summary}\n\nSave this configuration?"
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
-        zenity --question \
-            --title="Sleep Warning Configuration" \
-            --text="${summary}" \
-            --ok-label="Yes, Save" \
-            --cancel-label="Cancel" \
-            --width=400 \
-            2>/dev/null
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_question_dialog \
+            "Sleep Warning Configuration" \
+            "${summary}" \
+            "Yes, Save" \
+            "Cancel"
         return $?
     else
         echo ""

@@ -75,7 +75,7 @@
         - `CONFIG_LOCK_HOURS=SUNDAY=START-END,MONDAY=START-END,...`
     - Lock should apply during restricted hours **and** any configured additional lock hours (see Enhancement #20 for the expanded UX/config UI).
   - **Lock Mechanism**:
-    - Prefer idempotent “apply lock state” logic that runs every `sleep-warning.sh` invocation:
+    - Prefer idempotent "apply lock state" logic that runs every `sleep-warning.sh` invocation (in `lib/config.sh` or new `lib/config-locking.sh` module):
       - If lock-active: ensure read-only file mode (and directory mode if using Option A), and ensure marker exists
       - If not lock-active: ensure modes restored and marker removed
     - Avoid hardcoding `644`/`444` where possible; store and restore the prior mode to reduce surprises for users who intentionally changed permissions.
@@ -109,7 +109,7 @@
   - **CPU**: Negligible (only during permission change operations, which are instant)
 - **User Experience Considerations**:
   - **Warning Message**: Should inform user why config cannot be edited during restricted hours
-  - **Clear Feedback**: `configure.sh` should show clear message: "Configuration is locked during restricted hours. Please try again after [end time]."
+  - **Clear Feedback**: `configure.sh` (via `lib/configure-ui.sh` or `lib/configure-dialogs.sh`) should show clear message: "Configuration is locked during restricted hours. Please try again after [end time]."
   - **Optional Feature**: Should be opt-in (default: disabled) to avoid frustrating users who want flexibility
   - **Legitimate Use Cases**: May prevent users from making legitimate emergency config changes
 - **Related**: 

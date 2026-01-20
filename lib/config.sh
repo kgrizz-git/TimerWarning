@@ -165,9 +165,9 @@ get_popup_position() {
         return 0
     fi
     
-    # Validate position
+    # Validate position (only center and top-left are supported)
     case "${position}" in
-        center|top-left|top-right|bottom-left|bottom-right|top-center|bottom-center)
+        center|top-left)
             echo "${position}"
             return 0
             ;;

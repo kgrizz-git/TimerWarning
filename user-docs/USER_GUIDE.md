@@ -657,7 +657,13 @@ Future versions may support custom messages per day or time range.
 
 **Current Status**: ⚠️ Partially Compatible - Requires Testing
 
-**Known Limitations:**
+**Desktop Mode:**
+- Uses X11 (KDE Plasma), enabling full window management features
+- Limited testing indicates popups work with some full-screen games in Desktop Mode, but results vary by game
+- Exclusive full-screen games may still block popups
+- No guarantees can be made for all games
+
+**Gaming Mode Known Limitations:**
 - Display detection in gamescope (Wayland compositor) may be limited
 - Exclusive full-screen games may block popups
 - Window management tools don't work on Wayland

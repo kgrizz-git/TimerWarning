@@ -57,7 +57,7 @@ This architecture makes the codebase easier to understand, modify, and extend. F
 
 - Linux distribution with systemd (Ubuntu, Debian, Fedora, Arch, Steam OS, etc.)
 - Graphical desktop environment (GNOME, KDE, XFCE, etc.)
-- Dialog tool: `zenity`, `yad`, or `kdialog` (zenity will be installed automatically if missing)
+- Dialog tool: `yad` (preferred), `zenity`, or `kdialog` (zenity will be installed automatically if missing)
 - **Optional but recommended**: `wmctrl` or `xdotool` for enhanced window management features (stay-on-top, immovable windows)
 
 ### Installation
@@ -68,6 +68,10 @@ This architecture makes the codebase easier to understand, modify, and extend. F
 - **Recommended**: Right-click the `install.sh` file and select "Open in Terminal" or "Open Terminal Here"
 - **Alternative**: Open a terminal manually, navigate to the project directory, then run `./install.sh`
 - **Auto-confirm mode**: If you must run from desktop, use `./install.sh --yes` to skip prompts (requires zenity to be already installed)
+
+**Sudo Requirements**: 
+- **Sudo is only needed if dependencies need to be installed**. If all required dependencies (zenity, yad, wmctrl/xdotool) are already installed, the installation script will not require sudo privileges.
+- For **non-interactive installation** (`./install.sh --yes`), ensure sudo password is cached (run `sudo -v` first) or configure passwordless sudo if all dependencies need to be installed.
 
 1. **Download the project** (choose one method):
 
@@ -92,7 +96,7 @@ This architecture makes the codebase easier to understand, modify, and extend. F
 The installation script will:
 - Detect your Linux distribution
 - Install required dependencies (zenity for dialog popups)
-- Offer to install optional tools (yad, wmctrl, xdotool) for enhanced features
+- Offer to install optional tools (yad preferred, wmctrl, xdotool) for enhanced features
 - Copy files to the correct locations
 - Enable and start the service
 
@@ -121,10 +125,10 @@ The configuration wizard will help you set up your restricted hours schedule.
 
 **Command-line options**:
 - `--text` or `--no-gui`: Force text mode (useful for SSH sessions or when GUI isn't working)
-- `--gui`: Force GUI mode (requires zenity)
+- `--gui`: Force GUI mode (requires yad, zenity, or kdialog)
 - `--help` or `-h`: Show help message
 
-By default, the wizard uses GUI mode if zenity is available and a display is present.
+By default, the wizard uses GUI mode if a dialog tool (yad/zenity/kdialog) is available and a display is present. The system prefers YAD when available for better features.
 
 **Note**: If you get "command not found" when running `sleep-warning-configure`, you may need to:
 - Restart your terminal (to reload PATH), or
@@ -239,6 +243,8 @@ systemctl --user daemon-reload
 
 ### Linux Distributions
 - ✅ Steam OS (Arch-based)
+  - **Desktop Mode**: Full functionality with X11. Limited testing indicates popups work with some full-screen games in Desktop Mode, but results vary by game. No guarantees for all games.
+  - **Gaming Mode**: Partially compatible - see [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md) for details
 - ✅ Ubuntu (18.04+)
 - ✅ Debian (8+)
 - ✅ Fedora
@@ -261,13 +267,14 @@ systemctl --user daemon-reload
 ### Required
 - **systemd** - Pre-installed on most modern Linux distributions
 - **bash** - Pre-installed on all Linux systems
-- **Dialog tool** - At least one of:
-  - **zenity** - GTK dialog tool (installed automatically by install script) - **Primary choice**
+- **Dialog tool** - At least one of (priority order: YAD → Zenity → KDialog):
+  - **yad** - Enhanced GTK dialog tool (preferred) - Better positioning, reliable sizing, improved window management
+    - **Installation**: `sudo apt install yad` (Ubuntu/Debian), `sudo dnf install yad` (Fedora), `sudo pacman -S yad` (Arch/SteamOS), `sudo zypper install yad` (openSUSE)
+  - **zenity** - GTK dialog tool (fallback, installed automatically by install script)
     - **Installation**: `sudo apt install zenity` (Ubuntu/Debian), `sudo dnf install zenity` (Fedora), `sudo pacman -S zenity` (Arch/SteamOS), `sudo zypper install zenity` (openSUSE)
-  - **yad** - Enhanced GTK dialog tool (alternative, offered during installation)
-  - **kdialog** - KDE dialog tool (alternative, native on KDE systems)
+  - **kdialog** - KDE dialog tool (last resort, native on KDE systems)
 
-The system automatically detects which dialog tool is available and uses the most appropriate one for your desktop environment.
+The system automatically detects which dialog tool is available and uses them in priority order (YAD → Zenity → KDialog) across all environments. This unified priority ensures consistent behavior regardless of desktop environment.
 
 ### Optional (Recommended for Enhanced Features)
 - **yad** - Enhanced GTK dialog tool with better positioning and Wayland support
@@ -278,10 +285,14 @@ The system automatically detects which dialog tool is available and uses the mos
 - **wmctrl** - X11 window manager control tool
 - **xdotool** - X11 automation tool
 
-**yad benefits:**
-- Better popup positioning control
+**yad benefits** (preferred dialog tool):
+- Native popup positioning control (required for position configuration)
+- Reliable window sizing
 - Improved Wayland support
-- Enhanced window control options
+- Enhanced window management options
+- Better overall dialog capabilities
+
+**Note**: The system uses a unified priority (YAD → Zenity → KDialog) across all environments. YAD is preferred when available for its superior technical capabilities.
 
 **Window management tools (wmctrl/xdotool) enable:**
 - Always-on-top popup windows
@@ -298,7 +309,7 @@ Without these tools, popups will still appear but may not stay on top of other w
 - Check if timer is running: `systemctl --user status sleep-warning.timer`
 - Verify it's during restricted hours: `sleep-warning-status`
 - Check logs: `tail ~/.config/sleep-warning/warnings.log`
-- Verify dialog tool installed: `which zenity`
+- Verify dialog tool installed: `which yad` or `which zenity` or `which kdialog`
 
 **Popup doesn't stay on top**:
 - Install window management tools: `sudo apt install wmctrl xdotool` (Ubuntu/Debian) or equivalent

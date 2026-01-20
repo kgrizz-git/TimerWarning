@@ -22,9 +22,15 @@ These enhancements can be integrated into the existing bash script suite without
 ### 24. Unified Dialog Tool Priority (YAD → Zenity → KDialog)
 - **Description**: Standardize dialog tool selection across both `sleep-warning.sh` (popup warnings) and `configure.sh` (configuration wizard) to **always** prefer **YAD → Zenity → KDialog** in all environments, including KDE. YAD provides superior window positioning, size control, and management capabilities. Create abstraction layer for configure wizard to support all three tools seamlessly. YAD's technical advantages (native positioning, reliable sizing) take precedence over visual consistency considerations. **Positioning Simplification**: As part of this enhancement, popup positioning options will be simplified to only **center** and **top-left**. This simplification reduces complexity in position calculations (top-left requires no window size knowledge, only simple margins) and eliminates edge cases with other corner positions.
 - **Priority**: Medium (improves user experience, unifies implementation, leverages YAD's capabilities when available)
-- **Status**: Not implemented (configuration wizard still uses Zenity only)
+- **Status**: ✅ **Partially Implemented** - Infrastructure is in place: `lib/configure-dialogs.sh` provides tool-agnostic dialog functions that automatically use YAD → Zenity → KDialog priority via `get_dialog_tool()`, and positioning has been simplified to center/top-left only. However, `configure.sh` still has some legacy `has_zenity()` checks and direct zenity calls in a few places (error/warning dialogs). Core configuration dialogs use the unified system.
 - **Benefits**: Native positioning with YAD (no post-creation hacks), reliable sizing, consistent behavior across all dialogs and environments, simpler codebase (no environment-specific branching), simplified positioning logic (center/top-left only reduces complexity)
 - **Details**: See [enhancements/enhancement-24-unified-dialog-priority-yad-first.md](enhancements/enhancement-24-unified-dialog-priority-yad-first.md)
+
+### 25. User-Selectable Dialog Tool
+- **Description**: Allow users to manually choose which dialog tool (zenity, yad, or kdialog) to use from a list of installed tools, overriding the automatic priority system. This gives users control over dialog tool selection when they have preferences or encounter issues with the automatic selection.
+- **Priority**: Medium (improves user control and troubleshooting flexibility)
+- **Status**: Not implemented
+- **Details**: See [enhancements/enhancement-25-user-selectable-dialog-tool.md](enhancements/enhancement-25-user-selectable-dialog-tool.md)
 
 ### 3. Enhanced Window Size Options and Display-Based Sizing
 - **Description**: Add more predefined window size options and allow window sizes to be automatically calculated based on current display resolution
@@ -53,7 +59,7 @@ These enhancements can be integrated into the existing bash script suite without
 ### 7. Warning Event Logging
 - **Description**: Log each warning event with timestamp, window state, display environment, and dialog tool to a file for user review
 - **Priority**: High (critical for troubleshooting Gaming Mode compatibility)
-- **Status**: Not implemented
+- **Status**: ✅ **Implemented** - File-based logging to `~/.config/sleep-warning/warnings.log` with automatic rotation (10 MB limit, keeps last 1000 lines). Logs include timestamp, window state, window title, display environment, display ID, detection path, dialog tool used, popup size/position, and all popup events.
 - **Details**: See [enhancements/enhancement-07-warning-event-logging.md](enhancements/enhancement-07-warning-event-logging.md)
 
 ### 8. Temporary Disable via Config
@@ -123,7 +129,7 @@ These enhancements can be integrated into the existing bash script suite without
 ### 16. Visual Day/Time Configuration Grid
 - **Description**: Provide a visual interface for configuring day/time restrictions, showing a summary grid of days and their configured time ranges, with easy access to edit any day. Implemented in two phases: Phase 1 provides visual summary and easy day-by-day editing, Phase 2 adds full interactive grid editing capabilities.
 - **Priority**: Medium (significantly improves usability and reduces configuration errors)
-- **Status**: Not implemented
+- **Status**: ✅ **Mostly Implemented** - Phase 1 is complete: visual summary grid showing all days with time ranges in human-readable format, click-to-edit access for any day, visual indicators (✗) for restricted days, automatic grid refresh after edits. Phase 2 (interactive hour-by-hour grid editing with drag selection) is not yet implemented.
 - **Details**: See [enhancements/enhancement-16-visual-day-time-configuration-grid.md](enhancements/enhancement-16-visual-day-time-configuration-grid.md)
 
 ### 16b. 12-Hour Format Time Input and GUI Spinbox Widgets
@@ -144,8 +150,8 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Not implemented
 - **Details**: See [enhancements/enhancement-18-config-file-locking.md](enhancements/enhancement-18-config-file-locking.md)
 
-### 19. Prevent configure.sh Execution During Restricted Hours
-- **Description**: Prevent `configure.sh` from running during restricted hours (and optionally during additional configurable hours) to prevent users from circumventing restrictions by changing settings
+### 19. Prevent configure.sh and manage.sh Execution During Restricted Hours
+- **Description**: Prevent `configure.sh` and `manage.sh` from running during restricted hours (and optionally during additional configurable hours) to prevent users from circumventing restrictions by changing settings or disabling the system
 - **Priority**: Medium (security/self-control feature, complements config file locking)
 - **Status**: Not implemented
 - **Details**: See [enhancements/enhancement-19-prevent-configure-execution.md](enhancements/enhancement-19-prevent-configure-execution.md)
@@ -214,24 +220,24 @@ These approaches would require significant changes to the architecture or a comp
 1. Enhanced Display Detection (Wayland/gamescope)
 2. Dialog Tool Priority System
 3. Window State Detection and Logging (critical for troubleshooting)
-4. File-Based Logging with Window State Information
+4. ~~File-Based Logging with Window State Information~~ ✅ **IMPLEMENTED** (comprehensive logging to warnings.log with rotation)
 5. ~~Immovable Popup Window~~ ✅ **IMPLEMENTED** (critical for minimum display time feature effectiveness)
 6. System Sleep/Hibernate Detection (prevents false warnings after system resume)
 7. Prevent 24/7 Restriction Configuration (critical safety feature to prevent accidental lockout)
 
 **Medium Priority (Improves Compatibility/Usability)**:
-6. Unified Dialog Tool Priority (YAD → Zenity → KDialog) - Extends to configure.sh for consistency
+6. Unified Dialog Tool Priority (YAD → Zenity → KDialog) - ⚠️ **Partially Implemented** (infrastructure in place, some legacy calls remain)
 7. Steam Overlay Integration (Alternative, but best solution for SteamOS Gaming Mode full-screen games)
 8. Systemd Service Environment Detection
-9. Desktop Notification Fallback
+9. ~~Desktop Notification Fallback~~ ✅ **IMPLEMENTED**
 10. Wayland-Specific Window Management
 11. Temporary Disable via Config
 12. Enhanced Window Size Options and Display-Based Sizing
 13. Auto-Close Popup Window
-14. Visual Day/Time Configuration Grid
+14. ~~Visual Day/Time Configuration Grid~~ ✅ **Mostly Implemented** (Phase 1 complete, Phase 2 pending)
 15. Multi-Display Popup Support
 16. Config File Locking During Restricted Hours
-17. Prevent configure.sh During Restricted Hours
+17. Prevent configure.sh and manage.sh During Restricted Hours
 18. One-Time Pause Feature (5 or 10 minutes, available from popup)
 19. Display Restricted Times/Days in Popup
 

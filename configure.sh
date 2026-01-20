@@ -9,7 +9,7 @@
 #
 # Requirements:
 # - bash
-# - zenity (preferred) or fallback to text prompts
+# - yad, zenity, or kdialog (for GUI mode) or fallback to text prompts
 #
 # Usage:
 #   ./configure.sh [OPTIONS]
@@ -17,10 +17,10 @@
 #
 # Options:
 #   --text, --no-gui    Force text mode (disable GUI)
-#   --gui               Force GUI mode (requires zenity)
+#   --gui               Force GUI mode (requires yad, zenity, or kdialog)
 #   --help, -h          Show help message
 #
-# By default, GUI mode is used if zenity is available and a display is present.
+# By default, GUI mode is used if a dialog tool (yad/zenity/kdialog) is available and a display is present.
 #
 # Output:
 # - Updates ~/.config/sleep-warning/sleep-warning.conf with user selections
@@ -32,6 +32,9 @@ LIB_DIR="${SCRIPT_DIR}/lib"
 
 # Source library modules in dependency order
 source "${LIB_DIR}/configure-core.sh" || exit 1
+source "${LIB_DIR}/display-detection.sh" || exit 1
+source "${LIB_DIR}/desktop-environment.sh" || exit 1
+source "${LIB_DIR}/configure-dialogs.sh" || exit 1
 source "${LIB_DIR}/configure-config.sh" || exit 1
 source "${LIB_DIR}/configure-time.sh" || exit 1
 source "${LIB_DIR}/configure-ui.sh" || exit 1
@@ -61,10 +64,10 @@ main() {
                 echo ""
                 echo "Options:"
                 echo "  --text, --no-gui    Force text mode (disable GUI)"
-                echo "  --gui               Force GUI mode (requires zenity)"
+                echo "  --gui               Force GUI mode (requires yad, zenity, or kdialog)"
                 echo "  --help, -h          Show this help message"
                 echo ""
-                echo "By default, GUI mode is used if zenity is available and a display is present."
+                echo "By default, GUI mode is used if a dialog tool (yad/zenity/kdialog) is available and a display is present."
                 exit 0
                 ;;
             *)
@@ -79,16 +82,16 @@ main() {
     if [ "${force_text}" = "true" ]; then
         use_gui="false"
     elif [ "${force_gui}" = "true" ]; then
-        if has_zenity; then
+        if has_dialog_tool; then
             use_gui="true"
         else
-            echo "Error: --gui flag specified but zenity is not available." >&2
-            echo "Please install zenity or use --text mode." >&2
+            echo "Error: --gui flag specified but no dialog tool (yad/zenity/kdialog) is available." >&2
+            echo "Please install yad, zenity, or kdialog, or use --text mode." >&2
             exit 1
         fi
     else
         # Auto-detect: use GUI if available
-        if has_gui && has_zenity; then
+        if has_gui && has_dialog_tool; then
             use_gui="true"
         fi
     fi
@@ -238,8 +241,8 @@ main() {
                                 show_success "${use_gui}" "${check_interval}"
                             else
                                 local warning_msg="Configuration saved, but failed to update timer file.\n\nYou may need to manually update:\n${TIMER_FILE}\n\nThen run:\nsystemctl --user daemon-reload\nsystemctl --user restart ${SERVICE_NAME}.timer"
-                                if [ "${use_gui}" = "true" ] && has_zenity; then
-                                    zenity --warning --text="${warning_msg}" 2>/dev/null
+                                if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+                                    show_info_dialog "Warning" "${warning_msg}" 500 200
                                 else
                                     echo "${warning_msg}" >&2
                                 fi
@@ -250,8 +253,8 @@ main() {
                         exit 0
                     else
                         local error_msg="Error: Failed to write configuration file.\n\nPlease check permissions for:\n${CONFIG_DIR}"
-                        if [ "${use_gui}" = "true" ] && has_zenity; then
-                            zenity --error --text="${error_msg}" 2>/dev/null
+                        if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+                            show_info_dialog "Error" "${error_msg}" 500 200
                         else
                             echo "${error_msg}" >&2
                         fi

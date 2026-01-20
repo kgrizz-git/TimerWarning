@@ -174,26 +174,20 @@ POPUP_SIZE=450x220     # Custom size: 450 pixels wide, 220 pixels tall
 **Format**: One of the following position names:
 - `center` (default)
 - `top-left`
-- `top-right`
-- `bottom-left`
-- `bottom-right`
-- `top-center`
-- `bottom-center`
 
 **Default**: `center`
 
 **Examples**:
 ```
 POPUP_POSITION=center         # Center of screen (default)
-POPUP_POSITION=top-left       # Top-left corner
-POPUP_POSITION=bottom-right   # Bottom-right corner
-POPUP_POSITION=top-center     # Top center of screen
+POPUP_POSITION=top-left       # Top-left corner with fixed margins
 ```
 
 **Note**: 
-- Position control requires `yad` dialog tool or window manager tools (`wmctrl`/`xdotool`) for full functionality.
-- `zenity` does not support position control and will always center the popup.
+- Position control works best with `yad` dialog tool (preferred) which supports native positioning.
+- `zenity` and `kdialog` use post-creation repositioning for top-left (requires window manager tools).
 - Position control works best on X11; Wayland support is limited.
+- Only `center` and `top-left` positions are supported. Top-left positioning uses simple fixed margins and doesn't require window size calculations.
 
 **Installing yad:**
 - **Ubuntu/Debian/Linux Mint**: `sudo apt install yad`
@@ -276,7 +270,7 @@ CHECK_INTERVAL=10
 # Popup size: small, medium, large, or custom WIDTHxHEIGHT
 POPUP_SIZE=medium
 
-# Popup position: center, top-left, top-right, bottom-left, bottom-right, top-center, bottom-center
+# Popup position: center or top-left
 POPUP_POSITION=center
 
 # Minimum display time: Time popup must be visible before it can be closed (in seconds, 0-300)
@@ -320,7 +314,7 @@ SUNDAY=1-6
 ```
 CHECK_INTERVAL=10
 POPUP_SIZE=small
-POPUP_POSITION=bottom-right
+POPUP_POSITION=top-left
 POPUP_MIN_DISPLAY_TIME=15
 
 # Restrict very early morning usage

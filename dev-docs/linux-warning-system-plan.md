@@ -29,6 +29,7 @@ The solution consists of eight main components:
    - Located in user's config directory for easy access
 
 2. **Bash Script** (`sleep-warning.sh`): 
+   - Modular architecture with 7 library modules in `lib/` directory
    - Reads configuration file to determine restricted hours
    - Checks current day of week and time
    - Determines if current usage falls within restricted hours
@@ -61,6 +62,7 @@ The solution consists of eight main components:
    - Provides cleanup confirmation
 
 7. **Interactive Configuration Script** (`configure.sh`):
+   - Modular architecture with 7 library modules in `lib/` directory
    - Interactive wizard that walks users through setting restricted hours
    - Uses zenity dialogs for user-friendly GUI interface
    - Prompts for restricted hours for each day of the week
@@ -173,39 +175,43 @@ See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) for detailed descriptions a
 
 ### Complementary Enhancements
 
+- [x] **Enhanced Display Detection** - Wayland/gamescope detection with multiple fallbacks (Moved to Phase 1 plan, partially implemented)
 - [x] **Dialog Tool Priority System** - Environment-aware dialog tool selection (Implemented)
+- [-] **Unified Dialog Tool Priority (YAD → Zenity → KDialog)** - Standardize dialog tool selection across all scripts (Partially Implemented - infrastructure in place, some legacy zenity calls remain) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#24-unified-dialog-tool-priority-yad--zenity--kdialog)
+- [ ] **User-Selectable Dialog Tool** - Allow users to manually choose dialog tool from installed options - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#25-user-selectable-dialog-tool)
+- [ ] **Enhanced Window Size Options and Display-Based Sizing** - More size options and percentage-based sizing - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#3-enhanced-window-size-options-and-display-based-sizing)
+- [ ] **Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#4-systemd-service-environment-detection)
+- [ ] **Configurable Warning Messages** - Customize warning text per day/time range - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#5-configurable-warning-messages)
+- [ ] **Escalating Warnings** - Progressively stronger warnings for continued usage - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#6-escalating-warnings)
+- [x] **Warning Event Logging** - File-based logging with window state information (Implemented) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#7-warning-event-logging)
+- [ ] **Temporary Disable via Config** - Allow temporary disabling via configuration - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#8-temporary-disable-via-config)
+- [ ] **System Sleep/Hibernate Detection** - Skip warnings after system resume - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#9-system-sleephibernate-detection)
 - [x] **Desktop Notification Fallback** - Non-modal notification when dialogs fail (Implemented)
+- [ ] **Audio Alerts** - Optional audio notifications alongside visual popup - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#10-audio-alerts)
+- [ ] **Wayland-Specific Window Management** - Wayland-native window control - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#12-wayland-specific-window-management)
+- [ ] **Distribution-Specific Optimizations** - Optimizations for specific distributions - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#13-distribution-specific-optimizations)
 - [x] **Immovable Popup Window** - Prevent window movement during minimum display time (Implemented)
+- [ ] **Configure.sh GUI Window Behavior** - Fix configure.sh GUI windows staying on top - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#14b-configure-sh-gui-window-behavior)
+- [ ] **Auto-Close Popup Window** - Automatically close popup after configured time - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#15-auto-close-popup-window)
 - [x] **Visual Day/Time Configuration Grid** - Visual interface for configuring restrictions (Implemented)
-- [-] **Enhanced Display Detection** - Wayland/gamescope detection with multiple fallbacks (Partially implemented)
-- [ ] **Enhanced Window Size Options and Display-Based Sizing** - More size options and percentage-based sizing
-- [ ] **Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode
-- [ ] **Configurable Warning Messages** - Customize warning text per day/time range
-- [ ] **Escalating Warnings** - Progressively stronger warnings for continued usage
-- [ ] **Warning Event Logging** - File-based logging with window state information
-- [ ] **Temporary Disable via Config** - Allow temporary disabling via configuration
-- [ ] **System Sleep/Hibernate Detection** - Skip warnings after system resume
-- [ ] **Audio Alerts** - Optional audio notifications alongside visual popup
-- [ ] **Wayland-Specific Window Management** - Wayland-native window control
-- [ ] **Distribution-Specific Optimizations** - Optimizations for specific distributions
-- [ ] **Auto-Close Popup Window** - Automatically close popup after configured time
-- [ ] **12-Hour Format Time Input** - Support 12-hour format in configuration
-- [ ] **Multi-Display Popup Support** - Display popups on multiple monitors
-- [ ] **Config File Locking During Restricted Hours** - Prevent config file modification during restricted hours
-- [ ] **Prevent configure.sh During Restricted Hours** - Block configure.sh execution during restricted hours
-- [ ] **Additional Hours for Config Locking** - Configure separate hours for config locking/blocking
-- [ ] **One-Time Pause Feature** - Allow 5 or 10 minute pause of restrictions once per day, available from popup
-- [ ] **Display Restricted Times/Days in Popup** - Show configured restricted hours in the warning popup for transparency
+- [ ] **12-Hour Format Time Input and GUI Spinbox Widgets** - Support 12-hour format in configuration - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#16b-12-hour-format-time-input-and-gui-spinbox-widgets)
+- [ ] **Multi-Display Popup Support** - Display popups on multiple monitors - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#17-multi-display-popup-support)
+- [ ] **Config File Locking During Restricted Hours** - Prevent config file modification during restricted hours - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#18-config-file-locking-during-restricted-hours)
+- [ ] **Prevent configure.sh and manage.sh Execution During Restricted Hours** - Block configure.sh and manage.sh execution during restricted hours to prevent circumvention - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#19-prevent-configuresh-execution-during-restricted-hours)
+- [ ] **Additional Hours for Config Locking and configure.sh Blocking** - Configure separate hours for config locking/blocking - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#20-additional-hours-for-config-locking-and-configuresh-blocking)
+- [ ] **One-Time Pause Feature (5 or 10 Minutes)** - Allow 5 or 10 minute pause of restrictions once per day, available from popup - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#21-one-time-pause-feature-5-or-10-minutes)
+- [ ] **Prevent 24/7 Restriction Configuration** - Prevent users from configuring 24/7 restrictions - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#22-prevent-247-restriction-configuration)
+- [ ] **Display Restricted Times/Days in Popup** - Show configured restricted hours in the warning popup for transparency - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#23-display-restricted-timesdays-in-popup)
 
 ### Distribution and Packaging Enhancements
 
-- [ ] **Single Executable Installer Script** - Self-extracting installer bundling all files for easy distribution - See [info/DISTRIBUTION_OPTIONS.md](info/DISTRIBUTION_OPTIONS.md#option-1-single-executable-installer-script)
-- [ ] **Desktop GUI Application Wrapper** - Native desktop application (GTK/Qt/Electron) for configuration and management - See [info/DISTRIBUTION_OPTIONS.md](info/DISTRIBUTION_OPTIONS.md#option-2-desktop-gui-application-wrapper)
+- [ ] **Single Executable Installer Script** - Self-extracting installer bundling all files for easy distribution - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#13a-single-executable-installer-script) and [info/DISTRIBUTION_OPTIONS.md](info/DISTRIBUTION_OPTIONS.md#option-1-single-executable-installer-script)
+- [ ] **Desktop GUI Application Wrapper** - Native desktop application (GTK/Qt/Electron) for configuration and management - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#13b-desktop-gui-application-wrapper) and [info/DISTRIBUTION_OPTIONS.md](info/DISTRIBUTION_OPTIONS.md#option-2-desktop-gui-application-wrapper)
 
 ### Alternative Approaches
 
-- [ ] **Steam Overlay Integration** - C/C++ plugin using Steamworks SDK for maximum Gaming Mode effectiveness
-- [ ] **Custom Wayland Protocol Implementation** - Native Wayland protocol for window control
-- [ ] **Native Desktop Application (GUI Wrapper)** - GUI application wrapper (GTK/Qt/Electron) - See [info/DISTRIBUTION_OPTIONS.md](info/DISTRIBUTION_OPTIONS.md#option-2-desktop-gui-application-wrapper)
-- [ ] **Systemd Timer Alternative (Cron-based)** - Cron-based alternative to systemd timers
-- [ ] **Web-Based Configuration Interface** - Web-based configuration and management interface
+- [ ] **Steam Overlay Integration** - C/C++ plugin using Steamworks SDK for maximum Gaming Mode effectiveness - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#1-steam-overlay-integration)
+- [ ] **Custom Wayland Protocol Implementation** - Native Wayland protocol for window control - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#2-custom-wayland-protocol-implementation)
+- [ ] **Native Desktop Application (GUI Wrapper)** - GUI application wrapper (GTK/Qt/Electron) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#3-native-desktop-application-gui-wrapper) and [info/DISTRIBUTION_OPTIONS.md](info/DISTRIBUTION_OPTIONS.md#option-2-desktop-gui-application-wrapper)
+- [ ] **Systemd Timer Alternative (Cron-based)** - Cron-based alternative to systemd timers - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#4-systemd-timer-alternative-cron-based)
+- [ ] **Web-Based Configuration Interface** - Web-based configuration and management interface - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#5-web-based-configuration-interface)

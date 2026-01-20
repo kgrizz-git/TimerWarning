@@ -1,6 +1,6 @@
 # Enhancement 16b: 12-Hour Format Time Input with Minute Precision and GUI Spinbox Widgets
 - **Description**: Add support for 12-hour format time entry (e.g., "11pm-5am", "11:30pm-5:30am") with minute precision in addition to 24-hour format, and provide GUI spinbox widgets for easier time selection with AM/PM toggle
-- **Files Affected**: `configure.sh`, `sleep-warning.conf` (format change to support minutes), `sleep-warning.sh` (time comparison logic)
+- **Files Affected**: `lib/configure-input.sh`, `lib/configure-time.sh`, `lib/config.sh`, `lib/time-validation.sh`, `sleep-warning.conf` (format change to support minutes)
 - **Priority**: Medium (improves usability, especially for users more familiar with 12-hour format and needing precise timing)
 - **Status**: Not implemented
 - **Current Implementation**:
@@ -82,10 +82,10 @@
     - Visual indication in GUI: Show that range crosses midnight
     - Validation: Ensure end time is after start time (or handle overnight explicitly)
     - **Minute precision edge cases**: `23:59-0:01` (crosses midnight with minute precision)
-  - **Time Comparison Updates in `sleep-warning.sh`**:
-    - **Current Logic**: Compares hour only using `$(date +%H)` (returns 0-23)
+  - **Time Comparison Updates in `lib/time-validation.sh`**:
+    - **Current Logic**: Compares hour only using `$(date +%H)` (returns 0-23) in `is_restricted_hour()` function
     - **New Logic**: Compare time as `HHMM` using `$(date +%H%M)` (returns 0000-2359)
-    - **Parsing Config**: Extract hours and minutes from `HH:MM-HH:MM` or `HH-HH` format
+    - **Parsing Config**: Extract hours and minutes from `HH:MM-HH:MM` or `HH-HH` format in `lib/config.sh` `parse_config()` function
     - **Example Comparison**:
       ```bash
       # Parse config: MONDAY=23:30-5:30
@@ -124,8 +124,8 @@
     - New minute-precision input (`DAY=23:30-5:30`) stored with minutes
     - New 12-hour format input with minutes (`11:30pm-5:30am`) is converted to 24-hour format with minutes
     - **Migration**: Existing config files with hour-only format work without changes
-    - **Time Comparison**: `sleep-warning.sh` must be updated to handle minute precision:
-      - Current logic: Compares hour only (e.g., `hour -ge start_hour`)
+    - **Time Comparison**: `lib/time-validation.sh` must be updated to handle minute precision:
+      - Current logic: Compares hour only (e.g., `hour -ge start_hour`) in `is_restricted_hour()` function
       - New logic: Compare time as `HHMM` format (e.g., `0630` for 6:30 AM) for proper minute-level precision
       - Example: If restriction is `23:30-5:30`, trigger warning at 23:30, not 23:00
 - **User Experience Benefits with Minute Precision**:
@@ -144,7 +144,7 @@
     - Handle midnight (`12am` = `0:00`), noon (`12pm` = `12:00`)
     - Overnight ranges with minutes (e.g., `23:30-5:30` spans midnight)
     - Hour-only input defaults to `:00` (e.g., `11pm` = `11:00pm` = `23:00`)
-  - **Time Comparison Logic**: `sleep-warning.sh` needs updates:
+  - **Time Comparison Logic**: `lib/time-validation.sh` needs updates:
     - Parse time ranges with minutes from config file
     - Compare current time at minute precision (e.g., `$(date +%H%M)` gives `2330` for 11:30 PM)
     - Handle overnight ranges with minute precision correctly
@@ -159,7 +159,7 @@
   - [ ] Create GUI spinbox dialog function for time selection with hour and minute widgets (yad preferred, zenity fallback)
   - [ ] Integrate hour and minute spinbox widgets into `get_day_hours()` GUI mode
   - [ ] Update config file read/write to support `DAY=HH:MM-HH:MM` format
-  - [ ] Update `sleep-warning.sh` time comparison logic to handle minute precision:
+  - [ ] Update `lib/time-validation.sh` time comparison logic to handle minute precision:
     - [ ] Parse minute values from config file time ranges
     - [ ] Update time comparison to use `HHMM` format (e.g., `2330` for 11:30 PM)
     - [ ] Test overnight ranges with minute precision
@@ -187,7 +187,7 @@
 - **Implementation Complexity**:
   - **Low to Medium**: Requires updates to parsing, storage, and time comparison logic
   - **Config Format Change**: Requires handling both `HH-HH` (legacy) and `HH:MM-HH:MM` (new) formats
-  - **Time Comparison**: `sleep-warning.sh` logic needs update to compare `HHMM` instead of just `HH`
+  - **Time Comparison**: `lib/time-validation.sh` logic needs update to compare `HHMM` instead of just `HH`
   - **Testing**: Additional test cases for minute boundaries and edge cases
 - **Related**: 
   - Complements Visual Day/Time Configuration Grid (#16) - spinbox widgets would enhance grid editing

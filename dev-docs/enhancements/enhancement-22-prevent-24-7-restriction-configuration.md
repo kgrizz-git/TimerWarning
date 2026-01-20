@@ -13,7 +13,7 @@
     - Calculate total restricted minutes across the entire week
     - If total restricted minutes >= 10080 (7 days × 24 hours × 60 minutes = 10080), configuration is 24/7
   - **Validation Trigger**:
-    - Run validation check in `configure.sh` before saving configuration
+    - Run validation check in `lib/configure-config.sh` (in `write_config()` function) before saving configuration
     - Check occurs after all day/time configurations are collected
     - Validation runs regardless of whether GUI or text mode is used
   - **Warning and Protection**:
@@ -24,7 +24,7 @@
     - Provide clear explanation of why 24/7 restrictions are problematic
 - **Implementation Notes**:
   - **Time Range Format**:
-    - Hour ranges are inclusive of start hour, exclusive of end hour (following sleep-warning.sh logic at lines 1256)
+    - Hour ranges are inclusive of start hour, exclusive of end hour (following logic in `lib/time-validation.sh`)
     - Example: "0-23" covers hours 0 through 22 (23 hours total: 00:00-22:59)
     - Example: "0-5" covers hours 0 through 4 (5 hours total: 00:00-04:59)
     - To cover all 24 hours, use combination like "0-12,12-0" (12 hours + 12 hours = 24 hours)
@@ -123,7 +123,7 @@
     - In text mode: validate after all prompts are completed
     - If validation fails, allow user to go back and modify settings
 - **Safety Assessment**:
-  - **Bypass Risk**: Low - Validation runs in configure.sh, user would need to manually edit config file to bypass
+  - **Bypass Risk**: Low - Validation runs in `lib/configure-config.sh`, user would need to manually edit config file to bypass
   - **Uninstall Safety**: ✅ **Safe** - Does not affect uninstall process
   - **Data Safety**: ✅ **Safe** - No risk of data loss, only prevents saving invalid config
   - **System Safety**: ✅ **Safe** - Prevents dangerous configuration, improves safety
@@ -158,7 +158,7 @@
 ## Implementation Checklist
 
 ### Phase 1: Core Validation Function
-- [ ] **Create `check_restriction_coverage()` function** in `configure.sh`
+- [ ] **Create `check_restriction_coverage()` function** in `lib/configure-config.sh` (or new module `lib/configure-validation.sh`)
   - [ ] Function accepts config_lines array (or summary_lines) as input
   - [ ] Iterate through all 7 days (indices 0-6: Sunday-Saturday)
   - [ ] For each day, parse time ranges from config (handle empty/skipped days)
@@ -214,14 +214,14 @@
 
 ### Phase 2: Integration into configure.sh
 - [ ] **Add validation call before saving**
-  - [ ] Locate `write_config()` function in `configure.sh`
+  - [ ] Locate `write_config()` function in `lib/configure-config.sh`
   - [ ] Add validation check at start of `write_config()` function
   - [ ] Call `check_restriction_coverage()` with current config_lines array
   - [ ] Handle three return values: "block" (>= 10080), "warn" (> 9660), "ok" (valid)
 
 - [ ] **Create error dialog function (24/7 detected)**
-  - [ ] Create `show_24_7_error()` function
-  - [ ] Support both GUI mode (zenity) and text mode
+  - [ ] Create `show_24_7_error()` function in `lib/configure-ui.sh` (or `lib/configure-dialogs.sh`)
+  - [ ] Support both GUI mode (yad/zenity/kdialog) and text mode
   - [ ] Use error dialog (not warning/info) for maximum visibility
   - [ ] Title: "24/7 Restrictions Detected - Configuration Blocked"
   - [ ] Message includes:
@@ -233,8 +233,8 @@
   - [ ] After acknowledgment, return to configuration menu (don't save)
 
 - [ ] **Create warning dialog function (> 9660 minutes)**
-  - [ ] Create `show_high_restriction_warning()` function
-  - [ ] Support both GUI mode (zenity) and text mode
+  - [ ] Create `show_high_restriction_warning()` function in `lib/configure-ui.sh` (or `lib/configure-dialogs.sh`)
+  - [ ] Support both GUI mode (yad/zenity/kdialog) and text mode
   - [ ] Use warning dialog (not error) - less severe but still important
   - [ ] Title: "Very High Restriction Level Detected"
   - [ ] Message includes:
@@ -256,9 +256,9 @@
   - [ ] Ensure config file is NOT written if validation blocks or user cancels warning
 
 - [ ] **Integrate validation into save flow**
-  - [ ] Locate "Review and Save" option (menu choice 6) in main() function
+  - [ ] Locate "Review and Save" option (menu choice 6) in `configure.sh` main() function
   - [ ] Ensure validation runs after user confirms save but before `write_config()` is called
-  - [ ] Or integrate validation inside `write_config()` (preferred - single point of validation)
+  - [ ] Or integrate validation inside `write_config()` in `lib/configure-config.sh` (preferred - single point of validation)
   - [ ] If validation fails, show warning and return to menu (don't exit)
 
 ### Phase 3: Automatic Safety Overrides
@@ -282,7 +282,7 @@
   - [ ] Add comment in config file explaining the popup size restriction:
     - [ ] "# POPUP_SIZE has been restricted to small/medium only because restrictions exceed 23 hours/day. This prevents overly intrusive popups."
   - [ ] If user later reduces restrictions to <= 9660 minutes, they can manually re-enable large/fullscreen if desired
-  - [ ] In configure.sh popup size configuration:
+  - [ ] In `lib/configure-input.sh` popup size configuration:
     - [ ] During configuration, if high restrictions (> 9660) are present, only show "small" and "medium" options
     - [ ] Show info message explaining: "Due to high restriction level (> 23 hours/day), only small and medium popup sizes are available for safety."
 
@@ -399,7 +399,7 @@
 
 ### Phase 5: Code Quality and Documentation
 - [ ] **Code documentation**
-  - [ ] Add function header comment for `check_restriction_coverage()` explaining:
+  - [ ] Add function header comment for `check_restriction_coverage()` in `lib/configure-config.sh` (or validation module) explaining:
     - [ ] Purpose: prevent 24/7 restriction configuration and detect high restriction levels
     - [ ] Input: config_lines array or summary_lines array
     - [ ] Output: returns "block" if >= 10080 minutes (24/7), "warn" if > 9660 minutes (> 23 hours/day), "ok" if valid
@@ -440,10 +440,10 @@
   - [ ] Explain popup size restrictions for high restriction levels (> 9660 minutes): only small/medium allowed
   - [ ] Document rationale: prevents overly intrusive popups when user has very limited unrestricted time
 
-- [ ] **Update help text in configure.sh**
-  - [ ] Add note in welcome message about 24/7 restriction prevention
-  - [ ] Update help dialog to mention this safety feature
-  - [ ] Add info message in popup size configuration menu when high restrictions are detected
+- [ ] **Update help text in configure modules**
+  - [ ] Add note in welcome message (`lib/configure-ui.sh`) about 24/7 restriction prevention
+  - [ ] Update help dialog (`lib/configure-ui.sh`) to mention this safety feature
+  - [ ] Add info message in popup size configuration menu (`lib/configure-input.sh`) when high restrictions are detected
 
 ### Phase 7: Integration Testing
 **⚠️ DO NOT RUN TESTS WITHOUT USER CONFIRMATION! ⚠️**
@@ -465,7 +465,7 @@
 - [ ] **Code review checklist**
   - [ ] All functions have proper error handling
   - [ ] All edge cases are handled
-  - [ ] Code follows existing style conventions in configure.sh
+  - [ ] Code follows existing style conventions in configure modules
   - [ ] No hardcoded values (use constants for 10080, 1440, etc.)
   - [ ] Functions are well-documented
 
