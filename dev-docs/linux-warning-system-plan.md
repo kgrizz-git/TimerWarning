@@ -189,7 +189,7 @@ See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) for detailed descriptions a
 - [ ] **12. Wayland-Specific Window Management** - Wayland-native window control - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#12-wayland-specific-window-management)
 - [ ] **13. Distribution-Specific Optimizations** - Optimizations for specific distributions - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#13-distribution-specific-optimizations)
 - [x] **14. Immovable Popup Window** - Prevent window movement during minimum display time (Implemented) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#14-immovable-popup-window)
-- [ ] **14b. Configure.sh GUI Window Behavior** - Fix configure.sh GUI windows staying on top - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#14b-configure-sh-gui-window-behavior)
+- [x] **14b. Configure.sh GUI Window Behavior** - Fix configure.sh GUI windows staying on top (Implemented - window title differentiation) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#14b-configure-sh-gui-window-behavior)
 - [ ] **15. Auto-Close Popup Window** - Automatically close popup after configured time - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#15-auto-close-popup-window)
 - [x] **16. Visual Day/Time Configuration Grid** - Visual interface for configuring restrictions (Mostly Implemented - Phase 1 complete, Phase 2 pending) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#16-visual-daytime-configuration-grid)
 - [ ] **16b. 12-Hour Format Time Input and GUI Spinbox Widgets** - Support 12-hour format in configuration - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#16b-12-hour-format-time-input-and-gui-spinbox-widgets)

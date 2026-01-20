@@ -101,10 +101,10 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: ✅ **Implemented** - Uses Method 4 (monitor and restore position) to prevent window movement during minimum display time. `POPUP_IMMOVABLE` configuration option added (true/false). Works on X11 with wmctrl/xdotool, not available on Wayland.
 - **Details**: See [enhancements/enhancement-14-immovable-popup-window.md](enhancements/enhancement-14-immovable-popup-window.md)
 
-### 14b. Configure.sh GUI Window Behavior
+### 14b. Configure.sh GUI Window Behavior (Implemented)
 - **Description**: Fix issue where `configure.sh` GUI windows (when run in GUI mode) can be mistaken for the warning popup and end up staying on top and being immovable. The actual warning popup should stay on top, not the configuration GUI windows.
 - **Priority**: Medium (usability issue, can confuse users)
-- **Status**: Not implemented
+- **Status**: ✅ **Implemented** - Warning popup uses window title "Restricted Hours Alert" while configure.sh dialogs use "Sleep Warning Configuration". This title differentiation prevents configure.sh windows from being mistaken for warning popups by window management functions that identify windows by title.
 - **Details**: See [enhancements/enhancement-14b-configure-gui-window-behavior.md](enhancements/enhancement-14b-configure-gui-window-behavior.md)
 
 ### 15. Auto-Close Popup Window

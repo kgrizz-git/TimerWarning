@@ -2,11 +2,16 @@
 
 - **Description**: Fix issue where `configure.sh` GUI windows (when run in GUI mode) can be mistaken for the warning popup and end up staying on top and being immovable. The actual warning popup should stay on top, not the configuration GUI windows.
 - **Implementation**: 
-  - Ensure `configure.sh` GUI windows (zenity dialogs) do not use stay-on-top or immovable window properties
-  - Ensure warning popup windows have higher z-order priority than configuration GUI windows
-  - Consider using different window properties or flags for configuration dialogs vs warning popups
-  - May need to adjust window manager hints or properties to distinguish between configuration dialogs and warning popups
-- **Files Affected**: `configure.sh`, `sleep-warning.sh`
+  - ✅ **Implemented** - Window title differentiation prevents configure.sh windows from being mistaken for warning popups
+  - Warning popup uses window title: **"Restricted Hours Alert"**
+  - Configure.sh dialogs use window title: **"Sleep Warning Configuration"**
+  - Window management functions identify windows by title, so different titles ensure correct window identification
+  - This prevents configure.sh GUI windows from being treated with stay-on-top or immovable properties intended only for warning popups
+- **Files Affected**: `lib/popup-display.sh` (warning popup title), `lib/configure-*.sh` (configure dialog titles)
 - **Priority**: Medium (usability issue, can confuse users)
-- **Status**: Not implemented
-- **Current Issue**: When `configure.sh` is run in GUI mode, the zenity dialogs may be treated similarly to warning popups, causing them to stay on top and potentially be immovable, which interferes with the intended behavior where only the actual warning popup should have these properties.
+- **Status**: ✅ **Implemented**
+- **Implementation Details**: 
+  - In `lib/popup-display.sh`, the warning popup window title is set to "Restricted Hours Alert" (line 140)
+  - A comment explains: "Window title is 'Restricted Hours Alert' to avoid matching 'Sleep Warning Configuration'" (line 138)
+  - All configure.sh dialogs consistently use "Sleep Warning Configuration" as their window title
+  - This ensures window management functions (like `make_window_unclosable()`, `keep_window_on_top()`) correctly identify only the warning popup, not configure.sh dialogs
