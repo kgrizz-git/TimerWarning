@@ -54,6 +54,17 @@ get_section_status() {
 }
 
 # Show main navigation menu
+# Parameters:
+#   $1  - use_gui (true/false)
+#   $2  - check_interval
+#   $3  - popup_size
+#   $4  - popup_position
+#   $5  - min_display_time
+#   $6  - popup_immovable
+#   $7  - weekdays_status
+#   $8  - weekends_status
+#   $9  - configure_block_enabled
+#   $10 - lock_hours_status (e.g., "(None)" or "(Configured)") - Enhancement #19 Phase 2
 show_main_menu() {
     local use_gui="$1"
     local check_interval="$2"
@@ -64,6 +75,7 @@ show_main_menu() {
     local weekdays_status="$7"
     local weekends_status="$8"
     local configure_block_enabled="$9"
+    local lock_hours_status="${10}"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
@@ -99,6 +111,12 @@ show_main_menu() {
             security_status=" (Disabled)"
         fi
         
+        # Build lock hours status indicator (Phase 2)
+        local lock_status_display=""
+        if [ -n "${lock_hours_status}" ]; then
+            lock_status_display=" ${lock_hours_status}"
+        fi
+        
         local choice
         choice=$(show_multi_column_list_dialog \
             "Sleep Warning Configuration" \
@@ -114,7 +132,8 @@ show_main_menu() {
             "4" "Weekends Configuration ${weekends_status}" \
             "5" "Visual Day/Time Grid" \
             "6" "Security Settings${security_status}" \
-            "7" "Review and Save")
+            "7" "Lock Hours Configuration${lock_status_display}" \
+            "8" "Review and Save")
         local exit_code=$?
         
         # Check if user cancelled (empty choice and non-zero exit)
@@ -189,19 +208,27 @@ show_main_menu() {
         else
             security_status=" (Disabled)"
         fi
+        # Build lock hours status indicator (Phase 2)
+        local lock_status_display=""
+        if [ -n "${lock_hours_status}" ]; then
+            lock_status_display=" ${lock_hours_status}"
+        fi
         echo "6. Security Settings${security_status}" >&2
-        echo "   Configure blocking of configure.sh and manage.sh during restricted hours" >&2
+        echo "   Configure blocking of configure.sh and manage.sh during restricted/lock hours" >&2
         echo "" >&2
-        echo "7. Review and Save" >&2
+        echo "7. Lock Hours Configuration${lock_status_display}" >&2
+        echo "   Configure additional hours when configuration/management is blocked" >&2
+        echo "" >&2
+        echo "8. Review and Save" >&2
         echo "   Review your configuration and save changes" >&2
         echo "" >&2
         echo "To cancel and exit without saving, press Ctrl+C" >&2
         echo "" >&2
         
         while true; do
-            read -p "Select option [1-7]: " choice >&2
+            read -p "Select option [1-8]: " choice >&2
             case "${choice}" in
-                1|2|3|4|5|6|7)
+                1|2|3|4|5|6|7|8)
                     echo "${choice}"
                     return 0
                     ;;
@@ -452,10 +479,49 @@ show_summary() {
         summary="${summary}Prevent Window Movement: Disabled\n"
     fi
     if [ "${configure_block_enabled}" = "true" ]; then
-        summary="${summary}Block Scripts During Restricted Hours: Enabled\n"
+        summary="${summary}Block Scripts During Restricted/Lock Hours: Enabled\n"
     else
-        summary="${summary}Block Scripts During Restricted Hours: Disabled\n"
+        summary="${summary}Block Scripts During Restricted/Lock Hours: Disabled\n"
     fi
+    
+    # Lock hours summary (Enhancement #19 Phase 2)
+    # Uses global lock_hours_lines array if available; if not present, shows "None configured".
+    summary="${summary}\nLock Hours (configure.sh/manage.sh):\n"
+    local has_lock_hours=false
+    if declare -p lock_hours_lines >/dev/null 2>&1; then
+        local day_index
+        for day_index in 0 1 2 3 4 5 6; do
+            if [ -n "${lock_hours_lines[${day_index}]:-}" ]; then
+                has_lock_hours=true
+                break
+            fi
+        done
+        
+        if [ "${has_lock_hours}" = "true" ]; then
+            local day_index
+            for day_index in 0 1 2 3 4 5 6; do
+                local lock_entry="${lock_hours_lines[${day_index}]:-}"
+                local day_name="${DAY_NAMES[${day_index}]}"
+                if [ -n "${lock_entry}" ]; then
+                    # Extract range part after '=' (may be empty for explicitly disabled)
+                    local ranges
+                    ranges=$(echo "${lock_entry}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    if [ -n "${ranges}" ]; then
+                        local formatted
+                        formatted=$(format_ranges_human "${ranges}" "${day_name}")
+                        summary="${summary}• ${day_name}: ${formatted}\n"
+                    else
+                        summary="${summary}• ${day_name}: No lock hours\n"
+                    fi
+                fi
+            done
+        else
+            summary="${summary}• None configured\n"
+        fi
+    else
+        summary="${summary}• None configured\n"
+    fi
+    
     summary="${summary}\nRestricted Hours:\n"
     
     # Check for overlaps and format times

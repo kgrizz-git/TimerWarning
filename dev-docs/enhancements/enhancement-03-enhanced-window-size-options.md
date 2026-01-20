@@ -3,6 +3,7 @@
 - **Description**: Add more predefined window size options and allow window sizes to be automatically calculated based on current display resolution
 - **Implementation**: 
   - Add additional predefined size options (e.g., `xsmall`, `xlarge`, `xxlarge`) beyond current `small`, `medium`, `large`
+  - Add a `fullscreen` option that uses the full available work area of the chosen display
   - Add display resolution detection function (using `xrandr` for X11, `wlr-randr` or `wayland-info` for Wayland)
   - Implement percentage-based sizing (e.g., `50%x30%` to use 50% of screen width and 30% of screen height)
   - Add resolution-aware predefined sizes that scale with display (e.g., `medium` could be 30% of screen width by 20% of screen height)
@@ -32,6 +33,11 @@
   - Cache detected resolution to avoid repeated queries (with refresh option)
   - Update `get_popup_dimensions()` function to handle percentage calculations
   - Add resolution detection function that works across X11/Wayland with appropriate fallbacks
+  - `fullscreen` can be implemented as a special-case size that maps to `100%x100%` (or compositor-reported work area), and is **low complexity** once reliable display detection and popup positioning are in place
+  - Showing simultaneous "fullscreen" popups on **two screens at once** is **technically possible but higher complexity** (requires enumerating active displays and either:
+    - Creating one popup per display, each sized to that display’s work area, or
+    - Using compositor-specific APIs / window rules to mirror or span windows),
+    so true dual-display fullscreen should be considered a follow‑on enhancement rather than part of the initial `fullscreen` implementation
 - **User Experience Benefits**:
   - Better popup sizing on high-resolution displays (4K, ultrawide monitors)
   - Consistent visual appearance across different screen sizes

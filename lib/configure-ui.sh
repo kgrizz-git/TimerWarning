@@ -482,12 +482,13 @@ calculate_restriction_end_time() {
     return 1  # Not in any range
 }
 
-# Show error message when configure.sh or manage.sh is blocked during restricted hours
+# Show error message when configure.sh or manage.sh is blocked during restricted hours or lock hours
 # This is for Enhancement #19 (Prevent configure.sh and manage.sh Execution)
+# Phase 2: Also checks lock hours in addition to restriction hours
 # Parameters:
 #   $1 - use_gui (true/false)
 #   $2 - script_name ("Configuration" or "Management" or custom)
-# Dependencies: configure-core.sh (for format_hour_12h, DAY_NAMES), configure-time.sh (for format_ranges_human), config.sh (for parse_config), time-validation.sh (for is_hour_in_single_range)
+# Dependencies: configure-core.sh (for format_hour_12h, DAY_NAMES), configure-time.sh (for format_ranges_human), config.sh (for parse_config, parse_lock_hours), time-validation.sh (for is_restricted_hour, is_lock_hour, is_hour_in_single_range)
 show_config_locked_error() {
     local use_gui="$1"
     local script_name="${2:-Configuration}"
@@ -509,16 +510,23 @@ show_config_locked_error() {
     local current_time_12h
     current_time_12h=$(format_hour_12h "${current_hour}")
     
-    # Get restricted range for current day
-    if ! type parse_config >/dev/null 2>&1; then
+    # Get config parsing functions
+    if ! type parse_config >/dev/null 2>&1 || ! type parse_lock_hours >/dev/null 2>&1; then
         local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
         source "${SCRIPT_DIR}/lib/config.sh" 2>/dev/null || true
     fi
     
+    # Get restriction hours for current day
     local restricted_range
     restricted_range=$(parse_config "${current_day}" 2>/dev/null || echo "")
     
-    # Check for overnight range from previous day
+    # Get lock hours for current day (Phase 2)
+    local lock_hours_range=""
+    if type parse_lock_hours >/dev/null 2>&1; then
+        lock_hours_range=$(parse_lock_hours "${current_day}" 2>/dev/null || echo "")
+    fi
+    
+    # Check for overnight ranges from previous day
     local prev_day
     if [ "${current_day}" -eq 0 ]; then
         prev_day=6
@@ -529,46 +537,237 @@ show_config_locked_error() {
     local prev_day_range
     prev_day_range=$(parse_config "${prev_day}" 2>/dev/null || echo "")
     
-    local active_range="${restricted_range}"
-    local active_range_formatted=""
-    local end_time_info=""
+    local prev_day_lock_hours=""
+    if type parse_lock_hours >/dev/null 2>&1; then
+        prev_day_lock_hours=$(parse_lock_hours "${prev_day}" 2>/dev/null || echo "")
+    fi
     
-    # Check if we're in an overnight range from previous day
-    if [ -n "${prev_day_range}" ]; then
-        local IFS=','
-        for range in ${prev_day_range}; do
-            range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            local start_hour end_hour
-            start_hour=$(echo "${range}" | cut -d'-' -f1)
-            end_hour=$(echo "${range}" | cut -d'-' -f2)
-            
-            if [ "${start_hour}" -gt "${end_hour}" ]; then
-                # Overnight range: check if current hour falls within the end portion
-                if [ "${current_hour}" -lt "${end_hour}" ]; then
-                    active_range="${range}"
+    # Check if we're in restriction hours or lock hours
+    local in_restriction=false
+    local in_lock_hours=false
+    
+    # Check restriction hours (current day and previous day overnight)
+    if type is_restricted_hour >/dev/null 2>&1; then
+        if is_restricted_hour "${current_hour}" "${restricted_range}"; then
+            in_restriction=true
+        elif [ -n "${prev_day_range}" ]; then
+            # Check previous day's overnight ranges
+            local IFS=','
+            for range in ${prev_day_range}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                if [ "${start_hour}" -gt "${end_hour}" ]; then
+                    # Overnight range: check if current hour falls within the end portion
+                    if [ "${current_hour}" -lt "${end_hour}" ]; then
+                        in_restriction=true
+                        break
+                    fi
+                fi
+            done
+            unset IFS
+        fi
+    fi
+    
+    # Check lock hours (current day and previous day overnight) - Phase 2
+    if type is_lock_hour >/dev/null 2>&1; then
+        if [ -n "${lock_hours_range}" ] && is_lock_hour "${current_hour}" "${lock_hours_range}"; then
+            in_lock_hours=true
+        elif [ -n "${prev_day_lock_hours}" ]; then
+            # Check previous day's overnight lock hours
+            local IFS=','
+            for range in ${prev_day_lock_hours}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                if [ "${start_hour}" -gt "${end_hour}" ]; then
+                    # Overnight range: check if current hour falls within the end portion
+                    if [ "${current_hour}" -lt "${end_hour}" ]; then
+                        in_lock_hours=true
+                        break
+                    fi
+                fi
+            done
+            unset IFS
+        fi
+    fi
+    
+    # Determine lock type and build appropriate message
+    local lock_type=""
+    local active_range_formatted=""
+    local end_info=""
+    
+    if [ "${in_restriction}" = "true" ] && [ "${in_lock_hours}" = "true" ]; then
+        # Blocked by both
+        lock_type="both"
+        
+        # Format restriction hours
+        local restriction_formatted=""
+        if [ -n "${restricted_range}" ]; then
+            restriction_formatted=$(format_ranges_human "${restricted_range}" "${day_name}" 2>/dev/null || echo "")
+        fi
+        if [ -z "${restriction_formatted}" ] && [ -n "${prev_day_range}" ]; then
+            # Check previous day's overnight range
+            local IFS=','
+            for range in ${prev_day_range}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
                     local prev_day_name="${DAY_NAMES[${prev_day}]}"
-                    active_range_formatted=$(format_range_human "${range}" "${prev_day_name}")
+                    restriction_formatted=$(format_range_human "${range}" "${prev_day_name}" 2>/dev/null || echo "")
                     break
                 fi
-            fi
-        done
+            done
+            unset IFS
+        fi
+        
+        # Format lock hours
+        local lock_formatted=""
+        if [ -n "${lock_hours_range}" ]; then
+            lock_formatted=$(format_ranges_human "${lock_hours_range}" "${day_name}" 2>/dev/null || echo "")
+        fi
+        if [ -z "${lock_formatted}" ] && [ -n "${prev_day_lock_hours}" ]; then
+            # Check previous day's overnight lock hours
+            local IFS=','
+            for range in ${prev_day_lock_hours}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                    local prev_day_name="${DAY_NAMES[${prev_day}]}"
+                    lock_formatted=$(format_range_human "${range}" "${prev_day_name}" 2>/dev/null || echo "")
+                    break
+                fi
+            done
+            unset IFS
+        fi
+        
+        # Combine formatted ranges
+        if [ -n "${restriction_formatted}" ] && [ -n "${lock_formatted}" ]; then
+            active_range_formatted="Restriction: ${restriction_formatted}, Lock: ${lock_formatted}"
+        elif [ -n "${restriction_formatted}" ]; then
+            active_range_formatted="Restriction: ${restriction_formatted}, Lock: (configured)"
+        elif [ -n "${lock_formatted}" ]; then
+            active_range_formatted="Restriction: (configured), Lock: ${lock_formatted}"
+        else
+            active_range_formatted="Restriction and Lock hours (both active)"
+        fi
+        
+        # Calculate end times for both and find earliest
+        local restriction_end=""
+        local lock_end=""
+        
+        restriction_end=$(calculate_restriction_end_time "${current_hour}" "${current_day}" "${restricted_range}" 2>/dev/null || echo "")
+        if [ -n "${lock_hours_range}" ]; then
+            lock_end=$(calculate_restriction_end_time "${current_hour}" "${current_day}" "${lock_hours_range}" 2>/dev/null || echo "")
+        fi
+        
+        # Determine which ends first (simplified: use restriction end if available, otherwise lock end)
+        # TODO: Could improve this to actually compare times, but for now use restriction end as primary
+        end_info="${restriction_end}"
+        if [ -z "${end_info}" ] && [ -n "${lock_end}" ]; then
+            end_info="${lock_end}"
+        fi
+        
+    elif [ "${in_restriction}" = "true" ]; then
+        # Blocked by restriction hours only (Phase 1 behavior)
+        lock_type="restriction"
+        
+        # Format restriction hours (same as Phase 1)
+        if [ -n "${restricted_range}" ]; then
+            active_range_formatted=$(format_ranges_human "${restricted_range}" "${day_name}" 2>/dev/null || echo "")
+        fi
+        if [ -z "${active_range_formatted}" ] && [ -n "${prev_day_range}" ]; then
+            # Check previous day's overnight range
+            local IFS=','
+            for range in ${prev_day_range}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                    local prev_day_name="${DAY_NAMES[${prev_day}]}"
+                    active_range_formatted=$(format_range_human "${range}" "${prev_day_name}" 2>/dev/null || echo "")
+                    break
+                fi
+            done
+            unset IFS
+        fi
+        
+        # Calculate when restrictions end
+        end_info=$(calculate_restriction_end_time "${current_hour}" "${current_day}" "${restricted_range}" 2>/dev/null || echo "")
+        
+    elif [ "${in_lock_hours}" = "true" ]; then
+        # Blocked by lock hours only (Phase 2)
+        lock_type="lock"
+        
+        # Format lock hours
+        if [ -n "${lock_hours_range}" ]; then
+            active_range_formatted=$(format_ranges_human "${lock_hours_range}" "${day_name}" 2>/dev/null || echo "")
+        fi
+        if [ -z "${active_range_formatted}" ] && [ -n "${prev_day_lock_hours}" ]; then
+            # Check previous day's overnight lock hours
+            local IFS=','
+            for range in ${prev_day_lock_hours}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                    local prev_day_name="${DAY_NAMES[${prev_day}]}"
+                    active_range_formatted=$(format_range_human "${range}" "${prev_day_name}" 2>/dev/null || echo "")
+                    break
+                fi
+            done
+            unset IFS
+        fi
+        
+        # Calculate when lock hours end
+        if [ -n "${lock_hours_range}" ]; then
+            end_info=$(calculate_restriction_end_time "${current_hour}" "${current_day}" "${lock_hours_range}" 2>/dev/null || echo "")
+        fi
+    else
+        # Should not happen (function should only be called when blocked)
+        lock_type="unknown"
+        active_range_formatted="(unknown)"
     fi
     
-    # If not in previous day's overnight range, check current day
-    if [ -z "${active_range_formatted}" ] && [ -n "${restricted_range}" ]; then
-        active_range_formatted=$(format_ranges_human "${restricted_range}" "${day_name}")
-    fi
+    # Build error message based on lock type
+    local error_msg=""
+    case "${lock_type}" in
+        "both")
+            error_msg="${script_name} is locked during restricted hours and configured lock hours.\n\n"
+            ;;
+        "restriction")
+            error_msg="${script_name} is locked during restricted hours.\n\n"
+            ;;
+        "lock")
+            error_msg="${script_name} is locked during configured lock hours.\n\n"
+            ;;
+        *)
+            error_msg="${script_name} is locked.\n\n"
+            ;;
+    esac
     
-    # Calculate when restrictions end
-    local end_info
-    end_info=$(calculate_restriction_end_time "${current_hour}" "${current_day}" "${restricted_range}" 2>/dev/null || echo "")
-    
-    # Build error message
-    local error_msg="${script_name} is locked during restricted hours.\n\n"
     error_msg="${error_msg}Current time: ${day_name}, ${current_time_12h}\n"
     
     if [ -n "${active_range_formatted}" ] && [ "${active_range_formatted}" != "(no restrictions)" ]; then
-        error_msg="${error_msg}Active restriction: ${active_range_formatted}\n"
+        if [ "${lock_type}" = "both" ]; then
+            error_msg="${error_msg}Active locks: ${active_range_formatted}\n"
+        elif [ "${lock_type}" = "restriction" ]; then
+            error_msg="${error_msg}Active restriction: ${active_range_formatted}\n"
+        elif [ "${lock_type}" = "lock" ]; then
+            error_msg="${error_msg}Active lock hours: ${active_range_formatted}\n"
+        else
+            error_msg="${error_msg}Active: ${active_range_formatted}\n"
+        fi
     fi
     
     if [ -n "${end_info}" ]; then
@@ -578,24 +777,45 @@ show_config_locked_error() {
         is_overnight=$(echo "${end_info}" | cut -d'|' -f3)
         
         if [ "${is_overnight}" = "true" ]; then
-            error_msg="${error_msg}Restrictions end: ${end_time} on ${end_day}\n"
+            error_msg="${error_msg}Lock ends: ${end_time} on ${end_day}\n"
         else
-            error_msg="${error_msg}Restrictions end: ${end_time} today\n"
+            error_msg="${error_msg}Lock ends: ${end_time} today\n"
         fi
     fi
     
-    error_msg="${error_msg}\nPlease try again after the restricted hours end."
+    error_msg="${error_msg}\nPlease try again after the lock period ends."
     
     # Display error message
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         show_info_dialog "${script_name} Locked" "${error_msg}" 650 350
     else
         echo "" >&2
-        echo "Error: ${script_name} is locked during restricted hours." >&2
+        case "${lock_type}" in
+            "both")
+                echo "Error: ${script_name} is locked during restricted hours and configured lock hours." >&2
+                ;;
+            "restriction")
+                echo "Error: ${script_name} is locked during restricted hours." >&2
+                ;;
+            "lock")
+                echo "Error: ${script_name} is locked during configured lock hours." >&2
+                ;;
+            *)
+                echo "Error: ${script_name} is locked." >&2
+                ;;
+        esac
         echo "" >&2
         echo "Current time: ${day_name}, ${current_time_12h}" >&2
         if [ -n "${active_range_formatted}" ] && [ "${active_range_formatted}" != "(no restrictions)" ]; then
-            echo "Active restriction: ${active_range_formatted}" >&2
+            if [ "${lock_type}" = "both" ]; then
+                echo "Active locks: ${active_range_formatted}" >&2
+            elif [ "${lock_type}" = "restriction" ]; then
+                echo "Active restriction: ${active_range_formatted}" >&2
+            elif [ "${lock_type}" = "lock" ]; then
+                echo "Active lock hours: ${active_range_formatted}" >&2
+            else
+                echo "Active: ${active_range_formatted}" >&2
+            fi
         fi
         if [ -n "${end_info}" ]; then
             local end_time end_day is_overnight
@@ -603,13 +823,13 @@ show_config_locked_error() {
             end_day=$(echo "${end_info}" | cut -d'|' -f2)
             is_overnight=$(echo "${end_info}" | cut -d'|' -f3)
             if [ "${is_overnight}" = "true" ]; then
-                echo "Restrictions end: ${end_time} on ${end_day}" >&2
+                echo "Lock ends: ${end_time} on ${end_day}" >&2
             else
-                echo "Restrictions end: ${end_time} today" >&2
+                echo "Lock ends: ${end_time} today" >&2
             fi
         fi
         echo "" >&2
-        echo "Please try again after the restricted hours end." >&2
+        echo "Please try again after the lock period ends." >&2
         echo "" >&2
     fi
 }

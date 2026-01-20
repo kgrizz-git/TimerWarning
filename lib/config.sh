@@ -305,3 +305,84 @@ parse_config() {
         return 0
     fi
 }
+
+# Parse lock hours from configuration file
+# This function reads CONFIG_LOCK_HOURS_DAYNAME lines (e.g., CONFIG_LOCK_HOURS_MONDAY=9-17)
+# These are separate from restriction hours and used for blocking configure.sh and manage.sh
+# This is for Enhancement #19 Phase 2 (Additional Configurable Lock Hours)
+#
+# Parameters:
+#   $1 - day_num (0-6, Sunday=0, Saturday=6)
+#
+# Returns:
+#   Time range string (e.g., "9-17" or "0-5,22-23") if configured
+#   Empty string if not configured or explicitly disabled
+#
+# Exit Codes:
+#   0 - Success (returns range or empty string)
+#   1 - Invalid day number
+#
+# Dependencies: None (standalone function)
+parse_lock_hours() {
+    local day_num="$1"
+    local day_name
+    
+    # Convert day number to day name
+    case "${day_num}" in
+        0) day_name="SUNDAY" ;;
+        1) day_name="MONDAY" ;;
+        2) day_name="TUESDAY" ;;
+        3) day_name="WEDNESDAY" ;;
+        4) day_name="THURSDAY" ;;
+        5) day_name="FRIDAY" ;;
+        6) day_name="SATURDAY" ;;
+        *) return 1 ;;
+    esac
+    
+    # Check if config file exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        # No config file = no lock hours configured
+        echo ""
+        return 0
+    fi
+    
+    # Check if lock hours line exists in config file (even if empty)
+    local lock_line_exists
+    lock_line_exists=$(grep -E "^[[:space:]]*CONFIG_LOCK_HOURS_${day_name}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+    
+    if [ -z "${lock_line_exists}" ]; then
+        # Lock hours line doesn't exist = not configured, no lock hours
+        echo ""
+        return 0
+    fi
+    
+    # Lock hours line exists - extract value (may be empty if explicitly disabled)
+    local lock_config
+    lock_config=$(echo "${lock_line_exists}" | sed 's/^[[:space:]]*//' | cut -d'=' -f2- | tr -d '[:space:]')
+    
+    if [ -n "${lock_config}" ]; then
+        # Has a value - validate format before returning
+        # Source time-validation.sh if available for validation
+        if type validate_hour_range >/dev/null 2>&1; then
+            if validate_hour_range "${lock_config}"; then
+                echo "${lock_config}"
+                return 0
+            else
+                # Invalid format - log warning and return empty
+                if type log_message >/dev/null 2>&1; then
+                    log_message "warning" "Invalid lock hours format for ${day_name}: ${lock_config}"
+                fi
+                echo ""
+                return 0
+            fi
+        else
+            # Validation function not available - return as-is (will be validated later)
+            echo "${lock_config}"
+            return 0
+        fi
+    else
+        # Line exists but is empty = explicitly disabled, no lock hours
+        echo ""
+        return 0
+    fi
+}

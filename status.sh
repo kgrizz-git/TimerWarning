@@ -465,6 +465,31 @@ show_configuration() {
         echo ""
         echo -e "${COLOR_YELLOW}  → Run 'sleep-warning-configure' or './configure.sh' to set up restricted hours${COLOR_RESET}"
     fi
+    
+    # Read lock hours (Enhancement #19 Phase 2)
+    print_header "LOCK HOURS (CONFIGURE/MANAGE SCRIPTS)"
+    
+    local has_lock_hours=false
+    
+    for i in {0..6}; do
+        local day_name="${day_names[${i}]}"
+        local day_var="${day_vars[${i}]}"
+        local ranges
+        ranges=$(grep -E "^[[:space:]]*CONFIG_LOCK_HOURS_${day_var}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        
+        if [ -n "${ranges}" ]; then
+            has_lock_hours=true
+            local formatted
+            formatted=$(format_ranges_human "${ranges}" "${day_name}")
+            printf "  ${COLOR_BOLD}%-12s${COLOR_RESET} %s\n" "${day_name}:" "${formatted}"
+        fi
+    done
+    
+    if [ "${has_lock_hours}" = "false" ]; then
+        echo -e "  ${COLOR_YELLOW}No lock hours configured${COLOR_RESET}"
+        echo ""
+        echo -e "${COLOR_YELLOW}  → Use 'sleep-warning-configure' Security/Lock Hours menus to set optional lock hours${COLOR_RESET}"
+    fi
 }
 
 # Display usage tips

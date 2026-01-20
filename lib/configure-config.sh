@@ -115,6 +115,39 @@ load_existing_config() {
         fi
         # If day line doesn't exist, don't add to array (will use defaults)
     done
+    
+    # Load lock hours configurations (Enhancement #19 Phase 2)
+    # Initialize lock_hours_lines array if not already declared
+    if [ -z "${lock_hours_lines+set}" ]; then
+        declare -g -a lock_hours_lines=()
+    else
+        # Clear existing array
+        lock_hours_lines=()
+    fi
+    
+    for i in 0 1 2 3 4 5 6; do
+        local day_name="${DAY_NAMES[${i}]}"
+        local lock_var="CONFIG_LOCK_HOURS_${day_name}"
+        
+        # Check if lock hours line exists in config file (even if empty)
+        local lock_line_exists
+        lock_line_exists=$(grep -E "^[[:space:]]*${lock_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+        
+        if [ -n "${lock_line_exists}" ]; then
+            # Lock hours line exists - extract value (may be empty if explicitly disabled)
+            local lock_config
+            lock_config=$(echo "${lock_line_exists}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            
+            if [ -n "${lock_config}" ]; then
+                # Has a value - configured with lock hours
+                lock_hours_lines[${i}]="${lock_var}=${lock_config}"
+            else
+                # Line exists but is empty - explicitly disabled, no lock hours
+                lock_hours_lines[${i}]="${lock_var}="
+            fi
+        fi
+        # If lock hours line doesn't exist, don't add to array (not configured)
+    done
 }
 
 # Update systemd timer file with new interval
@@ -201,6 +234,8 @@ extract_user_comments() {
         "^# CONFIGURE_BLOCK_ENABLED:"
         "^# CONFIGURE_BLOCK_ENABLED has been disabled"
         "^# This prevents accidental lockout"
+        "^# CONFIG_LOCK_HOURS:"
+        "^# CONFIG_LOCK_HOURS_"
         "^# Default:"
         "^# Minimum:"
         "^# Maximum:"
@@ -212,6 +247,7 @@ extract_user_comments() {
         "^POPUP_MIN_DISPLAY_TIME="
         "^POPUP_IMMOVABLE="
         "^CONFIGURE_BLOCK_ENABLED="
+        "^CONFIG_LOCK_HOURS_"
         "^# This file was generated"
         "^# *$"  # Empty comment lines
     )
@@ -247,9 +283,11 @@ extract_user_comments() {
 # Parameters:
 #   $1-$6: Standard configuration parameters (check_interval, popup_size, popup_position, min_display_time, popup_immovable, configure_block_enabled)
 #   $7+: config_lines array (7 day configurations: Sunday-Saturday)
-#   Optional (if 9+ total arguments after shift 6): 
+#   After config_lines: lock_hours_lines array (optional, Enhancement #19 Phase 2)
+#   Optional (if override flags present): 
 #     Second-to-last: popup_size_overridden ("true" if popup_size was restricted due to high restrictions)
 #     Last: configure_block_overridden ("true" if configure_block_enabled was disabled due to high restrictions)
+# Note: lock_hours_lines is detected by checking for "CONFIG_LOCK_HOURS_" prefix in arguments
 write_config() {
     local check_interval="$1"
     local popup_size="$2"
@@ -259,37 +297,65 @@ write_config() {
     local configure_block_enabled="$6"
     shift 6
     
-    # Extract config_lines array and optional override flags
-    # config_lines is a sparse array (indices 0-6 for Sunday-Saturday, but may not have all 7 elements)
-    # Override flags are always the last two arguments if provided, and are always "true" or empty string
-    # We detect them by checking if the last two arguments match the override flag pattern
+    # Extract config_lines array, optional lock_hours_lines array, and optional override flags
+    # config_lines values are always "DAYVAR=RANGE" format (e.g., "MONDAY=0-5")
+    # lock_hours_lines values are always "CONFIG_LOCK_HOURS_DAYNAME=RANGE" format (e.g., "CONFIG_LOCK_HOURS_MONDAY=9-17")
+    # Override flags are always "true" or empty string, and never contain "="
     local popup_size_overridden=""
     local configure_block_overridden=""
     local config_lines=()
+    local lock_hours_lines=()
     local all_args=("$@")
     local arg_count=${#all_args[@]}
     
-    # Check if last two arguments look like override flags (empty string or "true")
-    # This is safe because config_lines values are always "DAYVAR=RANGE" format (contain "=")
+    # Find where lock_hours_lines start (first argument with "CONFIG_LOCK_HOURS_" prefix)
+    local lock_hours_start=-1
+    local override_flags_start=-1
+    
+    for i in "${!all_args[@]}"; do
+        if [[ "${all_args[${i}]}" =~ ^CONFIG_LOCK_HOURS_ ]]; then
+            lock_hours_start=${i}
+            break
+        fi
+    done
+    
+    # Find where override flags start (last two arguments that are "true" or empty and don't contain "=")
     if [ $arg_count -ge 2 ]; then
         local second_to_last="${all_args[$((arg_count - 2))]}"
         local last="${all_args[$((arg_count - 1))]}"
         
-        # Override flags are either empty string or "true", and never contain "=" (unlike config_lines)
         if ([ -z "${second_to_last}" ] || [ "${second_to_last}" = "true" ]) && \
            ([ -z "${last}" ] || [ "${last}" = "true" ]) && \
            [[ ! "${second_to_last}" =~ = ]] && [[ ! "${last}" =~ = ]]; then
-            # Last two arguments are override flags
-            popup_size_overridden="${second_to_last}"
-            configure_block_overridden="${last}"
-            config_lines=("${all_args[@]:0:$((arg_count - 2))}")
+            override_flags_start=$((arg_count - 2))
+        fi
+    fi
+    
+    # Extract arrays based on detected boundaries
+    if [ ${lock_hours_start} -ge 0 ]; then
+        # Lock hours present
+        config_lines=("${all_args[@]:0:${lock_hours_start}}")
+        
+        if [ ${override_flags_start} -ge 0 ] && [ ${override_flags_start} -gt ${lock_hours_start} ]; then
+            # Override flags present after lock hours
+            lock_hours_lines=("${all_args[@]:${lock_hours_start}:$((override_flags_start - lock_hours_start))}")
+            popup_size_overridden="${all_args[$((arg_count - 2))]}"
+            configure_block_overridden="${all_args[$((arg_count - 1))]}"
         else
-            # All arguments are config_lines (no override flags)
-            config_lines=("${all_args[@]}")
+            # No override flags, lock hours go to end
+            lock_hours_lines=("${all_args[@]:${lock_hours_start}}")
         fi
     else
-        # Less than 2 arguments - all are config_lines
-        config_lines=("${all_args[@]}")
+        # No lock hours
+        if [ ${override_flags_start} -ge 0 ]; then
+            # Override flags present
+            config_lines=("${all_args[@]:0:${override_flags_start}}")
+            popup_size_overridden="${all_args[$((arg_count - 2))]}"
+            configure_block_overridden="${all_args[$((arg_count - 1))]}"
+        else
+            # No override flags, all are config_lines
+            config_lines=("${all_args[@]}")
+        fi
     fi
     
     # Create config directory if it doesn't exist
@@ -365,6 +431,36 @@ write_config() {
                 echo "${config_lines[${day_index}]}"
             fi
         done
+        
+        # Write lock hours configuration lines (Enhancement #19 Phase 2)
+        # Only write section header if there are any lock hours configured
+        local has_lock_hours=false
+        for day_index in 0 1 2 3 4 5 6; do
+            if [ -n "${lock_hours_lines[${day_index}]}" ]; then
+                has_lock_hours=true
+                break
+            fi
+        done
+        
+        if [ "${has_lock_hours}" = "true" ]; then
+            echo ""
+            echo "# CONFIG_LOCK_HOURS: Additional hours for blocking configure.sh and manage.sh (separate from restriction hours)"
+            echo "# Format: CONFIG_LOCK_HOURS_DAYNAME=START_HOUR-END_HOUR"
+            echo "# Hours are in 24-hour format (0-23)"
+            echo "# Multiple ranges can be specified per day (comma-separated)"
+            echo "# Overnight ranges are supported (e.g., 23-6 spans midnight)"
+            echo "# Leave a day empty or omit it to have no lock hours for that day"
+            echo "# When CONFIGURE_BLOCK_ENABLED=true, scripts are blocked during restriction hours OR lock hours"
+            echo "# This is Enhancement #19 Phase 2 (Additional Configurable Lock Hours)"
+            
+            # Write lock hours lines in calendar order (Sun-Sat, indices 0-6)
+            for day_index in 0 1 2 3 4 5 6; do
+                if [ -n "${lock_hours_lines[${day_index}]}" ]; then
+                    # Write the line (includes empty values for explicitly disabled days)
+                    echo "${lock_hours_lines[${day_index}]}"
+                fi
+            done
+        fi
     } > "${CONFIG_FILE}"
     
     if [ $? -eq 0 ]; then

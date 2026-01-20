@@ -4,12 +4,14 @@
 # Sleep Warning System - Configuration Workflow Orchestration Module
 #
 # This module provides high-level workflow orchestration functions that coordinate
-# the configuration process for different sections (weekdays, weekends, grid editing).
+# the configuration process for different sections (weekdays, weekends, grid editing,
+# and lock hours for configuration scripts).
 #
 # Functions:
-# - configure_weekdays_section()  - Configure all weekdays (Monday-Friday)
-# - configure_weekends_section()  - Configure weekend days (Saturday-Sunday)
-# - configure_day_from_grid()     - Configure a day selected from visual grid
+# - configure_weekdays_section()      - Configure all weekdays (Monday-Friday)
+# - configure_weekends_section()      - Configure weekend days (Saturday-Sunday)
+# - configure_day_from_grid()         - Configure a day selected from visual grid
+# - configure_lock_hours_section()    - Configure additional lock hours for configure.sh/manage.sh (Enhancement #19 Phase 2)
 #
 # Dependencies:
 # - configure-core.sh (for DAY_NAMES, DAY_VARS)
@@ -85,6 +87,70 @@ configure_weekdays_section() {
         done
         return 0
     fi
+}
+
+###############################################################################
+# Lock Hours Configuration (Enhancement #19 Phase 2)
+###############################################################################
+
+# Configure additional lock hours for configure.sh/manage.sh
+# This is separate from restricted hours and uses CONFIG_LOCK_HOURS_* variables.
+# Parameters:
+#   $1 - use_gui (true/false)
+#   $2 - lock_hours_lines_ref (name of array variable, passed by reference)
+configure_lock_hours_section() {
+    local use_gui="$1"
+    local -n lock_hours_lines_ref="$2"  # Pass lock_hours_lines by reference
+    
+    # Configure each day individually (Sunday-Saturday, indices 0-6)
+    # We reuse get_day_hours to ensure consistent validation and UX.
+    local day_index=0
+    
+    while [ "${day_index}" -le 6 ]; do
+        local day_name="${DAY_NAMES[${day_index}]}"
+        
+        # Build friendly label to differentiate from restriction hours
+        local label="Lock Hours - ${day_name}"
+        
+        # Allow back navigation from all days except Sunday (index 0)
+        local allow_back="false"
+        if [ "${day_index}" -gt 0 ]; then
+            allow_back="true"
+        fi
+        
+        local range
+        range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "${allow_back}" "true")
+        local exit_code=$?
+        
+        if [ "${range}" = "CANCELLED" ]; then
+            # User cancelled the lock hours workflow
+            return 2
+        elif [ "${range}" = "back" ] || [ ${exit_code} -eq 2 ]; then
+            # User wants to go back to previous day
+            if [ "${day_index}" -gt 0 ]; then
+                day_index=$((day_index - 1))
+                # Clear previous day's entry if it was set
+                unset lock_hours_lines_ref[${day_index}]
+                continue
+            else
+                # Back from first day - return to main menu
+                return 0
+            fi
+        elif [ "${range}" != "skip" ]; then
+            # User configured lock hours for this day
+            local day_var="${DAY_NAMES[${day_index}]}"
+            lock_hours_lines_ref[${day_index}]="CONFIG_LOCK_HOURS_${day_var}=${range}"
+        else
+            # Explicitly skipped - mark as no lock hours for this day
+            local day_var="${DAY_NAMES[${day_index}]}"
+            lock_hours_lines_ref[${day_index}]="CONFIG_LOCK_HOURS_${day_var}="
+        fi
+        
+        # Move to next day
+        day_index=$((day_index + 1))
+    done
+    
+    return 0
 }
 
 configure_weekends_section() {
