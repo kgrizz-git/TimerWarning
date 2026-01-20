@@ -23,7 +23,30 @@ The Sleep Warning System uses a **modular architecture** for improved maintainab
 - Explicit dependency management
 - 92% reduction in main script size (from 1667 to 128 lines)
 
-**For detailed module documentation**, including dependencies, function lists, and development guidelines, see [info/modular-architecture.md](info/modular-architecture.md).
+**For detailed module documentation**, including dependencies, function lists, and development guidelines, see [completed-plans/plan-modular-architecture-sleep-warning.md](completed-plans/plan-modular-architecture-sleep-warning.md).
+
+### Configuration Wizard Architecture
+
+The Configuration Wizard (`configure.sh`) also uses a **modular architecture** for improved maintainability:
+
+- **Main Script**: `configure.sh` (~268 lines) - Streamlined entry point
+- **Library Modules**: 7 focused modules in `lib/` directory (~2,469 lines total)
+  - `configure-core.sh` - Core utilities and constants
+  - `configure-config.sh` - Configuration file operations
+  - `configure-time.sh` - Time formatting and validation
+  - `configure-ui.sh` - Basic UI dialogs
+  - `configure-input.sh` - User input collection
+  - `configure-display.sh` - Complex displays (grids, menus)
+  - `configure-workflow.sh` - Section orchestration
+
+**Benefits**:
+- Clear separation of concerns for configuration logic
+- Individual modules can be tested in isolation
+- Reusable components for other management scripts
+- Explicit dependency management
+- 90% reduction in main script size (from 2,588 to 268 lines)
+
+**For detailed configure module documentation**, including dependencies, function lists, and development guidelines, see [completed-plans/plan-modular-architecture-configure.md](completed-plans/plan-modular-architecture-configure.md).
 
 ## Configuration File Format
 

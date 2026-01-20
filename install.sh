@@ -433,9 +433,9 @@ install_files() {
     chmod +x "$INSTALL_DIR/sleep-warning.sh"
     print_success "Main script installed"
     
-    # Copy configure script
+    # Copy configure script and update library paths to use installed location
     if [ -f "$SCRIPT_DIR/configure.sh" ]; then
-        cp "$SCRIPT_DIR/configure.sh" "$INSTALL_DIR/sleep-warning-configure"
+        sed "s|LIB_DIR=\"\${SCRIPT_DIR}/lib\"|LIB_DIR=\"${LIB_DIR}\"|" "$SCRIPT_DIR/configure.sh" > "$INSTALL_DIR/sleep-warning-configure"
         chmod +x "$INSTALL_DIR/sleep-warning-configure"
         print_success "Configuration wizard installed"
     fi

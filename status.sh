@@ -27,6 +27,16 @@ TIMER_FILE="${SYSTEMD_USER_DIR}/sleep-warning.timer"
 SERVICE_FILE="${SYSTEMD_USER_DIR}/sleep-warning.service"
 SERVICE_NAME="sleep-warning"
 
+# Get script directory for sourcing libraries
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source configuration library if available (for get_popup_dimensions function)
+if [ -f "${SCRIPT_DIR}/lib/config.sh" ]; then
+    source "${SCRIPT_DIR}/lib/config.sh"
+elif [ -f "/usr/local/bin/sleep-warning-lib/config.sh" ]; then
+    source "/usr/local/bin/sleep-warning-lib/config.sh"
+fi
+
 # ANSI color codes
 COLOR_RESET="\033[0m"
 COLOR_BOLD="\033[1m"
@@ -276,10 +286,40 @@ show_configuration() {
     # Read popup size
     local popup_size
     popup_size=$(grep -E "^[[:space:]]*POPUP_SIZE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    
+    # Format with dimensions if get_popup_dimensions function is available
+    local display_size
     if [ -z "${popup_size}" ]; then
-        popup_size="medium (default)"
+        popup_size="medium"
+        if type get_popup_dimensions >/dev/null 2>&1; then
+            local dimensions
+            dimensions=$(get_popup_dimensions "${popup_size}")
+            local width height
+            width=$(echo "${dimensions}" | cut -d' ' -f1)
+            height=$(echo "${dimensions}" | cut -d' ' -f2)
+            display_size="medium (default) - ${width}x${height}"
+        else
+            display_size="medium (default)"
+        fi
+    else
+        if type get_popup_dimensions >/dev/null 2>&1; then
+            local dimensions
+            dimensions=$(get_popup_dimensions "${popup_size}")
+            local width height
+            width=$(echo "${dimensions}" | cut -d' ' -f1)
+            height=$(echo "${dimensions}" | cut -d' ' -f2)
+            
+            # Check if it's a custom size (already contains 'x')
+            if echo "${popup_size}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                display_size="${popup_size}"
+            else
+                display_size="${popup_size} (${width}x${height})"
+            fi
+        else
+            display_size="${popup_size}"
+        fi
     fi
-    print_status "Popup Size" "${popup_size}"
+    print_status "Popup Size" "${display_size}"
     
     # Read popup position
     local popup_position

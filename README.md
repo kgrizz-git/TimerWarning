@@ -49,7 +49,7 @@ The system uses a **modular architecture** for improved maintainability:
 - **7 library modules**: Focused, testable components for specific functionality
 - **Clear dependencies**: Explicit module relationships and loading order
 
-This architecture makes the codebase easier to understand, modify, and extend. For technical details, see [dev-docs/info/modular-architecture.md](dev-docs/info/modular-architecture.md).
+This architecture makes the codebase easier to understand, modify, and extend. For technical details, see [dev-docs/completed-plans/plan-modular-architecture-sleep-warning.md](dev-docs/completed-plans/plan-modular-architecture-sleep-warning.md).
 
 ## Quick Start
 

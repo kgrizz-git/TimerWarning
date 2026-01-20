@@ -13,16 +13,18 @@ These enhancements can be integrated into the existing bash script suite without
 - **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#display-detection-enhancements) for detailed implementation strategies.
 
 ### 2. Dialog Tool Priority System
-- **Description**: Implement intelligent dialog tool selection based on environment (prefer yad for Gaming Mode, kdialog for KDE)
-- **Priority**: High (improves Gaming Mode compatibility)
-- **Status**: ✅ **Implemented** - Environment-aware selection added (Wayland/gamescope: yad → kdialog → zenity; KDE: kdialog → yad → zenity; default: zenity → yad → kdialog). See [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md#checklist-14c-dialog-tool-priority--notify-send-fallback).
+- **Description**: Implement intelligent dialog tool selection preferring YAD's superior capabilities when available, with fallback to Zenity (most compatible) and KDialog (last resort)
+- **Priority**: High (improves user experience and window management)
+- **Status**: ✅ **Partially Implemented** - Environment-aware selection added for popup warnings. Current priority: YAD → Zenity → KDialog (except KDE: KDialog → YAD → Zenity). See [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md#checklist-14c-dialog-tool-priority--notify-send-fallback).
+- **Note**: Configuration wizard (`configure.sh`) currently uses Zenity only. See Enhancement #24 for unified implementation.
 - **Details**: See also [enhancements/enhancement-02-dialog-tool-priority-system.md](enhancements/enhancement-02-dialog-tool-priority-system.md)
 
-### 2a. Extend Dialog Tool Priority System to Configuration Wizard
-- **Description**: Extend environment-aware dialog tool selection to `configure.sh` for consistency with `sleep-warning.sh` and better Wayland/KDE support
-- **Priority**: Medium (improves consistency and Wayland/KDE compatibility for configuration interface)
-- **Status**: Not implemented
-- **Details**: See [enhancements/enhancement-02a-extend-dialog-tool-priority-to-config-wizard.md](enhancements/enhancement-02a-extend-dialog-tool-priority-to-config-wizard.md)
+### 24. Unified Dialog Tool Priority (YAD → Zenity → KDialog)
+- **Description**: Standardize dialog tool selection across both `sleep-warning.sh` (popup warnings) and `configure.sh` (configuration wizard) to **always** prefer **YAD → Zenity → KDialog** in all environments, including KDE. YAD provides superior window positioning, size control, and management capabilities. Create abstraction layer for configure wizard to support all three tools seamlessly. YAD's technical advantages (native positioning, reliable sizing) take precedence over visual consistency considerations. **Positioning Simplification**: As part of this enhancement, popup positioning options will be simplified to only **center** and **top-left**. This simplification reduces complexity in position calculations (top-left requires no window size knowledge, only simple margins) and eliminates edge cases with other corner positions.
+- **Priority**: Medium (improves user experience, unifies implementation, leverages YAD's capabilities when available)
+- **Status**: Not implemented (configuration wizard still uses Zenity only)
+- **Benefits**: Native positioning with YAD (no post-creation hacks), reliable sizing, consistent behavior across all dialogs and environments, simpler codebase (no environment-specific branching), simplified positioning logic (center/top-left only reduces complexity)
+- **Details**: See [enhancements/enhancement-24-unified-dialog-priority-yad-first.md](enhancements/enhancement-24-unified-dialog-priority-yad-first.md)
 
 ### 3. Enhanced Window Size Options and Display-Based Sizing
 - **Description**: Add more predefined window size options and allow window sizes to be automatically calculated based on current display resolution
@@ -218,18 +220,20 @@ These approaches would require significant changes to the architecture or a comp
 7. Prevent 24/7 Restriction Configuration (critical safety feature to prevent accidental lockout)
 
 **Medium Priority (Improves Compatibility/Usability)**:
-6. Steam Overlay Integration (Alternative, but best solution for SteamOS Gaming Mode full-screen games)
-7. Systemd Service Environment Detection
-8. Desktop Notification Fallback
-9. Wayland-Specific Window Management
-10. Temporary Disable via Config
-11. Enhanced Window Size Options and Display-Based Sizing
-12. Auto-Close Popup Window
-13. Visual Day/Time Configuration Grid
-14. Multi-Display Popup Support
-15. Config File Locking During Restricted Hours
-16. Prevent configure.sh During Restricted Hours
-17. One-Time Pause Feature (5 or 10 minutes, available from popup)
+6. Unified Dialog Tool Priority (YAD → Zenity → KDialog) - Extends to configure.sh for consistency
+7. Steam Overlay Integration (Alternative, but best solution for SteamOS Gaming Mode full-screen games)
+8. Systemd Service Environment Detection
+9. Desktop Notification Fallback
+10. Wayland-Specific Window Management
+11. Temporary Disable via Config
+12. Enhanced Window Size Options and Display-Based Sizing
+13. Auto-Close Popup Window
+14. Visual Day/Time Configuration Grid
+15. Multi-Display Popup Support
+16. Config File Locking During Restricted Hours
+17. Prevent configure.sh During Restricted Hours
+18. One-Time Pause Feature (5 or 10 minutes, available from popup)
+19. Display Restricted Times/Days in Popup
 
 **Low Priority (Nice-to-Have Enhancements)**:
 14. Configurable Warning Messages

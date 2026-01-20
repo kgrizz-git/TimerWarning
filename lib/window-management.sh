@@ -402,29 +402,61 @@ reenable_window_closing() {
     esac
 }
 
-# Calculate popup position coordinates (for yad --geometry)
+# Calculate popup position coordinates (for yad --geometry or window repositioning)
+# Returns format: "WIDTHxHEIGHT+X+Y" for yad geometry or "X Y" if only_coords is true
 calculate_popup_geometry() {
     local position="$1"
     local width="$2"
     local height="$3"
+    local only_coords="${4:-false}"  # If true, only return "X Y" instead of full geometry
     
     # Get screen dimensions (requires xrandr or xdpyinfo)
     local screen_width screen_height
     if command -v xrandr >/dev/null 2>&1; then
-        local screen_info
-        screen_info=$(xrandr --current 2>/dev/null | grep -E " connected " | head -n1)
+        local screen_info geometry
+        
+        # Try to get primary display first (usually the main screen)
+        screen_info=$(xrandr --current 2>/dev/null | grep -E " connected primary " | head -n1)
+        if [ -z "${screen_info}" ]; then
+            # No primary display, get first connected display
+            screen_info=$(xrandr --current 2>/dev/null | grep -E " connected " | head -n1)
+        fi
+        
         if [ -n "${screen_info}" ]; then
-            screen_width=$(echo "${screen_info}" | awk '{print $4}' | cut -d'+' -f1 | cut -d'x' -f1)
-            screen_height=$(echo "${screen_info}" | awk '{print $4}' | cut -d'+' -f1 | cut -d'x' -f2)
+            # Extract geometry using regex pattern (handles both primary and non-primary displays)
+            # Pattern: WIDTHxHEIGHT+X+Y (e.g., "1920x1080+0+0" or "1280x800+2560+640")
+            geometry=$(echo "${screen_info}" | grep -oE '[0-9]+x[0-9]+\+[0-9]+\+[0-9]+' | head -n1)
+            
+            if [ -n "${geometry}" ]; then
+                # Extract width and height from geometry string
+                screen_width=$(echo "${geometry}" | cut -d'x' -f1)
+                screen_height=$(echo "${geometry}" | cut -d'x' -f2 | cut -d'+' -f1)
+            fi
         fi
     elif command -v xdpyinfo >/dev/null 2>&1; then
-        screen_width=$(xdpyinfo | grep dimensions | awk '{print $2}' | cut -d'x' -f1)
-        screen_height=$(xdpyinfo | grep dimensions | awk '{print $2}' | cut -d'x' -f2)
+        local dimensions
+        dimensions=$(xdpyinfo 2>/dev/null | grep dimensions | awk '{print $2}')
+        if [ -n "${dimensions}" ]; then
+            screen_width=$(echo "${dimensions}" | cut -d'x' -f1)
+            screen_height=$(echo "${dimensions}" | cut -d'x' -f2)
+        fi
     fi
     
-    # Default to 1920x1080 if we can't detect
-    screen_width=${screen_width:-1920}
-    screen_height=${screen_height:-1080}
+    # Validate dimensions are numeric and reasonable
+    if ! [[ "${screen_width}" =~ ^[0-9]+$ ]] || ! [[ "${screen_height}" =~ ^[0-9]+$ ]] || \
+       [ "${screen_width}" -lt 640 ] || [ "${screen_height}" -lt 480 ]; then
+        # Invalid dimensions, use safe default (1920x1080)
+        screen_width=1920
+        screen_height=1080
+    fi
+    
+    # Define margins that account for window decorations and panels
+    # - Window decorations (title bar + borders): ~40-50px
+    # - Taskbar/panel: ~40-60px
+    # - Safety buffer: ~10-20px
+    local margin_x=30        # Horizontal margin (left/right)
+    local margin_y_top=60    # Top margin (accounts for title bar + panels)
+    local margin_y_bottom=80 # Bottom margin (accounts for taskbar + title bar + decorations)
     
     local x y
     
@@ -434,28 +466,28 @@ calculate_popup_geometry() {
             y=$(( (screen_height - height) / 2 ))
             ;;
         top-left)
-            x=50
-            y=50
+            x=${margin_x}
+            y=${margin_y_top}
             ;;
         top-right)
-            x=$(( screen_width - width - 50 ))
-            y=50
+            x=$(( screen_width - width - margin_x ))
+            y=${margin_y_top}
             ;;
         bottom-left)
-            x=50
-            y=$(( screen_height - height - 50 ))
+            x=${margin_x}
+            y=$(( screen_height - height - margin_y_bottom ))
             ;;
         bottom-right)
-            x=$(( screen_width - width - 50 ))
-            y=$(( screen_height - height - 50 ))
+            x=$(( screen_width - width - margin_x ))
+            y=$(( screen_height - height - margin_y_bottom ))
             ;;
         top-center)
             x=$(( (screen_width - width) / 2 ))
-            y=50
+            y=${margin_y_top}
             ;;
         bottom-center)
             x=$(( (screen_width - width) / 2 ))
-            y=$(( screen_height - height - 50 ))
+            y=$(( screen_height - height - margin_y_bottom ))
             ;;
         *)
             # Default to center
@@ -464,5 +496,94 @@ calculate_popup_geometry() {
             ;;
     esac
     
-    echo "${width}x${height}+${x}+${y}"
+    # Bounds checking: ensure window stays fully on screen
+    # Account for the fact that window managers add decorations to the content area
+    local min_x=${margin_x}
+    local min_y=${margin_y_top}
+    local max_x=$(( screen_width - width - margin_x ))
+    local max_y=$(( screen_height - height - margin_y_bottom ))
+    
+    # Clamp x coordinate
+    if [ "${x}" -lt "${min_x}" ]; then
+        x=${min_x}
+    elif [ "${x}" -gt "${max_x}" ]; then
+        x=${max_x}
+    fi
+    
+    # Clamp y coordinate
+    if [ "${y}" -lt "${min_y}" ]; then
+        y=${min_y}
+    elif [ "${y}" -gt "${max_y}" ]; then
+        y=${max_y}
+    fi
+    
+    if [ "${only_coords}" = "true" ]; then
+        echo "${x} ${y}"
+    else
+        echo "${width}x${height}+${x}+${y}"
+    fi
+}
+
+# Reposition popup window after creation (for dialog tools that don't support position)
+# This is a workaround for zenity and kdialog which lack built-in position control
+reposition_popup_window() {
+    local window_title="$1"
+    local tool="$2"
+    local position="$3"
+    local width="$4"
+    local height="$5"
+    local max_attempts="${6:-10}"  # Default 10 attempts if not specified
+    
+    if [ -z "${tool}" ] || [ "${position}" = "center" ]; then
+        # No tool available or center position (default), skip repositioning
+        return 0
+    fi
+    
+    # Wait for window to be fully created and rendered
+    sleep 1.0
+    
+    # Try to find and reposition window with retries
+    local attempt=0
+    local window_id=""
+    
+    while [ "${attempt}" -lt "${max_attempts}" ] && [ -z "${window_id}" ]; do
+        case "${tool}" in
+            wmctrl)
+                window_id=$(wmctrl -l | grep "${window_title}" | head -n1 | awk '{print $1}')
+                ;;
+            xdotool)
+                window_id=$(xdotool search --name "${window_title}" 2>/dev/null | head -n1)
+                ;;
+        esac
+        
+        if [ -z "${window_id}" ]; then
+            sleep 0.2
+            attempt=$((attempt + 1))
+        fi
+    done
+    
+    if [ -z "${window_id}" ]; then
+        # Window not found, can't reposition
+        return 1
+    fi
+    
+    # Calculate target position
+    local coords
+    coords=$(calculate_popup_geometry "${position}" "${width}" "${height}" "true")
+    local target_x target_y
+    target_x=$(echo "${coords}" | cut -d' ' -f1)
+    target_y=$(echo "${coords}" | cut -d' ' -f2)
+    
+    # Move window to target position
+    case "${tool}" in
+        wmctrl)
+            # wmctrl format: -e gravity,x,y,width,height (use 0 for gravity, -1 to keep size)
+            wmctrl -i -r "${window_id}" -e "0,${target_x},${target_y},-1,-1" 2>/dev/null
+            ;;
+        xdotool)
+            xdotool windowmove "${window_id}" "${target_x}" "${target_y}" 2>/dev/null
+            ;;
+    esac
+    
+    return 0
 }

@@ -36,7 +36,7 @@ This warning will appear every 10 minutes while you continue using your computer
 case "${dialog_tool}" in
     zenity)
         zenity --warning \
-            --title="Sleep Warning" \
+            --title="Restricted Hours Alert" \
             --text="${message}" \
             --modal \
             --width=400 \
@@ -45,7 +45,7 @@ case "${dialog_tool}" in
         ;;
     yad)
         yad --warning \
-            --title="Sleep Warning" \
+            --title="Restricted Hours Alert" \
             --text="${message}" \
             --modal \
             --width=400 \
@@ -54,7 +54,7 @@ case "${dialog_tool}" in
             2>/dev/null
         ;;
     kdialog)
-        kdialog --title "Sleep Warning" \
+        kdialog --title "Restricted Hours Alert" \
             --warning "${message}" \
             2>/dev/null
         ;;

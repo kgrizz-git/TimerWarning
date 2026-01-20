@@ -132,18 +132,26 @@ This warning will appear ${interval_text} while you continue using your computer
     window_tool=$(check_window_tools)
     
     # Display popup based on available tool
+    # Note: Window title is "Restricted Hours Alert" to avoid matching "Sleep Warning Configuration"
     local popup_pid
+    local window_title="Restricted Hours Alert"
+    
     case "${dialog_tool}" in
         zenity)
-            # zenity doesn't support position, only size
+            # zenity doesn't support position natively, only size
             zenity --warning \
-                --title="Sleep Warning" \
+                --title="${window_title}" \
                 --text="${message}" \
                 --modal \
                 --width="${width}" \
                 --height="${height}" \
                 2>/dev/null &
             popup_pid=$!
+            
+            # Reposition window after creation if position is not center
+            if [ -n "${window_tool}" ] && [ "${popup_position}" != "center" ]; then
+                reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
+            fi
             ;;
         yad)
             # yad supports both size and position via --geometry
@@ -151,18 +159,23 @@ This warning will appear ${interval_text} while you continue using your computer
             geometry=$(calculate_popup_geometry "${popup_position}" "${width}" "${height}")
             
             yad --warning \
-                --title="Sleep Warning" \
+                --title="${window_title}" \
                 --text="${message}" \
                 --modal \
                 --geometry="${geometry}" \
                 --on-top \
                 2>/dev/null &
             popup_pid=$!
+            
+            # Also reposition as backup in case --geometry doesn't work properly
+            if [ -n "${window_tool}" ] && [ "${popup_position}" != "center" ]; then
+                reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
+            fi
             ;;
         kdialog)
-            # kdialog has limited size/position control
+            # kdialog has no size/position control
             # Note: kdialog doesn't support --warning, use --sorry for warning messages
-            kdialog --title "Sleep Warning" \
+            kdialog --title "${window_title}" \
                 --sorry "${message}" \
                 2>/dev/null &
             popup_pid=$!
@@ -173,6 +186,11 @@ This warning will appear ${interval_text} while you continue using your computer
                 log_to_file "ERROR" "kdialog popup failed to start (PID ${popup_pid} exited immediately)"
                 popup_pid=""
             fi
+            
+            # Reposition window after creation if position is not center
+            if [ -n "${popup_pid}" ] && [ -n "${window_tool}" ] && [ "${popup_position}" != "center" ]; then
+                reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
+            fi
             ;;
     esac
     
@@ -182,7 +200,7 @@ This warning will appear ${interval_text} while you continue using your computer
     else
         log_to_file "ERROR" "Failed to display popup, Dialog tool: ${dialog_tool}"
         if command -v notify-send >/dev/null 2>&1; then
-            notify-send "Sleep Warning" "You are using your computer during restricted hours. Please consider resting." >/dev/null 2>&1
+            notify-send "Restricted Hours Alert" "You are using your computer during restricted hours. Please consider resting." >/dev/null 2>&1
             log_to_file "WARNING" "notify-send fallback used (non-modal)"
             return 0
         fi
@@ -195,21 +213,21 @@ This warning will appear ${interval_text} while you continue using your computer
     if [ -n "${window_tool}" ] && [ -n "${popup_pid}" ]; then
         # Give the window more time to appear and stabilize
         sleep 1.0
-        keep_window_on_top "Sleep Warning" "${window_tool}"
+        keep_window_on_top "${window_title}" "${window_tool}"
         # Start periodic on-top enforcement (runs until popup closes)
         # Use minimum display time if set, otherwise default to 5 minutes
         local on_top_duration=${min_display_time}
         if [ "${on_top_duration}" -eq 0 ]; then
             on_top_duration=300  # 5 minutes default
         fi
-        keep_window_on_top_periodic "Sleep Warning" "${window_tool}" "${popup_pid}" "${on_top_duration}" &
+        keep_window_on_top_periodic "${window_title}" "${window_tool}" "${popup_pid}" "${on_top_duration}" &
     fi
     
     # If minimum display time is set, enforce it
     if [ "${min_display_time}" -gt 0 ] && [ -n "${popup_pid}" ]; then
         # Try to make window unclosable if window tools are available
         if [ -n "${window_tool}" ]; then
-            make_window_unclosable "Sleep Warning" "${window_tool}" "${min_display_time}"
+            make_window_unclosable "${window_title}" "${window_tool}" "${min_display_time}"
         fi
         
         # Wait for minimum display time, showing countdown
@@ -230,49 +248,64 @@ This warning will appear ${interval_text} while you continue using your computer
                 case "${dialog_tool}" in
                     zenity)
                         zenity --warning \
-                            --title="Sleep Warning" \
+                            --title="${window_title}" \
                             --text="${updated_message}" \
                             --modal \
                             --width="${width}" \
                             --height="${height}" \
                             2>/dev/null &
                         popup_pid=$!
+                        
+                        # Reposition if needed
+                        if [ -n "${window_tool}" ] && [ "${popup_position}" != "center" ]; then
+                            reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
+                        fi
                         ;;
                     yad)
                         local geometry
                         geometry=$(calculate_popup_geometry "${popup_position}" "${width}" "${height}")
                         yad --warning \
-                            --title="Sleep Warning" \
+                            --title="${window_title}" \
                             --text="${updated_message}" \
                             --modal \
                             --geometry="${geometry}" \
                             --on-top \
                             2>/dev/null &
                         popup_pid=$!
+                        
+                        # Reposition as backup
+                        if [ -n "${window_tool}" ] && [ "${popup_position}" != "center" ]; then
+                            reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
+                        fi
                         ;;
                     kdialog)
-                        kdialog --title "Sleep Warning" \
+                        kdialog --title "${window_title}" \
                             --sorry "${updated_message}" \
                             2>/dev/null &
                         popup_pid=$!
+                        
+                        # Reposition if needed
+                        if [ -n "${window_tool}" ] && [ "${popup_position}" != "center" ]; then
+                            reposition_popup_window "${window_title}" "${window_tool}" "${popup_position}" "${width}" "${height}" &
+                        fi
                         ;;
                 esac
                 
                 # Re-apply window restrictions and keep on top
                 if [ -n "${window_tool}" ]; then
                     sleep 0.5
-                    make_window_unclosable "Sleep Warning" "${window_tool}" "${remaining}"
+                    make_window_unclosable "${window_title}" "${window_tool}" "${remaining}"
                     # Also ensure it stays on top
-                    keep_window_on_top "Sleep Warning" "${window_tool}"
+                    keep_window_on_top "${window_title}" "${window_tool}"
                     # Restart periodic on-top enforcement for remaining time
-                    keep_window_on_top_periodic "Sleep Warning" "${window_tool}" "${popup_pid}" "${remaining}" &
+                    keep_window_on_top_periodic "${window_title}" "${window_tool}" "${popup_pid}" "${remaining}" &
                 fi
             fi
         done
         
         # Re-enable window closing after timeout
         if [ -n "${window_tool}" ]; then
-            reenable_window_closing "Sleep Warning" "${window_tool}"
+            reenable_window_closing "${window_title}" "${window_tool}"
         fi
         
         # Wait for user to actually close it (now they can)
