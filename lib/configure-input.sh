@@ -675,6 +675,11 @@ calculate_range_duration() {
 # Calculate total duration in hours for a day, including overnight ranges from previous day
 # This checks both the current day's ranges and any overnight ranges from the previous day
 # that extend into the current day (e.g., previous day's "23-6" extends into current day 0-5)
+# 
+# IMPORTANT: For overnight ranges on the current day (e.g., "21-5"), only the portion
+# on the current day is counted (21-24 = 3 hours), not the full span (21-5 = 8 hours).
+# The remaining portion (0-5 = 5 hours) is counted on the next day.
+#
 # Parameters:
 #   $1 - day_index (0-6, Sunday=0, Saturday=6)
 #   $2 - current_day_ranges (comma-separated ranges for current day, e.g., "0-5,22-23")
@@ -683,6 +688,7 @@ calculate_range_duration() {
 # Examples:
 #   calculate_total_day_duration 1 "0-5" -> 5 (Monday, no overnight from Sunday)
 #   calculate_total_day_duration 1 "0-5" (if Sunday has "23-6") -> 11 (5 from Monday + 6 from Sunday overnight)
+#   calculate_total_day_duration 2 "21-5" (if Day 1 has "21-5") -> 8 (3 from Day 2's 21-24 + 5 from Day 1's 0-5)
 # Note: Requires parse_config from config.sh to read previous day's ranges
 calculate_total_day_duration() {
     local day_index="$1"
@@ -691,14 +697,30 @@ calculate_total_day_duration() {
     local total_duration=0
     
     # Calculate duration from current day's ranges
+    # For overnight ranges (e.g., 21-5), only count the portion on the current day
+    # (21-24 = 3 hours), not the full span (21-5 = 8 hours)
     if [ -n "${current_day_ranges}" ]; then
         local IFS=','
         for range in ${current_day_ranges}; do
             range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             if [ -n "${range}" ]; then
-                local range_duration
-                range_duration=$(calculate_range_duration "${range}")
-                total_duration=$((total_duration + range_duration))
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                # Check if this is an overnight range (start > end)
+                if [ "${start_hour}" -gt "${end_hour}" ]; then
+                    # Overnight range: only count the portion on the current day
+                    # Example: 21-5 means 21-24 (3 hours) on current day, 0-5 (5 hours) on next day
+                    local current_day_portion
+                    current_day_portion=$((24 - start_hour))
+                    total_duration=$((total_duration + current_day_portion))
+                else
+                    # Normal range: count the full duration
+                    local range_duration
+                    range_duration=$(calculate_range_duration "${range}")
+                    total_duration=$((total_duration + range_duration))
+                fi
             fi
         done
     fi
