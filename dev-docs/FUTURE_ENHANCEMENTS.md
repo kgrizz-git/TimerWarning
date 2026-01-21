@@ -12,12 +12,17 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Moved to the Phase 1 detailed plan as a checklist in `dev-docs/plan-phase-1-setup-and-scripts.md`.
 - **Related**: See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#display-detection-enhancements) for detailed implementation strategies.
 
-### 2. Dialog Tool Priority System (Partially Implemented)
+### 2. Dialog Tool Priority System (Implemented)
 - **Description**: Implement intelligent dialog tool selection preferring YAD's superior capabilities when available, with fallback to Zenity (most compatible) and KDialog (last resort)
 - **Priority**: High (improves user experience and window management)
-- **Status**: ✅ **Partially Implemented** - Environment-aware selection added for popup warnings. Current priority: YAD → Zenity → KDialog (except KDE: KDialog → YAD → Zenity). See [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md#checklist-14c-dialog-tool-priority--notify-send-fallback).
-- **Note**: Configuration wizard (`configure.sh`) currently uses Zenity only. See Enhancement #24 for unified implementation.
+- **Status**: ✅ **Implemented** - Environment-aware selection added for popup warnings. Current priority: YAD → Zenity → KDialog (except KDE: KDialog → YAD → Zenity). See [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md#checklist-14c-dialog-tool-priority--notify-send-fallback).
 - **Details**: See also [enhancements/enhancement-02-dialog-tool-priority-system.md](enhancements/enhancement-02-dialog-tool-priority-system.md)
+
+### 2a. Extend Dialog Tool Priority to Configuration Wizard (Implemented)
+- **Description**: Extend environment-aware dialog tool selection to `configure.sh` for consistency with `sleep-warning.sh` and better Wayland/KDE support
+- **Priority**: Medium (improves consistency and Wayland/KDE compatibility for configuration interface)
+- **Status**: ✅ **Implemented** - All requirements completed. Main functionality implemented and working. Dialog tool priority system extended to `configure.sh` and all configure modules. All GUI dialogs support yad/kdialog/zenity with unified priority (YAD → Zenity → KDialog). Visual Day/Time Configuration Grid uses same dialog tool selection. **Note**: Comprehensive testing across all dialog tools and environments has not yet been performed.
+- **Details**: See [enhancements/enhancement-02a-extend-dialog-tool-priority-to-config-wizard.md](enhancements/enhancement-02a-extend-dialog-tool-priority-to-config-wizard.md)
 
 ### 3. Enhanced Window Size Options and Display-Based Sizing
 - **Description**: Add more predefined window size options and allow window sizes to be automatically calculated based on current display resolution
@@ -137,16 +142,16 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Not implemented
 - **Details**: See [enhancements/enhancement-18-config-file-locking.md](enhancements/enhancement-18-config-file-locking.md)
 
-### 19. Prevent configure.sh and manage.sh Execution During Restricted Hours
-- **Description**: Prevent `configure.sh` and `manage.sh` from running during restricted hours (and optionally during additional configurable hours) to prevent users from circumventing restrictions by changing settings or disabling the system
+### 19. Prevent configure.sh and manage.sh Execution During Restricted Hours (Phase 1 Implemented)
+- **Description**: Prevent `configure.sh` and `manage.sh` from running during restricted hours (Phase 1) and optionally during additional configurable hours (Phase 2) to prevent users from circumventing restrictions by changing settings or disabling the system
 - **Priority**: Medium (security/self-control feature, complements config file locking)
-- **Status**: Not implemented
+- **Status**: ✅ **Phase 1 Implemented** - Core functionality complete: `configure.sh` and `manage.sh` check current time at startup and exit with error message if within restricted hours. User-configurable option to enable/disable blocking. Phase 2 (additional configurable lock hours) integrated with Enhancement #20.
 - **Details**: See [enhancements/enhancement-19-prevent-configure-execution.md](enhancements/enhancement-19-prevent-configure-execution.md)
 
-### 20. Additional Hours for Config Locking and configure.sh Blocking
+### 20. Additional Hours for Config Locking and configure.sh Blocking (Phase 1 Implemented)
 - **Description**: Allow users to configure additional time ranges (separate from restriction hours) during which config file locking and configure.sh blocking are active. This allows users to lock configuration during specific hours even if those hours are not restricted (e.g., lock config during work hours to prevent distraction-related changes)
 - **Priority**: Low (nice-to-have feature, adds complexity)
-- **Status**: Not implemented
+- **Status**: ✅ **Phase 1 Implemented** - Lock hours for configure.sh and manage.sh blocking are fully implemented. Users can configure separate lock hours (CONFIG_LOCK_HOURS_DAY=START-END) that work independently from restriction hours. Visual Day/Time Grid supports lock hours display. Phase 2 (uninstall.sh integration) pending.
 - **Details**: See [enhancements/enhancement-20-additional-hours-config-locking.md](enhancements/enhancement-20-additional-hours-config-locking.md)
 
 ### 21. One-Time Pause Feature (5 or 10 Minutes)
@@ -186,10 +191,10 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Not implemented
 - **Details**: See [enhancements/enhancement-25-user-selectable-dialog-tool.md](enhancements/enhancement-25-user-selectable-dialog-tool.md)
 
-### 26. Prevent uninstall.sh Execution During Restricted Hours
+### 26. Prevent uninstall.sh Execution During Restricted Hours (Phase 1 Mostly Implemented)
 - **Description**: Prevent `uninstall.sh` from running during restricted hours (and optionally during additional configurable hours) to prevent users from circumventing restrictions by uninstalling the system. **Phase 1 (Initial Implementation)**: Implement "difficult uninstall" mode requiring users to type a confirmation phrase and answer 10 algebra questions before uninstalling during restricted hours. This allows legitimate uninstalls while deterring impulsive ones. **Future Phase**: Total block mode (completely prevent uninstall) may be considered but is not included in initial implementation due to high risk of preventing legitimate uninstall needs. A companion script (`manual-uninstall-guide.sh`) will provide step-by-step instructions for manual uninstallation even during restricted hours.
 - **Priority**: Medium (security/self-control feature; difficult mode has lower risk than total block)
-- **Status**: Not implemented
+- **Status**: ✅ **Phase 1 Mostly Implemented** - Core functionality complete: `uninstall.sh` checks current time at startup and requires difficult verification process (confirmation phrase + 10 algebra questions) if within restricted hours. User-configurable option to enable/disable difficult uninstall. Some testing and user documentation pending.
 - **Details**: See [enhancements/enhancement-26-prevent-uninstall-during-restricted-hours.md](enhancements/enhancement-26-prevent-uninstall-during-restricted-hours.md)
 
 ## Alternative Approaches (Require Different Implementation)
@@ -238,21 +243,23 @@ These approaches would require significant changes to the architecture or a comp
 7. ~~Prevent 24/7 Restriction Configuration~~ ✅ **MOSTLY IMPLEMENTED** (core validation complete, revisit when #18 and/or #19 are implemented) (critical safety feature to prevent accidental lockout)
 
 **Medium Priority (Improves Compatibility/Usability)**:
-6. Unified Dialog Tool Priority (YAD → Zenity → KDialog) - ⚠️ **Partially Implemented** (infrastructure in place, some legacy calls remain)
-7. Steam Overlay Integration (Alternative, but best solution for SteamOS Gaming Mode full-screen games)
-8. Systemd Service Environment Detection
-9. ~~Desktop Notification Fallback~~ ✅ **IMPLEMENTED**
-10. Wayland-Specific Window Management
-11. Temporary Disable via Config
-12. Enhanced Window Size Options and Display-Based Sizing
-13. Auto-Close Popup Window
-14. ~~Visual Day/Time Configuration Grid~~ ✅ **Mostly Implemented** (Phase 1 complete, Phase 2 pending)
-15. Multi-Display Popup Support
-16. Config File Locking During Restricted Hours
-17. Prevent configure.sh and manage.sh During Restricted Hours
-18. Prevent uninstall.sh During Restricted Hours - Difficult uninstall mode (Phase 1), total block may be future phase (⚠️ **RISKY** for total block - requires manual uninstall guide script)
-19. One-Time Pause Feature (5 or 10 minutes, available from popup)
-20. Display Restricted Times/Days in Popup
+6. ~~Unified Dialog Tool Priority (YAD → Zenity → KDialog)~~ ✅ **MOSTLY IMPLEMENTED** (core implementation complete, abstraction layer in place)
+7. ~~Extend Dialog Tool Priority to Configuration Wizard~~ ✅ **IMPLEMENTED** (all configure.sh dialogs support yad/kdialog/zenity)
+8. Steam Overlay Integration (Alternative, but best solution for SteamOS Gaming Mode full-screen games)
+9. Systemd Service Environment Detection
+10. ~~Desktop Notification Fallback~~ ✅ **IMPLEMENTED**
+11. Wayland-Specific Window Management
+12. Temporary Disable via Config
+13. Enhanced Window Size Options and Display-Based Sizing
+14. Auto-Close Popup Window
+15. ~~Visual Day/Time Configuration Grid~~ ✅ **MOSTLY IMPLEMENTED** (Phase 1 complete, Phase 2 pending)
+16. Multi-Display Popup Support
+17. Config File Locking During Restricted Hours
+18. ~~Prevent configure.sh and manage.sh During Restricted Hours~~ ✅ **PHASE 1 IMPLEMENTED** (core blocking functionality complete)
+19. ~~Additional Hours for Config Locking and configure.sh Blocking~~ ✅ **PHASE 1 IMPLEMENTED** (lock hours for configure.sh/manage.sh complete)
+20. ~~Prevent uninstall.sh During Restricted Hours~~ ✅ **PHASE 1 MOSTLY IMPLEMENTED** (difficult uninstall mode complete, testing pending)
+21. One-Time Pause Feature (5 or 10 minutes, available from popup)
+22. Display Restricted Times/Days in Popup
 
 **Low Priority (Nice-to-Have Enhancements)**:
 14. Configurable Warning Messages

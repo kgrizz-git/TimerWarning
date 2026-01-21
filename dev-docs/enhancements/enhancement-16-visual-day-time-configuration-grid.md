@@ -98,12 +98,14 @@
   - **Configuration Format**: No changes to config file format required
   - **Backward Compatibility**: Existing menu options (1-5) remain unchanged
   - **GUI/Text Mode**: Support both modes using existing `use_gui` detection
-  - **Dialog Tool Selection**: Use environment-aware dialog tool selection (consistent with `sleep-warning.sh`):
-    - Reuse or adapt `check_dialog_tool()` function from `sleep-warning.sh` for consistency
-    - Prefer `yad` for Wayland/gamescope environments (better Wayland support)
-    - Prefer `kdialog` for KDE environments (better integration)
-    - Fallback to `zenity` for maximum compatibility
+  - **Dialog Tool Selection**: Use unified dialog tool priority (consistent with `sleep-warning.sh`):
+    - Uses `show_multi_column_list_dialog()` from `lib/configure-dialogs.sh` which automatically selects tool
+    - Unified priority: **YAD → Zenity → KDialog** (all environments)
+    - `yad` preferred for all environments (better Wayland support, superior capabilities)
+    - `kdialog` fallback for KDE environments (better integration)
+    - `zenity` fallback for maximum compatibility
     - This ensures consistent behavior across the entire system
+    - **Status**: ✅ Implemented via enhancement #2a
   - **Function Structure**:
     - `show_visual_grid()`: Main grid display function (GUI and text modes)
     - `configure_day_from_grid()`: Handle day selection and editing logic
@@ -145,12 +147,12 @@
     - [x] Text mode: Display numbered ASCII table with status indicators
     - [x] Format time ranges using `format_ranges_human()` function
     - [x] Handle "Back to Menu" option
-    - [ ] **NOT YET IMPLEMENTED**: Environment-aware dialog tool selection (currently only uses zenity hardcoded)
-    - [ ] **NOT YET IMPLEMENTED**: Support for yad (preferred for Wayland/gamescope) - see enhancement #2a
-    - [ ] **NOT YET IMPLEMENTED**: Support for kdialog (preferred for KDE) - see enhancement #2a
-    - [ ] Implement environment-aware dialog tool selection (reuse or adapt `check_dialog_tool()` from `sleep-warning.sh`)
-    - [ ] Test GUI mode with yad (Wayland/gamescope environment)
-    - [ ] Test GUI mode with kdialog (KDE environment)
+    - [x] **IMPLEMENTED**: Environment-aware dialog tool selection via `show_multi_column_list_dialog()` - see enhancement #2a
+    - [x] **IMPLEMENTED**: Support for yad (preferred for Wayland/gamescope) - see enhancement #2a
+    - [x] **IMPLEMENTED**: Support for kdialog (preferred for KDE) - see enhancement #2a
+    - [x] Implement environment-aware dialog tool selection (uses unified priority: YAD → Zenity → KDialog)
+    - [ ] Test GUI mode with yad (Wayland/gamescope environment) - implementation complete, testing pending
+    - [ ] Test GUI mode with kdialog (KDE environment) - implementation complete, testing pending
   - [x] Create `configure_day_from_grid()` function:
     - [x] Parse selected day index (0-6)
     - [x] Detect weekday vs. weekend day
@@ -162,8 +164,8 @@
   - [x] Add navigation loop in grid view (allow multiple edits without returning to main menu)
   - [ ] Update documentation if needed
   - [X] Test GUI mode with zenity (basic implementation works)
-  - [ ] **NOT IMPLEMENTED**: Test GUI mode with yad (preferred for Wayland/gamescope) - requires implementation
-  - [ ] **NOT IMPLEMENTED**: Test GUI mode with kdialog (preferred for KDE) - requires implementation
+  - [ ] Test GUI mode with yad (preferred for Wayland/gamescope) - implementation complete via enhancement #2a, testing pending
+  - [ ] Test GUI mode with kdialog (preferred for KDE) - implementation complete via enhancement #2a, testing pending
   - [x] Test text mode with terminal (test framework: 10 tests, all use --text mode)
   - [x] Test weekday bulk apply functionality (test 3: --text, config + status.sh verified)
   - [x] Test weekend bulk apply functionality (test 4: --text, config verified)
