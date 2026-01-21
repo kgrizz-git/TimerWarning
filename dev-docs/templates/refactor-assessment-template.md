@@ -15,7 +15,7 @@ Instead, for each refactor assessment:
 1. **Create a new timestamped copy** of this template:
    - Copy this entire file to `dev-docs/refactor-assessments/refactor-assessment-YYYY-MM-DD-HHMMSS.md`
    - Use format: `refactor-assessment-2024-01-15-143022.md` (year-month-day-hour-minute-second)
-   - Example command: `cp dev-docs/refactor-assessment-template.md "dev-docs/refactor-assessments/refactor-assessment-$(date +%Y-%m-%d-%H%M%S).md"`
+   - Example command: `cp dev-docs/templates/refactor-assessment-template.md "dev-docs/refactor-assessments/refactor-assessment-$(date +%Y-%m-%d-%H%M%S).md"`
 
 2. **Work with the timestamped copy**:
    - Fill in the analysis sections with actual findings
