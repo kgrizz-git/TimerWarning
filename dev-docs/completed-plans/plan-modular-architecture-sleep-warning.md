@@ -15,7 +15,7 @@ The Sleep Warning System has been refactored from a monolithic 1667-line script 
 
 ## Module Structure
 
-The system is organized into 7 library modules located in the `lib/` directory, plus the main entry point:
+The system is organized into 8 library modules located in the `lib/` directory, plus the main entry point:
 
 ```
 LinuxTimerWarning/
@@ -23,14 +23,15 @@ LinuxTimerWarning/
 └── lib/
     ├── config.sh             # Configuration management (~260 lines)
     ├── logging.sh            # Logging functions (~60 lines)
+    ├── time-calculations.sh  # Time calculation functions (~601 lines) [NEW]
     ├── display-detection.sh  # Display environment detection (~360 lines)
     ├── desktop-environment.sh # Desktop/dialog tool detection (~80 lines)
     ├── window-management.sh  # Window manipulation (~450 lines)
     ├── time-validation.sh    # Time range validation (~140 lines)
-    └── popup-display.sh      # Warning popup display (~290 lines)
+    └── popup-display.sh      # Warning popup display (~424 lines)
 ```
 
-**Total reduction**: From 1667 lines (monolithic) to ~1630 lines across 8 files, with significantly improved organization and a 92% reduction in main script size.
+**Total reduction**: From 1667 lines (monolithic) to ~2,443 lines across 9 files, with significantly improved organization and a 92% reduction in main script size. The `time-calculations.sh` module was added in 2026-01-21 to consolidate time calculation functions from `popup-display.sh`.
 
 ## Module Dependency Graph
 
@@ -38,17 +39,22 @@ LinuxTimerWarning/
 sleep-warning.sh (main)
     ├── config.sh (no dependencies)
     ├── logging.sh (depends on: config.sh)
+    ├── configure-validation.sh (depends on: configure-core.sh)
+    ├── time-calculations.sh (depends on: config.sh, configure-validation.sh, configure-core.sh) [NEW]
     ├── display-detection.sh (no dependencies)
     ├── desktop-environment.sh (no dependencies)
     ├── window-management.sh (depends on: config.sh)
     ├── time-validation.sh (depends on: logging.sh)
-    └── popup-display.sh (depends on: all above modules)
+    └── popup-display.sh (depends on: all above modules, including time-calculations.sh)
 ```
 
 **Source Order** (in sleep-warning.sh):
 ```bash
 source "${LIB_DIR}/config.sh" || exit 1
 source "${LIB_DIR}/logging.sh" || exit 1
+source "${LIB_DIR}/configure-core.sh" || exit 1
+source "${LIB_DIR}/configure-validation.sh" || exit 1
+source "${LIB_DIR}/time-calculations.sh" || exit 1  # NEW: Consolidated time calculations
 source "${LIB_DIR}/display-detection.sh" || exit 1
 source "${LIB_DIR}/desktop-environment.sh" || exit 1
 source "${LIB_DIR}/window-management.sh" || exit 1
@@ -203,13 +209,13 @@ This order ensures all dependencies are satisfied before modules that depend on 
 - Logging and error handling
 - notify-send fallback
 
-**Dependencies**: ALL previous modules (config, logging, display-detection, desktop-environment, window-management)
+**Dependencies**: ALL previous modules (config, logging, time-calculations, display-detection, desktop-environment, window-management) [Note: Time calculation functions were moved from this module to time-calculations.sh in 2026-01-21]
 
 **When to add functions**: New popup types, additional message customization, alternative notification methods
 
 ---
 
-### 8. sleep-warning.sh - Main Entry Point
+### 9. sleep-warning.sh - Main Entry Point
 
 **Purpose**: Streamlined entry point that sources modules and contains main logic.
 

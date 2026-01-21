@@ -41,6 +41,7 @@ source "${LIB_DIR}/configure-dialogs.sh" || exit 1
 source "${LIB_DIR}/configure-config.sh" || exit 1
 source "${LIB_DIR}/configure-validation.sh" || exit 1
 source "${LIB_DIR}/configure-time.sh" || exit 1
+source "${LIB_DIR}/time-calculations.sh" || exit 1
 source "${LIB_DIR}/configure-ui.sh" || exit 1
 source "${LIB_DIR}/configure-input.sh" || exit 1
 source "${LIB_DIR}/configure-display.sh" || exit 1

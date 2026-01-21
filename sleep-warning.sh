@@ -39,6 +39,7 @@ source "${LIB_DIR}/display-detection.sh" || exit 1
 source "${LIB_DIR}/desktop-environment.sh" || exit 1
 source "${LIB_DIR}/window-management.sh" || exit 1
 source "${LIB_DIR}/time-validation.sh" || exit 1
+source "${LIB_DIR}/time-calculations.sh" || exit 1
 source "${LIB_DIR}/popup-display.sh" || exit 1
 
 # Validate configuration file to prevent 24/7 restrictions

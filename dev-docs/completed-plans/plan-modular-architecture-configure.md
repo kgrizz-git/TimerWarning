@@ -16,7 +16,7 @@ The Sleep Warning System Configuration Wizard has been refactored from a monolit
 
 ## Module Structure
 
-The system is organized into 7 library modules located in the `lib/` directory, plus the main entry point:
+The system is organized into 8 library modules located in the `lib/` directory, plus the main entry point:
 
 ```
 LinuxTimerWarning/
@@ -25,13 +25,14 @@ LinuxTimerWarning/
     ├── configure-core.sh         # Core utilities and constants (~76 lines)
     ├── configure-config.sh       # Config file operations (~299 lines)
     ├── configure-time.sh         # Time formatting & validation (~212 lines)
+    ├── time-calculations.sh      # Time calculation functions (~601 lines) [NEW]
     ├── configure-ui.sh           # Basic UI dialogs (~258 lines)
-    ├── configure-input.sh        # User input collection (~750 lines)
+    ├── configure-input.sh        # User input collection (~1153 lines)
     ├── configure-display.sh      # Complex displays (~611 lines)
     └── configure-workflow.sh     # Section orchestration (~263 lines)
 ```
 
-**Total reduction**: From 2,588 lines (monolithic) to ~2,737 lines across 8 files, with a **90% reduction in main script size** (2,588 → 268 lines).
+**Total reduction**: From 2,588 lines (monolithic) to ~3,681 lines across 9 files, with a **90% reduction in main script size** (2,588 → 268 lines). The `time-calculations.sh` module was added in 2026-01-21 to consolidate time calculation functions from `configure-input.sh` and `popup-display.sh`.
 
 ## Module Dependency Graph
 
@@ -40,8 +41,9 @@ configure.sh (main)
     ├── configure-core.sh (no dependencies)
     ├── configure-config.sh (depends on: configure-core.sh)
     ├── configure-time.sh (depends on: configure-core.sh)
+    ├── time-calculations.sh (depends on: config.sh, configure-validation.sh, configure-core.sh) [NEW]
     ├── configure-ui.sh (depends on: configure-core.sh)
-    ├── configure-input.sh (depends on: configure-core, configure-ui, configure-time)
+    ├── configure-input.sh (depends on: configure-core, configure-ui, configure-time, time-calculations.sh)
     ├── configure-display.sh (depends on: configure-core, configure-time, configure-ui)
     └── configure-workflow.sh (depends on: all above modules)
 ```
@@ -49,8 +51,10 @@ configure.sh (main)
 **Source Order** (in configure.sh):
 ```bash
 source "${LIB_DIR}/configure-core.sh" || exit 1
-source "${LIB_DIR}/configure-config.sh" || exit 1
+source "${LIB_DIR}/config.sh" || exit 1
+source "${LIB_DIR}/configure-validation.sh" || exit 1
 source "${LIB_DIR}/configure-time.sh" || exit 1
+source "${LIB_DIR}/time-calculations.sh" || exit 1  # NEW: Consolidated time calculations
 source "${LIB_DIR}/configure-ui.sh" || exit 1
 source "${LIB_DIR}/configure-input.sh" || exit 1
 source "${LIB_DIR}/configure-display.sh" || exit 1
@@ -132,7 +136,41 @@ This order ensures all dependencies are satisfied before modules that depend on 
 
 ---
 
-### 4. configure-ui.sh - User Interface Dialogs
+### 4. time-calculations.sh - Time Calculation Functions
+
+**Purpose**: Provides time calculation functions for both configuration validation (hour-based) and runtime popup display (minute-based). This module consolidates time calculation logic that was previously scattered across `configure-input.sh` and `popup-display.sh`.
+
+**Functions** (8 total):
+- **Hour-based Calculations** (for Configuration Validation):
+  - `calculate_range_duration()` - Calculate duration in hours of a single time range
+  - `calculate_total_day_duration()` - Calculate total duration for a day including overnight from previous day
+  - `merge_hour_intervals()` - Helper function to merge overlapping hour intervals (prevents double-counting)
+- **Minute-based Calculations** (for Runtime Popup Display):
+  - `build_weekly_restricted_intervals()` - Builds weekly timeline of restricted intervals in minutes
+  - `get_current_minute_offset()` - Calculate current minute offset from start of week
+  - `is_minute_restricted()` - Check if minute is restricted
+  - `format_minute_offset_to_time()` - Format minute offset to human-readable time
+  - `get_next_unrestricted_time()` - Calculate next unrestricted time
+
+**Key Features**:
+- Consolidates all time calculation logic in one place
+- Separates hour-based (configuration) and minute-based (runtime) calculations
+- Properly handles overlapping intervals to avoid double-counting
+- Handles overnight ranges correctly (only counts portion within each day)
+- Supports both configuration wizard and popup display use cases
+
+**Dependencies**:
+- `config.sh` (for `parse_config` function)
+- `configure-validation.sh` (for `merge_overlapping_intervals` - used by minute-based functions)
+- `configure-core.sh` (for `DAY_NAMES` - used by `format_minute_offset_to_time`)
+
+**When to add functions**: Any new time calculation functions, shared time-related utilities
+
+**History**: Created 2026-01-21 as part of refactoring to extract time calculation functions from `configure-input.sh` and `popup-display.sh`. This consolidation improves maintainability and reduces code duplication.
+
+---
+
+### 5. configure-ui.sh - User Interface Dialogs
 
 **Purpose**: Provides basic UI dialog functions for user interaction in both GUI (zenity) and text modes.
 
@@ -157,7 +195,7 @@ This order ensures all dependencies are satisfied before modules that depend on 
 
 ---
 
-### 5. configure-input.sh - User Input Collection
+### 6. configure-input.sh - User Input Collection
 
 **Purpose**: Provides all user input collection functions for the configuration wizard, supporting both GUI (zenity) and text modes.
 
@@ -183,12 +221,13 @@ This order ensures all dependencies are satisfied before modules that depend on 
 - configure-core.sh (for has_zenity, CONFIG_FILE)
 - configure-ui.sh (for confirm_cancel, confirm_skip_day, show_help_dialog)
 - configure-time.sh (for format_ranges_human)
+- time-calculations.sh (for calculate_range_duration, calculate_total_day_duration) [Note: These functions were moved from this module to time-calculations.sh in 2026-01-21]
 
 **When to add functions**: New configuration options, additional input validation
 
 ---
 
-### 6. configure-display.sh - Complex Display Functions
+### 7. configure-display.sh - Complex Display Functions
 
 **Purpose**: Provides complex display functions including menus, grids, and summary views for the configuration wizard.
 
@@ -215,7 +254,7 @@ This order ensures all dependencies are satisfied before modules that depend on 
 
 ---
 
-### 7. configure-workflow.sh - Configuration Workflow Orchestration
+### 8. configure-workflow.sh - Configuration Workflow Orchestration
 
 **Purpose**: Provides high-level workflow orchestration functions that coordinate the configuration process for different sections.
 
@@ -237,7 +276,7 @@ This order ensures all dependencies are satisfied before modules that depend on 
 
 ---
 
-### 8. configure.sh - Main Entry Point
+### 9. configure.sh - Main Entry Point
 
 **Purpose**: Streamlined entry point that sources modules and contains main orchestration logic.
 

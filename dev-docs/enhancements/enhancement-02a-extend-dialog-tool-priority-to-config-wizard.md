@@ -8,7 +8,7 @@
   - Ensure Visual Day/Time Configuration Grid (enhancement #16) uses same dialog tool selection
 - **Files Affected**: `configure.sh`, potentially shared utility functions
 - **Priority**: Medium (improves consistency and Wayland/KDE compatibility for configuration interface)
-- **Status**: ✅ **Implemented** - All requirements completed. Main functionality implemented and working. **Note**: Comprehensive testing across all dialog tools and environments has not yet been performed. See implementation summary below.
+- **Status**: **Mostly implemented** - All requirements completed for configure.sh. Main functionality implemented and working. **Note**: Comprehensive testing across all dialog tools and environments has not yet been performed. See implementation summary below. Other scripts (see below) should also have this priority implemented.
 - **Benefits**:
   - Consistent behavior across entire system (warning popups and configuration wizard)
   - Better Wayland support via `yad` (important for SteamOS Gaming Mode)
