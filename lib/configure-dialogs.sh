@@ -305,8 +305,25 @@ show_multi_column_list_dialog() {
     
     # Count columns by finding where data starts (first non-option-looking argument)
     # Column names are the arguments before data starts
-    # For now, assume first 2 arguments are column names (most common case)
-    if [ $# -ge 2 ]; then
+    # Support 1, 2, or 3 columns (most common cases)
+    if [ $# -ge 3 ]; then
+        # Check if 3rd argument looks like a column name (not data)
+        # Data typically contains colons, arrows, or parentheses, while column names are simple words
+        local third_arg="$3"
+        # Check if it contains data-like characters (parentheses, arrows, colons)
+        # Column names are simple: letters and spaces only, no special characters
+        if [[ ! "${third_arg}" =~ [\(\):] ]] && [[ "${third_arg}" != *"->"* ]] && [[ "${third_arg}" =~ ^[A-Za-z\ ]+$ ]]; then
+            # Likely a column name - assume 3 columns
+            column_names=("$1" "$2" "$3")
+            num_columns=3
+            shift 3
+        else
+            # Likely data - assume 2 columns
+            column_names=("$1" "$2")
+            num_columns=2
+            shift 2
+        fi
+    elif [ $# -ge 2 ]; then
         column_names=("$1" "$2")
         num_columns=2
         shift 2

@@ -629,18 +629,38 @@ Extend Phase 1 to allow users to configure additional lock hours that are separa
   - [x] **Edge Case**: Handle sparse array correctly (don't show unconfigured days)
 
 #### 3.6 Integrate lock hours into visual grid view (future enhancement)
-- [ ] Extend `show_visual_grid()` in `lib/configure-display.sh` to display an additional column for lock hours
-  - [ ] Show restricted hours and lock hours side-by-side for each day (e.g., columns: Day | Restricted Hours | Lock Hours)
-  - [ ] Use `lock_hours_lines` (or equivalent) to populate the lock hours column
-  - [ ] Show "(no lock hours)" when no lock hours are configured for a day
-  - [ ] Ensure layout remains readable in both GUI and text modes
-- [ ] Add ability to edit lock hours from the visual grid
-  - [ ] When a day is selected in the grid, offer a choice between editing restricted hours, lock hours, or both
-  - [ ] Reuse existing `get_day_hours()` / `configure_lock_hours_section()` semantics for lock hours editing
-  - [ ] Support "skip" for lock hours on a per-day basis (no lock hours)
-  - [ ] Preserve existing navigation behavior (back, cancel) and avoid disrupting current restricted-hours UX
-  - [ ] Ensure changes made via the grid correctly update both `config_lines` and `lock_hours_lines`
-  - [ ] Add notes to remind testers that grid-based lock hours editing should mirror the behavior of the main lock-hours menu (consistency check)
+- [x] Extend `show_visual_grid()` in `lib/configure-display.sh` to display an additional column for lock hours
+  - [x] Show restricted hours and lock hours side-by-side for each day (e.g., columns: Day | Restricted Hours | Lock Hours)
+  - [x] Use `lock_hours_lines` (or equivalent) to populate the lock hours column
+  - [x] Show "(no lock hours)" when no lock hours are configured for a day
+  - [x] Ensure layout remains readable in both GUI and text modes (implementation follows existing grid layout patterns; visual QA still recommended)
+- [x] Add ability to edit lock hours from the visual grid
+  - [x] When a day is selected in the grid, offer a choice between editing restricted hours, lock hours, or both (via `ask_what_to_edit()` in `lib/configure-ui.sh`)
+  - [x] Reuse existing `get_day_hours()` / `configure_lock_hours_section()` semantics for lock hours editing (uses `get_day_hours()` with lock-hours-specific labels; behavior matches the lock-hours menu workflow)
+  - [x] Support "skip" for lock hours on a per-day basis (no lock hours)
+  - [x] Preserve existing navigation behavior (back, cancel) and avoid disrupting current restricted-hours UX
+  - [x] Ensure changes made via the grid correctly update both `config_lines` and `lock_hours_lines`
+  - [x] Add notes to remind testers that grid-based lock hours editing should mirror the behavior of the main lock-hours menu (consistency check)
+
+##### 3.6 Testing Checklist
+- [ ] **GUI grid display**: Open `configure.sh` in GUI mode and verify the Visual Day/Time Grid shows three columns for each day: Day, Restricted Hours, and Lock Hours.
+- [ ] **Text-mode grid display**: Run `configure.sh --text` (or equivalent) and verify the text-mode grid table shows Restricted Hours and Lock Hours columns and remains readable at default terminal width.
+- [ ] **Edit restricted hours only**: From the grid, select a day, choose "Restricted Hours", change the ranges, and confirm that:
+  - [ ] `config_lines` / restricted hours change for the selected scope (single day vs. weekday/weekend bulk) as expected
+  - [ ] Lock hours for that day remain unchanged.
+- [ ] **Edit lock hours only**: From the grid, select a day, choose "Lock Hours", configure ranges (including overnight), and confirm:
+  - [ ] `CONFIG_LOCK_HOURS_*` lines in the config file update appropriately for that day
+  - [ ] Summary and status views show the new lock hours correctly.
+- [ ] **Edit both**: From the grid, select a day, choose "Both", and verify that both restricted hours and lock hours are updated according to the prompts.
+- [ ] **Skip lock hours**: Choose "Lock Hours" for a day, enter `skip`, and confirm that:
+  - [ ] The day’s lock-hours entry is written as an empty `CONFIG_LOCK_HOURS_DAYNAME=` line (explicitly disabled)
+  - [ ] The grid shows "(no lock hours)" for that day.
+- [ ] **Navigation behavior**: While editing from the grid, exercise Cancel/Back flows in dialogs (including `ask_what_to_edit()` and `get_day_hours()`) and verify:
+  - [ ] Cancel returns cleanly to the main menu or grid without partial writes
+  - [ ] Back behaves the same as in the existing restricted-hours workflows.
+- [ ] **Consistency with lock-hours menu**: Configure lock hours for several days via the dedicated "Additional Configuration Block Hours" menu, then adjust a subset of days from the grid and confirm:
+  - [ ] The resulting config file and status output match expectations as if all changes had been done via the lock-hours menu only
+  - [ ] No discrepancies appear between grid-edited lock hours and menu-edited lock hours.
 
 ---
 

@@ -14,6 +14,7 @@
 # - show_success()                - Show success message
 # - ask_weekday_together()        - Ask if configuring weekdays together
 # - ask_weekend_together()        - Ask if configuring weekends together
+# - ask_what_to_edit()            - Ask what to edit (restricted hours, lock hours, or both) (Enhancement #19 Phase 2)
 # - show_24_7_error()             - Show error dialog for 24/7 restrictions detected
 # - show_high_restriction_warning() - Show warning dialog for high restriction levels
 # - calculate_restriction_end_time() - Calculate when current restriction period ends
@@ -244,6 +245,86 @@ ask_weekend_together() {
             [Yy]*) return 0 ;;
             *) return 1 ;;
         esac
+    fi
+}
+
+# Ask what to edit for a day (restricted hours, lock hours, or both)
+# Returns: "restricted", "lock", "both", or "CANCELLED"
+# Enhancement #19 Phase 2 - Visual grid lock hours editing
+ask_what_to_edit() {
+    local day_name="$1"
+    local use_gui="$2"
+    
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        # GUI mode - use list dialog
+        local choice
+        choice=$(show_list_dialog \
+            "Edit ${day_name}" \
+            "What would you like to edit for ${day_name}?" \
+            500 \
+            300 \
+            "Restricted Hours" \
+            "Lock Hours" \
+            "Both")
+        local exit_code=$?
+        
+        if [ ${exit_code} -ne 0 ] || [ -z "${choice}" ]; then
+            if confirm_cancel "${use_gui}"; then
+                echo "CANCELLED"
+                return 2
+            else
+                # User wants to continue, re-prompt
+                return 1
+            fi
+        fi
+        
+        case "${choice}" in
+            "Restricted Hours")
+                echo "restricted"
+                return 0
+                ;;
+            "Lock Hours")
+                echo "lock"
+                return 0
+                ;;
+            "Both")
+                echo "both"
+                return 0
+                ;;
+            *)
+                echo "CANCELLED"
+                return 2
+                ;;
+        esac
+    else
+        # Text mode
+        echo "" >&2
+        echo "What would you like to edit for ${day_name}?" >&2
+        echo "  1) Restricted Hours" >&2
+        echo "  2) Lock Hours" >&2
+        echo "  3) Both" >&2
+        echo "" >&2
+        
+        while true; do
+            read -p "Select option [1-3]: " choice
+            case "${choice}" in
+                1|restricted|Restricted)
+                    echo "restricted"
+                    return 0
+                    ;;
+                2|lock|Lock)
+                    echo "lock"
+                    return 0
+                    ;;
+                3|both|Both)
+                    echo "both"
+                    return 0
+                    ;;
+                *)
+                    echo "Invalid option. Please select 1, 2, or 3." >&2
+                    ;;
+            esac
+        done
     fi
 }
 

@@ -239,7 +239,7 @@ main() {
                 declare -g grid_result_var=""
                 while true; do
                     grid_result_var=""
-                    show_visual_grid "${use_gui}" config_lines summary_lines
+                    show_visual_grid "${use_gui}" config_lines summary_lines lock_hours_lines
                     local grid_exit=$?
                     
                     if [ "${grid_exit}" -ne 0 ] || [ "${grid_result_var}" = "BACK" ]; then
@@ -250,8 +250,8 @@ main() {
                     # grid_result_var contains the day index (0-6) or "BACK"
                     local day_index="${grid_result_var}"
                     
-                    # Configure the selected day
-                    configure_day_from_grid "${day_index}" "${use_gui}" config_lines summary_lines
+                    # Configure the selected day (restricted hours and/or lock hours)
+                    configure_day_from_grid "${day_index}" "${use_gui}" config_lines summary_lines lock_hours_lines
                     local config_exit=$?
                     
                     if [ "${config_exit}" -eq 2 ]; then

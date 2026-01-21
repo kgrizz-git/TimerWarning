@@ -10,13 +10,13 @@
 # Functions:
 # - configure_weekdays_section()      - Configure all weekdays (Monday-Friday)
 # - configure_weekends_section()      - Configure weekend days (Saturday-Sunday)
-# - configure_day_from_grid()         - Configure a day selected from visual grid
+# - configure_day_from_grid()         - Configure a day selected from visual grid (restricted hours and/or lock hours)
 # - configure_lock_hours_section()    - Configure additional lock hours for configure.sh/manage.sh (Enhancement #19 Phase 2)
 #
 # Dependencies:
 # - configure-core.sh (for DAY_NAMES, DAY_VARS, has_dialog_tool)
 # - configure-dialogs.sh (for show_info_dialog)
-# - configure-ui.sh (for ask_weekday_together, ask_weekend_together)
+# - configure-ui.sh (for ask_weekday_together, ask_weekend_together, ask_what_to_edit)
 # - configure-input.sh (for get_day_hours)
 ###############################################################################
 
@@ -259,6 +259,7 @@ configure_day_from_grid() {
     local use_gui="$2"
     local -n config_lines_ref="$3"  # Pass by reference
     local -n summary_lines_ref="$4"  # Pass by reference
+    local -n lock_hours_lines_ref="$5"  # Pass by reference (Enhancement #19 Phase 2 - lock hours)
     
     # Validate day index
     if [ "${day_index}" -lt 0 ] || [ "${day_index}" -gt 6 ]; then
@@ -267,84 +268,138 @@ configure_day_from_grid() {
     
     local day_name="${DAY_NAMES[${day_index}]}"
     local range=""
+    local lock_range=""
     local exit_code=0
     
-    # Determine if weekday or weekend
+    # Ask what to edit (restricted hours, lock hours, or both)
+    local edit_choice
+    edit_choice=$(ask_what_to_edit "${day_name}" "${use_gui}")
+    local choice_exit=$?
+    
+    if [ ${choice_exit} -eq 2 ] || [ "${edit_choice}" = "CANCELLED" ]; then
+        return 2  # User cancelled
+    elif [ ${choice_exit} -ne 0 ]; then
+        # Error occurred (user cancelled dialog but chose to continue) - return to grid
+        return 0
+    fi
+    
+    # Determine if weekday or weekend (for restricted hours editing)
+    local is_weekday=false
+    local is_weekend=false
     if [ "${day_index}" -ge 1 ] && [ "${day_index}" -le 5 ]; then
-        # Weekday (Monday-Friday, indices 1-5)
-        if ask_weekday_together "${use_gui}"; then
-            # Apply to all weekdays
-            range=$(get_day_hours "Weekdays (Monday-Friday)" 1 "${use_gui}" "false" "true")
-            exit_code=$?
-            
-            if [ "${range}" = "CANCELLED" ]; then
-                return 2
-            elif [ "${range}" != "skip" ]; then
-                # Apply to all weekdays (indices 1-5)
-                for i in 1 2 3 4 5; do
-                    config_lines_ref[${i}]="${DAY_VARS[${i}]}=${range}"
-                    summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${range}"
-                done
+        is_weekday=true
+    elif [ "${day_index}" -eq 0 ] || [ "${day_index}" -eq 6 ]; then
+        is_weekend=true
+    fi
+    
+    # Edit restricted hours if requested
+    if [ "${edit_choice}" = "restricted" ] || [ "${edit_choice}" = "both" ]; then
+        if [ "${is_weekday}" = "true" ]; then
+            # Weekday (Monday-Friday, indices 1-5)
+            if ask_weekday_together "${use_gui}"; then
+                # Apply to all weekdays
+                range=$(get_day_hours "Weekdays (Monday-Friday)" 1 "${use_gui}" "false" "true")
+                exit_code=$?
+                
+                if [ "${range}" = "CANCELLED" ]; then
+                    return 2
+                elif [ "${range}" != "skip" ]; then
+                    # Apply to all weekdays (indices 1-5)
+                    for i in 1 2 3 4 5; do
+                        config_lines_ref[${i}]="${DAY_VARS[${i}]}=${range}"
+                        summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${range}"
+                    done
+                else
+                    # Explicitly skipped - mark all weekdays as skipped
+                    for i in 1 2 3 4 5; do
+                        config_lines_ref[${i}]="${DAY_VARS[${i}]}="
+                        summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: (no restrictions)"
+                    done
+                fi
             else
-                # Explicitly skipped - mark all weekdays as skipped
-                for i in 1 2 3 4 5; do
-                    config_lines_ref[${i}]="${DAY_VARS[${i}]}="
-                    summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: (no restrictions)"
-                done
+                # Edit single weekday
+                range=$(get_day_hours "${day_name}" "${day_index}" "${use_gui}" "false" "true")
+                exit_code=$?
+                
+                if [ "${range}" = "CANCELLED" ]; then
+                    return 2
+                elif [ "${range}" != "skip" ]; then
+                    config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}=${range}"
+                    summary_lines_ref[${day_index}]="${day_name}: ${range}"
+                else
+                    # Explicitly skipped
+                    config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}="
+                    summary_lines_ref[${day_index}]="${day_name}: (no restrictions)"
+                fi
             fi
-        else
-            # Edit single weekday
-            range=$(get_day_hours "${day_name}" "${day_index}" "${use_gui}" "false" "true")
-            exit_code=$?
-            
-            if [ "${range}" = "CANCELLED" ]; then
-                return 2
-            elif [ "${range}" != "skip" ]; then
-                config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}=${range}"
-                summary_lines_ref[${day_index}]="${day_name}: ${range}"
+        elif [ "${is_weekend}" = "true" ]; then
+            # Weekend day (Sunday=0, Saturday=6)
+            if ask_weekend_together "${use_gui}"; then
+                # Apply to both weekend days
+                range=$(get_day_hours "Weekends (Saturday and Sunday)" 6 "${use_gui}" "false" "true")
+                exit_code=$?
+                
+                if [ "${range}" = "CANCELLED" ]; then
+                    return 2
+                elif [ "${range}" != "skip" ]; then
+                    # Apply to both weekend days
+                    config_lines_ref[6]="${DAY_VARS[6]}=${range}"
+                    summary_lines_ref[6]="${DAY_NAMES[6]}: ${range}"
+                    config_lines_ref[0]="${DAY_VARS[0]}=${range}"
+                    summary_lines_ref[0]="${DAY_NAMES[0]}: ${range}"
+                else
+                    # Explicitly skipped - mark both weekend days as skipped
+                    config_lines_ref[6]="${DAY_VARS[6]}="
+                    summary_lines_ref[6]="${DAY_NAMES[6]}: (no restrictions)"
+                    config_lines_ref[0]="${DAY_VARS[0]}="
+                    summary_lines_ref[0]="${DAY_NAMES[0]}: (no restrictions)"
+                fi
             else
-                # Explicitly skipped
-                config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}="
-                summary_lines_ref[${day_index}]="${day_name}: (no restrictions)"
+                # Edit single weekend day
+                range=$(get_day_hours "${day_name}" "${day_index}" "${use_gui}" "false" "true")
+                exit_code=$?
+                
+                if [ "${range}" = "CANCELLED" ]; then
+                    return 2
+                elif [ "${range}" != "skip" ]; then
+                    config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}=${range}"
+                    summary_lines_ref[${day_index}]="${day_name}: ${range}"
+                else
+                    # Explicitly skipped
+                    config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}="
+                    summary_lines_ref[${day_index}]="${day_name}: (no restrictions)"
+                fi
             fi
         fi
-    elif [ "${day_index}" -eq 0 ] || [ "${day_index}" -eq 6 ]; then
-        # Weekend day (Sunday=0, Saturday=6)
-        if ask_weekend_together "${use_gui}"; then
-            # Apply to both weekend days
-            range=$(get_day_hours "Weekends (Saturday and Sunday)" 6 "${use_gui}" "false" "true")
-            exit_code=$?
-            
-            if [ "${range}" = "CANCELLED" ]; then
-                return 2
-            elif [ "${range}" != "skip" ]; then
-                # Apply to both weekend days
-                config_lines_ref[6]="${DAY_VARS[6]}=${range}"
-                summary_lines_ref[6]="${DAY_NAMES[6]}: ${range}"
-                config_lines_ref[0]="${DAY_VARS[0]}=${range}"
-                summary_lines_ref[0]="${DAY_NAMES[0]}: ${range}"
-            else
-                # Explicitly skipped - mark both weekend days as skipped
-                config_lines_ref[6]="${DAY_VARS[6]}="
-                summary_lines_ref[6]="${DAY_NAMES[6]}: (no restrictions)"
-                config_lines_ref[0]="${DAY_VARS[0]}="
-                summary_lines_ref[0]="${DAY_NAMES[0]}: (no restrictions)"
-            fi
+        
+        if [ ${exit_code} -eq 2 ]; then
+            return 2  # User cancelled
+        fi
+    fi
+    
+    # Edit lock hours if requested
+    if [ "${edit_choice}" = "lock" ] || [ "${edit_choice}" = "both" ]; then
+        # Build friendly label to differentiate from restriction hours
+        local label="Additional Block Hours - ${day_name}"
+        
+        # Reuse get_day_hours for consistent validation and UX
+        lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "false" "true")
+        exit_code=$?
+        
+        if [ "${lock_range}" = "CANCELLED" ]; then
+            return 2
+        elif [ "${lock_range}" != "skip" ]; then
+            # User configured lock hours for this day
+            local day_var="${DAY_VARS[${day_index}]}"
+            lock_hours_lines_ref[${day_index}]="CONFIG_LOCK_HOURS_${day_var}=${lock_range}"
         else
-            # Edit single weekend day
-            range=$(get_day_hours "${day_name}" "${day_index}" "${use_gui}" "false" "true")
-            exit_code=$?
-            
-            if [ "${range}" = "CANCELLED" ]; then
-                return 2
-            elif [ "${range}" != "skip" ]; then
-                config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}=${range}"
-                summary_lines_ref[${day_index}]="${day_name}: ${range}"
-            else
-                # Explicitly skipped
-                config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}="
-                summary_lines_ref[${day_index}]="${day_name}: (no restrictions)"
-            fi
+            # Explicitly skipped - mark as no lock hours for this day
+            local day_var="${DAY_VARS[${day_index}]}"
+            lock_hours_lines_ref[${day_index}]="CONFIG_LOCK_HOURS_${day_var}="
+        fi
+        
+        if [ ${exit_code} -eq 2 ]; then
+            return 2  # User cancelled
         fi
     fi
     

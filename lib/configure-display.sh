@@ -9,7 +9,7 @@
 # Functions:
 # - get_section_status()  - Get status indicators for menu display
 # - show_main_menu()      - Show main navigation menu
-# - show_visual_grid()    - Display visual day/time grid for editing
+# - show_visual_grid()    - Display visual day/time grid for editing (restricted hours and lock hours)
 # - show_summary()        - Show configuration summary with overlap detection
 #
 # Dependencies:
@@ -267,19 +267,23 @@ show_visual_grid() {
     local use_gui="$1"
     local -n config_lines_ref="$2"  # Pass by reference
     local -n summary_lines_ref="$3"  # Pass by reference
+    local -n lock_hours_lines_ref="$4"  # Pass by reference (Enhancement #19 Phase 2 - lock hours)
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
             # Build grid data for multi-column list
-            # Store day names and time ranges separately for alternating format
+            # Store day names, restricted hours, and lock hours separately for alternating format
             local day_names=()
-            local time_ranges_list=()
+            local restricted_hours_list=()
+            local lock_hours_list=()
             
             for day_index in 0 1 2 3 4 5 6; do
                 local day_name="${DAY_NAMES[${day_index}]}"
-                local time_ranges=""
+                local restricted_hours=""
+                local lock_hours=""
                 
+                # Get restricted hours
                 if [ -n "${summary_lines_ref[${day_index}]}" ]; then
                     # Day has configuration (may be restricted or explicitly skipped)
                     local line="${summary_lines_ref[${day_index}]}"
@@ -291,46 +295,68 @@ show_visual_grid() {
                         local inherited
                         inherited=$(get_inherited_restrictions "${day_index}" summary_lines_ref)
                         if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
-                            time_ranges="${inherited}"
+                            restricted_hours="${inherited}"
                         else
-                            time_ranges="(no restrictions)"
+                            restricted_hours="(no restrictions)"
                         fi
                     else
                         # Has restrictions - show formatted time ranges
-                        time_ranges=$(format_ranges_human "${range}" "${day_name}")
+                        restricted_hours=$(format_ranges_human "${range}" "${day_name}")
                     fi
                 else
                     # Day has no configuration - check for inherited overnight restrictions
                     local inherited
                     inherited=$(get_inherited_restrictions "${day_index}" summary_lines_ref)
                     if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
-                        time_ranges="${inherited}"
+                        restricted_hours="${inherited}"
                     else
-                        time_ranges="(no restrictions)"
+                        restricted_hours="(no restrictions)"
                     fi
+                fi
+                
+                # Get lock hours (Enhancement #19 Phase 2)
+                if [ -n "${lock_hours_lines_ref[${day_index}]:-}" ]; then
+                    # Lock hours line exists - extract value
+                    local lock_entry="${lock_hours_lines_ref[${day_index}]}"
+                    local lock_range
+                    lock_range=$(echo "${lock_entry}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    
+                    if [ -n "${lock_range}" ]; then
+                        # Has lock hours - show formatted time ranges
+                        lock_hours=$(format_ranges_human "${lock_range}" "${day_name}")
+                    else
+                        # Explicitly disabled (empty value)
+                        lock_hours="(no lock hours)"
+                    fi
+                else
+                    # No lock hours configured
+                    lock_hours="(no lock hours)"
                 fi
                 
                 # Store separately
                 day_names+=("${day_name}")
-                time_ranges_list+=("${time_ranges}")
+                restricted_hours_list+=("${restricted_hours}")
+                lock_hours_list+=("${lock_hours}")
             done
             
             # Add "Back to Menu" option
             # Note: Use plain text for display (YAD interprets << as Pango markup)
             day_names+=("[Back]")
-            time_ranges_list+=("Return to Main Menu")
+            restricted_hours_list+=("Return to Main Menu")
+            lock_hours_list+=("")
             
             # Build data array in alternating format for multi-column dialog
-            # Format: col1_row1, col2_row1, col1_row2, col2_row2, ...
+            # Format: col1_row1, col2_row1, col3_row1, col1_row2, col2_row2, col3_row2, ...
             local grid_data=()
             for i in "${!day_names[@]}"; do
                 grid_data+=("${day_names[${i}]}")
-                grid_data+=("${time_ranges_list[${i}]}")
+                grid_data+=("${restricted_hours_list[${i}]}")
+                grid_data+=("${lock_hours_list[${i}]}")
             done
             
             # Debug: Log what we're sending to dialog (if DEBUG_GRID is set)
             if [ -n "${DEBUG_GRID:-}" ]; then
-                echo "DEBUG: Grid data array (alternating Day, Time):" >&2
+                echo "DEBUG: Grid data array (alternating Day, Restricted Hours, Lock Hours):" >&2
                 for i in "${!grid_data[@]}"; do
                     echo "  [${i}]: '${grid_data[${i}]}'" >&2
                 done
@@ -340,12 +366,13 @@ show_visual_grid() {
             local selected
             selected=$(show_multi_column_list_dialog \
                 "Visual Day/Time Grid" \
-                "Select a day to edit its restricted hours:" \
-                800 \
-                450 \
+                "Select a day to edit its restricted hours or lock hours:" \
+                1000 \
+                500 \
                 1 \
                 "Day" \
-                "Time Ranges" \
+                "Restricted Hours" \
+                "Lock Hours" \
                 "${grid_data[@]}")
             local exit_code=$?
             
@@ -407,14 +434,20 @@ show_visual_grid() {
             echo ""
             echo "=== Visual Day/Time Grid ==="
             echo ""
-            echo "Select a day to edit its restricted hours:"
+            echo "Select a day to edit its restricted hours or lock hours:"
             echo ""
             
             # Display grid with tab-separated table format
+            # Header
+            printf "%-3s\t%-9s\t%-30s\t%s\n" "#" "Day" "Restricted Hours" "Lock Hours"
+            printf "%-3s\t%-9s\t%-30s\t%s\n" "---" "---" "----------------" "----------"
+            
             for day_index in 0 1 2 3 4 5 6; do
                 local day_name="${DAY_NAMES[${day_index}]}"
-                local time_ranges=""
+                local restricted_hours=""
+                local lock_hours=""
                 
+                # Get restricted hours
                 if [ -n "${summary_lines_ref[${day_index}]}" ]; then
                     # Day has configuration
                     local line="${summary_lines_ref[${day_index}]}"
@@ -426,27 +459,46 @@ show_visual_grid() {
                         local inherited
                         inherited=$(get_inherited_restrictions "${day_index}" summary_lines_ref)
                         if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
-                            time_ranges="${inherited}"
+                            restricted_hours="${inherited}"
                         else
-                            time_ranges="(no restrictions)"
+                            restricted_hours="(no restrictions)"
                         fi
                     else
                         # Has restrictions - show formatted time ranges
-                        time_ranges=$(format_ranges_human "${range}" "${day_name}")
+                        restricted_hours=$(format_ranges_human "${range}" "${day_name}")
                     fi
                 else
                     # Day has no configuration - check for inherited overnight restrictions
                     local inherited
                     inherited=$(get_inherited_restrictions "${day_index}" summary_lines_ref)
                     if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
-                        time_ranges="${inherited}"
+                        restricted_hours="${inherited}"
                     else
-                        time_ranges="(no restrictions)"
+                        restricted_hours="(no restrictions)"
                     fi
                 fi
                 
-                # Display as table: number, day name (tab-separated), time ranges
-                printf "%d.\t%-9s\t%s\n" $((day_index + 1)) "${day_name}:" "${time_ranges}"
+                # Get lock hours (Enhancement #19 Phase 2)
+                if [ -n "${lock_hours_lines_ref[${day_index}]:-}" ]; then
+                    # Lock hours line exists - extract value
+                    local lock_entry="${lock_hours_lines_ref[${day_index}]}"
+                    local lock_range
+                    lock_range=$(echo "${lock_entry}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    
+                    if [ -n "${lock_range}" ]; then
+                        # Has lock hours - show formatted time ranges
+                        lock_hours=$(format_ranges_human "${lock_range}" "${day_name}")
+                    else
+                        # Explicitly disabled (empty value)
+                        lock_hours="(no lock hours)"
+                    fi
+                else
+                    # No lock hours configured
+                    lock_hours="(no lock hours)"
+                fi
+                
+                # Display as table: number, day name, restricted hours, lock hours
+                printf "%d.\t%-9s\t%-30s\t%s\n" $((day_index + 1)) "${day_name}:" "${restricted_hours}" "${lock_hours}"
             done
             
             echo ""
