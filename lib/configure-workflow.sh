@@ -14,7 +14,8 @@
 # - configure_lock_hours_section()    - Configure additional lock hours for configure.sh/manage.sh (Enhancement #19 Phase 2)
 #
 # Dependencies:
-# - configure-core.sh (for DAY_NAMES, DAY_VARS)
+# - configure-core.sh (for DAY_NAMES, DAY_VARS, has_dialog_tool)
+# - configure-dialogs.sh (for show_info_dialog)
 # - configure-ui.sh (for ask_weekday_together, ask_weekend_together)
 # - configure-input.sh (for get_day_hours)
 ###############################################################################
@@ -90,10 +91,10 @@ configure_weekdays_section() {
 }
 
 ###############################################################################
-# Lock Hours Configuration (Enhancement #19 Phase 2)
+# Additional Configuration Block Hours (Enhancement #19 Phase 2)
 ###############################################################################
 
-# Configure additional lock hours for configure.sh/manage.sh
+# Configure additional block hours for configure.sh/manage.sh
 # This is separate from restricted hours and uses CONFIG_LOCK_HOURS_* variables.
 # Parameters:
 #   $1 - use_gui (true/false)
@@ -101,6 +102,28 @@ configure_weekdays_section() {
 configure_lock_hours_section() {
     local use_gui="$1"
     local -n lock_hours_lines_ref="$2"  # Pass lock_hours_lines by reference
+    
+    # Show informational note about dependency
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_info_dialog \
+            "Additional Configuration Block Hours" \
+            "Additional Configuration Block Hours\n\nConfigure additional hours when configure.sh and manage.sh are blocked.\n\nIMPORTANT: These additional block hours only take effect when 'Block Configuration During Restricted Hours' (option 6) is enabled.\n\nIf 'Block Configuration During Restricted Hours' is disabled, these additional block hours will have no effect." \
+            600 \
+            250
+    else
+        echo "" >&2
+        echo "=== Additional Configuration Block Hours ===" >&2
+        echo "" >&2
+        echo "Configure additional hours when configure.sh and manage.sh are blocked." >&2
+        echo "" >&2
+        echo "IMPORTANT: These additional block hours only take effect when" >&2
+        echo "'Block Configuration During Restricted Hours' (option 6) is enabled." >&2
+        echo "" >&2
+        echo "If 'Block Configuration During Restricted Hours' is disabled, these" >&2
+        echo "additional block hours will have no effect." >&2
+        echo "" >&2
+        read -p "Press Enter to continue..." >&2
+    fi
     
     # Configure each day individually (Sunday-Saturday, indices 0-6)
     # We reuse get_day_hours to ensure consistent validation and UX.
@@ -110,7 +133,7 @@ configure_lock_hours_section() {
         local day_name="${DAY_NAMES[${day_index}]}"
         
         # Build friendly label to differentiate from restriction hours
-        local label="Lock Hours - ${day_name}"
+        local label="Additional Block Hours - ${day_name}"
         
         # Allow back navigation from all days except Sunday (index 0)
         local allow_back="false"
@@ -138,11 +161,11 @@ configure_lock_hours_section() {
             fi
         elif [ "${range}" != "skip" ]; then
             # User configured lock hours for this day
-            local day_var="${DAY_NAMES[${day_index}]}"
+            local day_var="${DAY_VARS[${day_index}]}"
             lock_hours_lines_ref[${day_index}]="CONFIG_LOCK_HOURS_${day_var}=${range}"
         else
             # Explicitly skipped - mark as no lock hours for this day
-            local day_var="${DAY_NAMES[${day_index}]}"
+            local day_var="${DAY_VARS[${day_index}]}"
             lock_hours_lines_ref[${day_index}]="CONFIG_LOCK_HOURS_${day_var}="
         fi
         

@@ -19,15 +19,64 @@
 # - Removes all installed files
 # - Stops and disables systemd timer
 # - Provides uninstallation summary
+#
+# Note: If UNINSTALL_PROTECTION_MODE=difficult is enabled and current time
+# is within restricted hours, this script will require verification
+# (confirmation phrase + 10 algebra questions) before proceeding.
+# This is Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours)
 ###############################################################################
 
-set -e  # Exit on error
 
 # Script configuration
 INSTALL_DIR="${HOME}/.local/bin"
 LIB_DIR="${HOME}/.local/lib/sleep-warning"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
+
+# Determine script directory and library path
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_LIB_DIR="${SCRIPT_DIR}/lib"
+
+# Determine which library directory to use for sourcing (project dir if available, otherwise installed location)
+# IMPORTANT: Never change LIB_DIR itself - it must always point to the installed location for deletion
+SOURCE_LIB_DIR="${LIB_DIR}"
+if [ -d "${SCRIPT_LIB_DIR}" ]; then
+    # Running from project directory - use project lib for sourcing
+    SOURCE_LIB_DIR="${SCRIPT_LIB_DIR}"
+fi
+
+# Source library modules if available (for uninstall protection check)
+# These are sourced with error suppression to allow uninstall even if some modules are missing
+if [ -f "${SOURCE_LIB_DIR}/config.sh" ]; then
+    source "${SOURCE_LIB_DIR}/config.sh" 2>/dev/null || true
+fi
+
+if [ -f "${SOURCE_LIB_DIR}/logging.sh" ]; then
+    source "${SOURCE_LIB_DIR}/logging.sh" 2>/dev/null || true
+fi
+
+if [ -f "${SOURCE_LIB_DIR}/time-validation.sh" ]; then
+    source "${SOURCE_LIB_DIR}/time-validation.sh" 2>/dev/null || true
+fi
+
+if [ -f "${SOURCE_LIB_DIR}/configure-core.sh" ]; then
+    source "${SOURCE_LIB_DIR}/configure-core.sh" 2>/dev/null || true
+fi
+
+if [ -f "${SOURCE_LIB_DIR}/configure-dialogs.sh" ]; then
+    source "${SOURCE_LIB_DIR}/configure-dialogs.sh" 2>/dev/null || true
+fi
+
+if [ -f "${SOURCE_LIB_DIR}/configure-ui.sh" ]; then
+    source "${SOURCE_LIB_DIR}/configure-ui.sh" 2>/dev/null || true
+fi
+
+if [ -f "${SOURCE_LIB_DIR}/uninstall-verification.sh" ]; then
+    source "${SOURCE_LIB_DIR}/uninstall-verification.sh" 2>/dev/null || true
+fi
+
+# Enable exit on error after library sourcing (for backward compatibility, libraries may not exist)
+set -e
 
 # Colors for output (with fallback for non-color terminals)
 if [ -t 1 ]; then
@@ -258,6 +307,42 @@ print_summary() {
 main() {
     echo -e "${BLUE}Sleep Warning System - Uninstallation${NC}"
     echo ""
+    
+    # Check if uninstall protection is enabled and we're in restricted hours
+    # This check must happen BEFORE any other operations
+    # Use error suppression to ensure script continues even if protection check fails
+    local protection_mode="none"
+    if type check_uninstall_protection_time >/dev/null 2>&1; then
+        protection_mode=$(check_uninstall_protection_time 2>/dev/null || echo "none")
+    fi
+    
+    if [ "${protection_mode}" = "difficult" ]; then
+        # Determine GUI mode
+        local use_gui="false"
+        if [ -n "${DISPLAY}" ] && type has_dialog_tool >/dev/null 2>&1 && has_dialog_tool 2>/dev/null; then
+            use_gui="true"
+        fi
+        
+        # Require verification
+        if type verify_uninstall_during_restrictions >/dev/null 2>&1; then
+            if ! verify_uninstall_during_restrictions "${use_gui}" 2>/dev/null; then
+                local exit_code=$?
+                if [ ${exit_code} -eq 2 ]; then
+                    # User cancelled
+                    print_info "Uninstall cancelled by user."
+                    exit 0
+                else
+                    # Verification failed
+                    print_error "Uninstall verification failed. Uninstall cancelled."
+                    exit 1
+                fi
+            fi
+        else
+            # Verification module not available - show warning but allow (shouldn't happen in normal install)
+            # This handles backward compatibility with older installations
+            print_warning "Uninstall verification module not available. Proceeding without verification."
+        fi
+    fi
     
     # Check if installed
     if [ ! -f "$INSTALL_DIR/sleep-warning.sh" ] && \

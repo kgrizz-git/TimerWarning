@@ -7,7 +7,7 @@ This document provides detailed technical specifications for the Sleep Warning S
 The Sleep Warning System uses a **modular architecture** for improved maintainability and testability:
 
 - **Main Script**: `sleep-warning.sh` (~128 lines) - Streamlined entry point
-- **Library Modules**: 7 focused modules in `lib/` directory (~1500 lines total)
+- **Library Modules**: 7 core modules plus additional enhancement modules in `lib/` directory (~1500 lines total)
   - `config.sh` - Configuration management
   - `logging.sh` - Logging functions
   - `display-detection.sh` - Display environment detection
@@ -15,6 +15,7 @@ The Sleep Warning System uses a **modular architecture** for improved maintainab
   - `window-management.sh` - Window manipulation
   - `time-validation.sh` - Time range validation
   - `popup-display.sh` - Warning popup display
+  - `uninstall-verification.sh` - Uninstall protection verification (Enhancement #26)
 
 **Benefits**:
 - Clear separation of concerns
@@ -30,7 +31,7 @@ The Sleep Warning System uses a **modular architecture** for improved maintainab
 The Configuration Wizard (`configure.sh`) also uses a **modular architecture** for improved maintainability:
 
 - **Main Script**: `configure.sh` (~268 lines) - Streamlined entry point
-- **Library Modules**: 7 focused modules in `lib/` directory (~2,469 lines total)
+- **Library Modules**: 7 core modules plus additional enhancement modules in `lib/` directory (~2,469 lines total)
   - `configure-core.sh` - Core utilities and constants
   - `configure-config.sh` - Configuration file operations
   - `configure-time.sh` - Time formatting and validation
@@ -38,6 +39,8 @@ The Configuration Wizard (`configure.sh`) also uses a **modular architecture** f
   - `configure-input.sh` - User input collection
   - `configure-display.sh` - Complex displays (grids, menus)
   - `configure-workflow.sh` - Section orchestration
+  - `configure-dialogs.sh` - Dialog abstraction layer (tool-agnostic interface)
+  - `configure-validation.sh` - 24/7 restriction validation and overlap detection
 
 **Benefits**:
 - Clear separation of concerns for configuration logic

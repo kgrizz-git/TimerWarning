@@ -351,6 +351,114 @@ CONFIGURE_BLOCK_ENABLED=false  # Disable blocking (default)
   - Removing the time check code from the scripts
 - It is designed as a **self-control aid**, not a security measure against determined users with system access.
 
+### Additional Lock Hours for Blocking Scripts
+
+**Option**: `CONFIG_LOCK_HOURS_DAYNAME`
+
+**Description**: Additional hours for blocking `configure.sh` and `manage.sh` (separate from restriction hours). When `CONFIGURE_BLOCK_ENABLED=true`, these scripts are blocked during restriction hours OR lock hours (OR logic). This allows you to configure separate lock periods beyond your normal restriction hours.
+
+**Format**: `CONFIG_LOCK_HOURS_DAYNAME=START_HOUR-END_HOUR`
+
+**Days**: `CONFIG_LOCK_HOURS_SUNDAY`, `CONFIG_LOCK_HOURS_MONDAY`, `CONFIG_LOCK_HOURS_TUESDAY`, `CONFIG_LOCK_HOURS_WEDNESDAY`, `CONFIG_LOCK_HOURS_THURSDAY`, `CONFIG_LOCK_HOURS_FRIDAY`, `CONFIG_LOCK_HOURS_SATURDAY`
+
+**Hours**: 24-hour format (0-23), same as restriction hours
+
+**Default**: No lock hours configured (empty or omitted)
+
+**Examples**:
+```
+CONFIG_LOCK_HOURS_MONDAY=9-17        # Block during work hours (9 AM to 4:59 PM)
+CONFIG_LOCK_HOURS_TUESDAY=0-5,22-23  # Block during early morning and late evening
+CONFIG_LOCK_HOURS_WEDNESDAY=23-6     # Block overnight (11 PM to 5:59 AM)
+```
+
+**How It Works**:
+- Lock hours are **separate** from restriction hours (the hours when warnings appear)
+- When `CONFIGURE_BLOCK_ENABLED=true`, `configure.sh` and `manage.sh` are blocked during:
+  - **Restriction hours** (when warnings appear), OR
+  - **Lock hours** (additional configured hours)
+- This allows you to block configuration changes during specific times (e.g., work hours) even if those times are not restricted hours
+- Lock hours use the same format as restriction hours:
+  - Single range: `9-17` (9 AM to 4:59 PM)
+  - Multiple ranges: `0-5,22-23` (midnight to 4:59 AM AND 10 PM to 11:59 PM)
+  - Overnight ranges: `23-6` (11 PM to 5:59 AM, spans midnight)
+
+**Important Notes**:
+- Lock hours **only apply** when `CONFIGURE_BLOCK_ENABLED=true`
+- If `CONFIGURE_BLOCK_ENABLED=false`, lock hours have no effect
+- Lock hours are independent of restriction hours - you can have different lock hours than restriction hours
+- Lock hours use OR logic with restriction hours - if current time is in either restriction hours OR lock hours, scripts are blocked
+- Overnight ranges (e.g., `23-6`) are handled correctly - if you're in the early morning portion of an overnight range, the scripts will be blocked
+- Leave a day empty or omit it to have no lock hours for that day
+
+**Use Cases**:
+- **Work Hours Blocking**: Block configuration changes during work hours (9 AM - 5 PM) even if work hours are not restricted hours
+- **Extended Protection**: Block configuration changes during additional hours beyond your normal restriction hours
+- **Flexible Scheduling**: Have different lock hours than restriction hours (e.g., restrict late night but lock work hours)
+
+**Configuration via Wizard**:
+- Use menu option 7: **Lock Hours Configuration** in the configuration wizard
+- Configure lock hours per day, similar to restriction hours
+- Lock hours are saved to the config file with the `CONFIG_LOCK_HOURS_DAYNAME` format
+
+**Limitations**:
+- Same limitations as `CONFIGURE_BLOCK_ENABLED` - can be bypassed by modifying system time or editing scripts directly
+- Designed as a **self-control aid**, not a security measure against determined users with system access
+
+### Uninstall Protection During Restricted Hours
+
+**Option**: `UNINSTALL_PROTECTION_MODE`
+
+**Description**: When enabled, requires a difficult verification process to uninstall the system during restricted hours. This is a security feature that helps prevent circumventing restrictions by uninstalling the system during restricted periods.
+
+**Format**: `none` or `difficult`
+
+**Default**: `none` (disabled - opt-in feature)
+
+**Examples**:
+```
+UNINSTALL_PROTECTION_MODE=none      # No protection - uninstall works normally (default)
+UNINSTALL_PROTECTION_MODE=difficult # Difficult uninstall - requires verification (recommended)
+```
+
+**How It Works**:
+- When set to `difficult`, the uninstall script (`uninstall.sh`) will check the current time at startup.
+- If the current time falls within your configured restricted hours, the script will require you to complete a verification process before allowing uninstallation:
+  1. **Confirmation Phrase**: You must type the exact phrase: "I really mean it and want to uninstall this program now even though restrictions are running"
+  2. **Arithmetic Questions**: You must correctly answer 10 arithmetic questions written in word form with step-by-step instructions (e.g., "Multiply 53 by 15, then add (31 minus 58), then add 147. What is the final result?")
+- Questions are written in natural language to make copy-pasting into search engines or calculators more difficult.
+- If you are **not** in restricted hours, uninstallation works normally without verification.
+- The verification process requires cognitive engagement and effort, making it difficult to uninstall impulsively during restricted hours.
+
+**Important Notes**:
+- ⚠️ **This is an opt-in feature** - it is disabled by default (`none`) to avoid frustrating users.
+- ⚠️ **Lower Risk Option**: The "difficult" mode allows legitimate uninstalls while deterring impulsive ones. You can still uninstall if you complete the verification process.
+- ⚠️ **Safety Mechanism**: A manual uninstall guide script (`manual-uninstall-guide`) is always available and provides step-by-step instructions for manual uninstallation, even during restricted hours. This script is never blocked.
+- You can only change this setting when you are **not** in restricted hours (via the configuration wizard).
+- The protection uses the same time checking logic as the main warning system for consistency.
+- Overnight ranges (e.g., `23-6`) are handled correctly - if you're in the early morning portion of an overnight range, verification will be required.
+
+**Use Cases**:
+- **Self-control**: Prevents you from easily uninstalling the system during restricted hours when willpower is low.
+- **Accountability**: Makes it harder to circumvent restrictions by removing the system without waiting for unrestricted time.
+- **Security**: Adds an additional layer of protection against accidental or intentional uninstallation during restricted periods.
+
+**Limitations**:
+- This feature can be bypassed by:
+  - Modifying system time (requires admin access)
+  - Editing the scripts or configuration file directly
+  - Using the manual uninstall guide script to perform manual uninstallation
+  - Removing the time check code from the scripts
+- It is designed as a **self-control aid**, not a security measure against determined users with system access.
+- Determined users can still uninstall if they complete the verification process or use the manual uninstall guide.
+
+**Manual Uninstall Guide**:
+If you need to uninstall during restricted hours and find the verification process too difficult, you can use the manual uninstall guide script:
+```bash
+manual-uninstall-guide
+```
+This script provides step-by-step instructions for manually uninstalling the system and is always accessible, even during restricted hours.
+
 ## Complete Configuration Example
 
 Here is a complete example configuration file with all options:
@@ -380,6 +488,12 @@ POPUP_IMMOVABLE=true
 # Block scripts during restricted hours: Prevent configure.sh and manage.sh from running during restricted hours (true/false)
 # This is an opt-in security feature - disabled by default
 CONFIGURE_BLOCK_ENABLED=false
+
+# Uninstall protection mode: Require verification to uninstall during restricted hours (none/difficult)
+# none = No protection - uninstall works normally (default)
+# difficult = Difficult uninstall - requires confirmation phrase + 10 arithmetic questions (recommended)
+# This is an opt-in security feature - disabled by default
+UNINSTALL_PROTECTION_MODE=none
 
 # Restricted hours for each day
 SUNDAY=1-5
@@ -505,7 +619,10 @@ The wizard will guide you through setting all configuration options with a user-
 3. **Weekdays Configuration** - Set restricted hours for Monday through Friday
 4. **Weekends Configuration** - Set restricted hours for Saturday and Sunday
 5. **Visual Day/Time Grid** - View and edit all days in a visual grid format (see below)
-6. **Review and Save** - Review your configuration and save changes
+6. **Security Settings** - Configure blocking of configure.sh and manage.sh during restricted/lock hours
+7. **Lock Hours Configuration** - Configure additional hours when configuration/management is blocked (separate from restriction hours)
+8. **Uninstall Protection** - Configure protection mode for uninstall.sh during restricted hours
+9. **Review and Save** - Review your configuration and save changes
 
 **Visual Day/Time Grid**:
 The grid view (option 5) provides a convenient way to see all days of the week and their configured time ranges at a glance. The grid displays:

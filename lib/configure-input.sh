@@ -15,6 +15,8 @@
 # - get_configure_block_enabled_config() - Get configure block enabled setting (Enhancement #19)
 # - get_popup_position_config()    - Get popup position
 # - get_check_interval()           - Get check interval
+# - calculate_range_duration()    - Calculate duration in hours of a single time range
+# - calculate_total_day_duration() - Calculate total duration for a day including overnight from previous day
 # - get_day_hours()                - Get time ranges for a day (complex with navigation)
 #
 # Dependencies:
@@ -22,6 +24,7 @@
 # - configure-dialogs.sh (for dialog abstraction functions)
 # - configure-ui.sh (for confirm_cancel, confirm_skip_day, show_help_dialog)
 # - configure-time.sh (for format_ranges_human)
+# - config.sh (for parse_config to read previous day's ranges)
 ###############################################################################
 
 # Get hour input using dialog tool (legacy name: get_hour_zenity)
@@ -322,8 +325,8 @@ get_configure_block_enabled_config() {
             local block_enabled
             local block_enabled_result
             block_enabled_result=$(show_list_dialog \
-                "Sleep Warning Configuration - Security Settings" \
-                "Block configure.sh and manage.sh during restricted hours?\n\nWhen enabled, the configuration and management scripts will be blocked from running during restricted hours to prevent circumventing restrictions.\n\nCurrent setting: ${default_block_enabled}" \
+                "Sleep Warning Configuration - Block Configuration During Restricted Hours" \
+                "Block configure.sh and manage.sh during restricted hours?\n\nWhen enabled, the configuration and management scripts will be blocked from running during restricted hours to prevent circumventing restrictions.\n\nNote: This must be enabled for 'Additional Configuration Block Hours' to take effect.\n\nCurrent setting: ${default_block_enabled}" \
                 650 \
                 400 \
                 "true" "false")
@@ -351,9 +354,10 @@ get_configure_block_enabled_config() {
     else
         # Text mode
         echo "" >&2
-        echo "Security Settings - Configure Blocking:" >&2
+        echo "Block Configuration During Restricted Hours - Configure Blocking:" >&2
         echo "  When enabled, configure.sh and manage.sh will be blocked from running" >&2
         echo "  during restricted hours to prevent circumventing restrictions." >&2
+        echo "  Note: This must be enabled for 'Additional Configuration Block Hours' to take effect." >&2
         echo "" >&2
         while true; do
             read -p "Block configure.sh and manage.sh during restricted hours? [y/n, default: ${default_block_enabled}]: " choice
@@ -373,6 +377,122 @@ get_configure_block_enabled_config() {
                     ;;
                 *)
                     echo "Invalid choice. Please enter 'y' for yes or 'n' for no." >&2
+                    ;;
+            esac
+        done
+    fi
+}
+
+# Get uninstall protection mode configuration from user
+# This function allows user to select protection mode for uninstall.sh during restricted hours
+# This is for Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours)
+#
+# Parameters:
+#   $1 - use_gui (true/false)
+#
+# Returns:
+#   "none" - No protection, uninstall works normally
+#   "difficult" - Difficult uninstall, requires verification
+#   "CANCELLED" - User cancelled
+#
+# Exit Codes:
+#   0 - Success
+#   2 - User cancelled
+get_uninstall_protection_mode_config() {
+    local use_gui="$1"
+    local default_mode="none"
+    
+    # Try to get existing setting from config
+    if [ -f "${CONFIG_FILE}" ]; then
+        local existing_mode
+        existing_mode=$(grep -E "^[[:space:]]*UNINSTALL_PROTECTION_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ -n "${existing_mode}" ]; then
+            if [ "${existing_mode}" = "none" ] || [ "${existing_mode}" = "difficult" ]; then
+                default_mode="${existing_mode}"
+            fi
+        fi
+    fi
+    
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        # GUI mode
+        while true; do
+            local protection_mode
+            local mode_result
+            local mode_display
+            if [ "${default_mode}" = "none" ]; then
+                mode_display="No Protection"
+            else
+                mode_display="Difficult Uninstall (Recommended)"
+            fi
+            
+            mode_result=$(show_list_dialog \
+                "Sleep Warning Configuration - Uninstall Protection" \
+                "Choose protection mode for uninstall.sh during restricted hours:\n\nCurrent setting: ${mode_display}\n\nOptions:\n• none - No protection, uninstall works normally during restricted hours\n• difficult - Difficult uninstall, requires confirmation phrase + 10 arithmetic questions\n\nDifficult mode allows legitimate uninstalls while deterring impulsive ones.\nIt requires significant effort and cognitive engagement.\n\nNote: Total block mode may be considered as future phase." \
+                700 \
+                500 \
+                "none" "difficult")
+            local exit_code=$?
+            
+            if [ ${exit_code} -eq 0 ] && [ -n "${mode_result}" ]; then
+                protection_mode="${mode_result}"
+            else
+                protection_mode=""
+            fi
+            
+            # User cancelled
+            if [ "${exit_code}" -ne 0 ] || [ -z "${protection_mode}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2  # Special return code for cancellation
+                else
+                    continue  # User wants to continue, re-prompt
+                fi
+            fi
+            
+            echo "${protection_mode}"
+            return 0
+        done
+    else
+        # Text mode
+        echo "" >&2
+        echo "Uninstall Protection Mode:" >&2
+        echo "  Choose protection mode for uninstall.sh during restricted hours:" >&2
+        echo "" >&2
+        echo "  Options:" >&2
+        echo "    1) none - No protection, uninstall works normally" >&2
+        echo "    2) difficult - Difficult uninstall, requires verification (recommended)" >&2
+        echo "" >&2
+        echo "  Difficult mode requires:" >&2
+        echo "    - Confirmation phrase" >&2
+        echo "    - 10 arithmetic questions (written in word form)" >&2
+        echo "" >&2
+        echo "  Difficult mode allows legitimate uninstalls while deterring impulsive ones." >&2
+        echo "  Note: Total block mode may be considered as future phase." >&2
+        echo "" >&2
+        while true; do
+            local default_choice
+            if [ "${default_mode}" = "none" ]; then
+                default_choice="1"
+            else
+                default_choice="2"
+            fi
+            read -p "Select protection mode [1-2, default: ${default_choice}]: " choice
+            choice=${choice:-${default_choice}}
+            case "${choice}" in
+                1|none|NONE)
+                    echo "none"
+                    return 0
+                    ;;
+                2|difficult|DIFFICULT)
+                    echo "difficult"
+                    return 0
+                    ;;
+                "")
+                    echo "${default_mode}"
+                    return 0
+                    ;;
+                *)
+                    echo "Invalid choice. Please enter '1' for none or '2' for difficult." >&2
                     ;;
             esac
         done
@@ -516,6 +636,111 @@ get_check_interval() {
             fi
         done
     fi
+}
+
+# Calculate the duration in hours of a single time range
+# Handles both normal ranges (0-5) and overnight ranges (23-6)
+# Parameters:
+#   $1 - range (format: START-END, e.g., "0-5" or "23-6")
+# Returns:
+#   The number of hours the range spans (stdout)
+# Examples:
+#   calculate_range_duration "0-5"   -> 5 (normal range)
+#   calculate_range_duration "23-6"  -> 7 (overnight range: 1 hour + 6 hours)
+#   calculate_range_duration "0-12"  -> 12 (exactly 12 hours)
+#   calculate_range_duration "0-13"  -> 13 (over 12 hours, will trigger warning)
+# Note: Input should be validated before calling this function
+calculate_range_duration() {
+    local range="$1"
+    
+    # Trim whitespace (defensive programming, though validation should prevent spaces)
+    range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    
+    local start_hour end_hour
+    start_hour=$(echo "${range}" | cut -d'-' -f1)
+    end_hour=$(echo "${range}" | cut -d'-' -f2)
+    
+    # Handle overnight ranges (start > end, spans midnight)
+    # Example: 23-6 means 11 PM to 5:59 AM = (24-23) + 6 = 7 hours
+    if [ "${start_hour}" -gt "${end_hour}" ]; then
+        # Overnight: (24 - start) + end
+        echo $((24 - start_hour + end_hour))
+    else
+        # Normal range: end - start
+        # Example: 0-5 means midnight to 4:59 AM = 5 hours
+        echo $((end_hour - start_hour))
+    fi
+}
+
+# Calculate total duration in hours for a day, including overnight ranges from previous day
+# This checks both the current day's ranges and any overnight ranges from the previous day
+# that extend into the current day (e.g., previous day's "23-6" extends into current day 0-5)
+# Parameters:
+#   $1 - day_index (0-6, Sunday=0, Saturday=6)
+#   $2 - current_day_ranges (comma-separated ranges for current day, e.g., "0-5,22-23")
+# Returns:
+#   Total duration in hours (stdout)
+# Examples:
+#   calculate_total_day_duration 1 "0-5" -> 5 (Monday, no overnight from Sunday)
+#   calculate_total_day_duration 1 "0-5" (if Sunday has "23-6") -> 11 (5 from Monday + 6 from Sunday overnight)
+# Note: Requires parse_config from config.sh to read previous day's ranges
+calculate_total_day_duration() {
+    local day_index="$1"
+    local current_day_ranges="$2"
+    
+    local total_duration=0
+    
+    # Calculate duration from current day's ranges
+    if [ -n "${current_day_ranges}" ]; then
+        local IFS=','
+        for range in ${current_day_ranges}; do
+            range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [ -n "${range}" ]; then
+                local range_duration
+                range_duration=$(calculate_range_duration "${range}")
+                total_duration=$((total_duration + range_duration))
+            fi
+        done
+    fi
+    
+    # Calculate duration from previous day's overnight ranges that extend into current day
+    # Calculate previous day index (handle wrap-around: Sunday (0) -> Saturday (6))
+    local prev_day_index
+    if [ "${day_index}" -eq 0 ]; then
+        prev_day_index=6  # Sunday -> Saturday
+    else
+        prev_day_index=$((day_index - 1))
+    fi
+    
+    # Get previous day's ranges from config file (if available)
+    # Note: This checks the saved config, not in-memory changes during configuration
+    local prev_day_ranges=""
+    if type parse_config >/dev/null 2>&1; then
+        prev_day_ranges=$(parse_config "${prev_day_index}" 2>/dev/null || echo "")
+    fi
+    
+    # Check if previous day has overnight ranges that extend into current day
+    if [ -n "${prev_day_ranges}" ]; then
+        local IFS=','
+        for range in ${prev_day_ranges}; do
+            range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [ -n "${range}" ]; then
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                # Check if this is an overnight range (start > end) that extends into current day
+                if [ "${start_hour}" -gt "${end_hour}" ]; then
+                    # Overnight range from previous day extends into current day
+                    # The portion that affects current day is from 0 to end_hour
+                    # Example: Previous day "23-6" means current day 0-5 is affected (6 hours)
+                    total_duration=$((total_duration + end_hour))
+                fi
+            fi
+        done
+    fi
+    
+    echo "${total_duration}"
 }
 
 # Get hour range for a day (with navigation support)
@@ -671,6 +896,108 @@ get_day_hours() {
                 continue
             fi
             
+            # Check if single interval is over 12 hours and show warning
+            # Count commas to determine if it's a single range
+            local comma_count
+            comma_count=$(echo "${range_input}" | tr -cd ',' | wc -c)
+            if [ "${comma_count}" -eq 0 ]; then
+                # Single range - check duration
+                local range_duration
+                range_duration=$(calculate_range_duration "${range_input}")
+                if [ "${range_duration}" -gt 12 ]; then
+                    # Show eye-catching warning
+                    local warning_msg="⚠️  WARNING: LONG TIME RANGE ⚠️\n\n"
+                    warning_msg="${warning_msg}You entered a single interval of ${range_duration} hours.\n\n"
+                    warning_msg="${warning_msg}This is a very long restriction period. Are you sure this is what you want?\n\n"
+                    warning_msg="${warning_msg}If you meant to have multiple shorter periods, use comma-separated ranges.\n"
+                    warning_msg="${warning_msg}Example: 0-5,22-23 (instead of 0-23)"
+                    
+                    if ! show_question_dialog \
+                        "⚠️  Long Time Range Warning" \
+                        "${warning_msg}" \
+                        "Yes, Continue" \
+                        "No, Let Me Edit" \
+                        650 \
+                        400; then
+                        # User wants to edit
+                        continue
+                    fi
+                fi
+            fi
+            
+            # Check if total duration for the day (including overnight from previous day) is over 12 hours
+            local total_duration
+            total_duration=$(calculate_total_day_duration "${day_index}" "${range_input}")
+            if [ "${total_duration}" -gt 12 ]; then
+                # Show warning about total duration
+                local total_warning_msg="⚠️  WARNING: TOTAL RESTRICTIONS EXCEED 12 HOURS ⚠️\n\n"
+                total_warning_msg="${total_warning_msg}The total restricted hours for this day is ${total_duration} hours.\n\n"
+                total_warning_msg="${total_warning_msg}This includes:\n"
+                total_warning_msg="${total_warning_msg}• Your entered ranges for ${day_name}\n"
+                
+                # Check if previous day has overnight ranges
+                local prev_day_index
+                if [ "${day_index}" -eq 0 ]; then
+                    prev_day_index=6  # Sunday -> Saturday
+                else
+                    prev_day_index=$((day_index - 1))
+                fi
+                
+                local prev_day_ranges=""
+                if type parse_config >/dev/null 2>&1; then
+                    prev_day_ranges=$(parse_config "${prev_day_index}" 2>/dev/null || echo "")
+                fi
+                
+                local has_overnight=false
+                if [ -n "${prev_day_ranges}" ]; then
+                    local IFS=','
+                    for range in ${prev_day_ranges}; do
+                        range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                        if [ -n "${range}" ]; then
+                            local start_hour end_hour
+                            start_hour=$(echo "${range}" | cut -d'-' -f1)
+                            end_hour=$(echo "${range}" | cut -d'-' -f2)
+                            if [ "${start_hour}" -gt "${end_hour}" ]; then
+                                has_overnight=true
+                                break
+                            fi
+                        fi
+                    done
+                fi
+                
+                if [ "${has_overnight}" = "true" ]; then
+                    # Use DAY_NAMES array if available, otherwise fallback to case statement
+                    local prev_day_name
+                    if [ -n "${DAY_NAMES[${prev_day_index}]:-}" ]; then
+                        prev_day_name="${DAY_NAMES[${prev_day_index}]}"
+                    else
+                        case "${prev_day_index}" in
+                            0) prev_day_name="Sunday" ;;
+                            1) prev_day_name="Monday" ;;
+                            2) prev_day_name="Tuesday" ;;
+                            3) prev_day_name="Wednesday" ;;
+                            4) prev_day_name="Thursday" ;;
+                            5) prev_day_name="Friday" ;;
+                            6) prev_day_name="Saturday" ;;
+                        esac
+                    fi
+                    total_warning_msg="${total_warning_msg}• Overnight ranges from ${prev_day_name} that extend into ${day_name}\n"
+                fi
+                
+                total_warning_msg="${total_warning_msg}\nThis is a very long restriction period. Are you sure this is what you want?"
+                
+                if ! show_question_dialog \
+                    "⚠️  Total Restrictions Warning" \
+                    "${total_warning_msg}" \
+                    "Yes, Continue" \
+                    "No, Let Me Edit" \
+                    650 \
+                    450; then
+                    # User wants to edit
+                    continue
+                fi
+            fi
+            
             # Show preview of what will be restricted
             local preview
             preview=$(format_ranges_human "${range_input}" "${day_name}")
@@ -796,6 +1123,116 @@ get_day_hours() {
             if [ "${valid}" = "false" ]; then
                 echo "Error: Invalid hour values. Hours must be 0-23, and start cannot equal end." >&2
                 continue
+            fi
+            
+            # Check if single interval is over 12 hours and show warning
+            # Count commas to determine if it's a single range
+            local comma_count
+            comma_count=$(echo "${range_input}" | tr -cd ',' | wc -c)
+            if [ "${comma_count}" -eq 0 ]; then
+                # Single range - check duration
+                local range_duration
+                range_duration=$(calculate_range_duration "${range_input}")
+                if [ "${range_duration}" -gt 12 ]; then
+                    # Show eye-catching warning
+                    echo "" >&2
+                    echo "⚠️  ⚠️  ⚠️  WARNING: LONG TIME RANGE ⚠️  ⚠️  ⚠️" >&2
+                    echo "" >&2
+                    echo "You entered a single interval of ${range_duration} hours." >&2
+                    echo "" >&2
+                    echo "This is a very long restriction period. Are you sure this is what you want?" >&2
+                    echo "" >&2
+                    echo "If you meant to have multiple shorter periods, use comma-separated ranges." >&2
+                    echo "Example: 0-5,22-23 (instead of 0-23)" >&2
+                    echo "" >&2
+                    read -p "Continue with this long range? [y/N]: " warning_confirm
+                    case "${warning_confirm}" in
+                        [Yy]*)
+                            # User confirmed, continue to normal confirmation
+                            ;;
+                        *)
+                            echo "Please re-enter the time range." >&2
+                            continue
+                            ;;
+                    esac
+                fi
+            fi
+            
+            # Check if total duration for the day (including overnight from previous day) is over 12 hours
+            local total_duration
+            total_duration=$(calculate_total_day_duration "${day_index}" "${range_input}")
+            if [ "${total_duration}" -gt 12 ]; then
+                # Show warning about total duration
+                echo "" >&2
+                echo "⚠️  ⚠️  ⚠️  WARNING: TOTAL RESTRICTIONS EXCEED 12 HOURS ⚠️  ⚠️  ⚠️" >&2
+                echo "" >&2
+                echo "The total restricted hours for this day is ${total_duration} hours." >&2
+                echo "" >&2
+                echo "This includes:" >&2
+                echo "• Your entered ranges for ${day_name}" >&2
+                
+                # Check if previous day has overnight ranges
+                local prev_day_index
+                if [ "${day_index}" -eq 0 ]; then
+                    prev_day_index=6  # Sunday -> Saturday
+                else
+                    prev_day_index=$((day_index - 1))
+                fi
+                
+                local prev_day_ranges=""
+                if type parse_config >/dev/null 2>&1; then
+                    prev_day_ranges=$(parse_config "${prev_day_index}" 2>/dev/null || echo "")
+                fi
+                
+                local has_overnight=false
+                if [ -n "${prev_day_ranges}" ]; then
+                    local IFS=','
+                    for range in ${prev_day_ranges}; do
+                        range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                        if [ -n "${range}" ]; then
+                            local start_hour end_hour
+                            start_hour=$(echo "${range}" | cut -d'-' -f1)
+                            end_hour=$(echo "${range}" | cut -d'-' -f2)
+                            if [ "${start_hour}" -gt "${end_hour}" ]; then
+                                has_overnight=true
+                                break
+                            fi
+                        fi
+                    done
+                fi
+                
+                if [ "${has_overnight}" = "true" ]; then
+                    # Use DAY_NAMES array if available, otherwise fallback to case statement
+                    local prev_day_name
+                    if [ -n "${DAY_NAMES[${prev_day_index}]:-}" ]; then
+                        prev_day_name="${DAY_NAMES[${prev_day_index}]}"
+                    else
+                        case "${prev_day_index}" in
+                            0) prev_day_name="Sunday" ;;
+                            1) prev_day_name="Monday" ;;
+                            2) prev_day_name="Tuesday" ;;
+                            3) prev_day_name="Wednesday" ;;
+                            4) prev_day_name="Thursday" ;;
+                            5) prev_day_name="Friday" ;;
+                            6) prev_day_name="Saturday" ;;
+                        esac
+                    fi
+                    echo "• Overnight ranges from ${prev_day_name} that extend into ${day_name}" >&2
+                fi
+                
+                echo "" >&2
+                echo "This is a very long restriction period. Are you sure this is what you want?" >&2
+                echo "" >&2
+                read -p "Continue with this total restriction? [y/N]: " total_warning_confirm
+                case "${total_warning_confirm}" in
+                    [Yy]*)
+                        # User confirmed, continue to normal confirmation
+                        ;;
+                    *)
+                        echo "Please re-enter the time range." >&2
+                        continue
+                        ;;
+                esac
             fi
             
             # Show preview

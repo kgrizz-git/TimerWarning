@@ -40,6 +40,11 @@ DEFAULT_POPUP_IMMOVABLE=true
 # This controls whether configure.sh and manage.sh are blocked during restricted hours (Enhancement #19)
 DEFAULT_CONFIGURE_BLOCK_ENABLED=false
 
+# Default uninstall protection mode - used if config file missing or invalid
+# This controls whether uninstall.sh requires verification during restricted hours (Enhancement #26)
+# Options: "none" (no protection), "difficult" (require verification)
+DEFAULT_UNINSTALL_PROTECTION_MODE="none"
+
 # Default restricted hours (used if config file missing or invalid)
 # Format: day_number=start_hour-end_hour
 # Day numbers: 0=Sunday, 1=Monday, ..., 6=Saturday
@@ -253,6 +258,52 @@ get_configure_block_enabled() {
     else
         # Invalid or missing, use default
         echo "${DEFAULT_CONFIGURE_BLOCK_ENABLED}"
+        return 0
+    fi
+}
+
+# Get uninstall protection mode from configuration file
+# This function reads UNINSTALL_PROTECTION_MODE from config file
+# This is for Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours)
+#
+# Returns:
+#   "none" - No protection (default)
+#   "difficult" - Difficult uninstall (verification required)
+#
+# Exit Codes:
+#   0 - Success
+get_uninstall_protection_mode() {
+    # Check if config file exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "${DEFAULT_UNINSTALL_PROTECTION_MODE}"
+        return 0
+    fi
+    
+    # Read UNINSTALL_PROTECTION_MODE from config file
+    local protection_mode
+    protection_mode=$(grep -E "^[[:space:]]*UNINSTALL_PROTECTION_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    
+    # Check for legacy UNINSTALL_BLOCK_ENABLED for backward compatibility
+    if [ -z "${protection_mode}" ]; then
+        local legacy_block_enabled
+        legacy_block_enabled=$(grep -E "^[[:space:]]*UNINSTALL_BLOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ "${legacy_block_enabled}" = "true" ] || [ "${legacy_block_enabled}" = "1" ] || [ "${legacy_block_enabled}" = "yes" ]; then
+            # Legacy setting found - map to "difficult" (total block not available in Phase 1)
+            echo "difficult"
+            return 0
+        fi
+    fi
+    
+    # Validate and normalize protection mode
+    if [ "${protection_mode}" = "none" ]; then
+        echo "none"
+        return 0
+    elif [ "${protection_mode}" = "difficult" ]; then
+        echo "difficult"
+        return 0
+    else
+        # Invalid or missing, use default
+        echo "${DEFAULT_UNINSTALL_PROTECTION_MODE}"
         return 0
     fi
 }

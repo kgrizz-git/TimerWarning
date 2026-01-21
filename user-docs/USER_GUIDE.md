@@ -58,6 +58,7 @@ journalctl --user -u sleep-warning.service      # View systemd journal
 
 # Uninstall
 sleep-warning-uninstall          # Remove the system
+manual-uninstall-guide          # Manual uninstall instructions (always available)
 ```
 
 ### File Locations
@@ -83,6 +84,9 @@ sleep-warning-configure
 - Window Behavior - Configure popup size, position, minimum display time, and immovable setting
 - Weekdays/Weekends Configuration - Set restricted hours
 - Visual Day/Time Grid - View and edit all days at once (recommended!)
+- Security Settings - Configure blocking of configure.sh and manage.sh during restricted/lock hours
+- Lock Hours Configuration - Configure additional hours when configuration/management is blocked
+- Uninstall Protection - Configure protection mode for uninstall.sh during restricted hours
 - Review and Save - Review your configuration before saving
 
 The **Visual Day/Time Grid** shows all 7 days at once with time ranges in human-readable format and allows quick editing of any day.
@@ -702,6 +706,79 @@ cp ~/sleep-warning-backup.conf ~/.config/sleep-warning/sleep-warning.conf
 ```
 
 **Note**: After restoring, changes take effect on the next check (within configured interval).
+
+### Uninstalling the System
+
+#### Standard Uninstallation
+
+To uninstall the Sleep Warning System, use the uninstall script:
+
+```bash
+sleep-warning-uninstall
+```
+
+or
+
+```bash
+~/.local/bin/sleep-warning-uninstall
+```
+
+**What the uninstall script does:**
+- Stops and disables the systemd timer
+- Removes the systemd service and timer files
+- Removes the main script files
+- Removes the configuration file and logs (with confirmation)
+- Provides a summary of what was removed
+
+**Note**: The uninstall script will ask for confirmation before removing configuration files and logs, so you can preserve your settings if desired.
+
+#### Uninstall Protection During Restricted Hours
+
+If you have enabled uninstall protection (`UNINSTALL_PROTECTION_MODE=difficult` in your configuration), the uninstall script will require verification when run during restricted hours:
+
+1. **Confirmation Phrase**: You must type the exact phrase: "I really mean it and want to uninstall this program now even though restrictions are running"
+2. **Arithmetic Questions**: You must correctly answer 10 arithmetic questions written in word form
+
+This verification process is designed to prevent impulsive uninstallation during restricted hours while still allowing legitimate uninstalls if you complete the verification.
+
+**If you are not in restricted hours**, uninstallation works normally without verification.
+
+**See [CONFIGURATION.md](CONFIGURATION.md#uninstall-protection-during-restricted-hours) for more information about uninstall protection.**
+
+#### Manual Uninstall Guide
+
+If you need to uninstall the system during restricted hours and find the verification process too difficult, or if the uninstall script is not working, you can use the manual uninstall guide:
+
+```bash
+manual-uninstall-guide
+```
+
+or
+
+```bash
+~/.local/bin/manual-uninstall-guide
+```
+
+**What the manual uninstall guide provides:**
+- Step-by-step instructions for manually uninstalling the system
+- Commands to stop and disable the systemd timer
+- List of all files and directories to remove
+- Copy-paste ready commands for easy execution
+
+**Important Notes:**
+- The manual uninstall guide is **always accessible** - it is never blocked, even during restricted hours
+- It provides instructions only - you must execute the commands yourself
+- Use this guide if:
+  - The uninstall script requires verification and you prefer manual steps
+  - The uninstall script is not working or unavailable
+  - You want to understand exactly what files are being removed
+
+**The manual uninstall guide will show you:**
+1. How to stop and disable the systemd timer
+2. How to remove systemd service and timer files
+3. How to remove configuration files and logs
+4. How to remove installed script files
+5. Exact file paths for your installation
 
 ## Additional Resources
 

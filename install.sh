@@ -469,6 +469,13 @@ install_files() {
     if [ -f "$SCRIPT_DIR/manage.sh" ]; then
         cp "$SCRIPT_DIR/manage.sh" "$INSTALL_DIR/sleep-warning-manage"
         chmod +x "$INSTALL_DIR/sleep-warning-manage"
+        
+        # Install manual uninstall guide script (Enhancement #26)
+        if [ -f "$SCRIPT_DIR/manual-uninstall-guide.sh" ]; then
+            cp "$SCRIPT_DIR/manual-uninstall-guide.sh" "$INSTALL_DIR/manual-uninstall-guide"
+            chmod +x "$INSTALL_DIR/manual-uninstall-guide"
+            print_success "Manual uninstall guide installed"
+        fi
         print_success "Management script installed"
     fi
     
@@ -580,6 +587,7 @@ print_summary() {
     echo ""
     echo "  3. Manage the system (start/stop/enable/disable):"
     echo -e "     ${BLUE}sleep-warning-manage${NC}"
+    echo -e "     ${BLUE}manual-uninstall-guide${NC} (manual uninstallation instructions)"
     echo ""
     echo "  4. View logs:"
     echo -e "     ${BLUE}journalctl --user -u sleep-warning.service${NC}"

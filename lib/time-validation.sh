@@ -305,3 +305,97 @@ check_config_lock_time() {
     # Not in restricted hours or lock hours - allow execution
     return 0
 }
+
+# Check if uninstall protection should be applied based on current time
+# Returns protection mode string ("none" or "difficult") if in restricted hours
+# Returns "none" if not in restricted hours or mode is "none"
+# This is for Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours)
+#
+# Returns:
+#   "none" - No protection needed (not in restricted hours or mode is "none")
+#   "difficult" - Protection needed (in restricted hours and mode is "difficult")
+#
+# Exit Codes:
+#   0 - Success (always returns successfully, check return value)
+check_uninstall_protection_time() {
+    # Get uninstall protection mode from config
+    local protection_mode="none"
+    if type get_uninstall_protection_mode >/dev/null 2>&1; then
+        protection_mode=$(get_uninstall_protection_mode)
+    fi
+    
+    # If protection is disabled, return "none"
+    if [ "${protection_mode}" != "difficult" ]; then
+        echo "none"
+        return 0
+    fi
+    
+    # Get current day of week (0=Sunday, 6=Saturday)
+    local current_day
+    current_day=$(date +%w)
+    
+    # Get current hour (0-23)
+    local current_hour
+    current_hour=$(date +%H)
+    # Remove leading zero if present
+    current_hour=$((10#${current_hour}))
+    
+    # Parse configuration for current day (restriction hours)
+    local restricted_range
+    if type parse_config >/dev/null 2>&1; then
+        restricted_range=$(parse_config "${current_day}")
+    fi
+    
+    # Check if current hour is within restricted range for current day
+    if [ -n "${restricted_range}" ] && type is_restricted_hour >/dev/null 2>&1; then
+        if is_restricted_hour "${current_hour}" "${restricted_range}"; then
+            # Current hour is restricted - return protection mode
+            echo "${protection_mode}"
+            return 0
+        fi
+    fi
+    
+    # Current day may not have restrictions, but check if previous day has overnight ranges
+    # that extend into current day (same logic as sleep-warning.sh)
+    # Calculate previous day (handle wrap-around: Sunday (0) -> Saturday (6))
+    local prev_day
+    if [ "${current_day}" -eq 0 ]; then
+        prev_day=6  # Sunday -> Saturday
+    else
+        prev_day=$((current_day - 1))
+    fi
+    
+    # Check previous day's restriction hours (overnight ranges)
+    if [ -z "${restricted_range}" ] && type parse_config >/dev/null 2>&1; then
+        # Current day is empty/skipped (no restrictions for this day)
+        # Check if previous day has an overnight range that extends into current day
+        local prev_day_range
+        prev_day_range=$(parse_config "${prev_day}")
+        
+        # Check if previous day has overnight ranges that extend into current day
+        if [ -n "${prev_day_range}" ]; then
+            # Check each range in previous day's configuration
+            local IFS=','
+            for range in ${prev_day_range}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                # Check if this is an overnight range (start > end) that extends into current day
+                if [ "${start_hour}" -gt "${end_hour}" ]; then
+                    # Overnight range: check if current hour falls within the end portion (before end_hour)
+                    if [ "${current_hour}" -lt "${end_hour}" ]; then
+                        # Current hour is within overnight range from previous day - return protection mode
+                        echo "${protection_mode}"
+                        return 0
+                    fi
+                fi
+            done
+        fi
+    fi
+    
+    # Not in restricted hours - return "none" (no protection needed)
+    echo "none"
+    return 0
+}

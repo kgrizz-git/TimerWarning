@@ -118,7 +118,7 @@ main() {
     # This is a sparse array indexed 0-6 (Sunday-Saturday) with entries like:
     #   CONFIG_LOCK_HOURS_MONDAY=9-17
     declare -g -a lock_hours_lines=()
-    declare -g check_interval popup_size popup_position min_display_time popup_immovable configure_block_enabled
+    declare -g check_interval popup_size popup_position min_display_time popup_immovable configure_block_enabled uninstall_protection_mode
     
     # Load existing configuration
     # Function sets global variables and populates global arrays directly
@@ -134,18 +134,25 @@ main() {
         
         # Determine lock hours status for display in main menu (Phase 2)
         # If any day has lock hours configured, show as "Configured"
+        # Note: Must check if the VALUE after = is non-empty, not just if the array element exists
+        # (Empty values like "CONFIG_LOCK_HOURS_MONDAY=" should not count as configured)
         local lock_hours_status="(None)"
         local i
         for i in 0 1 2 3 4 5 6; do
             if [ -n "${lock_hours_lines[${i}]:-}" ]; then
-                lock_hours_status="(Configured)"
-                break
+                # Extract the value after the = sign
+                local lock_value
+                lock_value=$(echo "${lock_hours_lines[${i}]}" | cut -d'=' -f2- | tr -d '[:space:]')
+                if [ -n "${lock_value}" ]; then
+                    lock_hours_status="(Configured)"
+                    break
+                fi
             fi
         done
         
         # Show main menu
         local menu_choice
-        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}")
+        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}")
         local menu_exit=$?
         
         if [ "${menu_exit}" -eq 2 ] || [ "${menu_choice}" = "CANCELLED" ]; then
@@ -256,7 +263,7 @@ main() {
                 done
                 ;;
             6)
-                # Security Settings (configure blocking during restricted/lock hours)
+                # Block Configuration During Restricted Hours (configure blocking during restricted/lock hours)
                 local new_block_enabled
                 new_block_enabled=$(get_configure_block_enabled_config "${use_gui}")
                 if [ "${new_block_enabled}" = "CANCELLED" ]; then
@@ -267,7 +274,7 @@ main() {
                 fi
                 ;;
             7)
-                # Lock Hours Configuration (Enhancement #19 Phase 2)
+                # Additional Configuration Block Hours (Enhancement #19 Phase 2)
                 # Configure additional hours when configure.sh/manage.sh are blocked,
                 # separate from restricted hours.
                 configure_lock_hours_section "${use_gui}" lock_hours_lines
@@ -278,6 +285,17 @@ main() {
                 fi
                 ;;
             8)
+                # Uninstall Protection Configuration (Enhancement #26)
+                local new_protection_mode
+                new_protection_mode=$(get_uninstall_protection_mode_config "${use_gui}")
+                if [ "${new_protection_mode}" = "CANCELLED" ]; then
+                    # User already confirmed cancellation
+                    exit 0
+                else
+                    uninstall_protection_mode="${new_protection_mode}"
+                fi
+                ;;
+            9)
                 # Review and Save
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
                 if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}"; then
@@ -331,7 +349,7 @@ main() {
                     # Write configuration (with possibly modified values after safety overrides)
                     # Pass both restriction config_lines and lock_hours_lines (Phase 2),
                     # followed by optional safety override flags so write_config can add comments.
-                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
+                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
                         # Update timer file if it exists
                         if [ -f "${TIMER_FILE}" ]; then
                             if update_timer_file "${check_interval}"; then

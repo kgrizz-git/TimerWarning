@@ -65,6 +65,7 @@ get_section_status() {
 #   $8  - weekends_status
 #   $9  - configure_block_enabled
 #   $10 - lock_hours_status (e.g., "(None)" or "(Configured)") - Enhancement #19 Phase 2
+#   $11 - uninstall_protection_mode (e.g., "none" or "difficult") - Enhancement #26
 show_main_menu() {
     local use_gui="$1"
     local check_interval="$2"
@@ -76,6 +77,7 @@ show_main_menu() {
     local weekends_status="$8"
     local configure_block_enabled="$9"
     local lock_hours_status="${10}"
+    local uninstall_protection_mode="${11}"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
@@ -117,6 +119,14 @@ show_main_menu() {
             lock_status_display=" ${lock_hours_status}"
         fi
         
+        # Build uninstall protection status indicator (Enhancement #26)
+        local uninstall_protection_status=""
+        if [ "${uninstall_protection_mode}" = "difficult" ]; then
+            uninstall_protection_status=" (Enabled)"
+        else
+            uninstall_protection_status=" (Disabled)"
+        fi
+        
         local choice
         choice=$(show_multi_column_list_dialog \
             "Sleep Warning Configuration" \
@@ -131,9 +141,10 @@ show_main_menu() {
             "3" "Weekdays Configuration ${weekdays_status}" \
             "4" "Weekends Configuration ${weekends_status}" \
             "5" "Visual Day/Time Grid" \
-            "6" "Security Settings${security_status}" \
-            "7" "Lock Hours Configuration${lock_status_display}" \
-            "8" "Review and Save")
+            "6" "Block Configuration During Restricted Hours${security_status}" \
+            "7" "Additional Configuration Block Hours${lock_status_display}" \
+            "8" "Uninstall Protection${uninstall_protection_status}" \
+            "9" "Review and Save")
         local exit_code=$?
         
         # Check if user cancelled (empty choice and non-zero exit)
@@ -153,9 +164,9 @@ show_main_menu() {
             fi
         fi
         
-        # If OK was clicked but no item selected, default to "Review and Save" (option 7)
+        # If OK was clicked but no item selected, default to "Review and Save" (option 9)
         if [ -z "${choice}" ]; then
-            choice="7"
+            choice="9"
         fi
         
         echo "${choice}"
@@ -213,27 +224,39 @@ show_main_menu() {
         if [ -n "${lock_hours_status}" ]; then
             lock_status_display=" ${lock_hours_status}"
         fi
-        echo "6. Security Settings${security_status}" >&2
-        echo "   Configure blocking of configure.sh and manage.sh during restricted/lock hours" >&2
+        echo "6. Block Configuration During Restricted Hours${security_status}" >&2
+        echo "   Enable/disable blocking of configure.sh and manage.sh during restricted hours" >&2
+        echo "   (Must be enabled for Additional Configuration Block Hours to take effect)" >&2
         echo "" >&2
-        echo "7. Lock Hours Configuration${lock_status_display}" >&2
+        echo "7. Additional Configuration Block Hours${lock_status_display}" >&2
         echo "   Configure additional hours when configuration/management is blocked" >&2
+        echo "   (Only applies when Block Configuration During Restricted Hours is enabled)" >&2
         echo "" >&2
-        echo "8. Review and Save" >&2
+        # Build uninstall protection status indicator (Enhancement #26)
+        local uninstall_protection_status=""
+        if [ "${uninstall_protection_mode}" = "difficult" ]; then
+            uninstall_protection_status=" (Enabled)"
+        else
+            uninstall_protection_status=" (Disabled)"
+        fi
+        echo "8. Uninstall Protection${uninstall_protection_status}" >&2
+        echo "   Configure protection mode for uninstall.sh during restricted hours" >&2
+        echo "" >&2
+        echo "9. Review and Save" >&2
         echo "   Review your configuration and save changes" >&2
         echo "" >&2
         echo "To cancel and exit without saving, press Ctrl+C" >&2
         echo "" >&2
         
         while true; do
-            read -p "Select option [1-8]: " choice >&2
+            read -p "Select option [1-9]: " choice >&2
             case "${choice}" in
-                1|2|3|4|5|6|7|8)
+                1|2|3|4|5|6|7|8|9)
                     echo "${choice}"
                     return 0
                     ;;
                 *)
-                    echo "Invalid option. Please enter 1-7." >&2
+                    echo "Invalid option. Please enter 1-9." >&2
                     ;;
             esac
         done
