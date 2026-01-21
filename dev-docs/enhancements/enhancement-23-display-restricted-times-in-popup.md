@@ -1,9 +1,9 @@
 # Enhancement 23: Display Restricted Times/Days in Popup
 
-- **Description**: Enhance the warning popup to display the configured restricted hours and days, showing users exactly when restrictions are active and **when the next unrestricted time will be**. This provides transparency and helps users understand why they're seeing the warning and plan accordingly. The popup should show the current day's restricted hours in a clear, readable format, and calculate the next unrestricted time by evaluating the entire week's configuration (not just the current day). This requires careful analysis of all restricted time ranges, including overnight ranges that span multiple days and overlapping ranges across day boundaries.
-- **Files Affected**: `lib/popup-display.sh`, `lib/config.sh`, `sleep-warning.conf` (optionally `lib/configure-time.sh` if reusing formatting functions)
+- **Description**: Enhance the warning popup to display the configured restricted hours and days, showing users exactly when restrictions are active. **Note: The "next unrestricted time" feature is already implemented** (see `lib/popup-display.sh` line 127). This enhancement focuses on adding the display of current day's restricted hours in a clear, readable format. The popup should show the current day's restricted hours in a clear, readable format (12-hour format with AM/PM).
+- **Files Affected**: `lib/popup-display.sh`, `lib/config.sh`, `lib/time-calculations.sh` (already contains `get_next_unrestricted_time()`), `lib/configure-time.sh` (for `format_ranges_human()`), `lib/configure-core.sh` (for `format_hour_12h()`), `sleep-warning.conf`
 - **Priority**: Medium (improves user experience and transparency)
-- **Status**: Not implemented
+- **Status**: **Partially Implemented** - Next unrestricted time is already shown in popup. Restricted hours display still needs to be added.
 - **Feasibility Assessment**: ✅ **Highly Feasible** - Read configuration and format for display
 - **Implementation Approach**:
   - **Read Current Day's Restrictions**:
@@ -11,18 +11,17 @@
     - Format time ranges in human-readable format (e.g., "12:00 AM → 4:59 AM")
     - Handle overnight ranges that span midnight (e.g., "11:00 PM → 5:59 AM (next day)")
     - Handle multiple ranges per day (e.g., "12:00 AM → 4:59 AM AND 10:00 PM → 11:59 PM")
-  - **Calculate Next Unrestricted Time** (NEW):
-    - Build complete weekly timeline of all restricted intervals (0-10079 minutes)
-    - Reuse interval merging logic from Enhancement 22 to handle overlaps
-    - Starting from current time, search forward to find next unrestricted minute
-    - Handle wrap-around if next unrestricted time is in the following week
-    - Handle edge case: no unrestricted time in next 7 days (24/7 restrictions - should be prevented by Enhancement 22)
-    - Format result in human-readable format (e.g., "Friday at 9:00 AM" or "Tomorrow at 5:00 AM")
+  - **Calculate Next Unrestricted Time** (✅ **ALREADY IMPLEMENTED**):
+    - **Status**: Already implemented in `lib/time-calculations.sh` via `get_next_unrestricted_time()` function
+    - **Current Usage**: Popup already displays "Next unrestricted time: [time]" (see `lib/popup-display.sh` line 127)
+    - **Implementation**: Uses `build_weekly_restricted_intervals()`, `merge_overlapping_intervals()`, and `format_minute_offset_to_time()` functions
+    - **No changes needed** for this part of the enhancement
   - **Display in Popup**:
-    - Add section to popup message showing current day's restricted hours
-    - Add section showing when next unrestricted time will be (e.g., "Next unrestricted time: Friday at 9:00 AM")
+    - Add section to popup message showing current day's restricted hours (e.g., "Restricted Hours: Monday 12:00 AM → 5:00 AM")
+    - **Note**: "Next unrestricted time" is already displayed (no changes needed)
     - Use clear formatting with labels
     - Keep message concise to avoid overwhelming the popup
+    - **⚠️ Size Concern**: Small popup (400x250) may be too small - consider increasing default height or making restricted hours display optional
   - **Configuration Option**:
     - Add `POPUP_SHOW_RESTRICTED_TIMES=true/false` config option (default: `true`)
     - Allow users to disable this feature if they prefer shorter popup messages
@@ -165,29 +164,67 @@
 
 ## Implementation Details
 
+### ⚠️ Critical Findings from Code Review
+
+1. **Next Unrestricted Time is Already Implemented** ✅
+   - The popup already displays "Next unrestricted time: [time]" (see `lib/popup-display.sh` line 127)
+   - Uses `get_next_unrestricted_time()` from `lib/time-calculations.sh`
+   - **No implementation needed** for this feature
+
+2. **Restricted Hours Display is NOT Implemented** ⏳
+   - The popup does NOT show "Restricted Hours: [Current Day] [Time Ranges]"
+   - This is the remaining work for this enhancement
+
+3. **Popup Size Concerns** ⚠️
+   - **Small popup**: 400x250 pixels (only 250px height - very small!)
+   - **Medium popup**: 800x500 pixels (should have plenty of space)
+   - **Large popup**: 2000x1350 pixels (plenty of space)
+   - **Dialog tool behavior**:
+     - **YAD**: Uses `--fixed` flag - content must fit within specified dimensions (no auto-resize)
+     - **Zenity**: Will auto-expand if content exceeds size - may become unreasonably large
+     - **KDialog**: Auto-sizes - no size control
+   - **⚠️ NO SCROLLING SUPPORT**: Dialog tools (zenity, yad, kdialog) do NOT support scrolling in warning dialogs
+   - **Recommendation**: Test with small popup (400x250) - may need to:
+     - Increase default height for small popup
+     - Make restricted hours display optional (configurable)
+     - Use abbreviated format for small popups
+
+4. **File References Updated** ✅
+   - `get_next_unrestricted_time()` is in `lib/time-calculations.sh` (not `lib/popup-display.sh`)
+   - `format_hour_12h()` is in `lib/configure-core.sh` (correct)
+   - `format_ranges_human()` is in `lib/configure-time.sh` (correct)
+   - All interval building functions are in `lib/time-calculations.sh` and `lib/configure-validation.sh`
+
 ### Code Location Reference
 - **Existing formatting functions** (can reuse from modules):
-  - `format_hour_12h()` - Already exists in `lib/configure-core.sh` (can be reused or moved to shared location)
-  - `format_range_human()` - Already exists in `lib/configure-time.sh` (can be reused or moved to shared location)
-  - `format_ranges_human()` - Already exists in `lib/configure-time.sh` (can be reused or moved to shared location)
-- **Target function to modify**: `lib/popup-display.sh` `show_warning()` function
+  - `format_hour_12h()` - Already exists in `lib/configure-core.sh` (can be reused)
+  - `format_range_human()` - Already exists in `lib/configure-time.sh` (can be reused)
+  - `format_ranges_human()` - Already exists in `lib/configure-time.sh` (can be reused)
+- **Existing time calculation functions** (already implemented):
+  - `get_next_unrestricted_time()` - Already exists in `lib/time-calculations.sh` (already used in popup)
+  - `build_weekly_restricted_intervals()` - Already exists in `lib/time-calculations.sh`
+  - `merge_overlapping_intervals()` - Already exists in `lib/configure-validation.sh` (used by time-calculations.sh)
+  - `format_minute_offset_to_time()` - Already exists in `lib/time-calculations.sh`
+- **Target function to modify**: `lib/popup-display.sh` `show_warning()` function (around line 122-131)
 - **Config file to update**: `sleep-warning.conf`
 - **Message construction**: Modify message building logic in `lib/popup-display.sh` `show_warning()` function
 
 ### Message Format Examples
 
-**Current message (without enhancement):**
+**Current message (next unrestricted time already implemented):**
 ```
 ⚠️  Late Night Usage Warning ⚠️
 
 You are using your computer during restricted hours.
+
+Next unrestricted time: at 5:00 AM (in 3 hours 15 minutes)
 
 It's recommended to get some rest. Consider taking a break or going to sleep.
 
 This warning will appear every 10 minutes while you continue using your computer during these hours.
 ```
 
-**Enhanced message (single range):**
+**Enhanced message (with restricted hours display added):**
 ```
 ⚠️  Late Night Usage Warning ⚠️
 
@@ -274,39 +311,40 @@ This warning will appear every 10 minutes while you continue using your computer
 ```
 
 ### Implementation Complexity Assessment
-- **Difficulty**: Medium (increased from Low-Medium due to next unrestricted time calculation)
-- **Estimated Lines of Code**: ~400-500 lines (new functions + modifications)
-  - Basic formatting functions: ~100 lines
-  - Interval building and merging: ~150 lines
-  - Next unrestricted time search and formatting: ~150 lines
-  - Integration and testing: ~100 lines
+- **Difficulty**: Low-Medium (reduced from Medium since next unrestricted time is already implemented)
+- **Estimated Lines of Code**: ~100-150 lines (much less than originally estimated)
+  - Restricted hours formatting: ~50 lines (reuse `format_ranges_human()` from `lib/configure-time.sh`)
+  - Config option getter: ~20 lines (add to `lib/config.sh`)
+  - Integration into popup: ~30-50 lines (modify `show_warning()` in `lib/popup-display.sh`)
+  - Testing and edge cases: ~20-30 lines
 - **Key Challenges**: 
-  1. Building complete weekly timeline with all restricted intervals
-  2. Merging overlapping intervals (both within-day and cross-day)
-  3. Efficiently searching for next unrestricted time across entire week
-  4. Handling inherited restrictions from previous day's overnight ranges
-  5. Handling wrap-around from end of week to beginning of week
-  6. Formatting relative time descriptions ("in X minutes", "Tomorrow at", etc.)
+  1. ✅ Building complete weekly timeline - Already implemented in `lib/time-calculations.sh`
+  2. ✅ Merging overlapping intervals - Already implemented in `lib/configure-validation.sh`
+  3. ✅ Searching for next unrestricted time - Already implemented in `lib/time-calculations.sh`
+  4. Handling inherited restrictions from previous day's overnight ranges (need to detect and format)
+  5. ✅ Wrap-around handling - Already implemented
+  6. ✅ Formatting relative time descriptions - Already implemented
+  7. **NEW**: Ensuring restricted hours display fits in small popup (400x250) - may need to increase default height or make optional
 - **Dependencies**: 
   - None for basic display
   - Conceptually related to Enhancement 22 (uses similar interval merging logic)
   - Can share/adapt interval merging code if Enhancement 22 is implemented
 
 ### Performance Considerations
-- Interval building and merging: O(n log n) where n = number of time ranges (typically < 50)
-- Next unrestricted time search: O(m) where m = number of merged intervals (typically < 20)
-- Overall: Should complete in < 10ms even with complex configurations
+- **Next unrestricted time calculation**: Already implemented and optimized in `lib/time-calculations.sh`
+- **Restricted hours formatting**: O(n) where n = number of ranges per day (typically 1-3)
+- **Overall**: Should complete in < 5ms for formatting restricted hours
 - All processing is done once per popup display
 - No continuous processing or monitoring
-- Config file read is already done in `main()`, can reuse parsed data
-- Performance impact: Negligible (< 10ms for all calculations)
+- Config file read is already done in `main()`, can reuse parsed data via `parse_config()`
+- Performance impact: Negligible (< 5ms for formatting restricted hours display)
 
 ### Code Reusability with Enhancement 22
-If Enhancement 22 is implemented first:
-- Can reuse `build_weekly_restricted_intervals()` function
-- Can reuse `merge_intervals()` function
-- Can reuse day/hour/minute conversion utilities
-- Reduces implementation effort by ~30% (reuse ~150 lines of code)
+**Status**: Enhancement 22 is already implemented, and interval building functions are available:
+- ✅ Can reuse `build_weekly_restricted_intervals()` from `lib/time-calculations.sh`
+- ✅ Can reuse `merge_overlapping_intervals()` from `lib/configure-validation.sh`
+- ✅ Can reuse day/hour/minute conversion utilities from `lib/time-calculations.sh`
+- **Implementation effort reduced**: Only need to add restricted hours formatting and display (much simpler than originally planned)
 
 ### Technical Implementation Tips
 
@@ -349,8 +387,10 @@ POPUP_SHOW_RESTRICTED_TIMES=true
 - Ensure proper line breaks (`\n\n` between sections)
 - Keep message concise (avoid overwhelming popup)
 - Test with longest possible day name ("Wednesday") and time format
-- Consider popup size limits (especially for small popup size setting)
+- **⚠️ CRITICAL**: Consider popup size limits (especially for small popup 400x250)
+- **⚠️ NO SCROLLING**: Dialog tools don't support scrolling - all content must fit
 - Use consistent formatting (e.g., always use → arrow, not ->)
+- **Size Testing Priority**: Test small popup first - may need abbreviated format or increased height
 
 **6. Potential Pitfalls to Avoid**
 - **Don't parse config multiple times**: Reuse data from `main()`
@@ -498,123 +538,55 @@ fi
   - [ ] Join multiple ranges with " AND "
   - [ ] Return formatted string
 
-### Phase 3: Implement Weekly Timeline and Interval Building (NEW)
-- [ ] Add `build_weekly_restricted_intervals()` function to `lib/popup-display.sh`
-  - [ ] Create array to store all restricted intervals as [start_minute, end_minute] pairs
-  - [ ] For each day (0-6):
-    - [ ] Get day's configuration using `parse_config()`
-    - [ ] Parse all time ranges for that day (handle comma-separated ranges)
-    - [ ] For each range:
-      - [ ] Parse start and end hours
-      - [ ] If overnight range (start > end):
-        - [ ] Create segment 1: start_hour to 23:59 on current day
-        - [ ] Create segment 2: 00:00 to end_hour on next day (handle Saturday → Sunday wrap)
-      - [ ] If normal range (start <= end):
-        - [ ] Create single segment within same day
-      - [ ] Convert hours to minute offsets from start of week
-        - [ ] Formula: `day * 1440 + hour * 60`
-        - [ ] Sunday (0): 0-1439, Monday (1): 1440-2879, etc.
-      - [ ] Add interval to array
-  - [ ] Return array of all restricted intervals (before merging)
+### Phase 3: Weekly Timeline and Interval Building (✅ ALREADY IMPLEMENTED)
+**Status**: All interval building functions are already implemented in `lib/time-calculations.sh` and `lib/configure-validation.sh`:
+- ✅ `build_weekly_restricted_intervals()` - Already exists in `lib/time-calculations.sh`
+- ✅ `merge_overlapping_intervals()` - Already exists in `lib/configure-validation.sh` (used by time-calculations.sh)
+- ✅ `is_minute_restricted()` - Logic already exists in `get_next_unrestricted_time()`
 
-- [ ] Add `merge_intervals()` function to `lib/popup-display.sh`
-  - [ ] Take array of [start, end] intervals as input
-  - [ ] Sort intervals by start time
-  - [ ] Merge overlapping or adjacent intervals:
-    - [ ] If interval A ends >= interval B starts, merge them
-    - [ ] New interval: [min(A.start, B.start), max(A.end, B.end)]
-  - [ ] Return array of merged intervals (no overlaps)
-  - [ ] Handle edge cases:
-    - [ ] Empty array
-    - [ ] Single interval
-    - [ ] All intervals overlap → single merged interval
+**No implementation needed** - These functions are already available and can be reused if needed for displaying restricted hours.
 
-- [ ] Add `is_minute_restricted()` function to `lib/popup-display.sh`
-  - [ ] Take minute offset (0-10079) and merged intervals array
-  - [ ] Check if minute falls within any restricted interval
-  - [ ] Return 0 if restricted, 1 if unrestricted
-  - [ ] Use binary search or linear search for efficiency
+### Phase 4: Next Unrestricted Time Calculation (✅ ALREADY IMPLEMENTED)
+**Status**: All functions for next unrestricted time calculation are already implemented in `lib/time-calculations.sh`:
+- ✅ `get_current_minute_offset()` - Already exists
+- ✅ `minute_offset_to_day_hour_minute()` - Already exists (or equivalent logic)
+- ✅ `find_next_unrestricted_minute()` - Logic already exists in `get_next_unrestricted_time()`
+- ✅ `format_minute_offset_to_time()` - Already exists (formats next unrestricted time)
+- ✅ `get_next_unrestricted_time()` - Already exists and is used in popup (line 120 of popup-display.sh)
 
-### Phase 4: Implement Next Unrestricted Time Calculation (NEW)
-- [ ] Add `get_current_minute_offset()` function to `lib/popup-display.sh`
-  - [ ] Get current day of week (0-6)
-  - [ ] Get current hour (0-23) and minute (0-59)
-  - [ ] Calculate minute offset from start of week: `day * 1440 + hour * 60 + minute`
-  - [ ] Return minute offset (0-10079)
-
-- [ ] Add `minute_offset_to_day_hour_minute()` function to `lib/popup-display.sh`
-  - [ ] Take minute offset (0-10079) as input
-  - [ ] Calculate day: `minute_offset / 1440` (integer division)
-  - [ ] Calculate remaining minutes: `minute_offset % 1440`
-  - [ ] Calculate hour: `remaining_minutes / 60` (integer division)
-  - [ ] Calculate minute: `remaining_minutes % 60`
-  - [ ] Return day, hour, minute as separate values
-
-- [ ] Add `find_next_unrestricted_minute()` function to `lib/popup-display.sh`
-  - [ ] Take current minute offset and merged intervals array as input
-  - [ ] Start from current minute offset
-  - [ ] Check if current minute is restricted
-  - [ ] If restricted, find end of current restricted interval (for efficiency)
-  - [ ] Jump to end of interval + 1 minute
-  - [ ] If unrestricted, check next minute
-  - [ ] Continue searching forward through the week
-  - [ ] If reach end of week (minute 10079), wrap to start (minute 0)
-  - [ ] Stop if return to starting point (means 24/7 restrictions)
-  - [ ] Return minute offset of first unrestricted time, or -1 if none found
-
-- [ ] Add `format_next_unrestricted_time()` function to `lib/popup-display.sh`
-  - [ ] Take next unrestricted minute offset and current minute offset as input
-  - [ ] Convert minute offset to day/hour/minute using `minute_offset_to_day_hour_minute()`
-  - [ ] Calculate time difference (in minutes)
-  - [ ] Format based on time difference:
-    - [ ] If < 60 minutes: "in X minutes"
-    - [ ] If same day: "at HH:MM AM/PM (in X hours Y minutes)"
-    - [ ] If next day: "Tomorrow at HH:MM AM/PM"
-    - [ ] If 2+ days away: "[DayName] at HH:MM AM/PM"
-  - [ ] Use `format_time_12h()` for time formatting
-  - [ ] Use `get_day_name()` for day name
-  - [ ] Return formatted string
-
-- [ ] Add `get_next_unrestricted_time()` function to `lib/popup-display.sh` (main orchestrator)
-  - [ ] Build weekly restricted intervals using `build_weekly_restricted_intervals()`
-  - [ ] Merge intervals using `merge_intervals()`
-  - [ ] Get current minute offset using `get_current_minute_offset()`
-  - [ ] Find next unrestricted minute using `find_next_unrestricted_minute()`
-  - [ ] If no unrestricted time found (24/7 restrictions):
-    - [ ] Return error message: "No unrestricted time scheduled (24/7 restrictions)"
-    - [ ] Log warning to log file
-  - [ ] Format next unrestricted time using `format_next_unrestricted_time()`
-  - [ ] Return formatted string
+**No implementation needed** - This phase is complete. The popup already displays next unrestricted time.
 
 ### Phase 5: Implement Restriction Display Logic
 - [ ] Add `get_restricted_times_message()` function to `lib/popup-display.sh`
-  - [ ] Get current day number
-  - [ ] Get current day name using `get_day_name()`
-  - [ ] Get current day's restrictions (reuse existing logic from `main()`)
-  - [ ] Handle inherited restrictions from previous day (overnight ranges)
-  - [ ] Format restrictions using `format_ranges_human()`
-  - [ ] Call `get_next_unrestricted_time()` to get next unrestricted time
-  - [ ] Build complete message with both current restrictions and next unrestricted time
-  - [ ] Return formatted message lines:
-    - [ ] "Restricted Hours: [Day] [TimeRanges]"
-    - [ ] "Next unrestricted time: [FormattedTime]"
+  - [ ] Get current day number (from `date +%w` or passed as parameter)
+  - [ ] Get current day name using `get_day_name()` (or convert day number to name)
+  - [ ] Get current day's restrictions using `parse_config()` (from `lib/config.sh`)
+  - [ ] Handle inherited restrictions from previous day (overnight ranges) - check if current hour is restricted due to previous day
+  - [ ] Format restrictions using `format_ranges_human()` from `lib/configure-time.sh`
+  - [ ] **Note**: `get_next_unrestricted_time()` is already called in `show_warning()` - no need to call again
+  - [ ] Build message line: "Restricted Hours: [Day] [TimeRanges]"
+  - [ ] Return formatted message line
   - [ ] Handle edge cases:
-    - [ ] Current day has no restrictions but inherits from previous day
+    - [ ] Current day has no restrictions but inherits from previous day (show previous day's range)
     - [ ] Multiple ranges on same day
     - [ ] Empty restrictions (shouldn't happen during warning, but handle gracefully)
     - [ ] 24/7 restrictions (show appropriate error message)
 
 ### Phase 6: Integrate into Popup Display
-- [ ] Modify `show_warning()` function in `lib/popup-display.sh`
-  - [ ] Read `POPUP_SHOW_RESTRICTED_TIMES` config option
+- [ ] Modify `show_warning()` function in `lib/popup-display.sh` (around line 122-131)
+  - [ ] Read `POPUP_SHOW_RESTRICTED_TIMES` config option using new getter function
   - [ ] If enabled:
-    - [ ] Call `get_restricted_times_message()` to get restriction info and next unrestricted time
-    - [ ] Insert restriction info into popup message (after "restricted hours" line)
-    - [ ] Insert next unrestricted time on separate line
+    - [ ] Call `get_restricted_times_message()` to get restriction info
+    - [ ] Insert restriction info into popup message (after "You are using your computer during restricted hours." line, before "Next unrestricted time" line)
+    - [ ] **Note**: "Next unrestricted time" is already displayed (line 127) - no changes needed
     - [ ] Maintain proper message formatting and line breaks
-  - [ ] If disabled: leave message as-is (current behavior)
-  - [ ] Test message length doesn't exceed popup size limits
-  - [ ] Consider increasing default popup height if needed to accommodate new content
+  - [ ] If disabled: leave message as-is (current behavior - shows next unrestricted time but not restricted hours)
+  - [ ] **⚠️ Size Testing**: Test with small popup (400x250) - may need to increase height or make restricted hours optional
+  - [ ] **⚠️ Dialog Tool Behavior**:
+    - [ ] YAD: Uses `--fixed` flag (won't auto-resize) - ensure content fits
+    - [ ] Zenity: Will auto-expand if content exceeds size - test to ensure it doesn't become too large
+    - [ ] KDialog: Auto-sizes - test to ensure reasonable size
+  - [ ] **⚠️ No Scrolling Support**: Dialog tools don't support scrolling in warning dialogs - content must fit within specified dimensions
 
 ### Phase 7: Testing
 
@@ -633,37 +605,13 @@ fi
 - [ ] Test with config option disabled
   - [ ] Verify popup displays without restriction info (original behavior)
 
-#### Next Unrestricted Time Calculation Tests
-- [ ] **Test interval building**
-  - [ ] Test `build_weekly_restricted_intervals()` with various configurations
-  - [ ] Verify overnight ranges split correctly across days
-  - [ ] Verify minute offsets calculated correctly for each day
-  - [ ] Verify Saturday → Sunday wrap-around handled correctly
-
-- [ ] **Test interval merging**
-  - [ ] Test `merge_intervals()` with non-overlapping intervals (should remain separate)
-  - [ ] Test with overlapping intervals within same day (e.g., "0-10,9-23" → merge to "0-23")
-  - [ ] Test with overlapping intervals across days (e.g., Monday "23-6" + Tuesday "0-5")
-  - [ ] Test with adjacent intervals (e.g., "0-5" and "5-10" → merge to "0-10")
-  - [ ] Test with multiple overlapping intervals
-  - [ ] Verify merged intervals don't double-count restricted time
-
-- [ ] **Test next unrestricted time search**
-  - [ ] Test when next unrestricted time is same day (e.g., restricted 0-5, current time 2 AM, next time 5 AM)
-  - [ ] Test when next unrestricted time is tomorrow (e.g., restricted 0-23, current time 10 AM, next time tomorrow 12 AM)
-  - [ ] Test when next unrestricted time is multiple days away (e.g., Tuesday restricted 0-23, next unrestricted Friday 9 AM)
-  - [ ] Test when next unrestricted time is < 60 minutes away (should show "in X minutes")
-  - [ ] Test when current time is at the end of a restriction (e.g., restriction ends at 5:00 AM, current time 4:59 AM)
-  - [ ] Test wrap-around from end of week to beginning (Saturday → Sunday)
-  - [ ] Test with multiple gaps in restrictions (should find nearest gap)
-
-- [ ] **Test time formatting**
-  - [ ] Test relative time: "in X minutes" (for < 60 minutes)
-  - [ ] Test same day: "at HH:MM AM/PM"
-  - [ ] Test tomorrow: "Tomorrow at HH:MM AM/PM"
-  - [ ] Test multiple days: "[DayName] at HH:MM AM/PM"
-  - [ ] Test hour/minute calculation correctness
-  - [ ] Test 12-hour format correctness (AM/PM)
+#### Next Unrestricted Time Calculation Tests (✅ ALREADY IMPLEMENTED)
+**Status**: Next unrestricted time calculation is already implemented and working. These tests are for verification only:
+- [ ] **Verify existing implementation**
+  - [ ] Test that `get_next_unrestricted_time()` returns correct values for various configurations
+  - [ ] Test that popup displays next unrestricted time correctly
+  - [ ] Test time formatting (relative time, same day, tomorrow, multiple days)
+  - [ ] Test edge cases (wrap-around, 24/7 restrictions, etc.)
 
 #### Edge Case Tests
 - [ ] Test all days of week
@@ -694,10 +642,16 @@ fi
 #### Display and Integration Tests
 - [ ] Test popup appearance
   - [ ] Verify message formatting is readable
-  - [ ] Verify popup size accommodates new content (both restriction info and next unrestricted time)
-  - [ ] Test with different popup sizes (small, medium, large) - may need to increase height
-  - [ ] Test with different dialog tools (zenity, yad, kdialog)
+  - [ ] **⚠️ CRITICAL**: Test with small popup (400x250) - verify restricted hours info fits without overflow
+  - [ ] **⚠️ CRITICAL**: Test with medium popup (800x500) - should have plenty of space
+  - [ ] Test with large popup (2000x1350) - should have plenty of space
+  - [ ] Test with different dialog tools (zenity, yad, kdialog):
+    - [ ] YAD: Uses `--fixed` flag - content must fit within specified dimensions (no auto-resize)
+    - [ ] Zenity: Will auto-expand if content exceeds size - verify it doesn't become unreasonably large
+    - [ ] KDialog: Auto-sizes - verify reasonable size
+  - [ ] **⚠️ No Scrolling**: Dialog tools don't support scrolling in warning dialogs - all content must fit
   - [ ] Verify line breaks and formatting look good
+  - [ ] Test with longest possible day name ("Wednesday") and longest time format
 - [ ] Test with different environments
   - [ ] X11
   - [ ] Wayland
@@ -778,48 +732,43 @@ This enhancement significantly improves user experience by:
 
 ### Key Implementation Components
 
-1. **Time Formatting** (~100 lines)
-   - Convert 24h to 12h format
-   - Format ranges with day names
-   - Format relative times ("in X minutes", "Tomorrow at")
+1. **Time Formatting** (✅ Already implemented)
+   - ✅ Convert 24h to 12h format - `format_hour_12h()` in `lib/configure-core.sh`
+   - ✅ Format ranges with day names - `format_ranges_human()` in `lib/configure-time.sh`
+   - ✅ Format relative times - `format_minute_offset_to_time()` in `lib/time-calculations.sh`
 
-2. **Interval Building** (~150 lines)
-   - Build weekly timeline (0-10079 minutes)
-   - Handle overnight ranges that span days
-   - Handle Saturday → Sunday wrap-around
+2. **Interval Building** (✅ Already implemented)
+   - ✅ Build weekly timeline - `build_weekly_restricted_intervals()` in `lib/time-calculations.sh`
+   - ✅ Handle overnight ranges - Already handled
+   - ✅ Handle Saturday → Sunday wrap-around - Already handled
 
-3. **Interval Merging** (~100 lines)
-   - Merge overlapping intervals within same day
-   - Merge overlapping intervals across day boundaries
-   - Critical for accurate "next unrestricted time" calculation
-   - **Shares logic with Enhancement 22**
+3. **Interval Merging** (✅ Already implemented)
+   - ✅ Merge overlapping intervals - `merge_overlapping_intervals()` in `lib/configure-validation.sh`
+   - ✅ Used by next unrestricted time calculation
 
-4. **Next Unrestricted Time Search** (~100 lines)
-   - Efficient search through merged intervals
-   - Jump through restricted intervals (don't check every minute)
-   - Handle wrap-around from end of week to beginning
-   - Handle edge case: 24/7 restrictions (no unrestricted time)
+4. **Next Unrestricted Time Search** (✅ Already implemented)
+   - ✅ Efficient search - `get_next_unrestricted_time()` in `lib/time-calculations.sh`
+   - ✅ Already displayed in popup (line 127 of `lib/popup-display.sh`)
 
-5. **Display Integration** (~50 lines)
-   - Integrate into `show_warning()` function
-   - Add config option to enable/disable
-   - Format message with proper line breaks
+5. **Display Integration** (⏳ Still needs implementation - ~50-100 lines)
+   - ⏳ Add config option getter to `lib/config.sh` (~20 lines)
+   - ⏳ Add function to format and get restricted hours message (~30 lines)
+   - ⏳ Integrate into `show_warning()` function (~30-50 lines)
+   - ⏳ Handle popup size constraints (especially small popup 400x250)
 
 ### Relationship to Enhancement 22
 
-Both enhancements work with weekly timelines and need to:
-- Build complete weekly timeline of restricted intervals
-- Merge overlapping intervals (within-day and cross-day)
-- Handle overnight ranges and wrap-around
+**Status**: Enhancement 22 is already implemented, and shared functions are available:
+- ✅ `build_weekly_restricted_intervals()` - Available in `lib/time-calculations.sh`
+- ✅ `merge_overlapping_intervals()` - Available in `lib/configure-validation.sh`
+- ✅ Both functions handle overnight ranges and wrap-around correctly
 
-**Code Reuse Opportunity**:
-- Extract shared functions: `build_weekly_restricted_intervals()`, `merge_intervals()`
-- Place in `lib/popup-display.sh` module (or create shared utility module if functions are needed by both sleep-warning.sh and configure.sh)
+**Code Reuse**:
 - Enhancement 22 uses these for validation (checking if total >= 10080 minutes)
-- Enhancement 23 uses these for next unrestricted time calculation
-- Implementing Enhancement 22 first reduces Enhancement 23 effort by ~30%
+- Enhancement 23's next unrestricted time calculation already uses these (implemented)
+- Enhancement 23's restricted hours display can reuse `format_ranges_human()` from `lib/configure-time.sh`
 
-**Implementation Order Recommendation**:
-1. Implement Enhancement 22 first (validation is critical safety feature)
-2. Then implement Enhancement 23 (reuse interval logic, add display features)
-3. Extract shared functions to common utilities for maintainability
+**Implementation Status**:
+1. ✅ Enhancement 22 implemented (validation prevents 24/7 restrictions)
+2. ✅ Enhancement 23's next unrestricted time implemented (already in popup)
+3. ⏳ Enhancement 23's restricted hours display - Still needs to be added (this is the remaining work)

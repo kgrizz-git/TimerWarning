@@ -2,6 +2,17 @@
 
 This document provides a concise overview of work remaining to be completed for the Sleep Warning System. Enhancements are listed in numerical order.
 
+## Priority Items
+
+- [ ] **#21: One-Time Pause Feature (5 or 10 Minutes)** - 5 or 10 minute pause once per day, available from popup
+- [ ] **#25: User-Selectable Dialog Tool** - Allow manual dialog tool selection
+- [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - Comprehensive testing across all dialog tools and environments; apply priority to other relevant scripts
+- [ ] **#4: Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode
+- [ ] **Donation Links** - PayPal setup, GitHub sponsors, Patreon integration
+- [ ] **Licensing** - License selection and application
+- [ ] **#13a: Single Executable Installer Script** - Self-extracting installer bundling all files
+- [ ] **#13b: Desktop GUI Application Wrapper** - Native desktop application (GTK/Qt/Electron)
+
 ## Master Plan Phases
 
 ### Phase 3: Installation and Deployment
@@ -51,7 +62,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#2: Custom Wayland Protocol Implementation** - Custom Wayland protocol for gamescope (very complex, limited benefit)
 - [ ] **#3: Native Desktop Application (GUI Wrapper)** - Full desktop application to replace bash scripts (improves UX but not Gaming Mode compatibility)
 - [ ] **#4: Systemd Timer Alternative (Cron-based)** - Use cron instead of systemd timers
-- [ ] **#5: Web-Based Configuration Interface** - Web server for configuration
+- [x] ~~**#5: Web-Based Configuration Interface**~~ - **NOT PLANNED** - Web server for configuration (will not be implemented)
 
 ## Testing & Validation Work
 
