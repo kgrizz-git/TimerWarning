@@ -199,9 +199,9 @@ systemctl --user daemon-reload
 - Custom size: `WIDTHxHEIGHT` (e.g., `450x220`)
 
 **Predefined Sizes**:
-- `small`: 300x150 pixels
-- `medium`: 400x200 pixels (default)
-- `large`: 500x250 pixels
+- `small`: 400x250 pixels
+- `medium`: 800x500 pixels (default)
+- `large`: 2000x1350 pixels
 
 **Custom Size Format**: `WIDTHxHEIGHT`
 - Width: 200-2000 pixels
@@ -211,9 +211,9 @@ systemctl --user daemon-reload
 
 **Examples**:
 ```
-POPUP_SIZE=medium      # Use medium size (400x200)
-POPUP_SIZE=small       # Use small size (300x150)
-POPUP_SIZE=large       # Use large size (500x250)
+POPUP_SIZE=medium      # Use medium size (800x500)
+POPUP_SIZE=small       # Use small size (400x250)
+POPUP_SIZE=large       # Use large size (2000x1350)
 POPUP_SIZE=450x220     # Custom size: 450 pixels wide, 220 pixels tall
 ```
 

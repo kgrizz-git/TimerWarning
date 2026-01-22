@@ -42,7 +42,7 @@ Choose one of these methods:
 
 **Option A: Clone with Git** (recommended for easy updates):
 ```bash
-git clone https://github.com/YOUR_USERNAME/LinuxTimerWarning.git
+git clone https://github.com/kgrizz-git/LinuxTimerWarning.git
 cd LinuxTimerWarning
 ```
 
