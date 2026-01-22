@@ -1,8 +1,8 @@
 ### 20. Additional Hours for Config Locking and configure.sh Blocking
 - **Description**: Allow users to configure additional time ranges (separate from restriction hours) during which config file locking and configure.sh blocking are active. This allows users to lock configuration during specific hours even if those hours are not restricted (e.g., lock config during work hours to prevent distraction-related changes)
-- **Files Affected**: `sleep-warning.sh`, `configure.sh`, `sleep-warning.conf`, `configure.sh`, `manage.sh`, `uninstall.sh` (Phase 2)
+- **Files Affected**: `sleep-warning.sh`, `configure.sh`, `sleep-warning.conf`, `manage.sh`
 - **Priority**: Low (nice-to-have feature, adds complexity)
-- **Status**: Phase 1 Complete (configure.sh/manage.sh blocking), Phase 2 Pending (uninstall.sh integration)
+- **Status**: Phase 1 Mostly Complete - Core functionality implemented (configure.sh/manage.sh blocking), remaining: weekday/weekend together configuration options to match restricted hours flow
 - **Feasibility Assessment**: ✅ **Highly Feasible** - Simple extension of existing time range configuration
 - **Implementation Approach**:
   - **Separate Time Range Configuration**:
@@ -152,6 +152,19 @@ Phase 1 implements additional lock hours for blocking `configure.sh` and `manage
   - [x] Store results in `lock_hours_lines` array
   - [x] Support "skip" to disable lock hours for a day
   - [x] Support both GUI and text modes
+- [ ] Add weekday/weekend together configuration options (matching restricted hours flow)
+  - [ ] When configuring lock hours, ask if user wants to set all weekdays (Monday-Friday) the same
+    - [ ] Use `ask_weekday_together()` function (reuse from restricted hours)
+    - [ ] If yes, configure all weekdays together using single input
+    - [ ] Apply same lock hours to all weekdays (indices 1-5)
+    - [ ] If no, configure each weekday individually (existing behavior)
+  - [ ] When configuring lock hours, ask if user wants to set both weekend days (Saturday-Sunday) the same
+    - [ ] Use `ask_weekend_together()` function (reuse from restricted hours)
+    - [ ] If yes, configure both weekend days together using single input
+    - [ ] Apply same lock hours to both weekend days (indices 0 and 6)
+    - [ ] If no, configure each weekend day individually (existing behavior)
+  - [ ] Update `configure_lock_hours_section()` to check if current day is weekday or weekend
+  - [ ] Implement same logic pattern as `configure_weekdays_section()` and `configure_weekends_section()`
 
 #### 3.3 Input Function
 - [x] Create `get_lock_hours_config()` function in `lib/configure-input.sh`
@@ -185,6 +198,17 @@ Phase 1 implements additional lock hours for blocking `configure.sh` and `manage
   - [x] Support "skip" for lock hours on a per-day basis
   - [x] Preserve existing navigation behavior (back, cancel)
   - [x] Ensure changes update both `config_lines` and `lock_hours_lines` correctly
+- [ ] Add weekday/weekend together editing from grid (matching restricted hours flow)
+  - [ ] When editing lock hours for a weekday from grid, ask if user wants to apply to all weekdays
+    - [ ] Use `ask_weekday_together()` function (reuse from restricted hours)
+    - [ ] If yes, apply lock hours to all weekdays (indices 1-5) with single input
+    - [ ] If no, edit only the selected weekday (existing behavior)
+  - [ ] When editing lock hours for a weekend day from grid, ask if user wants to apply to both weekend days
+    - [ ] Use `ask_weekend_together()` function (reuse from restricted hours)
+    - [ ] If yes, apply lock hours to both weekend days (indices 0 and 6) with single input
+    - [ ] If no, edit only the selected weekend day (existing behavior)
+  - [ ] Update `configure_day_from_grid()` function to check if day is weekday or weekend when editing lock hours
+  - [ ] Implement same logic pattern as restricted hours editing in `configure_day_from_grid()` (lines 296-373)
 
 ---
 
@@ -300,116 +324,15 @@ Phase 1 implements additional lock hours for blocking `configure.sh` and `manage
 
 ---
 
-## Phase 2: Uninstall.sh Integration (Pending)
+## Phase 2: Not Planned
 
-### Overview
-Phase 2 extends the lock hours feature to also apply to `uninstall.sh` when `UNINSTALL_PROTECTION_MODE=difficult` is enabled. This allows users to configure additional lock hours (separate from restriction hours) during which uninstall requires difficult verification (confirmation phrase + arithmetic questions). This extends Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours) to also check lock hours.
-
-### Files to Modify
-
-#### Core Files
-- `lib/time-validation.sh` - Update `check_uninstall_protection_time()` to check lock hours
-- `uninstall.sh` - Already uses `check_uninstall_protection_time()`, no changes needed if function is updated
-- `sleep-warning.conf` - Update documentation to mention uninstall integration
-- `user-docs/CONFIGURATION.md` - Document uninstall lock hours integration
-
----
-
-### 1. Time Check Implementation
-
-#### 1.1 Update Uninstall Protection Time Check
-- [ ] Update `check_uninstall_protection_time()` in `lib/time-validation.sh`
-  - [ ] Currently only checks restriction hours
-  - [ ] Add check for lock hours using `parse_lock_hours()` and `is_lock_hour()`
-  - [ ] Return protection mode ("difficult") if in restriction hours OR lock hours (OR logic)
-  - [ ] Handle overnight ranges from previous day for both restriction and lock hours
-  - [ ] Only check lock hours if `UNINSTALL_PROTECTION_MODE=difficult` (dependency)
-  - [ ] Maintain backward compatibility (if no lock hours configured, behavior unchanged)
-
-#### 1.2 Integration Notes
-- [ ] Verify `uninstall.sh` already sources required modules
-  - [ ] Ensure `lib/config.sh` is sourced (for `parse_lock_hours()`)
-  - [ ] Ensure `lib/time-validation.sh` is sourced (for `check_uninstall_protection_time()`)
-- [ ] No changes needed to `uninstall.sh` main logic (already uses `check_uninstall_protection_time()`)
-
----
-
-### 2. Documentation Updates
-
-#### 2.1 User Documentation
-- [ ] Update `user-docs/CONFIGURATION.md`
-  - [ ] Update "Uninstall Protection During Restricted Hours" section
-  - [ ] Add note that lock hours also apply to uninstall protection
-  - [ ] Explain that uninstall requires verification during restriction hours OR lock hours
-  - [ ] Update examples to show uninstall lock hours usage
-  - [ ] Add warning about increased risk of preventing legitimate uninstall needs
-
-#### 2.2 Config File Documentation
-- [ ] Update `sleep-warning.conf` template
-  - [ ] Update `CONFIG_LOCK_HOURS` section to mention uninstall integration
-  - [ ] Note that lock hours apply to both configure.sh/manage.sh blocking AND uninstall protection
-  - [ ] Add warning about uninstall lock hours increasing risk
-
-#### 2.3 Enhancement Documentation
-- [ ] Update this enhancement document
-  - [ ] Mark Phase 2 as complete when implemented
-  - [ ] Document any design decisions or implementation notes
-
----
-
-### 3. Testing (Phase 2)
-
-#### 3.1 Recommended Tests
-- [ ] Test `check_uninstall_protection_time()` with lock hours
-  - [ ] Test when `UNINSTALL_PROTECTION_MODE=difficult` and NOT in restriction/lock hours (should return "none")
-  - [ ] Test when in restriction hours only (should return "difficult")
-  - [ ] Test when in lock hours only (should return "difficult")
-  - [ ] Test when in both restriction and lock hours (should return "difficult")
-  - [ ] Test overnight ranges from previous day for lock hours
-  - [ ] Test when `UNINSTALL_PROTECTION_MODE=none` (should return "none" regardless of lock hours)
-- [ ] Test uninstall.sh with lock hours
-  - [ ] Set `UNINSTALL_PROTECTION_MODE=difficult` and configure lock hours
-  - [ ] Run `uninstall.sh` during lock hours (should require verification)
-  - [ ] Run `uninstall.sh` during restriction hours (should require verification)
-  - [ ] Run `uninstall.sh` outside both (should work normally without verification)
-  - [ ] Test verification process works correctly during lock hours
-- [ ] Test backward compatibility
-  - [ ] Verify uninstall behavior unchanged when no lock hours configured
-  - [ ] Verify uninstall behavior unchanged when `UNINSTALL_PROTECTION_MODE=none`
-
----
-
-### 4. Safety Considerations
-
-#### 4.1 Risk Assessment
-- [ ] Review risk assessment for uninstall lock hours
-  - [ ] Lock hours increase the risk of preventing legitimate uninstall needs
-  - [ ] Users may need to uninstall during lock hours (e.g., system issues)
-  - [ ] Manual uninstall guide script should still be accessible (not blocked)
-- [ ] Document warnings in user documentation
-  - [ ] Warn users about increased risk when enabling lock hours for uninstall
-  - [ ] Recommend using lock hours only for configure.sh/manage.sh blocking (not uninstall)
-  - [ ] Note that manual uninstall guide is always available as safety mechanism
-
----
-
-### 5. Implementation Order Recommendation
-
-1. **Time Check Implementation** (Section 1) - Core functionality
-2. **Documentation Updates** (Section 2) - User guidance
-3. **Testing** (Section 3) - Validation
-4. **Safety Review** (Section 4) - Risk assessment
-
----
+**Note**: Phase 2 for this enhancement is not planned. Uninstall protection will have its own separate schedule configuration (see Enhancement #26 Phase 2) with dedicated variables (`UNINSTALL_LOCK_HOURS_DAYNAME`) rather than reusing `CONFIG_LOCK_HOURS`. This separation provides better clarity and allows independent configuration of uninstall protection hours.
 
 ### Notes
 
-- **Phase 1 Status**: ✅ **Complete** - Lock hours for configure.sh and manage.sh blocking are fully implemented
-- **Phase 2 Status**: ⏳ **Pending** - Uninstall.sh integration not yet implemented
+- **Phase 1 Status**: ⚠️ **Mostly Complete** - Lock hours for configure.sh and manage.sh blocking are implemented, but weekday/weekend together configuration options remain to be added (to match restricted hours flow)
+- **Phase 2 Status**: ❌ **Not Planned** - Uninstall.sh will use its own separate schedule (Enhancement #26 Phase 2)
 - **Default Behavior**: No lock hours configured by default (optional feature)
 - **Dependencies**: 
   - Phase 1: Requires `CONFIGURE_BLOCK_ENABLED=true` to take effect
-  - Phase 2: Requires `UNINSTALL_PROTECTION_MODE=difficult` to take effect
-- **OR Logic**: Lock hours use OR logic with restriction hours - if current time is in either restriction hours OR lock hours, blocking/protection applies
-- **Safety**: Lock hours for uninstall increase risk of preventing legitimate uninstall needs - should be used with caution
-- **Manual Uninstall Guide**: Always accessible regardless of lock hours (safety mechanism)
+- **OR Logic**: Lock hours use OR logic with restriction hours - if current time is in either restriction hours OR lock hours, configure.sh/manage.sh blocking applies

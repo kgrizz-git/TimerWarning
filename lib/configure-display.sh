@@ -132,14 +132,10 @@ show_main_menu() {
         fi
         
         # Build pause settings status indicator (Enhancement #21)
+        # Note: Pause is always once per day (not configurable), so we only show enabled/disabled and duration
         local pause_status=""
         if [ "${pause_enabled}" = "true" ]; then
-            pause_status=" (Enabled, ${pause_duration} min"
-            if [ "${pause_once_per_day}" = "true" ]; then
-                pause_status="${pause_status}, once/day)"
-            else
-                pause_status="${pause_status}, unlimited)"
-            fi
+            pause_status=" (Enabled, ${pause_duration} min)"
         else
             pause_status=" (Disabled)"
         fi
@@ -261,9 +257,10 @@ show_main_menu() {
         echo "   Configure protection mode for uninstall.sh during restricted hours" >&2
         echo "" >&2
         # Build pause settings status indicator (Enhancement #21)
+        # Note: Pause is always once per day (not configurable), so we only show enabled/disabled and duration
         local pause_status=""
         if [ "${pause_enabled}" = "true" ]; then
-            pause_status=" (Enabled, ${pause_duration} min, once/day)"
+            pause_status=" (Enabled, ${pause_duration} min)"
         else
             pause_status=" (Disabled)"
         fi

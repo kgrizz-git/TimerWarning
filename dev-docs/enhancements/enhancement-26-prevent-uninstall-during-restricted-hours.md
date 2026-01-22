@@ -1,6 +1,6 @@
 # Enhancement 26: Prevent uninstall.sh Execution During Restricted Hours
 
-- **Description**: Make `uninstall.sh` more difficult to run during restricted hours (Phase 1: requires verification process) and optionally fully block it during additional configurable hours (Phase 2: future enhancement) to prevent users from circumventing restrictions by uninstalling the system. **Phase 1 does NOT fully block uninstall.sh** - it requires users to complete verification (confirmation phrase + arithmetic questions) but still allows uninstall if completed. Future phases may include full blocking, which is **risky** and could lock users out if they need to uninstall during restricted hours. A companion script provides instructions for manual uninstallation.
+- **Description**: Make `uninstall.sh` more difficult to run during restricted hours (Phase 1: requires verification process) and optionally during additional configurable uninstall lock hours (Phase 2: future enhancement) to prevent users from circumventing restrictions by uninstalling the system. **Phase 1 does NOT fully block uninstall.sh** - it requires users to complete verification (confirmation phrase + arithmetic questions) but still allows uninstall if completed. Phase 2 will add a separate schedule (`UNINSTALL_LOCK_HOURS_DAYNAME`) for configuring additional hours when difficult uninstall verification is required, independent of restriction hours and configure.sh lock hours. Future phases may include full blocking, which is **risky** and could lock users out if they need to uninstall during restricted hours. A companion script provides instructions for manual uninstallation.
 - **Files Affected**: `uninstall.sh`, `sleep-warning.sh`, `sleep-warning.conf`, new `manual-uninstall-guide.sh`
 - **Priority**: Medium (security/self-control feature, but risky - could prevent legitimate uninstall needs)
 - **Status**: Phase 1 mostly implemented (Core functionality complete, some items, testing and user documentation pending)
@@ -43,13 +43,15 @@
     - **Cons**: Can be bypassed by modifying system time or editing script directly, **RISKY** - could prevent legitimate uninstall needs
     - **Safety**: Medium-High Risk - Determined users can bypass, but requires knowledge/effort. **Main risk is preventing legitimate uninstall needs.**
     - **Note**: This option is not recommended due to high risk of preventing legitimate uninstall needs. Manual uninstall guide script would be required as safety mechanism.
-  - **Phase 2: Additional Configurable Lock Hours** (Future Enhancement):
-    - Extend Phase 1 to also check additional configurable lock hours
-    - If current time falls within restricted hours OR additional lock hours, apply difficult uninstall verification
-    - Allows users to configure separate lock hours beyond restriction hours
-    - **Pros**: More flexible, allows custom lock periods independent of restriction hours
-    - **Cons**: Adds complexity, requires additional configuration
+  - **Phase 2: Additional Configurable Uninstall Lock Hours** (Future Enhancement):
+    - Extend Phase 1 to also check additional configurable uninstall lock hours (separate from restriction hours and configure.sh lock hours)
+    - Create new configuration variables: `UNINSTALL_LOCK_HOURS_DAYNAME` (e.g., `UNINSTALL_LOCK_HOURS_MONDAY=9-17`)
+    - If current time falls within restricted hours OR uninstall lock hours, apply difficult uninstall verification
+    - Allows users to configure separate lock hours specifically for uninstall protection, independent of restriction hours and configure.sh lock hours
+    - **Pros**: More flexible, allows custom lock periods independent of restriction hours, clear separation of concerns
+    - **Cons**: Adds complexity, requires additional configuration, new variables and UI elements
     - **Safety**: Lower risk (uses difficult uninstall verification, not total block)
+    - **UI Integration**: Add uninstall lock hours as a new column in the visual grid view in configure.sh, configurable per day or via weekday/weekend bulk setting
 - **Manual Uninstall Guide Script**:
   - **Purpose**: Provide users with step-by-step instructions for manually uninstalling the system even when `uninstall.sh` is blocked
   - **Location**: `manual-uninstall-guide.sh` (in project root, installed to system location)
@@ -118,26 +120,31 @@
       - If user fails too many questions: Exit with message, suggest trying again later or using manual uninstall guide
       - If user cancels: Exit gracefully without uninstalling
   - **Phase 2 Config Options** (extends Phase 1):
-    - `CONFIG_LOCK_HOURS=DAY=START-END` - Additional hours for blocking uninstall.sh (separate from restriction hours)
-    - Block applies during restricted hours AND any additional configured lock hours
-    - **⚠️ WARNING**: Additional lock hours increase the risk of preventing legitimate uninstall needs
+    - `UNINSTALL_LOCK_HOURS_DAYNAME=START_HOUR-END_HOUR` - Additional hours for difficult uninstall verification (separate from restriction hours and configure.sh lock hours)
+    - Format: `UNINSTALL_LOCK_HOURS_SUNDAY`, `UNINSTALL_LOCK_HOURS_MONDAY`, etc. (same format as restriction hours)
+    - Hours are in 24-hour format (0-23), supports multiple ranges per day (comma-separated), supports overnight ranges
+    - Difficult uninstall verification applies during restricted hours OR uninstall lock hours (OR logic)
+    - **⚠️ WARNING**: Additional uninstall lock hours increase the risk of preventing legitimate uninstall needs
   - **Time Check Logic (Phase 1)**:
     - Only applies when `UNINSTALL_PROTECTION_MODE=difficult` (user-enabled via `configure.sh`)
     - Reuse `is_restricted_hour()` function from `lib/time-validation.sh` (already shared module)
     - Source `lib/time-validation.sh` in `uninstall.sh` to use the same validation logic
-    - Check only restriction hours (Phase 1) or restriction hours + additional lock hours (Phase 2)
+    - Check only restriction hours (Phase 1) or restriction hours + uninstall lock hours (Phase 2)
     - **For Difficult Uninstall Mode**: Proceed to verification process (confirmation phrase + arithmetic questions) if in restricted hours
   - **Future Time Check Logic (Total Block Mode - Future Phase)**:
     - If total block mode is implemented, add check for `UNINSTALL_PROTECTION_MODE=total`
     - **For Total Block Mode**: Exit early with clear error message if in restricted hours
     - **Error message (Total Block) must include**: Reference to `manual-uninstall-guide.sh` script for manual uninstallation instructions
   - **Phase 2 Time Check Logic** (extends Phase 1):
-    - Add function to check additional lock hours (similar to `is_restricted_hour()`)
-    - Check both restriction hours and additional lock hours
-    - Apply difficult uninstall verification if in restricted/lock hours
+    - Add function to parse and check uninstall lock hours (similar to `parse_config()` and `is_restricted_hour()`)
+    - Create `parse_uninstall_lock_hours()` function in `lib/config.sh` to read `UNINSTALL_LOCK_HOURS_DAYNAME` variables
+    - Create `is_uninstall_lock_hour()` function in `lib/time-validation.sh` to check if current hour is in uninstall lock hours
+    - Update `check_uninstall_protection_time()` to check both restriction hours and uninstall lock hours
+    - Apply difficult uninstall verification if in restricted hours OR uninstall lock hours (OR logic)
+    - Handle overnight ranges from previous day for uninstall lock hours (same logic as restriction hours)
   - **Error Message (Total Block Mode - Future Phase)**:
     - Clear, informative: "Uninstall is blocked during restricted hours ([current time range]). Please try again after [end time], or run 'manual-uninstall-guide.sh' for manual uninstallation instructions."
-    - Phase 2: Update message to indicate if locked due to restriction hours or additional lock hours
+    - Phase 2: Update message to indicate if locked due to restriction hours or uninstall lock hours
     - Show current time and when restrictions end
     - **Must prominently mention** `manual-uninstall-guide.sh` as an alternative
   - **Difficult Uninstall Message**:
@@ -186,7 +193,7 @@
   - **Documentation**: Must clearly document verification process (difficult uninstall) in user documentation
   - **Question Difficulty**: Arithmetic questions should be challenging but fair - not impossible, but requiring genuine effort. Questions are written in word form with step-by-step instructions to make copy-pasting more difficult.
   - **Accessibility**: Consider providing alternative verification methods for users who struggle with math (future enhancement)
-  - **Phase 2 Additional Considerations**: Additional lock hours provide more flexibility but maintain lower risk (uses difficult uninstall verification)
+  - **Phase 2 Additional Considerations**: Uninstall lock hours provide more flexibility but maintain lower risk (uses difficult uninstall verification). UI integration required: add uninstall lock hours column to visual grid, support per-day configuration and weekday/weekend bulk setting similar to restriction hours.
   - **Future Phase Considerations (Total Block)**:
     - If total block mode is implemented: Should display prominent warning when enabling "total" mode about the risks
     - Error message should inform user why script cannot run and when they can try again
@@ -697,3 +704,227 @@ Make `uninstall.sh` more difficult to run during restricted hours when `UNINSTAL
 - Questions should be challenging but fair - requiring genuine effort but not impossible
 - Only medium and complex complexity levels are used (simple removed per user request)
 - Consider accessibility: Users who struggle with math may need alternative verification methods (future enhancement)
+
+---
+
+## Phase 2: Additional Uninstall Lock Hours
+
+### Overview
+Phase 2 extends Phase 1 to allow users to configure additional hours (separate from restriction hours and configure.sh lock hours) during which difficult uninstall verification is required. This creates a dedicated schedule specifically for uninstall protection using new configuration variables (`UNINSTALL_LOCK_HOURS_DAYNAME`). Uninstall lock hours are independent of restriction hours and configure.sh lock hours, providing clear separation of concerns.
+
+### Files to Modify
+
+#### Core Files
+- `lib/config.sh` - Add functions to parse `UNINSTALL_LOCK_HOURS_DAYNAME` variables
+- `lib/time-validation.sh` - Add function to check uninstall lock hours, update `check_uninstall_protection_time()`
+- `lib/configure-config.sh` - Load and save uninstall lock hours configuration
+- `lib/configure-display.sh` - Add uninstall lock hours column to visual grid view
+- `lib/configure-workflow.sh` - Add workflow for configuring uninstall lock hours (per-day and weekday/weekend bulk setting)
+- `lib/configure-ui.sh` - Add UI functions for configuring uninstall lock hours
+- `configure.sh` - Add menu option for uninstall lock hours configuration
+- `status.sh` - Display uninstall lock hours in status output
+- `sleep-warning.conf` - Add `UNINSTALL_LOCK_HOURS_DAYNAME` documentation
+- `uninstall.sh` - Already uses `check_uninstall_protection_time()`, will automatically check uninstall lock hours once function is updated
+
+#### Documentation
+- `dev-docs/enhancements/enhancement-26-prevent-uninstall-during-restricted-hours.md` - Update status when complete
+- `user-docs/CONFIGURATION.md` - Document `UNINSTALL_LOCK_HOURS_DAYNAME` option
+- `user-docs/USER_GUIDE.md` - Document uninstall lock hours feature
+
+---
+
+### 1. Configuration File Support
+
+#### 1.1 Add Uninstall Lock Hours Parsing Functions
+- [ ] Add `parse_uninstall_lock_hours()` function to `lib/config.sh`
+  - [ ] Accept day index (0=Sunday, 6=Saturday) or day name
+  - [ ] Read `UNINSTALL_LOCK_HOURS_DAYNAME` from config file (e.g., `UNINSTALL_LOCK_HOURS_MONDAY=9-17`)
+  - [ ] Return time range string (same format as restriction hours)
+  - [ ] Return empty string if not configured or day name not found
+  - [ ] Handle case-insensitive day name matching
+  - [ ] Validate format (same validation as restriction hours)
+
+#### 1.2 Add Uninstall Lock Hours Check Function
+- [ ] Add `is_uninstall_lock_hour()` function to `lib/time-validation.sh`
+  - [ ] Accept current hour and uninstall lock hours range string
+  - [ ] Use same logic as `is_restricted_hour()` for consistency
+  - [ ] Support multiple ranges per day (comma-separated)
+  - [ ] Support overnight ranges (e.g., 23-6)
+  - [ ] Return 0 if hour is in uninstall lock hours, 1 otherwise
+
+#### 1.3 Update Uninstall Protection Time Check
+- [ ] Update `check_uninstall_protection_time()` in `lib/time-validation.sh`
+  - [ ] After checking restriction hours, also check uninstall lock hours
+  - [ ] Use `parse_uninstall_lock_hours()` to get current day's uninstall lock hours
+  - [ ] Use `is_uninstall_lock_hour()` to check if current hour is in uninstall lock hours
+  - [ ] Return protection mode ("difficult") if in restriction hours OR uninstall lock hours (OR logic)
+  - [ ] Handle overnight ranges from previous day for uninstall lock hours (same logic as restriction hours)
+  - [ ] Only check uninstall lock hours if `UNINSTALL_PROTECTION_MODE=difficult` (dependency)
+
+---
+
+### 2. Configuration UI - Uninstall Lock Hours
+
+#### 2.1 Add Uninstall Lock Hours to configure-config.sh
+- [ ] Add `uninstall_lock_hours_lines` array to global variables in `load_existing_config()`
+  - [ ] Initialize array with 7 elements (one per day, indices 0-6)
+  - [ ] Read existing `UNINSTALL_LOCK_HOURS_DAYNAME` values from config file
+  - [ ] Store in format: `UNINSTALL_LOCK_HOURS_DAYNAME=RANGE` (e.g., `UNINSTALL_LOCK_HOURS_MONDAY=9-17`)
+- [ ] Update `write_config()` function signature
+  - [ ] Add `uninstall_lock_hours_lines` array as parameter
+  - [ ] Write `UNINSTALL_LOCK_HOURS_DAYNAME` lines to config file
+  - [ ] Add comment header explaining uninstall lock hours
+  - [ ] Place after `UNINSTALL_PROTECTION_MODE` section in config file
+
+#### 2.2 Add Menu Option for Uninstall Lock Hours
+- [ ] Update `show_main_menu()` in `lib/configure-display.sh`
+  - [ ] Add new menu option: "Uninstall Lock Hours Configuration" (or similar)
+  - [ ] Show status indicator if uninstall lock hours are configured
+  - [ ] Update both GUI and text mode menus
+
+#### 2.3 Add Uninstall Lock Hours Configuration Workflow
+- [ ] Create `configure_uninstall_lock_hours_section()` function in `lib/configure-workflow.sh`
+  - [ ] Similar to `configure_lock_hours_section()` but for uninstall lock hours
+  - [ ] Configure each day individually (Sunday-Saturday, indices 0-6)
+  - [ ] Reuse `get_day_hours()` for consistent validation and UX
+  - [ ] Support weekday/weekend bulk setting (similar to restriction hours)
+  - [ ] Update `uninstall_lock_hours_lines` array by reference
+
+#### 2.4 Add Uninstall Lock Hours to Visual Grid View
+- [ ] Update `show_visual_grid()` in `lib/configure-display.sh`
+  - [ ] Add fourth column: "Uninstall Lock Hours" (Day | Restricted Hours | Lock Hours | Uninstall Lock Hours)
+  - [ ] Populate column from `uninstall_lock_hours_lines` array
+  - [ ] Show "(no uninstall lock hours)" when not configured
+  - [ ] Ensure layout remains readable in both GUI and text modes
+- [ ] Update `configure_day_from_grid()` in `lib/configure-workflow.sh`
+  - [ ] Add `uninstall_lock_hours_lines` parameter (pass by reference)
+  - [ ] Update `ask_what_to_edit()` to include "Uninstall Lock Hours" option
+  - [ ] Allow editing restricted hours, lock hours, uninstall lock hours, or combinations
+  - [ ] Reuse `get_day_hours()` for uninstall lock hours editing with appropriate labels
+
+#### 2.5 Add Menu Handler to configure.sh
+- [ ] Add case for uninstall lock hours menu option
+  - [ ] Call `configure_uninstall_lock_hours_section()`
+  - [ ] Handle cancellation (return to main menu)
+  - [ ] Update global `uninstall_lock_hours_lines` array
+  - [ ] Return to main menu after configuration
+
+---
+
+### 3. Status Display Integration
+
+#### 3.1 Add Uninstall Lock Hours to status.sh
+- [ ] Update status display to show uninstall lock hours
+  - [ ] Display uninstall lock hours for each day (if configured)
+  - [ ] Show format similar to restriction hours and lock hours
+  - [ ] Indicate when uninstall lock hours are active (if current time is in uninstall lock hours)
+  - [ ] Show in status summary section
+
+---
+
+### 4. Documentation Updates
+
+#### 4.1 User Documentation
+- [ ] Update `user-docs/CONFIGURATION.md`
+  - [ ] Add section: "Uninstall Lock Hours Configuration"
+  - [ ] Document `UNINSTALL_LOCK_HOURS_DAYNAME` format and usage
+  - [ ] Explain that uninstall lock hours are separate from restriction hours and configure.sh lock hours
+  - [ ] Explain OR logic: difficult uninstall applies during restriction hours OR uninstall lock hours
+  - [ ] Add examples of uninstall lock hours configuration
+  - [ ] Add warning about increased risk of preventing legitimate uninstall needs
+- [ ] Update `user-docs/USER_GUIDE.md`
+  - [ ] Document uninstall lock hours feature
+  - [ ] Explain how to configure via configure.sh menu
+  - [ ] Explain visual grid integration
+
+#### 4.2 Config File Documentation
+- [ ] Update `sleep-warning.conf` template
+  - [ ] Add `UNINSTALL_LOCK_HOURS_DAYNAME` section with documentation
+  - [ ] Explain format, examples, and usage
+  - [ ] Note that it requires `UNINSTALL_PROTECTION_MODE=difficult` to take effect
+  - [ ] Add warning about increased risk
+
+#### 4.3 Enhancement Documentation
+- [ ] Update this enhancement document
+  - [ ] Mark Phase 2 as complete when implemented
+  - [ ] Document any design decisions or implementation notes
+
+---
+
+### 5. Testing (Phase 2)
+
+#### 5.1 Unit Tests
+- [ ] Test `parse_uninstall_lock_hours()` function
+  - [ ] Test with valid day names and indices
+  - [ ] Test with missing config (should return empty string)
+  - [ ] Test with invalid day names (should return empty string)
+  - [ ] Test case-insensitive day name matching
+- [ ] Test `is_uninstall_lock_hour()` function
+  - [ ] Test with single range
+  - [ ] Test with multiple ranges
+  - [ ] Test with overnight ranges
+  - [ ] Test with empty ranges (should return false)
+- [ ] Test `check_uninstall_protection_time()` with uninstall lock hours
+  - [ ] Test when NOT in restriction/uninstall lock hours (should return "none")
+  - [ ] Test when in restriction hours only (should return "difficult")
+  - [ ] Test when in uninstall lock hours only (should return "difficult")
+  - [ ] Test when in both restriction and uninstall lock hours (should return "difficult")
+  - [ ] Test overnight ranges from previous day for uninstall lock hours
+  - [ ] Test when `UNINSTALL_PROTECTION_MODE=none` (should return "none" regardless of uninstall lock hours)
+
+#### 5.2 Integration Tests
+- [ ] Test uninstall.sh with uninstall lock hours
+  - [ ] Set `UNINSTALL_PROTECTION_MODE=difficult` and configure uninstall lock hours
+  - [ ] Run `uninstall.sh` during uninstall lock hours (should require verification)
+  - [ ] Run `uninstall.sh` during restriction hours (should require verification)
+  - [ ] Run `uninstall.sh` outside both (should work normally without verification)
+  - [ ] Test verification process works correctly during uninstall lock hours
+- [ ] Test configuration UI
+  - [ ] Test uninstall lock hours menu option
+  - [ ] Test per-day configuration
+  - [ ] Test weekday/weekend bulk setting
+  - [ ] Test visual grid integration (fourth column)
+  - [ ] Test editing uninstall lock hours from grid
+  - [ ] Verify uninstall lock hours are saved to config file correctly
+- [ ] Test status.sh display
+  - [ ] Verify uninstall lock hours are shown in status output
+  - [ ] Verify active status when current time is in uninstall lock hours
+
+#### 5.3 Edge Cases
+- [ ] Test with missing config file (should default to no uninstall lock hours)
+- [ ] Test with corrupted config file (should handle gracefully)
+- [ ] Test at boundary times (exactly at start/end of uninstall lock hours)
+- [ ] Test with all days having uninstall lock hours
+- [ ] Test with no days having uninstall lock hours (should behave like Phase 1)
+- [ ] Test with system time changes (if possible)
+- [ ] Test backward compatibility (Phase 1 behavior unchanged when no uninstall lock hours configured)
+
+---
+
+### 6. Implementation Order Recommendation
+
+1. **Configuration File Support** (Section 1) - Foundation (parsing and checking functions)
+2. **Configuration UI** (Section 2) - User interface for configuring uninstall lock hours
+3. **Status Display Integration** (Section 3) - Show uninstall lock hours in status
+4. **Documentation Updates** (Section 4) - User guidance
+5. **Testing** (Section 5) - Validation
+
+---
+
+### Notes
+
+- **Phase 1 Status**: ✅ **Mostly Complete** - Core functionality implemented, testing and user docs pending
+- **Phase 2 Status**: ⏳ **Pending** - Not yet implemented
+- **Default Behavior**: No uninstall lock hours configured by default (optional feature)
+- **Dependencies**: 
+  - Requires `UNINSTALL_PROTECTION_MODE=difficult` to take effect
+  - Independent of `CONFIGURE_BLOCK_ENABLED` and `CONFIG_LOCK_HOURS`
+- **OR Logic**: Uninstall lock hours use OR logic with restriction hours - if current time is in either restriction hours OR uninstall lock hours, difficult uninstall verification applies
+- **Separation of Concerns**: Uninstall lock hours are separate from configure.sh lock hours (`CONFIG_LOCK_HOURS`) to provide clear separation and independent configuration
+- **UI Integration**: Uninstall lock hours appear as a fourth column in the visual grid view (Day | Restricted Hours | Lock Hours | Uninstall Lock Hours)
+- **Configuration Methods**: 
+  - Per-day configuration (similar to restriction hours)
+  - Weekday/weekend bulk setting (similar to restriction hours)
+  - Visual grid editing (select day, choose to edit uninstall lock hours)
+- **Safety**: Uninstall lock hours increase risk of preventing legitimate uninstall needs - should be used with caution
+- **Manual Uninstall Guide**: Always accessible regardless of uninstall lock hours (safety mechanism)

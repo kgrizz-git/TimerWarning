@@ -362,20 +362,19 @@ Pause is a **temporary suppression of warnings only**, not a release of restrict
 
 - [ ] **7.2** Manual testing checklist:
   - [ ] Enable pause feature via configure.sh
-  - [ ] Set pause duration to 5 minutes (default)
-  - [ ] Trigger warning during restricted hours
-  - [ ] **Verify pause buttons appear in warning popup window**
-  - [ ] Click "Pause 5 min" button directly in the popup
-  - [ ] Verify popup closes immediately after pause activation
-  - [ ] Verify confirmation message appears: "Restrictions paused until [time]"
-  - [ ] Verify warning doesn't appear for 5 minutes
-  - [ ] Verify warning resumes after 5 minutes
-  - [ ] **Test daily tracking**: Try to pause again same day (should be blocked if once-per-day enabled)
-  - [ ] **Test daily reset**: Wait until next day (or manually change date), verify pause is available again
-  - [ ] Verify `LAST_PAUSE_DATE` in pause state file matches date when pause was used
+  - [X] Set pause duration to 5 minutes (default)
+  - [X] Trigger warning during restricted hours
+  - [X] **Verify pause buttons appear in warning popup window**
+  - [X] Click "Pause 5 min" button directly in the popup
+  - [X] Verify popup closes immediately after pause activation
+  - [X] Verify confirmation message appears: "Restrictions paused until [time]"
+  - [X] Verify warning doesn't appear for 5 minutes
+  - [X] Verify warning resumes after 5 minutes
+  - [ ] **Test daily tracking**: Try to pause again same day (should be blocked if once-per-day enabled) - *BUG FIXED* - Fixed issue where `check_and_clear_expired_pause()` could delete `LAST_PAUSE_DATE` if file read failed, breaking once-per-day limit. Now reads `LAST_PAUSE_DATE` first and preserves it even if timestamp is invalid.
+  - [X] **Test daily reset**: Wait until next day (or manually change date), verify pause is available again
+  - [X] Verify `LAST_PAUSE_DATE` in pause state file matches date when pause was used
   - [ ] Test with 10 minute duration
   - [ ] Test with pause disabled (buttons should not appear)
-  - [ ] ~~Test with once-per-day disabled (multiple pauses allowed same day)~~ **REMOVED** - Once-per-day limit is always enforced (not configurable)
 
 #### Phase 8: Documentation
 **Goal**: Update documentation for pause feature

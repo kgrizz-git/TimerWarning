@@ -4,9 +4,10 @@ This document provides a concise overview of work remaining to be completed for 
 
 ## Priority Items
 
-- [ ] **#21: One-Time Pause Feature (5 or 10 Minutes)** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: pause state management, popup button integration, configuration options, status display. Automated tests (27 tests) all passing. Manual testing (popup button clicks, warning suppression, daily tracking) pending.
-- [ ] **#25: User-Selectable Dialog Tool** - Allow manual dialog tool selection
-- [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - Comprehensive testing across all dialog tools and environments; apply priority to other relevant scripts
+- [ ] **#21: One-Time Pause Feature (5 or 10 Minutes)** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: pause state management, popup button integration, configuration options, status display. Automated tests (27 tests) all passing. **Remaining**: Manual testing of popup button clicks (zenity/yad/kdialog), warning suppression during active pause, daily tracking reset, and edge cases in real-world usage scenarios.
+- [ ] **#26: Prevent uninstall.sh Execution During Restricted Hours** Phase 2 - add separate configurable hours for difficult uninstall, plus tests, documentation, etc.
+- [ ] **#25: User-Selectable Dialog Tool** - Allow manual dialog tool selection (not implemented)
+- [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - ✅ **MOSTLY IMPLEMENTED** - Main functionality implemented for configure.sh. **Remaining**: Comprehensive testing across all dialog tools (YAD/Zenity/KDialog) and environments (Wayland/X11/KDE); extend priority system to other relevant scripts (manage.sh, status.sh, uninstall.sh)
 - [ ] **#4: Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode
 - [ ] **Donation Links** - PayPal setup, GitHub sponsors, Patreon integration
 - [ ] **Licensing** - License selection and application
@@ -30,7 +31,7 @@ This document provides a concise overview of work remaining to be completed for 
 
 ## Complementary Enhancements
 
-- [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - Comprehensive testing across all dialog tools and environments; apply priority to other relevant scripts
+- [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - ✅ **MOSTLY IMPLEMENTED** - Main functionality implemented for configure.sh. **Remaining**: Comprehensive testing across all dialog tools and environments; extend priority system to other relevant scripts (manage.sh, status.sh, uninstall.sh)
 - [ ] **#3: Enhanced Window Size Options and Display-Based Sizing** - More predefined sizes and display-based automatic sizing
 - [ ] **#4: Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode
 - [ ] **#5: Configurable Warning Messages** - Customize warning text per day/time range
@@ -47,14 +48,14 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#16b: 12-Hour Format Time Input and GUI Spinbox Widgets** - Support 12-hour format with AM/PM and GUI spinbox widgets
 - [ ] **#17: Multi-Display Popup Support** - Display popups on all monitors simultaneously
 - [ ] **#18: Config File Locking During Restricted Hours** - Prevent config file modification during restricted hours
-- [ ] **#20: Additional Hours for Config Locking and configure.sh Blocking** - Phase 2: Integrate lock hours with uninstall.sh
+- [ ] **#20: Additional Hours for Config Locking and configure.sh Blocking** - ✅ **Phase 1 Mostly Complete** - Lock hours for configure.sh and manage.sh blocking are implemented. **Remaining**: Add weekday/weekend together configuration options to match restricted hours flow (currently only per-day configuration available)
 - [ ] **#21: One-Time Pause Feature (5 or 10 Minutes)** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: pause state management, popup button integration, configuration options, status display. Automated tests (27 tests) all passing. Manual testing (popup button clicks, warning suppression, daily tracking) pending.
-- [ ] **#22: Prevent 24/7 Restriction Configuration** - Revisit when Enhancement #18 and/or #19 are implemented for proper integration
+- [ ] **#22: Prevent 24/7 Restriction Configuration** - ✅ **MOSTLY IMPLEMENTED** - Core validation logic implemented. **Remaining**: Comprehensive testing (edge cases, boundary conditions, overlapping ranges), integration testing with high restriction warnings, and revisit integration with Enhancement #18 (Config File Locking) when implemented
 - [ ] **#22a: Fix Validation Edge Cases in 24/7 Restriction Detection** - Address edge cases in validation logic (handles `start_hour == end_hour`, sparse array indices, IFS handling)
 - [ ] **#23: Display Restricted Times/Days in Popup** - Show configured restricted hours in warning popup
-- [ ] **#24: Unified Dialog Tool Priority (YAD → Zenity → KDialog)** - Testing and verification across all environments
+- [ ] **#24: Unified Dialog Tool Priority (YAD → Zenity → KDialog)** - ✅ **MOSTLY IMPLEMENTED** - Core implementation complete with abstraction layer. **Remaining**: Comprehensive testing across all dialog tools and environments (Wayland/X11/KDE), verify all dialog types work correctly with each tool, test positioning (center/top-left) with all tools
 - [ ] **#25: User-Selectable Dialog Tool** - Allow manual dialog tool selection
-- [ ] **#26: Prevent uninstall.sh Execution During Restricted Hours** - Complete testing and user documentation
+- [ ] **#26: Prevent uninstall.sh Execution During Restricted Hours** - ✅ **Phase 1 Mostly Implemented** - Core functionality complete (difficult uninstall verification). **Remaining**: PHASE 2 (add separate schedule for difficult uninstall), comprehensive testing (unit tests, integration tests, edge cases), update enhancement document status, verify manual uninstall guide script documentation in user docs
 
 ## Alternative Approaches
 
@@ -93,7 +94,7 @@ This document provides a concise overview of work remaining to be completed for 
 
 ---
 
-**Last Updated**: 2026-01-21  
+**Last Updated**: 2026-01-21 (Status review completed)  
 **Related Documents**: 
 - [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) - Detailed enhancement descriptions
 - [linux-warning-system-plan.md](linux-warning-system-plan.md) - Master implementation plan

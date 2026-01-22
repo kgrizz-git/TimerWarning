@@ -191,14 +191,29 @@ check_and_clear_expired_pause() {
         return 0  # No pause state, nothing to clear
     fi
     
+    # Read LAST_PAUSE_DATE FIRST (before any file modifications)
+    # This ensures we preserve it even if there are issues reading the timestamp
+    local last_pause_date
+    last_pause_date=$(get_last_pause_date)
+    
     # Get pause end timestamp
     local pause_end_timestamp
     pause_end_timestamp=$(get_pause_end_timestamp)
     
     if [ -z "${pause_end_timestamp}" ]; then
-        # Invalid timestamp, clear state file
-        clear_pause_state
-        log_to_file "WARNING" "Pause state file had invalid timestamp, cleared"
+        # Invalid timestamp, but preserve LAST_PAUSE_DATE if it exists
+        if [ -n "${last_pause_date}" ]; then
+            # Keep LAST_PAUSE_DATE, remove invalid timestamp by rewriting file
+            {
+                echo "LAST_PAUSE_DATE=${last_pause_date}"
+            } > "${PAUSE_STATE_FILE}"
+            chmod 0600 "${PAUSE_STATE_FILE}"
+            log_to_file "WARNING" "Pause state file had invalid timestamp, cleared timestamp (kept LAST_PAUSE_DATE=${last_pause_date})"
+        else
+            # No valid last pause date, remove entire file
+            clear_pause_state
+            log_to_file "WARNING" "Pause state file had invalid timestamp and no valid date, cleared"
+        fi
         return 0
     fi
     
@@ -209,21 +224,31 @@ check_and_clear_expired_pause() {
     # If pause has expired, clear only the timestamp (keep LAST_PAUSE_DATE)
     if [ "${current_time}" -ge "${pause_end_timestamp}" ]; then
         # Pause has expired, but keep LAST_PAUSE_DATE for once-per-day enforcement
-        local last_pause_date
-        last_pause_date=$(get_last_pause_date)
+        # We already read last_pause_date above, so use it here
         
         # If we have a valid last pause date, keep it; otherwise remove the file
         if [ -n "${last_pause_date}" ]; then
             # Keep LAST_PAUSE_DATE, remove PAUSE_END_TIMESTAMP by rewriting file
+            # Use atomic write to prevent corruption: write to temp file, then move
+            local temp_file
+            temp_file=$(mktemp "${PAUSE_STATE_FILE}.tmp.XXXXXX" 2>/dev/null || echo "${PAUSE_STATE_FILE}.tmp")
             {
                 echo "LAST_PAUSE_DATE=${last_pause_date}"
-            } > "${PAUSE_STATE_FILE}"
-            chmod 0600 "${PAUSE_STATE_FILE}"
-            log_to_file "INFO" "Pause expired, cleared PAUSE_END_TIMESTAMP (kept LAST_PAUSE_DATE=${last_pause_date})"
+            } > "${temp_file}"
+            chmod 0600 "${temp_file}"
+            
+            # Atomic move (only succeeds if temp file write was successful)
+            if mv "${temp_file}" "${PAUSE_STATE_FILE}" 2>/dev/null; then
+                log_to_file "INFO" "Pause expired, cleared PAUSE_END_TIMESTAMP (kept LAST_PAUSE_DATE=${last_pause_date})"
+            else
+                # Move failed, clean up temp file
+                rm -f "${temp_file}" 2>/dev/null
+                log_to_file "ERROR" "Failed to update pause state file after expiration (kept existing file to preserve LAST_PAUSE_DATE)"
+            fi
         else
             # No valid last pause date, remove entire file
             clear_pause_state
-            log_to_file "INFO" "Pause expired, cleared pause state file"
+            log_to_file "INFO" "Pause expired, cleared pause state file (no valid LAST_PAUSE_DATE found)"
         fi
     fi
     
