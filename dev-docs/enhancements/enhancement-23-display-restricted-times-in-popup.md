@@ -164,7 +164,11 @@
 
 ## Implementation Details
 
-### ⚠️ Critical Findings from Code Review
+**For detailed implementation information, see**: [enhancement-23-implementation-details/implementation-details.md](enhancement-23-implementation-details/implementation-details.md)
+
+---
+
+## Implementation Checklist
 
 1. **Next Unrestricted Time is Already Implemented** ✅
    - The popup already displays "Next unrestricted time: [time]" (see `lib/popup-display.sh` line 127)

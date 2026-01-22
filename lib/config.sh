@@ -43,7 +43,7 @@ DEFAULT_CONFIGURE_BLOCK_ENABLED=false
 # Default uninstall protection mode - used if config file missing or invalid
 # This controls whether uninstall.sh requires verification during restricted hours (Enhancement #26)
 # Options: "none" (no protection), "difficult" (require verification)
-DEFAULT_UNINSTALL_PROTECTION_MODE="none"
+DEFAULT_UNINSTALL_PROTECTION_MODE="difficult"
 
 # Default pause enabled setting - used if config file missing or invalid
 # This controls whether users can pause warning popups for a short period (Enhancement #21)

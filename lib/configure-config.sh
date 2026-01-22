@@ -29,7 +29,7 @@ load_existing_config() {
     declare -g min_display_time="30"
     declare -g popup_immovable="true"
     declare -g configure_block_enabled="false"
-    declare -g uninstall_protection_mode="none"
+    declare -g uninstall_protection_mode="difficult"
     declare -g pause_enabled="true"
     declare -g pause_duration="5"
     
@@ -109,7 +109,7 @@ load_existing_config() {
     elif [ "${existing_protection_mode}" = "difficult" ]; then
         declare -g uninstall_protection_mode="difficult"
     fi
-    # If invalid value, keep default "none" (already set above)
+    # If invalid value, keep default "difficult" (already set above)
     
     # Read pause enabled setting (Enhancement #21)
     local existing_pause_enabled
@@ -461,7 +461,7 @@ write_config() {
         fi
         echo "#"
         echo "# UNINSTALL_PROTECTION_MODE: Protection mode for uninstall.sh during restricted hours"
-        echo "# Default: none (opt-in feature)"
+        echo "# Default: difficult"
         echo "# Options:"
         echo "#   none - No protection, uninstall works normally during restricted hours"
         echo "#   difficult - Difficult uninstall, requires confirmation phrase + 10 arithmetic questions"

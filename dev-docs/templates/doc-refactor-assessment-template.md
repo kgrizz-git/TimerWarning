@@ -62,7 +62,7 @@ This approach ensures:
 ### Assessment Process
 
 1. **After significant documentation additions or periodically**, create a new timestamped copy and run through the entire assessment
-2. **Identify all documentation markdown files** in the codebase (excluding `dev-docs/completed-plans/` which should be ignored)
+2. **Identify all documentation markdown files** in the codebase (excluding `dev-docs/completed-plans/`, `dev-docs/info/`, `dev-docs/doc-assessments/`, `dev-docs/refactor-assessments`, and `dev-docs/safety-scans` which should be ignored)
 3. **Count lines** for each file and identify those exceeding 750 lines
 4. **Analyze each large file** for refactoring opportunities:
    - Identify key ideas and checklists that should remain

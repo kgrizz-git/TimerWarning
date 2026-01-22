@@ -413,12 +413,12 @@ CONFIG_LOCK_HOURS_WEDNESDAY=23-6     # Block overnight (11 PM to 5:59 AM)
 
 **Format**: `none` or `difficult`
 
-**Default**: `none` (disabled - opt-in feature)
+**Default**: `difficult` (enabled by default)
 
 **Examples**:
 ```
-UNINSTALL_PROTECTION_MODE=none      # No protection - uninstall works normally (default)
-UNINSTALL_PROTECTION_MODE=difficult # Difficult uninstall - requires verification (recommended)
+UNINSTALL_PROTECTION_MODE=none      # No protection - uninstall works normally
+UNINSTALL_PROTECTION_MODE=difficult # Difficult uninstall - requires verification (default)
 ```
 
 **How It Works**:
@@ -431,7 +431,7 @@ UNINSTALL_PROTECTION_MODE=difficult # Difficult uninstall - requires verificatio
 - The verification process requires cognitive engagement and effort, making it difficult to uninstall impulsively during restricted hours.
 
 **Important Notes**:
-- ⚠️ **This is an opt-in feature** - it is disabled by default (`none`) to avoid frustrating users.
+- ⚠️ **Enabled by default** - The "difficult" mode is enabled by default to help prevent circumventing restrictions. You can set it to `none` if you prefer no protection.
 - ⚠️ **Lower Risk Option**: The "difficult" mode allows legitimate uninstalls while deterring impulsive ones. You can still uninstall if you complete the verification process.
 - ⚠️ **Safety Mechanism**: A manual uninstall guide script (`manual-uninstall-guide`) is always available and provides step-by-step instructions for manual uninstallation, even during restricted hours. This script is never blocked.
 - You can only change this setting when you are **not** in restricted hours (via the configuration wizard).
@@ -544,10 +544,10 @@ POPUP_IMMOVABLE=true
 CONFIGURE_BLOCK_ENABLED=false
 
 # Uninstall protection mode: Require verification to uninstall during restricted hours (none/difficult)
-# none = No protection - uninstall works normally (default)
-# difficult = Difficult uninstall - requires confirmation phrase + 10 arithmetic questions (recommended)
-# This is an opt-in security feature - disabled by default
-UNINSTALL_PROTECTION_MODE=none
+# none = No protection - uninstall works normally
+# difficult = Difficult uninstall - requires confirmation phrase + 10 arithmetic questions (default)
+# This security feature is enabled by default
+UNINSTALL_PROTECTION_MODE=difficult
 
 # Restricted hours for each day
 SUNDAY=1-5

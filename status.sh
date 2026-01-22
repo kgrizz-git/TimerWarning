@@ -383,7 +383,7 @@ show_configuration() {
     local uninstall_protection_mode
     uninstall_protection_mode=$(grep -E "^[[:space:]]*UNINSTALL_PROTECTION_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     if [ -z "${uninstall_protection_mode}" ]; then
-        uninstall_protection_mode="None (default)"
+        uninstall_protection_mode="Difficult Uninstall (default)"
     elif [ "${uninstall_protection_mode}" = "difficult" ]; then
         uninstall_protection_mode="Difficult Uninstall (Enabled)"
     else
