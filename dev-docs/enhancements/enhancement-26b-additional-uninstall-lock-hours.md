@@ -35,118 +35,118 @@ Phase 2 extends Phase 1 to allow users to configure additional hours (separate f
 ### 1. Configuration File Support
 
 #### 1.1 Add Uninstall Lock Hours Parsing Functions
-- [ ] Add `parse_uninstall_lock_hours()` function to `lib/config.sh`
-  - [ ] Accept day index (0=Sunday, 6=Saturday) or day name
-  - [ ] Read `UNINSTALL_LOCK_HOURS_DAYNAME` from config file (e.g., `UNINSTALL_LOCK_HOURS_MONDAY=9-17`)
-  - [ ] Return time range string (same format as restriction hours)
-  - [ ] Return empty string if not configured or day name not found
-  - [ ] Handle case-insensitive day name matching
-  - [ ] Validate format (same validation as restriction hours)
+- [x] Add `parse_uninstall_lock_hours()` function to `lib/config.sh`
+  - [x] Accept day index (0=Sunday, 6=Saturday) or day name
+  - [x] Read `UNINSTALL_LOCK_HOURS_DAYNAME` from config file (e.g., `UNINSTALL_LOCK_HOURS_MONDAY=9-17`)
+  - [x] Return time range string (same format as restriction hours)
+  - [x] Return empty string if not configured or day name not found
+  - [x] Handle case-insensitive day name matching
+  - [x] Validate format (same validation as restriction hours)
 
 #### 1.2 Add Uninstall Lock Hours Check Function
-- [ ] Add `is_uninstall_lock_hour()` function to `lib/time-validation.sh`
-  - [ ] Accept current hour and uninstall lock hours range string
-  - [ ] Use same logic as `is_restricted_hour()` for consistency
-  - [ ] Support multiple ranges per day (comma-separated)
-  - [ ] Support overnight ranges (e.g., 23-6)
-  - [ ] Return 0 if hour is in uninstall lock hours, 1 otherwise
+- [x] Add `is_uninstall_lock_hour()` function to `lib/time-validation.sh`
+  - [x] Accept current hour and uninstall lock hours range string
+  - [x] Use same logic as `is_restricted_hour()` for consistency
+  - [x] Support multiple ranges per day (comma-separated)
+  - [x] Support overnight ranges (e.g., 23-6)
+  - [x] Return 0 if hour is in uninstall lock hours, 1 otherwise
 
 #### 1.3 Update Uninstall Protection Time Check
-- [ ] Update `check_uninstall_protection_time()` in `lib/time-validation.sh`
-  - [ ] After checking restriction hours, also check uninstall lock hours
-  - [ ] Use `parse_uninstall_lock_hours()` to get current day's uninstall lock hours
-  - [ ] Use `is_uninstall_lock_hour()` to check if current hour is in uninstall lock hours
-  - [ ] Return protection mode ("difficult") if in restriction hours OR uninstall lock hours (OR logic)
-  - [ ] Handle overnight ranges from previous day for uninstall lock hours (same logic as restriction hours)
-  - [ ] Only check uninstall lock hours if `UNINSTALL_PROTECTION_MODE=difficult` (dependency)
+- [x] Update `check_uninstall_protection_time()` in `lib/time-validation.sh`
+  - [x] After checking restriction hours, also check uninstall lock hours
+  - [x] Use `parse_uninstall_lock_hours()` to get current day's uninstall lock hours
+  - [x] Use `is_uninstall_lock_hour()` to check if current hour is in uninstall lock hours
+  - [x] Return protection mode ("difficult") if in restriction hours OR uninstall lock hours (OR logic)
+  - [x] Handle overnight ranges from previous day for uninstall lock hours (same logic as restriction hours)
+  - [x] Only check uninstall lock hours if `UNINSTALL_PROTECTION_MODE=difficult` (dependency)
 
 ---
 
 ### 2. Configuration UI - Uninstall Lock Hours
 
 #### 2.1 Add Uninstall Lock Hours to configure-config.sh
-- [ ] Add `uninstall_lock_hours_lines` array to global variables in `load_existing_config()`
-  - [ ] Initialize array with 7 elements (one per day, indices 0-6)
-  - [ ] Read existing `UNINSTALL_LOCK_HOURS_DAYNAME` values from config file
-  - [ ] Store in format: `UNINSTALL_LOCK_HOURS_DAYNAME=RANGE` (e.g., `UNINSTALL_LOCK_HOURS_MONDAY=9-17`)
-- [ ] Update `write_config()` function signature
-  - [ ] Add `uninstall_lock_hours_lines` array as parameter
-  - [ ] Write `UNINSTALL_LOCK_HOURS_DAYNAME` lines to config file
-  - [ ] Add comment header explaining uninstall lock hours
-  - [ ] Place after `UNINSTALL_PROTECTION_MODE` section in config file
+- [x] Add `uninstall_lock_hours_lines` array to global variables in `load_existing_config()`
+  - [x] Initialize array with 7 elements (one per day, indices 0-6)
+  - [x] Read existing `UNINSTALL_LOCK_HOURS_DAYNAME` values from config file
+  - [x] Store in format: `UNINSTALL_LOCK_HOURS_DAYNAME=RANGE` (e.g., `UNINSTALL_LOCK_HOURS_MONDAY=9-17`)
+- [x] Update `write_config()` function signature
+  - [x] Add `uninstall_lock_hours_lines` array as parameter
+  - [x] Write `UNINSTALL_LOCK_HOURS_DAYNAME` lines to config file
+  - [x] Add comment header explaining uninstall lock hours
+  - [x] Place after `UNINSTALL_PROTECTION_MODE` section in config file
 
 #### 2.2 Add Menu Option for Uninstall Lock Hours
-- [ ] Update `show_main_menu()` in `lib/configure-display.sh`
-  - [ ] Add new menu option: "Uninstall Lock Hours Configuration" (or similar)
-  - [ ] Show status indicator if uninstall lock hours are configured
-  - [ ] Update both GUI and text mode menus
+- [x] Update `show_main_menu()` in `lib/configure-display.sh`
+  - [x] Add new menu option: "Uninstall Lock Hours Configuration" (or similar)
+  - [x] Show status indicator if uninstall lock hours are configured
+  - [x] Update both GUI and text mode menus
 
 #### 2.3 Add Uninstall Lock Hours Configuration Workflow
-- [ ] Create `configure_uninstall_lock_hours_section()` function in `lib/configure-workflow.sh`
-  - [ ] Similar to `configure_lock_hours_section()` but for uninstall lock hours
-  - [ ] Configure each day individually (Sunday-Saturday, indices 0-6)
-  - [ ] Reuse `get_day_hours()` for consistent validation and UX
-  - [ ] Support weekday/weekend bulk setting (similar to restriction hours)
-  - [ ] Update `uninstall_lock_hours_lines` array by reference
+- [x] Create `configure_uninstall_lock_hours_section()` function in `lib/configure-workflow.sh`
+  - [x] Similar to `configure_lock_hours_section()` but for uninstall lock hours
+  - [x] Configure each day individually (Sunday-Saturday, indices 0-6)
+  - [x] Reuse `get_day_hours()` for consistent validation and UX
+  - [ ] Support weekday/weekend bulk setting (similar to restriction hours) - **NOT IMPLEMENTED**: Only per-day configuration is implemented, similar to `configure_lock_hours_section()` which also doesn't support bulk setting
+  - [x] Update `uninstall_lock_hours_lines` array by reference
 
 #### 2.4 Add Uninstall Lock Hours to Visual Grid View
-- [ ] Update `show_visual_grid()` in `lib/configure-display.sh`
-  - [ ] Add fourth column: "Uninstall Lock Hours" (Day | Restricted Hours | Lock Hours | Uninstall Lock Hours)
-  - [ ] Populate column from `uninstall_lock_hours_lines` array
-  - [ ] Show "(no uninstall lock hours)" when not configured
-  - [ ] Ensure layout remains readable in both GUI and text modes
-- [ ] Update `configure_day_from_grid()` in `lib/configure-workflow.sh`
-  - [ ] Add `uninstall_lock_hours_lines` parameter (pass by reference)
-  - [ ] Update `ask_what_to_edit()` to include "Uninstall Lock Hours" option
-  - [ ] Allow editing restricted hours, lock hours, uninstall lock hours, or combinations
-  - [ ] Reuse `get_day_hours()` for uninstall lock hours editing with appropriate labels
+- [x] Update `show_visual_grid()` in `lib/configure-display.sh`
+  - [x] Add fourth column: "Uninstall Lock Hours" (Day | Restricted Hours | Lock Hours | Uninstall Lock Hours)
+  - [x] Populate column from `uninstall_lock_hours_lines` array
+  - [x] Show "(no uninstall lock hours)" when not configured
+  - [x] Ensure layout remains readable in both GUI and text modes
+- [x] Update `configure_day_from_grid()` in `lib/configure-workflow.sh`
+  - [x] Add `uninstall_lock_hours_lines` parameter (pass by reference)
+  - [x] Update `ask_what_to_edit()` to include "Uninstall Lock Hours" option
+  - [x] Allow editing restricted hours, lock hours, uninstall lock hours, or combinations
+  - [x] Reuse `get_day_hours()` for uninstall lock hours editing with appropriate labels
 
 #### 2.5 Add Menu Handler to configure.sh
-- [ ] Add case for uninstall lock hours menu option
-  - [ ] Call `configure_uninstall_lock_hours_section()`
-  - [ ] Handle cancellation (return to main menu)
-  - [ ] Update global `uninstall_lock_hours_lines` array
-  - [ ] Return to main menu after configuration
+- [x] Add case for uninstall lock hours menu option
+  - [x] Call `configure_uninstall_lock_hours_section()`
+  - [x] Handle cancellation (return to main menu)
+  - [x] Update global `uninstall_lock_hours_lines` array
+  - [x] Return to main menu after configuration
 
 ---
 
 ### 3. Status Display Integration
 
 #### 3.1 Add Uninstall Lock Hours to status.sh
-- [ ] Update status display to show uninstall lock hours
-  - [ ] Display uninstall lock hours for each day (if configured)
-  - [ ] Show format similar to restriction hours and lock hours
-  - [ ] Indicate when uninstall lock hours are active (if current time is in uninstall lock hours)
-  - [ ] Show in status summary section
+- [x] Update status display to show uninstall lock hours
+  - [x] Display uninstall lock hours for each day (if configured)
+  - [x] Show format similar to restriction hours and lock hours
+  - [ ] Indicate when uninstall lock hours are active (if current time is in uninstall lock hours) - **NOT IMPLEMENTED**: Active status indicator not added (similar to how lock hours section doesn't show active status)
+  - [x] Show in status summary section
 
 ---
 
 ### 4. Documentation Updates
 
 #### 4.1 User Documentation
-- [ ] Update `user-docs/CONFIGURATION.md`
-  - [ ] Add section: "Uninstall Lock Hours Configuration"
-  - [ ] Document `UNINSTALL_LOCK_HOURS_DAYNAME` format and usage
-  - [ ] Explain that uninstall lock hours are separate from restriction hours and configure.sh lock hours
-  - [ ] Explain OR logic: difficult uninstall applies during restriction hours OR uninstall lock hours
-  - [ ] Add examples of uninstall lock hours configuration
-  - [ ] Add warning about increased risk of preventing legitimate uninstall needs
-- [ ] Update `user-docs/USER_GUIDE.md`
-  - [ ] Document uninstall lock hours feature
-  - [ ] Explain how to configure via configure.sh menu
-  - [ ] Explain visual grid integration
+- [x] Update `user-docs/CONFIGURATION.md`
+  - [x] Add section: "Uninstall Lock Hours Configuration"
+  - [x] Document `UNINSTALL_LOCK_HOURS_DAYNAME` format and usage
+  - [x] Explain that uninstall lock hours are separate from restriction hours and configure.sh lock hours
+  - [x] Explain OR logic: difficult uninstall applies during restriction hours OR uninstall lock hours
+  - [x] Add examples of uninstall lock hours configuration
+  - [x] Add warning about increased risk of preventing legitimate uninstall needs
+- [x] Update `user-docs/USER_GUIDE.md`
+  - [x] Document uninstall lock hours feature
+  - [x] Explain how to configure via configure.sh menu
+  - [x] Explain visual grid integration
 
 #### 4.2 Config File Documentation
-- [ ] Update `sleep-warning.conf` template
-  - [ ] Add `UNINSTALL_LOCK_HOURS_DAYNAME` section with documentation
-  - [ ] Explain format, examples, and usage
-  - [ ] Note that it requires `UNINSTALL_PROTECTION_MODE=difficult` to take effect
-  - [ ] Add warning about increased risk
+- [x] Update `sleep-warning.conf` template
+  - [x] Add `UNINSTALL_LOCK_HOURS_DAYNAME` section with documentation
+  - [x] Explain format, examples, and usage
+  - [x] Note that it requires `UNINSTALL_PROTECTION_MODE=difficult` to take effect
+  - [x] Add warning about increased risk
 
 #### 4.3 Enhancement Documentation
-- [ ] Update this enhancement document
-  - [ ] Mark Phase 2 as complete when implemented
-  - [ ] Document any design decisions or implementation notes
+- [x] Update this enhancement document
+  - [x] Mark Phase 2 as complete when implemented
+  - [x] Document any design decisions or implementation notes
 
 ---
 
@@ -213,7 +213,7 @@ Phase 2 extends Phase 1 to allow users to configure additional hours (separate f
 ### Notes
 
 - **Phase 1 Status**: ✅ **Mostly Complete** - Core functionality implemented, testing and user docs pending
-- **Phase 2 Status**: ⏳ **Pending** - Not yet implemented
+- **Phase 2 Status**: ✅ **Implementation Complete** - Core functionality implemented, testing pending
 - **Default Behavior**: No uninstall lock hours configured by default (optional feature)
 - **Dependencies**: 
   - Requires `UNINSTALL_PROTECTION_MODE=difficult` to take effect
@@ -223,7 +223,7 @@ Phase 2 extends Phase 1 to allow users to configure additional hours (separate f
 - **UI Integration**: Uninstall lock hours appear as a fourth column in the visual grid view (Day | Restricted Hours | Lock Hours | Uninstall Lock Hours)
 - **Configuration Methods**: 
   - Per-day configuration (similar to restriction hours)
-  - Weekday/weekend bulk setting (similar to restriction hours)
+  - Weekday/weekend bulk setting (similar to restriction hours) - **NOT IMPLEMENTED**: Only per-day configuration is available, matching the behavior of `configure_lock_hours_section()`
   - Visual grid editing (select day, choose to edit uninstall lock hours)
 - **Safety**: Uninstall lock hours increase risk of preventing legitimate uninstall needs - should be used with caution
 - **Manual Uninstall Guide**: Always accessible regardless of uninstall lock hours (safety mechanism)

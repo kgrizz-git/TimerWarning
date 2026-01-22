@@ -190,6 +190,39 @@ load_existing_config() {
         fi
         # If lock hours line doesn't exist, don't add to array (not configured)
     done
+    
+    # Load uninstall lock hours configurations (Enhancement #26 Phase 2)
+    # Initialize uninstall_lock_hours_lines array if not already declared
+    if [ -z "${uninstall_lock_hours_lines+set}" ]; then
+        declare -g -a uninstall_lock_hours_lines=()
+    else
+        # Clear existing array
+        uninstall_lock_hours_lines=()
+    fi
+    
+    for i in 0 1 2 3 4 5 6; do
+        local day_var="${DAY_VARS[${i}]}"
+        local uninstall_lock_var="UNINSTALL_LOCK_HOURS_${day_var}"
+        
+        # Check if uninstall lock hours line exists in config file (even if empty)
+        local uninstall_lock_line_exists
+        uninstall_lock_line_exists=$(grep -E "^[[:space:]]*${uninstall_lock_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+        
+        if [ -n "${uninstall_lock_line_exists}" ]; then
+            # Uninstall lock hours line exists - extract value (may be empty if explicitly disabled)
+            local uninstall_lock_config
+            uninstall_lock_config=$(echo "${uninstall_lock_line_exists}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            
+            if [ -n "${uninstall_lock_config}" ]; then
+                # Has a value - configured with uninstall lock hours
+                uninstall_lock_hours_lines[${i}]="${uninstall_lock_var}=${uninstall_lock_config}"
+            else
+                # Line exists but is empty - explicitly disabled, no uninstall lock hours
+                uninstall_lock_hours_lines[${i}]="${uninstall_lock_var}="
+            fi
+        fi
+        # If uninstall lock hours line doesn't exist, don't add to array (not configured)
+    done
 }
 
 # Update systemd timer file with new interval
@@ -327,10 +360,12 @@ extract_user_comments() {
 #   $8-$9: Pause settings (pause_enabled, pause_duration) - Enhancement #21
 #   $11+: config_lines array (7 day configurations: Sunday-Saturday)
 #   After config_lines: lock_hours_lines array (optional, Enhancement #19 Phase 2)
+#   After lock_hours_lines: uninstall_lock_hours_lines array (optional, Enhancement #26 Phase 2)
 #   Optional (if override flags present): 
 #     Second-to-last: popup_size_overridden ("true" if popup_size was restricted due to high restrictions)
 #     Last: configure_block_overridden ("true" if configure_block_enabled was disabled due to high restrictions)
 # Note: lock_hours_lines is detected by checking for "CONFIG_LOCK_HOURS_" prefix in arguments
+# Note: uninstall_lock_hours_lines is detected by checking for "UNINSTALL_LOCK_HOURS_" prefix in arguments
 # Note: If pause settings are not provided (for backward compatibility), defaults will be used
 write_config() {
     local check_interval="$1"
@@ -344,25 +379,34 @@ write_config() {
     local pause_duration="${9:-5}"
     shift 9
     
-    # Extract config_lines array, optional lock_hours_lines array, and optional override flags
+    # Extract config_lines array, optional lock_hours_lines array, optional uninstall_lock_hours_lines array, and optional override flags
     # config_lines values are always "DAYVAR=RANGE" format (e.g., "MONDAY=0-5")
     # lock_hours_lines values are always "CONFIG_LOCK_HOURS_DAYNAME=RANGE" format (e.g., "CONFIG_LOCK_HOURS_MONDAY=9-17")
+    # uninstall_lock_hours_lines values are always "UNINSTALL_LOCK_HOURS_DAYNAME=RANGE" format (e.g., "UNINSTALL_LOCK_HOURS_MONDAY=9-17")
     # Override flags are always "true" or empty string, and never contain "="
     local popup_size_overridden=""
     local configure_block_overridden=""
     local config_lines=()
     local lock_hours_lines=()
+    local uninstall_lock_hours_lines=()
     local all_args=("$@")
     local arg_count=${#all_args[@]}
     
     # Find where lock_hours_lines start (first argument with "CONFIG_LOCK_HOURS_" prefix)
     local lock_hours_start=-1
+    # Find where uninstall_lock_hours_lines start (first argument with "UNINSTALL_LOCK_HOURS_" prefix)
+    local uninstall_lock_hours_start=-1
     local override_flags_start=-1
     
     for i in "${!all_args[@]}"; do
         if [[ "${all_args[${i}]}" =~ ^CONFIG_LOCK_HOURS_ ]]; then
-            lock_hours_start=${i}
-            break
+            if [ ${lock_hours_start} -eq -1 ]; then
+                lock_hours_start=${i}
+            fi
+        elif [[ "${all_args[${i}]}" =~ ^UNINSTALL_LOCK_HOURS_ ]]; then
+            if [ ${uninstall_lock_hours_start} -eq -1 ]; then
+                uninstall_lock_hours_start=${i}
+            fi
         fi
     done
     
@@ -379,21 +423,51 @@ write_config() {
     fi
     
     # Extract arrays based on detected boundaries
+    # Order: config_lines, lock_hours_lines, uninstall_lock_hours_lines, override_flags
     if [ ${lock_hours_start} -ge 0 ]; then
         # Lock hours present
         config_lines=("${all_args[@]:0:${lock_hours_start}}")
         
-        if [ ${override_flags_start} -ge 0 ] && [ ${override_flags_start} -gt ${lock_hours_start} ]; then
-            # Override flags present after lock hours
-            lock_hours_lines=("${all_args[@]:${lock_hours_start}:$((override_flags_start - lock_hours_start))}")
+        if [ ${uninstall_lock_hours_start} -ge 0 ] && [ ${uninstall_lock_hours_start} -gt ${lock_hours_start} ]; then
+            # Both lock hours and uninstall lock hours present
+            lock_hours_lines=("${all_args[@]:${lock_hours_start}:$((uninstall_lock_hours_start - lock_hours_start))}")
+            
+            if [ ${override_flags_start} -ge 0 ] && [ ${override_flags_start} -gt ${uninstall_lock_hours_start} ]; then
+                # Override flags present after uninstall lock hours
+                uninstall_lock_hours_lines=("${all_args[@]:${uninstall_lock_hours_start}:$((override_flags_start - uninstall_lock_hours_start))}")
+                popup_size_overridden="${all_args[$((arg_count - 2))]}"
+                configure_block_overridden="${all_args[$((arg_count - 1))]}"
+            else
+                # No override flags, uninstall lock hours go to end
+                uninstall_lock_hours_lines=("${all_args[@]:${uninstall_lock_hours_start}}")
+            fi
+        else
+            # Only lock hours, no uninstall lock hours
+            if [ ${override_flags_start} -ge 0 ] && [ ${override_flags_start} -gt ${lock_hours_start} ]; then
+                # Override flags present after lock hours
+                lock_hours_lines=("${all_args[@]:${lock_hours_start}:$((override_flags_start - lock_hours_start))}")
+                popup_size_overridden="${all_args[$((arg_count - 2))]}"
+                configure_block_overridden="${all_args[$((arg_count - 1))]}"
+            else
+                # No override flags, lock hours go to end
+                lock_hours_lines=("${all_args[@]:${lock_hours_start}}")
+            fi
+        fi
+    elif [ ${uninstall_lock_hours_start} -ge 0 ]; then
+        # Only uninstall lock hours, no lock hours
+        config_lines=("${all_args[@]:0:${uninstall_lock_hours_start}}")
+        
+        if [ ${override_flags_start} -ge 0 ] && [ ${override_flags_start} -gt ${uninstall_lock_hours_start} ]; then
+            # Override flags present after uninstall lock hours
+            uninstall_lock_hours_lines=("${all_args[@]:${uninstall_lock_hours_start}:$((override_flags_start - uninstall_lock_hours_start))}")
             popup_size_overridden="${all_args[$((arg_count - 2))]}"
             configure_block_overridden="${all_args[$((arg_count - 1))]}"
         else
-            # No override flags, lock hours go to end
-            lock_hours_lines=("${all_args[@]:${lock_hours_start}}")
+            # No override flags, uninstall lock hours go to end
+            uninstall_lock_hours_lines=("${all_args[@]:${uninstall_lock_hours_start}}")
         fi
     else
-        # No lock hours
+        # No lock hours or uninstall lock hours
         if [ ${override_flags_start} -ge 0 ]; then
             # Override flags present
             config_lines=("${all_args[@]:0:${override_flags_start}}")
@@ -530,6 +604,37 @@ write_config() {
                 if [ -n "${lock_hours_lines[${day_index}]}" ]; then
                     # Write the line (includes empty values for explicitly disabled days)
                     echo "${lock_hours_lines[${day_index}]}"
+                fi
+            done
+        fi
+        
+        # Write uninstall lock hours configuration lines (Enhancement #26 Phase 2)
+        # Only write section header if there are any uninstall lock hours configured
+        local has_uninstall_lock_hours=false
+        for day_index in 0 1 2 3 4 5 6; do
+            if [ -n "${uninstall_lock_hours_lines[${day_index}]}" ]; then
+                has_uninstall_lock_hours=true
+                break
+            fi
+        done
+        
+        if [ "${has_uninstall_lock_hours}" = "true" ]; then
+            echo ""
+            echo "# UNINSTALL_LOCK_HOURS: Additional hours for difficult uninstall verification (separate from restriction hours and configure.sh lock hours)"
+            echo "# Format: UNINSTALL_LOCK_HOURS_DAYNAME=START_HOUR-END_HOUR"
+            echo "# Hours are in 24-hour format (0-23)"
+            echo "# Multiple ranges can be specified per day (comma-separated)"
+            echo "# Overnight ranges are supported (e.g., 23-6 spans midnight)"
+            echo "# Leave a day empty or omit it to have no uninstall lock hours for that day"
+            echo "# When UNINSTALL_PROTECTION_MODE=difficult, difficult uninstall verification applies during restriction hours OR uninstall lock hours"
+            echo "# This is Enhancement #26 Phase 2 (Additional Uninstall Lock Hours)"
+            echo "# WARNING: Additional uninstall lock hours increase the risk of preventing legitimate uninstall needs"
+            
+            # Write uninstall lock hours lines in calendar order (Sun-Sat, indices 0-6)
+            for day_index in 0 1 2 3 4 5 6; do
+                if [ -n "${uninstall_lock_hours_lines[${day_index}]}" ]; then
+                    # Write the line (includes empty values for explicitly disabled days)
+                    echo "${uninstall_lock_hours_lines[${day_index}]}"
                 fi
             done
         fi

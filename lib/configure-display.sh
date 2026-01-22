@@ -66,8 +66,9 @@ get_section_status() {
 #   $9  - configure_block_enabled
 #   $10 - lock_hours_status (e.g., "(None)" or "(Configured)") - Enhancement #19 Phase 2
 #   $11 - uninstall_protection_mode (e.g., "none" or "difficult") - Enhancement #26
-#   $12 - pause_enabled (e.g., "true" or "false") - Enhancement #21
-#   $13 - pause_duration (e.g., "5" or "10") - Enhancement #21
+#   $12 - uninstall_lock_hours_status (e.g., "(None)" or "(Configured)") - Enhancement #26 Phase 2
+#   $13 - pause_enabled (e.g., "true" or "false") - Enhancement #21
+#   $14 - pause_duration (e.g., "5" or "10") - Enhancement #21
 show_main_menu() {
     local use_gui="$1"
     local check_interval="$2"
@@ -80,8 +81,9 @@ show_main_menu() {
     local configure_block_enabled="$9"
     local lock_hours_status="${10}"
     local uninstall_protection_mode="${11}"
-    local pause_enabled="${12}"
-    local pause_duration="${13}"
+    local uninstall_lock_hours_status="${12}"
+    local pause_enabled="${13}"
+    local pause_duration="${14}"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
@@ -131,6 +133,12 @@ show_main_menu() {
             uninstall_protection_status=" (Disabled)"
         fi
         
+        # Build uninstall lock hours status indicator (Enhancement #26 Phase 2)
+        local uninstall_lock_status_display=""
+        if [ -n "${uninstall_lock_hours_status}" ]; then
+            uninstall_lock_status_display=" ${uninstall_lock_hours_status}"
+        fi
+        
         # Build pause settings status indicator (Enhancement #21)
         # Note: Pause is always once per day (not configurable), so we only show enabled/disabled and duration
         local pause_status=""
@@ -157,8 +165,9 @@ show_main_menu() {
             "6" "Block Configuration During Restricted Hours${security_status}" \
             "7" "Additional Configuration Block Hours${lock_status_display}" \
             "8" "Uninstall Protection${uninstall_protection_status}" \
-            "9" "Enable pause and configure duration${pause_status}" \
-            "10" "Review and Save")
+            "9" "Uninstall Lock Hours Configuration${uninstall_lock_status_display}" \
+            "10" "Enable pause and configure duration${pause_status}" \
+            "11" "Review and Save")
         local exit_code=$?
         
         # Check if user cancelled (empty choice and non-zero exit)
@@ -178,9 +187,9 @@ show_main_menu() {
             fi
         fi
         
-        # If OK was clicked but no item selected, default to "Review and Save" (option 10)
+        # If OK was clicked but no item selected, default to "Review and Save" (option 11)
         if [ -z "${choice}" ]; then
-            choice="10"
+            choice="11"
         fi
         
         echo "${choice}"
@@ -256,6 +265,15 @@ show_main_menu() {
         echo "8. Uninstall Protection${uninstall_protection_status}" >&2
         echo "   Configure protection mode for uninstall.sh during restricted hours" >&2
         echo "" >&2
+        # Build uninstall lock hours status indicator (Enhancement #26 Phase 2)
+        local uninstall_lock_status_display=""
+        if [ -n "${uninstall_lock_hours_status}" ]; then
+            uninstall_lock_status_display=" ${uninstall_lock_hours_status}"
+        fi
+        echo "9. Uninstall Lock Hours Configuration${uninstall_lock_status_display}" >&2
+        echo "   Configure additional hours when difficult uninstall verification is required" >&2
+        echo "   (Only applies when Uninstall Protection is enabled)" >&2
+        echo "" >&2
         # Build pause settings status indicator (Enhancement #21)
         # Note: Pause is always once per day (not configurable), so we only show enabled/disabled and duration
         local pause_status=""
@@ -264,24 +282,24 @@ show_main_menu() {
         else
             pause_status=" (Disabled)"
         fi
-        echo "9. Enable pause and configure duration${pause_status}" >&2
+        echo "10. Enable pause and configure duration${pause_status}" >&2
         echo "   Configure pause feature for warning popups (pause suppresses popups, not restrictions)" >&2
         echo "" >&2
-        echo "10. Review and Save" >&2
+        echo "11. Review and Save" >&2
         echo "   Review your configuration and save changes" >&2
         echo "" >&2
         echo "To cancel and exit without saving, press Ctrl+C" >&2
         echo "" >&2
         
         while true; do
-            read -p "Select option [1-10]: " choice >&2
+            read -p "Select option [1-11]: " choice >&2
             case "${choice}" in
-                1|2|3|4|5|6|7|8|9|10)
+                1|2|3|4|5|6|7|8|9|10|11)
                     echo "${choice}"
                     return 0
                     ;;
                 *)
-                    echo "Invalid option. Please enter 1-9." >&2
+                    echo "Invalid option. Please enter 1-11." >&2
                     ;;
             esac
         done
@@ -293,15 +311,17 @@ show_visual_grid() {
     local -n config_lines_ref="$2"  # Pass by reference
     local -n summary_lines_ref="$3"  # Pass by reference
     local -n lock_hours_lines_ref="$4"  # Pass by reference (Enhancement #19 Phase 2 - lock hours)
+    local -n uninstall_lock_hours_lines_ref="$5"  # Pass by reference (Enhancement #26 Phase 2 - uninstall lock hours)
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
             # Build grid data for multi-column list
-            # Store day names, restricted hours, and lock hours separately for alternating format
+            # Store day names, restricted hours, lock hours, and uninstall lock hours separately for alternating format
             local day_names=()
             local restricted_hours_list=()
             local lock_hours_list=()
+            local uninstall_lock_hours_list=()
             
             for day_index in 0 1 2 3 4 5 6; do
                 local day_name="${DAY_NAMES[${day_index}]}"
@@ -358,10 +378,30 @@ show_visual_grid() {
                     lock_hours="(no lock hours)"
                 fi
                 
+                # Get uninstall lock hours (Enhancement #26 Phase 2)
+                if [ -n "${uninstall_lock_hours_lines_ref[${day_index}]:-}" ]; then
+                    # Uninstall lock hours line exists - extract value
+                    local uninstall_lock_entry="${uninstall_lock_hours_lines_ref[${day_index}]}"
+                    local uninstall_lock_range
+                    uninstall_lock_range=$(echo "${uninstall_lock_entry}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    
+                    if [ -n "${uninstall_lock_range}" ]; then
+                        # Has uninstall lock hours - show formatted time ranges
+                        uninstall_lock_hours=$(format_ranges_human "${uninstall_lock_range}" "${day_name}")
+                    else
+                        # Explicitly disabled (empty value)
+                        uninstall_lock_hours="(no uninstall lock hours)"
+                    fi
+                else
+                    # No uninstall lock hours configured
+                    uninstall_lock_hours="(no uninstall lock hours)"
+                fi
+                
                 # Store separately
                 day_names+=("${day_name}")
                 restricted_hours_list+=("${restricted_hours}")
                 lock_hours_list+=("${lock_hours}")
+                uninstall_lock_hours_list+=("${uninstall_lock_hours}")
             done
             
             # Add "Back to Menu" option
@@ -369,19 +409,21 @@ show_visual_grid() {
             day_names+=("[Back]")
             restricted_hours_list+=("Return to Main Menu")
             lock_hours_list+=("")
+            uninstall_lock_hours_list+=("")
             
             # Build data array in alternating format for multi-column dialog
-            # Format: col1_row1, col2_row1, col3_row1, col1_row2, col2_row2, col3_row2, ...
+            # Format: col1_row1, col2_row1, col3_row1, col4_row1, col1_row2, col2_row2, col3_row2, col4_row2, ...
             local grid_data=()
             for i in "${!day_names[@]}"; do
                 grid_data+=("${day_names[${i}]}")
                 grid_data+=("${restricted_hours_list[${i}]}")
                 grid_data+=("${lock_hours_list[${i}]}")
+                grid_data+=("${uninstall_lock_hours_list[${i}]}")
             done
             
             # Debug: Log what we're sending to dialog (if DEBUG_GRID is set)
             if [ -n "${DEBUG_GRID:-}" ]; then
-                echo "DEBUG: Grid data array (alternating Day, Restricted Hours, Lock Hours):" >&2
+                echo "DEBUG: Grid data array (alternating Day, Restricted Hours, Lock Hours, Uninstall Lock Hours):" >&2
                 for i in "${!grid_data[@]}"; do
                     echo "  [${i}]: '${grid_data[${i}]}'" >&2
                 done
@@ -391,13 +433,14 @@ show_visual_grid() {
             local selected
             selected=$(show_multi_column_list_dialog \
                 "Visual Day/Time Grid" \
-                "Select a day to edit its restricted hours or lock hours:" \
-                1000 \
+                "Select a day to edit its restricted hours, lock hours, or uninstall lock hours:" \
+                1200 \
                 500 \
                 1 \
                 "Day" \
                 "Restricted Hours" \
                 "Lock Hours" \
+                "Uninstall Lock Hours" \
                 "${grid_data[@]}")
             local exit_code=$?
             
@@ -464,13 +507,14 @@ show_visual_grid() {
             
             # Display grid with tab-separated table format
             # Header
-            printf "%-3s\t%-9s\t%-30s\t%s\n" "#" "Day" "Restricted Hours" "Lock Hours"
-            printf "%-3s\t%-9s\t%-30s\t%s\n" "---" "---" "----------------" "----------"
+            printf "%-3s\t%-9s\t%-30s\t%-30s\t%s\n" "#" "Day" "Restricted Hours" "Lock Hours" "Uninstall Lock Hours"
+            printf "%-3s\t%-9s\t%-30s\t%-30s\t%s\n" "---" "---" "----------------" "----------" "---------------------"
             
             for day_index in 0 1 2 3 4 5 6; do
                 local day_name="${DAY_NAMES[${day_index}]}"
                 local restricted_hours=""
                 local lock_hours=""
+                local uninstall_lock_hours=""
                 
                 # Get restricted hours
                 if [ -n "${summary_lines_ref[${day_index}]}" ]; then
@@ -522,8 +566,27 @@ show_visual_grid() {
                     lock_hours="(no lock hours)"
                 fi
                 
-                # Display as table: number, day name, restricted hours, lock hours
-                printf "%d.\t%-9s\t%-30s\t%s\n" $((day_index + 1)) "${day_name}:" "${restricted_hours}" "${lock_hours}"
+                # Get uninstall lock hours (Enhancement #26 Phase 2)
+                if [ -n "${uninstall_lock_hours_lines_ref[${day_index}]:-}" ]; then
+                    # Uninstall lock hours line exists - extract value
+                    local uninstall_lock_entry="${uninstall_lock_hours_lines_ref[${day_index}]}"
+                    local uninstall_lock_range
+                    uninstall_lock_range=$(echo "${uninstall_lock_entry}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    
+                    if [ -n "${uninstall_lock_range}" ]; then
+                        # Has uninstall lock hours - show formatted time ranges
+                        uninstall_lock_hours=$(format_ranges_human "${uninstall_lock_range}" "${day_name}")
+                    else
+                        # Explicitly disabled (empty value)
+                        uninstall_lock_hours="(no uninstall lock hours)"
+                    fi
+                else
+                    # No uninstall lock hours configured
+                    uninstall_lock_hours="(no uninstall lock hours)"
+                fi
+                
+                # Display as table: number, day name, restricted hours, lock hours, uninstall lock hours
+                printf "%d.\t%-9s\t%-30s\t%-30s\t%s\n" $((day_index + 1)) "${day_name}:" "${restricted_hours}" "${lock_hours}" "${uninstall_lock_hours}"
             done
             
             echo ""

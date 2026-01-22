@@ -89,6 +89,8 @@ sleep-warning-configure
 - Security Settings - Configure blocking of configure.sh and manage.sh during restricted/lock hours
 - Lock Hours Configuration - Configure additional hours when configuration/management is blocked
 - Uninstall Protection - Configure protection mode for uninstall.sh during restricted hours
+- Uninstall Lock Hours Configuration - Configure additional hours when difficult uninstall verification is required
+- Enable pause and configure duration - Configure pause feature for warning popups
 - Review and Save - Review your configuration before saving
 
 The **Visual Day/Time Grid** shows all 7 days at once with time ranges in human-readable format and allows quick editing of any day.
@@ -736,16 +738,20 @@ or
 
 #### Uninstall Protection During Restricted Hours
 
-If you have enabled uninstall protection (`UNINSTALL_PROTECTION_MODE=difficult` in your configuration), the uninstall script will require verification when run during restricted hours:
+If you have enabled uninstall protection (`UNINSTALL_PROTECTION_MODE=difficult` in your configuration), the uninstall script will require verification when run during restricted hours or uninstall lock hours:
 
 1. **Confirmation Phrase**: You must type the exact phrase: "I really mean it and want to uninstall this program now even though restrictions are running"
 2. **Arithmetic Questions**: You must correctly answer 10 arithmetic questions written in word form
 
 This verification process is designed to prevent impulsive uninstallation during restricted hours while still allowing legitimate uninstalls if you complete the verification.
 
-**If you are not in restricted hours**, uninstallation works normally without verification.
+**When Verification is Required**:
+- During your configured restriction hours, OR
+- During your configured uninstall lock hours (if any are set)
 
-**See [CONFIGURATION.md](CONFIGURATION.md#uninstall-protection-during-restricted-hours) for more information about uninstall protection.**
+**If you are not in restriction hours or uninstall lock hours**, uninstallation works normally without verification.
+
+**See [CONFIGURATION.md](CONFIGURATION.md#uninstall-protection-during-restricted-hours) and [CONFIGURATION.md](CONFIGURATION.md#additional-uninstall-lock-hours) for more information about uninstall protection and uninstall lock hours.**
 
 #### Manual Uninstall Guide
 

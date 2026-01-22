@@ -330,6 +330,7 @@ This warning will appear ${interval_text} while you continue using your computer
     
     # Function to update popup with current countdown
     # This function closes and reopens the popup with updated countdown text
+    # Preserves pause button if it was available initially
     update_popup_countdown() {
         local remaining_seconds=$1
         
@@ -343,17 +344,37 @@ This warning will appear ${interval_text} while you continue using your computer
             wait "${popup_pid}" 2>/dev/null
         fi
         
-        # Reopen popup with updated message
+        # Reopen popup with updated message, preserving pause button if available
         case "${dialog_tool}" in
             zenity)
-                zenity --warning \
-                    --title="${window_title}" \
-                    --text="${updated_message}" \
-                    --modal \
-                    --width="${width}" \
-                    --height="${height}" \
-                    2>/dev/null &
-                popup_pid=$!
+                # Recreate output file if it doesn't exist (for pause button handling)
+                if [ -z "${zenity_output_file}" ]; then
+                    zenity_output_file=$(mktemp)
+                fi
+                
+                if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
+                    # Add pause button based on configured duration
+                    local pause_button_label="Pause ${pause_duration} min"
+                    zenity --warning \
+                        --title="${window_title}" \
+                        --text="${updated_message}" \
+                        --modal \
+                        --width="${width}" \
+                        --height="${height}" \
+                        --extra-button="${pause_button_label}" \
+                        > "${zenity_output_file}" 2>/dev/null &
+                    popup_pid=$!
+                else
+                    # No pause button
+                    zenity --warning \
+                        --title="${window_title}" \
+                        --text="${updated_message}" \
+                        --modal \
+                        --width="${width}" \
+                        --height="${height}" \
+                        > "${zenity_output_file}" 2>/dev/null &
+                    popup_pid=$!
+                fi
                 
                 # Reposition if needed (top-left only)
                 if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
@@ -364,17 +385,35 @@ This warning will appear ${interval_text} while you continue using your computer
                 # Use same positioning approach as initial popup
                 if [ "${popup_position}" = "center" ]; then
                     # Use --center flag for proper centering
-                    yad --warning \
-                        --title="${window_title}" \
-                        --text="${updated_message}" \
-                        --modal \
-                        --width="${width}" \
-                        --height="${height}" \
-                        --center \
-                        --fixed \
-                        --on-top \
-                        2>/dev/null &
-                    popup_pid=$!
+                    if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
+                        # Add pause button based on configured duration
+                        yad --warning \
+                            --title="${window_title}" \
+                            --text="${updated_message}" \
+                            --modal \
+                            --width="${width}" \
+                            --height="${height}" \
+                            --center \
+                            --fixed \
+                            --on-top \
+                            --button="Pause ${pause_duration} min:${pause_duration}" \
+                            --button="OK:0" \
+                            2>/dev/null &
+                        popup_pid=$!
+                    else
+                        # No pause button
+                        yad --warning \
+                            --title="${window_title}" \
+                            --text="${updated_message}" \
+                            --modal \
+                            --width="${width}" \
+                            --height="${height}" \
+                            --center \
+                            --fixed \
+                            --on-top \
+                            2>/dev/null &
+                        popup_pid=$!
+                    fi
                 else
                     # For top-left or other positions, calculate coordinates and use --posx/--posy
                     local coords
@@ -383,18 +422,37 @@ This warning will appear ${interval_text} while you continue using your computer
                     pos_x=$(echo "${coords}" | cut -d' ' -f1)
                     pos_y=$(echo "${coords}" | cut -d' ' -f2)
                     
-                    yad --warning \
-                        --title="${window_title}" \
-                        --text="${updated_message}" \
-                        --modal \
-                        --width="${width}" \
-                        --height="${height}" \
-                        --posx="${pos_x}" \
-                        --posy="${pos_y}" \
-                        --fixed \
-                        --on-top \
-                        2>/dev/null &
-                    popup_pid=$!
+                    if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
+                        # Add pause button based on configured duration
+                        yad --warning \
+                            --title="${window_title}" \
+                            --text="${updated_message}" \
+                            --modal \
+                            --width="${width}" \
+                            --height="${height}" \
+                            --posx="${pos_x}" \
+                            --posy="${pos_y}" \
+                            --fixed \
+                            --on-top \
+                            --button="Pause ${pause_duration} min:${pause_duration}" \
+                            --button="OK:0" \
+                            2>/dev/null &
+                        popup_pid=$!
+                    else
+                        # No pause button
+                        yad --warning \
+                            --title="${window_title}" \
+                            --text="${updated_message}" \
+                            --modal \
+                            --width="${width}" \
+                            --height="${height}" \
+                            --posx="${pos_x}" \
+                            --posy="${pos_y}" \
+                            --fixed \
+                            --on-top \
+                            2>/dev/null &
+                        popup_pid=$!
+                    fi
                     
                     # Reposition as backup (top-left only)
                     if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
@@ -545,9 +603,36 @@ This warning will appear ${interval_text} while you continue using your computer
                 
                 # Popup was closed (not due to pause), reopen it with updated countdown immediately
                 update_popup_countdown "${remaining}"
-            elif [ $((elapsed % 5)) -eq 0 ] && [ "${elapsed}" -gt 0 ]; then
-                # Update countdown every 5 seconds (at 5, 10, 15, etc.)
-                update_popup_countdown "${remaining}"
+            else
+                # Determine when to redraw based on minimum display time
+                local should_redraw=false
+                
+                if [ "${min_display_time}" -le 30 ]; then
+                    # For min_display_time ≤ 30: redraw every 10 seconds and at 0
+                    if [ $((elapsed % 10)) -eq 0 ] && [ "${elapsed}" -gt 0 ]; then
+                        should_redraw=true
+                    elif [ "${remaining}" -eq 0 ]; then
+                        # Redraw at zero (final redraw before loop exits)
+                        should_redraw=true
+                    fi
+                else
+                    # For min_display_time > 30: redraw at 75%, 50%, 25%, and 0 time remaining
+                    local threshold_75=$((min_display_time * 75 / 100))
+                    local threshold_50=$((min_display_time * 50 / 100))
+                    local threshold_25=$((min_display_time * 25 / 100))
+                    
+                    if [ "${remaining}" -eq "${threshold_75}" ] || \
+                       [ "${remaining}" -eq "${threshold_50}" ] || \
+                       [ "${remaining}" -eq "${threshold_25}" ] || \
+                       [ "${remaining}" -eq 0 ]; then
+                        should_redraw=true
+                    fi
+                fi
+                
+                if [ "${should_redraw}" = "true" ]; then
+                    # Update countdown at specified intervals
+                    update_popup_countdown "${remaining}"
+                fi
             fi
         done
         

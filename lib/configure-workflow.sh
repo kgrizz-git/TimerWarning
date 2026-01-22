@@ -260,6 +260,7 @@ configure_day_from_grid() {
     local -n config_lines_ref="$3"  # Pass by reference
     local -n summary_lines_ref="$4"  # Pass by reference
     local -n lock_hours_lines_ref="$5"  # Pass by reference (Enhancement #19 Phase 2 - lock hours)
+    local -n uninstall_lock_hours_lines_ref="$6"  # Pass by reference (Enhancement #26 Phase 2 - uninstall lock hours)
     
     # Validate day index
     if [ "${day_index}" -lt 0 ] || [ "${day_index}" -gt 6 ]; then
@@ -269,9 +270,10 @@ configure_day_from_grid() {
     local day_name="${DAY_NAMES[${day_index}]}"
     local range=""
     local lock_range=""
+    local uninstall_lock_range=""
     local exit_code=0
     
-    # Ask what to edit (restricted hours, lock hours, or both)
+    # Ask what to edit (restricted hours, lock hours, uninstall lock hours, or all)
     local edit_choice
     edit_choice=$(ask_what_to_edit "${day_name}" "${use_gui}")
     local choice_exit=$?
@@ -293,7 +295,7 @@ configure_day_from_grid() {
     fi
     
     # Edit restricted hours if requested
-    if [ "${edit_choice}" = "restricted" ] || [ "${edit_choice}" = "both" ]; then
+    if [ "${edit_choice}" = "restricted" ] || [ "${edit_choice}" = "both" ] || [ "${edit_choice}" = "all" ]; then
         if [ "${is_weekday}" = "true" ]; then
             # Weekday (Monday-Friday, indices 1-5)
             if ask_weekday_together "${use_gui}"; then
@@ -378,7 +380,7 @@ configure_day_from_grid() {
     fi
     
     # Edit lock hours if requested
-    if [ "${edit_choice}" = "lock" ] || [ "${edit_choice}" = "both" ]; then
+    if [ "${edit_choice}" = "lock" ] || [ "${edit_choice}" = "both" ] || [ "${edit_choice}" = "all" ]; then
         # Build friendly label to differentiate from restriction hours
         local label="Additional Block Hours - ${day_name}"
         
@@ -403,5 +405,101 @@ configure_day_from_grid() {
         fi
     fi
     
+    # Edit uninstall lock hours if requested
+    if [ "${edit_choice}" = "uninstall_lock" ] || [ "${edit_choice}" = "all" ]; then
+        # Build friendly label to differentiate from restriction hours and configure.sh lock hours
+        local label="Uninstall Lock Hours - ${day_name}"
+        
+        # Reuse get_day_hours for consistent validation and UX
+        uninstall_lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "false" "true")
+        exit_code=$?
+        
+        if [ "${uninstall_lock_range}" = "CANCELLED" ]; then
+            return 2
+        elif [ "${uninstall_lock_range}" != "skip" ]; then
+            # User configured uninstall lock hours for this day
+            local day_var="${DAY_VARS[${day_index}]}"
+            uninstall_lock_hours_lines_ref[${day_index}]="UNINSTALL_LOCK_HOURS_${day_var}=${uninstall_lock_range}"
+        else
+            # Explicitly skipped - mark as no uninstall lock hours for this day
+            local day_var="${DAY_VARS[${day_index}]}"
+            uninstall_lock_hours_lines_ref[${day_index}]="UNINSTALL_LOCK_HOURS_${day_var}="
+        fi
+        
+        if [ ${exit_code} -eq 2 ]; then
+            return 2  # User cancelled
+        fi
+    fi
+    
     return ${exit_code}
+}
+
+# Configure additional uninstall lock hours for uninstall.sh
+# This is separate from restriction hours and configure.sh lock hours, used for uninstall protection.
+# Parameters:
+#   $1 - use_gui (true/false)
+#   $2 - uninstall_lock_hours_lines_ref (name of array variable, passed by reference)
+configure_uninstall_lock_hours_section() {
+    local use_gui="$1"
+    local -n uninstall_lock_hours_lines_ref="$2"  # Pass uninstall_lock_hours_lines by reference
+    
+    # Show informational note about dependency
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_info_dialog \
+            "Additional Uninstall Lock Hours" \
+            "Additional Uninstall Lock Hours\n\nConfigure additional hours when difficult uninstall verification is required.\n\nIMPORTANT: These additional uninstall lock hours only take effect when 'Uninstall Protection' (option 8) is set to 'difficult'.\n\nIf 'Uninstall Protection' is set to 'none', these additional uninstall lock hours will have no effect.\n\nWARNING: Additional uninstall lock hours increase the risk of preventing legitimate uninstall needs." \
+            600 \
+            300
+    else
+        echo "" >&2
+        echo "=== Additional Uninstall Lock Hours ===" >&2
+        echo "" >&2
+        echo "Configure additional hours when difficult uninstall verification is required." >&2
+        echo "" >&2
+        echo "IMPORTANT: These additional uninstall lock hours only take effect when" >&2
+        echo "'Uninstall Protection' (option 8) is set to 'difficult'." >&2
+        echo "" >&2
+        echo "If 'Uninstall Protection' is set to 'none', these additional uninstall" >&2
+        echo "lock hours will have no effect." >&2
+        echo "" >&2
+        echo "WARNING: Additional uninstall lock hours increase the risk of preventing" >&2
+        echo "legitimate uninstall needs." >&2
+        echo "" >&2
+        read -p "Press Enter to continue..." >&2
+    fi
+    
+    # Configure each day individually (Sunday-Saturday, indices 0-6)
+    # We reuse get_day_hours to ensure consistent validation and UX.
+    local day_index=0
+    
+    while [ "${day_index}" -le 6 ]; do
+        local day_name="${DAY_NAMES[${day_index}]}"
+        local day_var="${DAY_VARS[${day_index}]}"
+        
+        # Build friendly label to differentiate from restriction hours and configure.sh lock hours
+        local label="Uninstall Lock Hours - ${day_name}"
+        
+        # Reuse get_day_hours for consistent validation and UX
+        local uninstall_lock_range
+        uninstall_lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "false" "true")
+        local exit_code=$?
+        
+        if [ "${uninstall_lock_range}" = "CANCELLED" ]; then
+            return 2
+        elif [ "${uninstall_lock_range}" != "skip" ]; then
+            # User configured uninstall lock hours for this day
+            uninstall_lock_hours_lines_ref[${day_index}]="UNINSTALL_LOCK_HOURS_${day_var}=${uninstall_lock_range}"
+        else
+            # Explicitly skipped - mark as no uninstall lock hours for this day
+            uninstall_lock_hours_lines_ref[${day_index}]="UNINSTALL_LOCK_HOURS_${day_var}="
+        fi
+        
+        if [ ${exit_code} -eq 2 ]; then
+            return 2  # User cancelled
+        fi
+        
+        day_index=$((day_index + 1))
+    done
+    
+    return 0
 }

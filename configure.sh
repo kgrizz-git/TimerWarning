@@ -119,6 +119,10 @@ main() {
     # This is a sparse array indexed 0-6 (Sunday-Saturday) with entries like:
     #   CONFIG_LOCK_HOURS_MONDAY=9-17
     declare -g -a lock_hours_lines=()
+    # Uninstall lock hours lines (Enhancement #26 Phase 2 - Additional Uninstall Lock Hours)
+    # This is a sparse array indexed 0-6 (Sunday-Saturday) with entries like:
+    #   UNINSTALL_LOCK_HOURS_MONDAY=9-17
+    declare -g -a uninstall_lock_hours_lines=()
     declare -g check_interval popup_size popup_position min_display_time popup_immovable configure_block_enabled uninstall_protection_mode pause_enabled pause_duration
     
     # Load existing configuration
@@ -151,9 +155,24 @@ main() {
             fi
         done
         
+        # Determine uninstall lock hours status for display in main menu (Enhancement #26 Phase 2)
+        # If any day has uninstall lock hours configured, show as "Configured"
+        local uninstall_lock_hours_status="(None)"
+        for i in 0 1 2 3 4 5 6; do
+            if [ -n "${uninstall_lock_hours_lines[${i}]:-}" ]; then
+                # Extract the value after the = sign
+                local uninstall_lock_value
+                uninstall_lock_value=$(echo "${uninstall_lock_hours_lines[${i}]}" | cut -d'=' -f2- | tr -d '[:space:]')
+                if [ -n "${uninstall_lock_value}" ]; then
+                    uninstall_lock_hours_status="(Configured)"
+                    break
+                fi
+            fi
+        done
+        
         # Show main menu
         local menu_choice
-        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}")
+        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}")
         local menu_exit=$?
         
         if [ "${menu_exit}" -eq 2 ] || [ "${menu_choice}" = "CANCELLED" ]; then
@@ -240,7 +259,7 @@ main() {
                 declare -g grid_result_var=""
                 while true; do
                     grid_result_var=""
-                    show_visual_grid "${use_gui}" config_lines summary_lines lock_hours_lines
+                    show_visual_grid "${use_gui}" config_lines summary_lines lock_hours_lines uninstall_lock_hours_lines
                     local grid_exit=$?
                     
                     if [ "${grid_exit}" -ne 0 ] || [ "${grid_result_var}" = "BACK" ]; then
@@ -251,8 +270,8 @@ main() {
                     # grid_result_var contains the day index (0-6) or "BACK"
                     local day_index="${grid_result_var}"
                     
-                    # Configure the selected day (restricted hours and/or lock hours)
-                    configure_day_from_grid "${day_index}" "${use_gui}" config_lines summary_lines lock_hours_lines
+                    # Configure the selected day (restricted hours, lock hours, and/or uninstall lock hours)
+                    configure_day_from_grid "${day_index}" "${use_gui}" config_lines summary_lines lock_hours_lines uninstall_lock_hours_lines
                     local config_exit=$?
                     
                     if [ "${config_exit}" -eq 2 ]; then
@@ -297,6 +316,17 @@ main() {
                 fi
                 ;;
             9)
+                # Uninstall Lock Hours Configuration (Enhancement #26 Phase 2)
+                # Configure additional hours when difficult uninstall verification is required,
+                # separate from restriction hours and configure.sh lock hours.
+                configure_uninstall_lock_hours_section "${use_gui}" uninstall_lock_hours_lines
+                local uninstall_lock_exit=$?
+                if [ "${uninstall_lock_exit}" -eq 2 ]; then
+                    # User cancelled
+                    exit 0
+                fi
+                ;;
+            10)
                 # Pause Settings Configuration (Enhancement #21)
                 local new_pause_enabled
                 new_pause_enabled=$(get_pause_enabled_config "${use_gui}")
@@ -319,7 +349,7 @@ main() {
                     fi
                 fi
                 ;;
-            10)
+            11)
                 # Review and Save
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
                 if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}"; then
@@ -371,9 +401,9 @@ main() {
                     esac
                     
                     # Write configuration (with possibly modified values after safety overrides)
-                    # Pass both restriction config_lines and lock_hours_lines (Phase 2),
+                    # Pass restriction config_lines, lock_hours_lines (Phase 2), and uninstall_lock_hours_lines (Enhancement #26 Phase 2),
                     # followed by optional safety override flags so write_config can add comments.
-                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
+                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
                         # Update timer file if it exists
                         if [ -f "${TIMER_FILE}" ]; then
                             if update_timer_file "${check_interval}"; then

@@ -423,11 +423,11 @@ UNINSTALL_PROTECTION_MODE=difficult # Difficult uninstall - requires verificatio
 
 **How It Works**:
 - When set to `difficult`, the uninstall script (`uninstall.sh`) will check the current time at startup.
-- If the current time falls within your configured restricted hours, the script will require you to complete a verification process before allowing uninstallation:
+- If the current time falls within your configured **restriction hours OR uninstall lock hours** (if configured), the script will require you to complete a verification process before allowing uninstallation:
   1. **Confirmation Phrase**: You must type the exact phrase: "I really mean it and want to uninstall this program now even though restrictions are running"
   2. **Arithmetic Questions**: You must correctly answer 10 arithmetic questions written in word form with step-by-step instructions (e.g., "Multiply 53 by 15, then add (31 minus 58), then add 147. What is the final result?")
 - Questions are written in natural language to make copy-pasting into search engines or calculators more difficult.
-- If you are **not** in restricted hours, uninstallation works normally without verification.
+- If you are **not** in restriction hours or uninstall lock hours, uninstallation works normally without verification.
 - The verification process requires cognitive engagement and effort, making it difficult to uninstall impulsively during restricted hours.
 
 **Important Notes**:
@@ -458,6 +458,54 @@ If you need to uninstall during restricted hours and find the verification proce
 manual-uninstall-guide
 ```
 This script provides step-by-step instructions for manually uninstalling the system and is always accessible, even during restricted hours.
+
+### Additional Uninstall Lock Hours
+
+**Option**: `UNINSTALL_LOCK_HOURS_DAYNAME`
+
+**Description**: Configure additional hours (separate from restriction hours and configure.sh lock hours) during which difficult uninstall verification is required. This creates a dedicated schedule specifically for uninstall protection, independent of your main restriction hours.
+
+**Format**: `UNINSTALL_LOCK_HOURS_DAYNAME=START_HOUR-END_HOUR`
+
+**Default**: Not configured (no additional uninstall lock hours by default)
+
+**Examples**:
+```
+UNINSTALL_LOCK_HOURS_MONDAY=9-17        # Require verification during work hours (9 AM to 4:59 PM)
+UNINSTALL_LOCK_HOURS_TUESDAY=0-5,22-23   # Require verification during early morning and late evening
+UNINSTALL_LOCK_HOURS_WEDNESDAY=23-6      # Require verification overnight (11 PM to 5:59 AM)
+```
+
+**How It Works**:
+- When `UNINSTALL_PROTECTION_MODE=difficult` is enabled, difficult uninstall verification applies during **restriction hours OR uninstall lock hours** (OR logic).
+- If the current time falls within either restriction hours or uninstall lock hours, the verification process is required.
+- Uninstall lock hours are completely separate from:
+  - Restriction hours (main schedule for warnings)
+  - Configure.sh lock hours (hours when configure.sh/manage.sh are blocked)
+- This allows you to configure different schedules for uninstall protection vs. other features.
+
+**Important Notes**:
+- ⚠️ **Requires `UNINSTALL_PROTECTION_MODE=difficult`** - Uninstall lock hours only take effect when uninstall protection is set to "difficult". If protection is set to "none", uninstall lock hours have no effect.
+- ⚠️ **Increased Risk**: Additional uninstall lock hours increase the risk of preventing legitimate uninstall needs. Use with caution.
+- ⚠️ **OR Logic**: Verification applies if current time is in restriction hours OR uninstall lock hours. This means verification can be required even outside your main restriction hours if uninstall lock hours are configured.
+- You can configure uninstall lock hours per day (Sunday-Saturday) or leave days empty to have no uninstall lock hours for those days.
+- Overnight ranges (e.g., `23-6`) are supported and handled correctly.
+- Multiple ranges per day are supported (comma-separated, e.g., `9-17,20-22`).
+
+**Configuration via Wizard**:
+- Use menu option 9: **Uninstall Lock Hours Configuration** in the configuration wizard
+- Configure uninstall lock hours per day, similar to restriction hours
+- Uninstall lock hours are saved to the config file with the `UNINSTALL_LOCK_HOURS_DAYNAME` format
+- You can also edit uninstall lock hours from the Visual Day/Time Grid (option 5) by selecting a day and choosing "Uninstall Lock Hours" or "All"
+
+**Use Cases**:
+- **Extended Protection**: Add additional hours beyond your restriction hours when you want extra uninstall protection
+- **Flexible Scheduling**: Configure different schedules for uninstall protection vs. warning popups
+- **Targeted Protection**: Protect specific time periods (e.g., work hours) with uninstall verification even if those aren't your main restriction hours
+
+**Limitations**:
+- Same limitations as uninstall protection - can be bypassed by modifying system time, editing scripts, or using the manual uninstall guide
+- Designed as a **self-control aid**, not a security measure against determined users with system access
 
 ### Pause Feature (One-Time Pause)
 
@@ -676,11 +724,15 @@ The wizard will guide you through setting all configuration options with a user-
 6. **Security Settings** - Configure blocking of configure.sh and manage.sh during restricted/lock hours
 7. **Lock Hours Configuration** - Configure additional hours when configuration/management is blocked (separate from restriction hours)
 8. **Uninstall Protection** - Configure protection mode for uninstall.sh during restricted hours
-9. **Review and Save** - Review your configuration and save changes
+9. **Uninstall Lock Hours Configuration** - Configure additional hours when difficult uninstall verification is required
+10. **Enable pause and configure duration** - Configure pause feature for warning popups
+11. **Review and Save** - Review your configuration and save changes
 
 **Visual Day/Time Grid**:
 The grid view (option 5) provides a convenient way to see all days of the week and their configured time ranges at a glance. The grid displays:
 - All 7 days (Sunday through Saturday) in a single view
+- Four columns: Day, Restricted Hours, Lock Hours (configure.sh/manage.sh), and Uninstall Lock Hours
+- You can select any day to edit its restricted hours, lock hours, uninstall lock hours, or all of them
 - Current time ranges for each day in human-readable format (e.g., "12:00 AM → 4:59 AM")
 - Visual indicators (✗) showing which days have restrictions configured
 - Easy click-to-edit access for any day

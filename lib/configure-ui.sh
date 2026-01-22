@@ -262,10 +262,11 @@ ask_what_to_edit() {
             "Edit ${day_name}" \
             "What would you like to edit for ${day_name}?" \
             500 \
-            300 \
+            350 \
             "Restricted Hours" \
             "Lock Hours" \
-            "Both")
+            "Uninstall Lock Hours" \
+            "All")
         local exit_code=$?
         
         if [ ${exit_code} -ne 0 ] || [ -z "${choice}" ]; then
@@ -287,8 +288,12 @@ ask_what_to_edit() {
                 echo "lock"
                 return 0
                 ;;
-            "Both")
-                echo "both"
+            "Uninstall Lock Hours")
+                echo "uninstall_lock"
+                return 0
+                ;;
+            "All")
+                echo "all"
                 return 0
                 ;;
             *)
@@ -302,11 +307,12 @@ ask_what_to_edit() {
         echo "What would you like to edit for ${day_name}?" >&2
         echo "  1) Restricted Hours" >&2
         echo "  2) Lock Hours" >&2
-        echo "  3) Both" >&2
+        echo "  3) Uninstall Lock Hours" >&2
+        echo "  4) All" >&2
         echo "" >&2
         
         while true; do
-            read -p "Select option [1-3]: " choice
+            read -p "Select option [1-4]: " choice
             case "${choice}" in
                 1|restricted|Restricted)
                     echo "restricted"
@@ -316,8 +322,12 @@ ask_what_to_edit() {
                     echo "lock"
                     return 0
                     ;;
-                3|both|Both)
-                    echo "both"
+                3|uninstall_lock|Uninstall)
+                    echo "uninstall_lock"
+                    return 0
+                    ;;
+                4|all|All)
+                    echo "all"
                     return 0
                     ;;
                 *)

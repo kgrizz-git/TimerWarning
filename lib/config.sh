@@ -503,3 +503,105 @@ parse_lock_hours() {
         return 0
     fi
 }
+
+# Parse uninstall lock hours from configuration file
+# This function reads UNINSTALL_LOCK_HOURS_DAYNAME lines (e.g., UNINSTALL_LOCK_HOURS_MONDAY=9-17)
+# These are separate from restriction hours and configure.sh lock hours, used for uninstall protection
+# This is for Enhancement #26 Phase 2 (Additional Uninstall Lock Hours)
+#
+# Parameters:
+#   $1 - day_num (0-6, Sunday=0, Saturday=6) or day name (case-insensitive)
+#
+# Returns:
+#   Time range string (e.g., "9-17" or "0-5,22-23") if configured
+#   Empty string if not configured or explicitly disabled
+#
+# Exit Codes:
+#   0 - Success (returns range or empty string)
+#   1 - Invalid day number or day name
+#
+# Dependencies: None (standalone function)
+parse_uninstall_lock_hours() {
+    local day_input="$1"
+    local day_num
+    local day_name
+    
+    # Check if input is a number (0-6) or day name
+    if [[ "${day_input}" =~ ^[0-6]$ ]]; then
+        # Numeric day index provided
+        day_num="${day_input}"
+    else
+        # Day name provided - convert to day number (case-insensitive)
+        local day_lower
+        day_lower=$(echo "${day_input}" | tr '[:upper:]' '[:lower:]')
+        case "${day_lower}" in
+            sunday|sun) day_num=0 ;;
+            monday|mon) day_num=1 ;;
+            tuesday|tue|tues) day_num=2 ;;
+            wednesday|wed) day_num=3 ;;
+            thursday|thu|thurs) day_num=4 ;;
+            friday|fri) day_num=5 ;;
+            saturday|sat) day_num=6 ;;
+            *) return 1 ;;
+        esac
+    fi
+    
+    # Convert day number to day name
+    case "${day_num}" in
+        0) day_name="SUNDAY" ;;
+        1) day_name="MONDAY" ;;
+        2) day_name="TUESDAY" ;;
+        3) day_name="WEDNESDAY" ;;
+        4) day_name="THURSDAY" ;;
+        5) day_name="FRIDAY" ;;
+        6) day_name="SATURDAY" ;;
+        *) return 1 ;;
+    esac
+    
+    # Check if config file exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        # No config file = no uninstall lock hours configured
+        echo ""
+        return 0
+    fi
+    
+    # Check if uninstall lock hours line exists in config file (even if empty)
+    local uninstall_lock_line_exists
+    uninstall_lock_line_exists=$(grep -E "^[[:space:]]*UNINSTALL_LOCK_HOURS_${day_name}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+    
+    if [ -z "${uninstall_lock_line_exists}" ]; then
+        # Uninstall lock hours line doesn't exist = not configured, no uninstall lock hours
+        echo ""
+        return 0
+    fi
+    
+    # Uninstall lock hours line exists - extract value (may be empty if explicitly disabled)
+    local uninstall_lock_config
+    uninstall_lock_config=$(echo "${uninstall_lock_line_exists}" | sed 's/^[[:space:]]*//' | cut -d'=' -f2- | tr -d '[:space:]')
+    
+    if [ -n "${uninstall_lock_config}" ]; then
+        # Has a value - validate format before returning
+        # Source time-validation.sh if available for validation
+        if type validate_hour_range >/dev/null 2>&1; then
+            if validate_hour_range "${uninstall_lock_config}"; then
+                echo "${uninstall_lock_config}"
+                return 0
+            else
+                # Invalid format - log warning and return empty
+                if type log_message >/dev/null 2>&1; then
+                    log_message "warning" "Invalid uninstall lock hours format for ${day_name}: ${uninstall_lock_config}"
+                fi
+                echo ""
+                return 0
+            fi
+        else
+            # Validation function not available - return as-is (will be validated later)
+            echo "${uninstall_lock_config}"
+            return 0
+        fi
+    else
+        # Line exists but is empty = explicitly disabled, no uninstall lock hours
+        echo ""
+        return 0
+    fi
+}

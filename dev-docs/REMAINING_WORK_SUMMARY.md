@@ -4,7 +4,6 @@ This document provides a concise overview of work remaining to be completed for 
 
 ## Priority Items
 
-- [ ] **#21: One-Time Pause Feature (5 or 10 Minutes)** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: pause state management, popup button integration, configuration options, status display. Automated tests (27 tests) all passing. **Remaining**: Manual testing of popup button clicks (zenity/yad/kdialog), warning suppression during active pause, daily tracking reset, and edge cases in real-world usage scenarios.
 - [ ] **#26: Prevent uninstall.sh Execution During Restricted Hours** Phase 2 - add separate configurable hours for difficult uninstall, plus tests, documentation, etc.
 - [ ] **#25: User-Selectable Dialog Tool** - Allow manual dialog tool selection (not implemented)
 - [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - ✅ **MOSTLY IMPLEMENTED** - Main functionality implemented for configure.sh. **Remaining**: Comprehensive testing across all dialog tools (YAD/Zenity/KDialog) and environments (Wayland/X11/KDE); extend priority system to other relevant scripts (manage.sh, status.sh, uninstall.sh)
@@ -13,6 +12,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **Licensing** - License selection and application
 - [ ] **#13a: Single Executable Installer Script** - Self-extracting installer bundling all files
 - [ ] **#13b: Desktop GUI Application Wrapper** - Native desktop application (GTK/Qt/Electron)
+
 
 ## Master Plan Phases
 

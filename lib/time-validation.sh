@@ -181,6 +181,57 @@ is_lock_hour() {
     return 1
 }
 
+# Check if current hour is within uninstall lock hours range(s) - supports comma-separated multiple ranges
+# This function checks if the current hour falls within configured uninstall lock hours
+# Uninstall lock hours are separate from restriction hours and configure.sh lock hours, used for uninstall protection
+# This is for Enhancement #26 Phase 2 (Additional Uninstall Lock Hours)
+#
+# Parameters:
+#   $1 - current_hour (0-23)
+#   $2 - uninstall_lock_ranges (comma-separated ranges, e.g., "9-17" or "0-5,22-23")
+#
+# Returns:
+#   0 - Current hour is within uninstall lock hours (should apply protection)
+#   1 - Current hour is not within uninstall lock hours (should allow)
+#
+# Dependencies:
+#   - validate_hour_range() - for format validation
+#   - is_hour_in_single_range() - for single range checking
+#   - log_message() - for warning messages (optional)
+#
+# This function uses the same logic as is_restricted_hour() and is_lock_hour() for consistency
+is_uninstall_lock_hour() {
+    local current_hour="$1"
+    local uninstall_lock_ranges="$2"
+    
+    # Handle empty range (no uninstall lock hours configured)
+    if [ -z "${uninstall_lock_ranges}" ]; then
+        return 1
+    fi
+    
+    # Validate ranges format
+    if ! validate_hour_range "${uninstall_lock_ranges}"; then
+        if type log_message >/dev/null 2>&1; then
+            log_message "warning" "Invalid uninstall lock hours range format: ${uninstall_lock_ranges}"
+        fi
+        return 1
+    fi
+    
+    # Split by comma and check each range
+    local IFS=','
+    for range in ${uninstall_lock_ranges}; do
+        # Trim whitespace
+        range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        
+        # Check if current hour is within this range
+        if is_hour_in_single_range "${current_hour}" "${range}"; then
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
 # Check if configuration scripts should be blocked due to restricted hours or lock hours
 # Returns 0 if execution is allowed, 1 if execution should be blocked
 # This function checks CONFIGURE_BLOCK_ENABLED and current time against:
@@ -395,7 +446,53 @@ check_uninstall_protection_time() {
         fi
     fi
     
-    # Not in restricted hours - return "none" (no protection needed)
+    # Phase 2: Check uninstall lock hours (separate from restriction hours)
+    # Parse uninstall lock hours for current day
+    local uninstall_lock_range
+    if type parse_uninstall_lock_hours >/dev/null 2>&1; then
+        uninstall_lock_range=$(parse_uninstall_lock_hours "${current_day}")
+    fi
+    
+    # Check if current hour is within uninstall lock hours for current day
+    if [ -n "${uninstall_lock_range}" ] && type is_uninstall_lock_hour >/dev/null 2>&1; then
+        if is_uninstall_lock_hour "${current_hour}" "${uninstall_lock_range}"; then
+            # Current hour is in uninstall lock hours - return protection mode
+            echo "${protection_mode}"
+            return 0
+        fi
+    fi
+    
+    # Check previous day's uninstall lock hours (overnight ranges) - Phase 2
+    if [ -z "${uninstall_lock_range}" ] && type parse_uninstall_lock_hours >/dev/null 2>&1; then
+        # Current day has no uninstall lock hours configured
+        # Check if previous day has overnight uninstall lock hours that extend into current day
+        local prev_day_uninstall_lock_range
+        prev_day_uninstall_lock_range=$(parse_uninstall_lock_hours "${prev_day}")
+        
+        # Check if previous day has overnight uninstall lock hours that extend into current day
+        if [ -n "${prev_day_uninstall_lock_range}" ]; then
+            # Check each range in previous day's uninstall lock hours
+            local IFS=','
+            for range in ${prev_day_uninstall_lock_range}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                # Check if this is an overnight range (start > end) that extends into current day
+                if [ "${start_hour}" -gt "${end_hour}" ]; then
+                    # Overnight range: check if current hour falls within the end portion (before end_hour)
+                    if [ "${current_hour}" -lt "${end_hour}" ]; then
+                        # Current hour is within overnight uninstall lock hours from previous day - return protection mode
+                        echo "${protection_mode}"
+                        return 0
+                    fi
+                fi
+            done
+        fi
+    fi
+    
+    # Not in restricted hours or uninstall lock hours - return "none" (no protection needed)
     echo "none"
     return 0
 }
