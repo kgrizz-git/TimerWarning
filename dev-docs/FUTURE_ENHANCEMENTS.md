@@ -57,7 +57,7 @@ These enhancements can be integrated into the existing bash script suite without
 ### 8. Temporary Disable via Config
 - **Description**: Allow users to temporarily disable warnings via configuration file or command
 - **Priority**: Medium (useful feature)
-- **Status**: Not implemented
+- **Status**: ✅ **Partially Implemented** - Temporary disable/enable is already available via `manage.sh` (or `sleep-warning-manage` when installed). Future work may add config file toggle (`ENABLED=false` option) and/or integrate disable/enable into `configure.sh` for easier access. **Note**: We may actually want to remove the temporary disable option entirely to discourage impulsive disabling, as users have other options for removing or changing restrictions (e.g., editing configuration to remove restricted hours, or uninstalling the system).
 - **Details**: See [enhancements/enhancement-08-temporary-disable-via-config.md](enhancements/enhancement-08-temporary-disable-via-config.md)
 
 ### 9. System Sleep/Hibernate Detection
@@ -157,7 +157,7 @@ These enhancements can be integrated into the existing bash script suite without
 ### 21. One-Time Pause Feature (5 or 10 Minutes)
 - **Description**: Allow users to pause restrictions for a short period (5 or 10 minutes) once per day, with the pause option available directly from the warning popup. This provides users with flexibility for legitimate exceptions (e.g., finishing a task, handling an emergency) while maintaining overall restriction effectiveness
 - **Priority**: Medium (improves user experience and flexibility while maintaining restriction effectiveness)
-- **Status**: Not implemented
+- **Status**: ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: pause state management (`lib/pause-state.sh`), popup button integration (zenity/yad/kdialog support), configuration options (`PAUSE_ENABLED`, `PAUSE_DURATION`), status display (`status.sh`, `manage.sh`), configuration wizard integration. Automated test suite created (`tests/test-pause-feature.sh`) with 27 tests - all passing. Documentation complete (user guide, configuration guide, README). **Remaining**: Manual testing of popup button clicks, warning suppression during active pause, daily tracking, and edge cases in real-world usage scenarios.
 - **Details**: See [enhancements/enhancement-21-one-time-pause-feature.md](enhancements/enhancement-21-one-time-pause-feature.md)
 
 ### 22. Prevent 24/7 Restriction Configuration (Mostly Implemented)
@@ -258,7 +258,7 @@ These approaches would require significant changes to the architecture or a comp
 18. ~~Prevent configure.sh and manage.sh During Restricted Hours~~ ✅ **PHASE 1 IMPLEMENTED** (core blocking functionality complete)
 19. ~~Additional Hours for Config Locking and configure.sh Blocking~~ ✅ **PHASE 1 IMPLEMENTED** (lock hours for configure.sh/manage.sh complete)
 20. ~~Prevent uninstall.sh During Restricted Hours~~ ✅ **PHASE 1 MOSTLY IMPLEMENTED** (difficult uninstall mode complete, testing pending)
-21. One-Time Pause Feature (5 or 10 minutes, available from popup)
+21. ~~One-Time Pause Feature (5 or 10 minutes, available from popup)~~ ✅ **MOSTLY IMPLEMENTED** (core functionality complete, manual testing pending)
 22. Display Restricted Times/Days in Popup
 
 **Low Priority (Nice-to-Have Enhancements)**:

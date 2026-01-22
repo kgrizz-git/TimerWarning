@@ -4,7 +4,7 @@ This document provides a concise overview of work remaining to be completed for 
 
 ## Priority Items
 
-- [ ] **#21: One-Time Pause Feature (5 or 10 Minutes)** - 5 or 10 minute pause once per day, available from popup
+- [ ] **#21: One-Time Pause Feature (5 or 10 Minutes)** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: pause state management, popup button integration, configuration options, status display. Automated tests (27 tests) all passing. Manual testing (popup button clicks, warning suppression, daily tracking) pending.
 - [ ] **#25: User-Selectable Dialog Tool** - Allow manual dialog tool selection
 - [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - Comprehensive testing across all dialog tools and environments; apply priority to other relevant scripts
 - [ ] **#4: Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode
@@ -35,7 +35,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#4: Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode
 - [ ] **#5: Configurable Warning Messages** - Customize warning text per day/time range
 - [ ] **#6: Escalating Warnings** - Progressively stronger warnings for continued usage
-- [ ] **#8: Temporary Disable via Config** - Allow temporary disabling via configuration
+- [-] ~~**#8: Temporary Disable via Config**~~ - **PARTIALLY IMPLEMENTED** - Available via `manage.sh`; future work: config file toggle and/or `configure.sh` integration. **Note**: May remove temporary disable option entirely to discourage impulsive disabling; users can modify restrictions via config or uninstall.
 - [ ] **#9: System Sleep/Hibernate Detection** - Skip warnings after system resume (prevents false warnings)
 - [ ] **#10: Audio Alerts** - Optional audio notification alongside visual popup
 - [ ] **#12: Wayland-Specific Window Management** - Wayland-native window control (requires research)
@@ -48,7 +48,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#17: Multi-Display Popup Support** - Display popups on all monitors simultaneously
 - [ ] **#18: Config File Locking During Restricted Hours** - Prevent config file modification during restricted hours
 - [ ] **#20: Additional Hours for Config Locking and configure.sh Blocking** - Phase 2: Integrate lock hours with uninstall.sh
-- [ ] **#21: One-Time Pause Feature (5 or 10 Minutes)** - 5 or 10 minute pause once per day, available from popup
+- [ ] **#21: One-Time Pause Feature (5 or 10 Minutes)** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: pause state management, popup button integration, configuration options, status display. Automated tests (27 tests) all passing. Manual testing (popup button clicks, warning suppression, daily tracking) pending.
 - [ ] **#22: Prevent 24/7 Restriction Configuration** - Revisit when Enhancement #18 and/or #19 are implemented for proper integration
 - [ ] **#22a: Fix Validation Edge Cases in 24/7 Restriction Detection** - Address edge cases in validation logic (handles `start_hour == end_hour`, sparse array indices, IFS handling)
 - [ ] **#23: Display Restricted Times/Days in Popup** - Show configured restricted hours in warning popup

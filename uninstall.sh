@@ -317,7 +317,8 @@ main() {
     fi
     
     if [ "${protection_mode}" = "difficult" ]; then
-        # Determine GUI mode
+        # Determine GUI mode - use GUI if DISPLAY is set and dialog tool is available
+        # This provides a better user experience with dialog windows for verification
         local use_gui="false"
         if [ -n "${DISPLAY}" ] && type has_dialog_tool >/dev/null 2>&1 && has_dialog_tool 2>/dev/null; then
             use_gui="true"

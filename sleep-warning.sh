@@ -33,6 +33,7 @@ LIB_DIR="${SCRIPT_DIR}/lib"
 # Source library modules in dependency order
 source "${LIB_DIR}/config.sh" || exit 1
 source "${LIB_DIR}/logging.sh" || exit 1
+source "${LIB_DIR}/pause-state.sh" || exit 1
 source "${LIB_DIR}/configure-core.sh" || exit 1
 source "${LIB_DIR}/configure-validation.sh" || exit 1
 source "${LIB_DIR}/display-detection.sh" || exit 1
@@ -94,6 +95,10 @@ validate_config_safety() {
 
 # Main function
 main() {
+    # Check and clear expired pause state (Enhancement #21)
+    # This should be done before checking restricted hours
+    check_and_clear_expired_pause
+    
     # Validate configuration safety before proceeding
     # This prevents 24/7 restrictions from manual config file editing
     local use_defaults=false
@@ -197,6 +202,16 @@ main() {
     fi
     
     if [ "${is_restricted}" = "true" ]; then
+        # Check if pause is currently active (Enhancement #21)
+        # Pause only suppresses warning popups, not restrictions
+        # configure.sh blocking and uninstall.sh protection still apply during pause
+        if is_pause_active; then
+            # Pause is active, skip showing warning popup
+            log_message "info" "Pause active, skipping warning popup (restrictions still apply)"
+            log_to_file "INFO" "Pause active, skipping warning popup - Day: ${current_day}, Hour: ${current_hour}, Range: ${matched_range}"
+            exit 0
+        fi
+        
         log_message "info" "Restricted hour detected: Day ${current_day}, Hour ${current_hour}, Range ${matched_range}"
         
         # Get display environment info for logging

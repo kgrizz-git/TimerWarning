@@ -25,6 +25,7 @@ The Sleep Warning System is a background service that monitors your computer usa
 2. **Time Check**: The system checks if the current time falls within your configured restricted hours
 3. **Warning Display**: If you're using the computer during restricted hours, a modal popup appears
 4. **User Interaction**: The popup requires acknowledgment and must remain visible for a minimum time (configurable)
+5. **Pause Feature** (Optional): Users can pause warning popups for 5 or 10 minutes once per day directly from the warning popup
 
 ### Key Concepts
 
@@ -32,6 +33,7 @@ The Sleep Warning System is a background service that monitors your computer usa
 - **Check Interval**: How often the system checks for restricted hours (default: 10 minutes)
 - **Minimum Display Time**: How long the popup must remain visible before it can be closed (default: 30 seconds)
 - **Popup Behavior**: Modal, stays on top, optionally immovable during minimum display time
+- **Pause Feature**: One-time pause option (5 or 10 minutes) available once per day from the warning popup
 
 ## Quick Reference
 

@@ -183,7 +183,7 @@ See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) for detailed descriptions a
 - [ ] **5. Configurable Warning Messages** - Customize warning text per day/time range - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#5-configurable-warning-messages)
 - [ ] **6. Escalating Warnings** - Progressively stronger warnings for continued usage - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#6-escalating-warnings)
 - [x] **7. Warning Event Logging** - File-based logging with window state information (Implemented) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#7-warning-event-logging)
-- [ ] **8. Temporary Disable via Config** - Allow temporary disabling via configuration - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#8-temporary-disable-via-config)
+- [x] **8. Temporary Disable via Config** - Available via manage.sh; future: config toggle (Partially Implemented) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#8-temporary-disable-via-config)
 - [ ] **9. System Sleep/Hibernate Detection** - Skip warnings after system resume - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#9-system-sleephibernate-detection)
 - [ ] **10. Audio Alerts** - Optional audio notifications alongside visual popup - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#10-audio-alerts)
 - [x] **11. Desktop Notification Fallback** - Non-modal notification when dialogs fail (Implemented) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#11-desktop-notification-fallback-moved)

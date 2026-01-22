@@ -41,6 +41,7 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 - 🔒 **Minimum display time** - Ensures warnings are visible for a set duration
 - 📌 **Immovable windows** - Prevents popup from being moved during countdown (optional)
 - ⬆️ **Always on top** - Popup windows automatically stay above other windows
+- ⏸️ **One-time pause feature** - Temporarily suppress warnings for 5 or 10 minutes once per day
 
 ## Architecture
 
@@ -77,13 +78,13 @@ This architecture makes the codebase easier to understand, modify, and extend. F
 
    **Option A: Clone with Git** (recommended for easy updates):
    ```bash
-   git clone https://github.com/YOUR_USERNAME/LinuxTimerWarning.git
+   git clone https://github.com/kgrizz-git/LinuxTimerWarning.git
    cd LinuxTimerWarning
    ```
    *Note: With Git, you can easily update to newer versions later by running `git pull` in the repository directory.*
 
    **Option B: Download ZIP file**:
-   - Go to the GitHub repository: https://github.com/YOUR_USERNAME/LinuxTimerWarning
+   - Go to the GitHub repository: https://github.com/kgrizz-git/LinuxTimerWarning
    - Click the green "Code" button, then select "Download ZIP"
    - Extract the ZIP file to a location of your choice
    - Open a terminal in the extracted `LinuxTimerWarning` directory

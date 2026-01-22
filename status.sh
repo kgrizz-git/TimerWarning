@@ -37,12 +37,19 @@ elif [ -f "/usr/local/bin/sleep-warning-lib/config.sh" ]; then
     source "/usr/local/bin/sleep-warning-lib/config.sh"
 fi
 
-# Source desktop environment library if available (for dialog tool detection)
-if [ -f "${SCRIPT_DIR}/lib/desktop-environment.sh" ]; then
-    source "${SCRIPT_DIR}/lib/desktop-environment.sh"
-elif [ -f "/usr/local/bin/sleep-warning-lib/desktop-environment.sh" ]; then
-    source "/usr/local/bin/sleep-warning-lib/desktop-environment.sh"
-fi
+    # Source desktop environment library if available (for dialog tool detection)
+    if [ -f "${SCRIPT_DIR}/lib/desktop-environment.sh" ]; then
+        source "${SCRIPT_DIR}/lib/desktop-environment.sh"
+    elif [ -f "/usr/local/bin/sleep-warning-lib/desktop-environment.sh" ]; then
+        source "/usr/local/bin/sleep-warning-lib/desktop-environment.sh"
+    fi
+    
+    # Source pause state library if available (for pause status display - Enhancement #21)
+    if [ -f "${SCRIPT_DIR}/lib/pause-state.sh" ]; then
+        source "${SCRIPT_DIR}/lib/pause-state.sh"
+    elif [ -f "/usr/local/bin/sleep-warning-lib/pause-state.sh" ]; then
+        source "/usr/local/bin/sleep-warning-lib/pause-state.sh"
+    fi
 
 # ANSI color codes
 COLOR_RESET="\033[0m"
@@ -372,6 +379,80 @@ show_configuration() {
     fi
     print_status "Block Scripts During Restricted Hours" "${configure_block_enabled}"
     
+    # Read uninstall protection mode setting (Enhancement #26)
+    local uninstall_protection_mode
+    uninstall_protection_mode=$(grep -E "^[[:space:]]*UNINSTALL_PROTECTION_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    if [ -z "${uninstall_protection_mode}" ]; then
+        uninstall_protection_mode="None (default)"
+    elif [ "${uninstall_protection_mode}" = "difficult" ]; then
+        uninstall_protection_mode="Difficult Uninstall (Enabled)"
+    else
+        uninstall_protection_mode="None"
+    fi
+    print_status "Uninstall Protection" "${uninstall_protection_mode}"
+    
+    # Read pause settings (Enhancement #21)
+    local pause_enabled
+    pause_enabled=$(grep -E "^[[:space:]]*PAUSE_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    if [ -z "${pause_enabled}" ]; then
+        pause_enabled="Enabled (default)"
+    elif [ "${pause_enabled}" = "true" ] || [ "${pause_enabled}" = "1" ] || [ "${pause_enabled}" = "yes" ]; then
+        pause_enabled="Enabled"
+    else
+        pause_enabled="Disabled"
+    fi
+    print_status "Pause Feature" "${pause_enabled}"
+    
+    # Read pause duration
+    local pause_duration
+    pause_duration=$(grep -E "^[[:space:]]*PAUSE_DURATION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    if [ -z "${pause_duration}" ]; then
+        pause_duration="5 minutes (default)"
+    else
+        pause_duration="${pause_duration} minutes"
+    fi
+    print_status "Pause Duration" "${pause_duration}"
+    
+    # Display pause status (Enhancement #21)
+    # Note: Once-per-day limit is ALWAYS enforced (not configurable)
+    print_header "PAUSE STATUS"
+    
+    # Check if pause state functions are available
+    if type is_pause_active >/dev/null 2>&1 && type can_pause_today >/dev/null 2>&1; then
+        # Check if pause is currently active
+        if is_pause_active; then
+            local pause_end_timestamp
+            pause_end_timestamp=$(get_pause_end_timestamp)
+            if [ -n "${pause_end_timestamp}" ]; then
+                local pause_end_time
+                pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
+                print_status "Pause Status" "Active until ${pause_end_time}" "good"
+            else
+                print_status "Pause Status" "Active (end time unknown)" "warning"
+            fi
+        else
+            print_status "Pause Status" "Not active" "good"
+        fi
+        
+        # Display last pause date
+        local last_pause_date
+        last_pause_date=$(get_last_pause_date)
+        if [ -n "${last_pause_date}" ]; then
+            print_status "Last Pause Date" "${last_pause_date}"
+        else
+            print_status "Last Pause Date" "Never used"
+        fi
+        
+        # Display whether pause is available today
+        if can_pause_today; then
+            print_status "Pause Available Today" "Yes" "good"
+        else
+            print_status "Pause Available Today" "No (already used today or disabled)" "warning"
+        fi
+    else
+        print_status "Pause Status" "Unable to check (pause-state.sh not available)" "warning"
+    fi
+    
     # Detect and display dialog tool
     local dialog_tool
     local dialog_tool_status=""
@@ -497,9 +578,9 @@ show_tips() {
     print_header "QUICK COMMANDS"
     
     echo -e "  ${COLOR_BOLD}Configuration:${COLOR_RESET}"
-    echo "    sleep-warning-configure  - Configure restricted hours (installed)"
+    echo "    sleep-warning-configure  - Configure restricted hours (run from ~/.local/bin)"
     echo "    sleep-warning-configure --text  - Force text mode (useful for SSH)"
-    echo "    ./configure.sh          - Configure restricted hours (local)"
+    echo "    ./configure.sh          - Configure restricted hours (run from project folder)"
     echo "    ./configure.sh --text    - Force text mode"
     echo ""
     echo -e "  ${COLOR_BOLD}Status:${COLOR_RESET}"
@@ -510,8 +591,8 @@ show_tips() {
     echo "    systemctl --user status sleep-warning.service  - Service status"
     echo ""
     echo -e "  ${COLOR_BOLD}Management:${COLOR_RESET}"
-    echo "    sleep-warning-manage    - Interactive management menu (installed)"
-    echo "    ./manage.sh             - Interactive management menu (local)"
+    echo "    sleep-warning-manage    - Interactive management menu (run from ~/.local/bin)"
+    echo "    ./manage.sh             - Interactive management menu (run from project folder)"
     echo "    Note: Interactive menu - no command-line flags needed"
     echo ""
     echo -e "  ${COLOR_BOLD}Logs:${COLOR_RESET}"
@@ -520,9 +601,9 @@ show_tips() {
     echo ""
     echo -e "  ${COLOR_BOLD}Disable/Uninstall:${COLOR_RESET}"
     echo "    sleep-warning-manage    - Disable via interactive menu (keeps installed)"
-    echo "    sleep-warning-uninstall - Remove the system completely (installed)"
+    echo "    sleep-warning-uninstall - Remove installed system files (run from ~/.local/bin)"
     echo "    sleep-warning-uninstall --remove-config  - Uninstall including config"
-    echo "    ./uninstall.sh          - Remove the system completely (local)"
+    echo "    ./uninstall.sh          - Remove installed system files (run from project folder)"
     echo "    ./uninstall.sh --remove-config  - Uninstall including config"
 }
 

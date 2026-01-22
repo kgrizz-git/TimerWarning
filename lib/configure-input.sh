@@ -384,6 +384,285 @@ get_configure_block_enabled_config() {
     fi
 }
 
+# Get pause enabled setting from user
+# This function prompts the user to enable or disable the pause feature
+# This is for Enhancement #21 (One-Time Pause Feature)
+#
+# Parameters:
+#   $1 - use_gui (true/false) - Whether to use GUI dialogs or text prompts
+#
+# Returns:
+#   "true" - User enabled pause feature
+#   "false" - User disabled pause feature
+#   "CANCELLED" - User cancelled the operation
+#
+# Exit Codes:
+#   0 - Success (returns "true" or "false")
+#   2 - User cancelled (returns "CANCELLED")
+get_pause_enabled_config() {
+    local use_gui="$1"
+    local default_enabled="true"
+    
+    # Try to get existing setting from config
+    if [ -f "${CONFIG_FILE}" ]; then
+        local existing_enabled
+        existing_enabled=$(grep -E "^[[:space:]]*PAUSE_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ -n "${existing_enabled}" ]; then
+            if [ "${existing_enabled}" = "true" ] || [ "${existing_enabled}" = "1" ] || [ "${existing_enabled}" = "yes" ]; then
+                default_enabled="true"
+            elif [ "${existing_enabled}" = "false" ] || [ "${existing_enabled}" = "0" ] || [ "${existing_enabled}" = "no" ]; then
+                default_enabled="false"
+            fi
+        fi
+    fi
+    
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        # GUI mode
+        while true; do
+            local pause_enabled
+            local enabled_result
+            enabled_result=$(show_list_dialog \
+                "Sleep Warning Configuration - Pause Feature" \
+                "Enable pause feature for warning popups?\n\nWhen enabled, users can pause warning popups for a short period (5 or 10 minutes) directly from the warning popup window.\n\nNote: Pause only suppresses warning popups, not restrictions. configure.sh blocking and uninstall.sh protection still apply during pause.\n\nCurrent setting: ${default_enabled}" \
+                650 \
+                400 \
+                "true" "false")
+            local exit_code=$?
+            
+            if [ ${exit_code} -eq 0 ] && [ -n "${enabled_result}" ]; then
+                pause_enabled="${enabled_result}"
+            else
+                pause_enabled=""
+            fi
+            
+            # User cancelled
+            if [ "${exit_code}" -ne 0 ] || [ -z "${pause_enabled}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2  # Special return code for cancellation
+                else
+                    continue  # User wants to continue, re-prompt
+                fi
+            fi
+            
+            echo "${pause_enabled}"
+            return 0
+        done
+    else
+        # Text mode
+        echo "" >&2
+        echo "Pause Feature - Enable/Disable:" >&2
+        echo "  When enabled, users can pause warning popups for a short period" >&2
+        echo "  (5 or 10 minutes) directly from the warning popup window." >&2
+        echo "  Note: Pause only suppresses warning popups, not restrictions." >&2
+        echo "" >&2
+        while true; do
+            read -p "Enable pause feature? [y/n, default: ${default_enabled}]: " choice
+            choice=${choice:-${default_enabled}}
+            case "${choice}" in
+                y|Y|yes|YES|true|TRUE|1)
+                    echo "true"
+                    return 0
+                    ;;
+                n|N|no|NO|false|FALSE|0)
+                    echo "false"
+                    return 0
+                    ;;
+                "")
+                    echo "${default_enabled}"
+                    return 0
+                    ;;
+                *)
+                    echo "Invalid choice. Please enter 'y' for yes or 'n' for no." >&2
+                    ;;
+            esac
+        done
+    fi
+}
+
+# Get pause duration configuration from user
+# This function allows user to select pause duration (5 or 10 minutes)
+# This is for Enhancement #21 (One-Time Pause Feature)
+#
+# Parameters:
+#   $1 - use_gui (true/false)
+#
+# Returns:
+#   "5" - 5 minute pause duration
+#   "10" - 10 minute pause duration
+#   "CANCELLED" - User cancelled
+#
+# Exit Codes:
+#   0 - Success
+#   2 - User cancelled
+get_pause_duration_config() {
+    local use_gui="$1"
+    local default_duration="5"
+    
+    # Try to get existing setting from config
+    if [ -f "${CONFIG_FILE}" ]; then
+        local existing_duration
+        existing_duration=$(grep -E "^[[:space:]]*PAUSE_DURATION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        if [ -n "${existing_duration}" ] && [[ "${existing_duration}" =~ ^[0-9]+$ ]]; then
+            if [ "${existing_duration}" -eq 5 ] || [ "${existing_duration}" -eq 10 ]; then
+                default_duration="${existing_duration}"
+            fi
+        fi
+    fi
+    
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        # GUI mode
+        while true; do
+            local pause_duration
+            local duration_result
+            duration_result=$(show_list_dialog \
+                "Sleep Warning Configuration - Pause Duration" \
+                "Select pause duration:\n\nCurrent setting: ${default_duration} minutes\n\nOptions:\n• 5 minutes - Shorter pause period\n• 10 minutes - Longer pause period\n\nThe selected duration determines how long warning popups are paused when user clicks pause button." \
+                600 \
+                350 \
+                "5" "10")
+            local exit_code=$?
+            
+            if [ ${exit_code} -eq 0 ] && [ -n "${duration_result}" ]; then
+                pause_duration="${duration_result}"
+            else
+                pause_duration=""
+            fi
+            
+            # User cancelled
+            if [ "${exit_code}" -ne 0 ] || [ -z "${pause_duration}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2  # Special return code for cancellation
+                else
+                    continue  # User wants to continue, re-prompt
+                fi
+            fi
+            
+            echo "${pause_duration}"
+            return 0
+        done
+    else
+        # Text mode
+        echo "" >&2
+        echo "Pause Duration:" >&2
+        echo "  Select how long warning popups are paused when user clicks pause button." >&2
+        echo "" >&2
+        while true; do
+            read -p "Pause duration (5 or 10 minutes) [default: ${default_duration}]: " choice
+            choice=${choice:-${default_duration}}
+            case "${choice}" in
+                5|10)
+                    echo "${choice}"
+                    return 0
+                    ;;
+                "")
+                    echo "${default_duration}"
+                    return 0
+                    ;;
+                *)
+                    echo "Invalid choice. Please enter '5' or '10'." >&2
+                    ;;
+            esac
+        done
+    fi
+}
+
+# Get pause once per day setting from user
+# This function prompts the user to enable or disable once-per-day limit for pause
+# This is for Enhancement #21 (One-Time Pause Feature)
+#
+# Parameters:
+#   $1 - use_gui (true/false) - Whether to use GUI dialogs or text prompts
+#
+# Returns:
+#   "true" - User enabled once-per-day limit
+#   "false" - User disabled once-per-day limit
+#   "CANCELLED" - User cancelled the operation
+#
+# Exit Codes:
+#   0 - Success (returns "true" or "false")
+#   2 - User cancelled (returns "CANCELLED")
+get_pause_once_per_day_config() {
+    local use_gui="$1"
+    local default_once_per_day="true"
+    
+    # Try to get existing setting from config
+    if [ -f "${CONFIG_FILE}" ]; then
+        local existing_once_per_day
+        existing_once_per_day=$(grep -E "^[[:space:]]*PAUSE_ONCE_PER_DAY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ -n "${existing_once_per_day}" ]; then
+            if [ "${existing_once_per_day}" = "true" ] || [ "${existing_once_per_day}" = "1" ] || [ "${existing_once_per_day}" = "yes" ]; then
+                default_once_per_day="true"
+            elif [ "${existing_once_per_day}" = "false" ] || [ "${existing_once_per_day}" = "0" ] || [ "${existing_once_per_day}" = "no" ]; then
+                default_once_per_day="false"
+            fi
+        fi
+    fi
+    
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        # GUI mode
+        while true; do
+            local pause_once_per_day
+            local once_per_day_result
+            once_per_day_result=$(show_list_dialog \
+                "Sleep Warning Configuration - Pause Once Per Day" \
+                "Limit pause to once per day?\n\nWhen enabled, users can only use pause once per day (resets at midnight).\nWhen disabled, users can pause multiple times per day.\n\nCurrent setting: ${default_once_per_day}" \
+                650 \
+                350 \
+                "true" "false")
+            local exit_code=$?
+            
+            if [ ${exit_code} -eq 0 ] && [ -n "${once_per_day_result}" ]; then
+                pause_once_per_day="${once_per_day_result}"
+            else
+                pause_once_per_day=""
+            fi
+            
+            # User cancelled
+            if [ "${exit_code}" -ne 0 ] || [ -z "${pause_once_per_day}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2  # Special return code for cancellation
+                else
+                    continue  # User wants to continue, re-prompt
+                fi
+            fi
+            
+            echo "${pause_once_per_day}"
+            return 0
+        done
+    else
+        # Text mode
+        echo "" >&2
+        echo "Pause Once Per Day Limit:" >&2
+        echo "  When enabled, users can only use pause once per day (resets at midnight)." >&2
+        echo "  When disabled, users can pause multiple times per day." >&2
+        echo "" >&2
+        while true; do
+            read -p "Limit pause to once per day? [y/n, default: ${default_once_per_day}]: " choice
+            choice=${choice:-${default_once_per_day}}
+            case "${choice}" in
+                y|Y|yes|YES|true|TRUE|1)
+                    echo "true"
+                    return 0
+                    ;;
+                n|N|no|NO|false|FALSE|0)
+                    echo "false"
+                    return 0
+                    ;;
+                "")
+                    echo "${default_once_per_day}"
+                    return 0
+                    ;;
+                *)
+                    echo "Invalid choice. Please enter 'y' for yes or 'n' for no." >&2
+                    ;;
+            esac
+        done
+    fi
+}
+
 # Get uninstall protection mode configuration from user
 # This function allows user to select protection mode for uninstall.sh during restricted hours
 # This is for Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours)

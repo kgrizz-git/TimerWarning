@@ -66,6 +66,8 @@ get_section_status() {
 #   $9  - configure_block_enabled
 #   $10 - lock_hours_status (e.g., "(None)" or "(Configured)") - Enhancement #19 Phase 2
 #   $11 - uninstall_protection_mode (e.g., "none" or "difficult") - Enhancement #26
+#   $12 - pause_enabled (e.g., "true" or "false") - Enhancement #21
+#   $13 - pause_duration (e.g., "5" or "10") - Enhancement #21
 show_main_menu() {
     local use_gui="$1"
     local check_interval="$2"
@@ -78,6 +80,8 @@ show_main_menu() {
     local configure_block_enabled="$9"
     local lock_hours_status="${10}"
     local uninstall_protection_mode="${11}"
+    local pause_enabled="${12}"
+    local pause_duration="${13}"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
@@ -127,12 +131,25 @@ show_main_menu() {
             uninstall_protection_status=" (Disabled)"
         fi
         
+        # Build pause settings status indicator (Enhancement #21)
+        local pause_status=""
+        if [ "${pause_enabled}" = "true" ]; then
+            pause_status=" (Enabled, ${pause_duration} min"
+            if [ "${pause_once_per_day}" = "true" ]; then
+                pause_status="${pause_status}, once/day)"
+            else
+                pause_status="${pause_status}, unlimited)"
+            fi
+        else
+            pause_status=" (Disabled)"
+        fi
+        
         local choice
         choice=$(show_multi_column_list_dialog \
             "Sleep Warning Configuration" \
             "Select a section to configure:" \
             700 \
-            450 \
+            500 \
             1 \
             "Option" \
             "Description" \
@@ -144,7 +161,8 @@ show_main_menu() {
             "6" "Block Configuration During Restricted Hours${security_status}" \
             "7" "Additional Configuration Block Hours${lock_status_display}" \
             "8" "Uninstall Protection${uninstall_protection_status}" \
-            "9" "Review and Save")
+            "9" "Enable pause and configure duration${pause_status}" \
+            "10" "Review and Save")
         local exit_code=$?
         
         # Check if user cancelled (empty choice and non-zero exit)
@@ -164,9 +182,9 @@ show_main_menu() {
             fi
         fi
         
-        # If OK was clicked but no item selected, default to "Review and Save" (option 9)
+        # If OK was clicked but no item selected, default to "Review and Save" (option 10)
         if [ -z "${choice}" ]; then
-            choice="9"
+            choice="10"
         fi
         
         echo "${choice}"
@@ -242,16 +260,26 @@ show_main_menu() {
         echo "8. Uninstall Protection${uninstall_protection_status}" >&2
         echo "   Configure protection mode for uninstall.sh during restricted hours" >&2
         echo "" >&2
-        echo "9. Review and Save" >&2
+        # Build pause settings status indicator (Enhancement #21)
+        local pause_status=""
+        if [ "${pause_enabled}" = "true" ]; then
+            pause_status=" (Enabled, ${pause_duration} min, once/day)"
+        else
+            pause_status=" (Disabled)"
+        fi
+        echo "9. Enable pause and configure duration${pause_status}" >&2
+        echo "   Configure pause feature for warning popups (pause suppresses popups, not restrictions)" >&2
+        echo "" >&2
+        echo "10. Review and Save" >&2
         echo "   Review your configuration and save changes" >&2
         echo "" >&2
         echo "To cancel and exit without saving, press Ctrl+C" >&2
         echo "" >&2
         
         while true; do
-            read -p "Select option [1-9]: " choice >&2
+            read -p "Select option [1-10]: " choice >&2
             case "${choice}" in
-                1|2|3|4|5|6|7|8|9)
+                1|2|3|4|5|6|7|8|9|10)
                     echo "${choice}"
                     return 0
                     ;;

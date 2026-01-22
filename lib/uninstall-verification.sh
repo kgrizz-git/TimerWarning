@@ -369,7 +369,8 @@ verify_uninstall_during_restrictions() {
     explanation="Uninstall during restricted hours requires verification.\n\n"
     explanation="${explanation}You will need to:\n"
     explanation="${explanation}1. Type a confirmation phrase\n"
-    explanation="${explanation}2. Answer 10 arithmetic questions correctly\n\n"
+    explanation="${explanation}2. Answer 10 arithmetic questions correctly\n"
+    explanation="${explanation}   (You are allowed 5 wrong answers total across all questions)\n\n"
     explanation="${explanation}This process requires significant effort and cognitive engagement,\n"
     explanation="${explanation}allowing legitimate uninstalls while deterring impulsive ones."
     
@@ -419,7 +420,10 @@ verify_uninstall_during_restrictions() {
     fi
     
     # Step 2: Arithmetic questions (10 questions)
+    # Users get a total of 5 wrong answers across all questions
     local total_questions=10
+    local max_wrong_answers=5
+    local wrong_answers_count=0
     local question_num=1
     
     while [ ${question_num} -le ${total_questions} ]; do
@@ -430,19 +434,20 @@ verify_uninstall_during_restrictions() {
         question_text=$(echo "${question_data}" | cut -d'|' -f1)
         correct_answer=$(echo "${question_data}" | cut -d'|' -f2)
         
-        local max_attempts=3
-        local attempt=1
         local answered_correctly=false
         
-        while [ ${attempt} -le ${max_attempts} ] && [ "${answered_correctly}" = "false" ]; do
+        while [ "${answered_correctly}" = "false" ]; do
             local user_answer=""
+            local remaining_wrong=$((max_wrong_answers - wrong_answers_count))
             
             if [ "${use_gui}" = "true" ] && has_dialog_tool; then
                 # GUI mode
                 local dialog_text
                 dialog_text="Question ${question_num} of ${total_questions}\n\n${question_text}"
-                if [ ${attempt} -gt 1 ]; then
-                    dialog_text="${dialog_text}\n\nAttempt ${attempt} of ${max_attempts}"
+                if [ ${wrong_answers_count} -gt 0 ]; then
+                    dialog_text="${dialog_text}\n\n⚠ Wrong answers used: ${wrong_answers_count} of ${max_wrong_answers}\nRemaining wrong answers allowed: ${remaining_wrong}"
+                else
+                    dialog_text="${dialog_text}\n\nYou have ${max_wrong_answers} wrong answers allowed across all ${total_questions} questions."
                 fi
                 
                 user_answer=$(show_entry_dialog \
@@ -459,8 +464,11 @@ verify_uninstall_during_restrictions() {
                 # Text mode
                 echo "" >&2
                 echo "Question ${question_num} of ${total_questions}" >&2
-                if [ ${attempt} -gt 1 ]; then
-                    echo "Attempt ${attempt} of ${max_attempts}" >&2
+                if [ ${wrong_answers_count} -gt 0 ]; then
+                    echo "⚠ Wrong answers used: ${wrong_answers_count} of ${max_wrong_answers}" >&2
+                    echo "Remaining wrong answers allowed: ${remaining_wrong}" >&2
+                else
+                    echo "You have ${max_wrong_answers} wrong answers allowed across all ${total_questions} questions." >&2
                 fi
                 echo "" >&2
                 echo "${question_text}" >&2
@@ -483,24 +491,30 @@ verify_uninstall_during_restrictions() {
                 fi
             else
                 # Answer is incorrect
-                if [ ${attempt} -lt ${max_attempts} ]; then
-                    local error_msg="Incorrect answer. The correct answer is ${correct_answer}. Please try again."
-                    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
-                        show_info_dialog "Incorrect" "${error_msg}" 500 200
-                    else
-                        echo "Incorrect. The correct answer is ${correct_answer}." >&2
-                    fi
-                else
-                    # Max attempts exceeded for this question
-                    local error_msg="Incorrect answer after ${max_attempts} attempts. The correct answer was ${correct_answer}. Verification failed."
+                wrong_answers_count=$((wrong_answers_count + 1))
+                remaining_wrong=$((max_wrong_answers - wrong_answers_count))
+                
+                if [ ${wrong_answers_count} -ge ${max_wrong_answers} ]; then
+                    # Max wrong answers exceeded
+                    local error_msg="Incorrect answer. You have used all ${max_wrong_answers} wrong answers allowed.\n\nThe correct answer was ${correct_answer}.\n\nVerification failed."
                     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
                         show_info_dialog "Verification Failed" "${error_msg}" 500 250
                     else
-                        echo "Error: ${error_msg}" >&2
+                        echo "Error: Incorrect answer. You have used all ${max_wrong_answers} wrong answers allowed." >&2
+                        echo "The correct answer was ${correct_answer}. Verification failed." >&2
                     fi
                     return 1
+                else
+                    # Still have wrong answers remaining
+                    local error_msg="Incorrect answer. The correct answer is ${correct_answer}.\n\nWrong answers used: ${wrong_answers_count} of ${max_wrong_answers}\nRemaining wrong answers allowed: ${remaining_wrong}\n\nPlease try again."
+                    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+                        show_info_dialog "Incorrect" "${error_msg}" 500 250
+                    else
+                        echo "Incorrect. The correct answer is ${correct_answer}." >&2
+                        echo "Wrong answers used: ${wrong_answers_count} of ${max_wrong_answers}" >&2
+                        echo "Remaining wrong answers allowed: ${remaining_wrong}" >&2
+                    fi
                 fi
-                attempt=$((attempt + 1))
             fi
         done
         

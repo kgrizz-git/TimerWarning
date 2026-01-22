@@ -459,6 +459,60 @@ manual-uninstall-guide
 ```
 This script provides step-by-step instructions for manually uninstalling the system and is always accessible, even during restricted hours.
 
+### Pause Feature (One-Time Pause)
+
+**Option**: `PAUSE_ENABLED` and `PAUSE_DURATION`
+
+**Description**: Allows users to temporarily suppress warning popups for a short period (5 or 10 minutes) once per day, directly from the warning popup window. This provides flexibility for legitimate exceptions (e.g., finishing a task, handling an emergency) while maintaining overall restriction effectiveness.
+
+**Format**:
+- `PAUSE_ENABLED`: `true` or `false`
+- `PAUSE_DURATION`: `5` or `10` (minutes)
+
+**Default**: 
+- `PAUSE_ENABLED=true` (enabled by default)
+- `PAUSE_DURATION=5` (5 minutes)
+
+**Examples**:
+```
+PAUSE_ENABLED=true        # Enable pause feature (default)
+PAUSE_ENABLED=false       # Disable pause feature
+PAUSE_DURATION=5          # 5 minute pause duration (default)
+PAUSE_DURATION=10         # 10 minute pause duration
+```
+
+**How It Works**:
+- When enabled, warning popups display a pause button (e.g., "Pause 5 min" or "Pause 10 min") directly in the popup window
+- Users can click the pause button to activate the pause
+- The popup closes immediately and a confirmation message appears showing when the pause expires
+- Warning popups are suppressed during the pause period (5 or 10 minutes, depending on configuration)
+- After the pause expires, warning popups resume normally
+- **Once Per Day Limit**: The pause feature can only be used once per day (resets at midnight). This limit is always enforced and cannot be disabled.
+
+**Important Notes**:
+- **What Pause Affects**:
+  - ✅ **Suppresses warning popups** - No popups shown during pause period
+  - ❌ **Does NOT affect `configure.sh` blocking** - Still blocked during restricted hours if `CONFIGURE_BLOCK_ENABLED=true`
+  - ❌ **Does NOT affect `uninstall.sh` protection** - Still requires verification during restricted hours if `UNINSTALL_PROTECTION_MODE=difficult`
+  - ❌ **Does NOT release restrictions** - Restrictions are still active, only warnings are suppressed
+- **Pause is a temporary "quiet period" for warnings only**, not a release of restrictions
+- The once-per-day limit is **always enforced** and cannot be disabled
+- Pause buttons are available even during minimum display time - clicking pause immediately closes the popup (bypasses minimum display time)
+
+**Configuration via Wizard**:
+- Use menu option 9: **Enable pause and configure duration** in the configuration wizard
+- Configure pause enabled/disabled and duration (5 or 10 minutes)
+- Settings are saved to the config file with the `PAUSE_ENABLED` and `PAUSE_DURATION` format
+
+**Viewing Pause Status**:
+- Check pause status: `sleep-warning-status` (shows pause configuration and current status)
+- View pause details: `sleep-warning-manage` → Option 2 "View Pause Status"
+
+**Use Cases**:
+- **Legitimate Exceptions**: Finish a task or handle an emergency without constant popup interruptions
+- **Flexibility**: Provides a controlled way to temporarily suppress warnings while maintaining restriction effectiveness
+- **Self-Control Aid**: The once-per-day limit prevents overuse while allowing necessary exceptions
+
 ## Complete Configuration Example
 
 Here is a complete example configuration file with all options:

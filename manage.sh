@@ -17,9 +17,17 @@
 #   sleep-warning-manage (after installation)
 ###############################################################################
 
-# Determine script directory
+# Determine script directory and library path
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/lib"
+SCRIPT_LIB_DIR="${SCRIPT_DIR}/lib"
+INSTALLED_LIB_DIR="${HOME}/.local/lib/sleep-warning"
+
+# Determine which library directory to use for sourcing (project dir if available, otherwise installed location)
+SOURCE_LIB_DIR="${INSTALLED_LIB_DIR}"
+if [ -d "${SCRIPT_LIB_DIR}" ]; then
+    # Running from project directory - use project lib for sourcing
+    SOURCE_LIB_DIR="${SCRIPT_LIB_DIR}"
+fi
 
 SCRIPT_NAME="sleep-warning-manage"
 SERVICE_NAME="sleep-warning"
@@ -32,14 +40,15 @@ SERVICE_FILE="${SYSTEMD_USER_DIR}/${SERVICE_NAME}.service"
 TIMER_FILE="${SYSTEMD_USER_DIR}/${TIMER_NAME}"
 
 # Source required library modules for time check
-source "${LIB_DIR}/config.sh" 2>/dev/null || true
-source "${LIB_DIR}/logging.sh" 2>/dev/null || true
-source "${LIB_DIR}/time-validation.sh" 2>/dev/null || true
+source "${SOURCE_LIB_DIR}/config.sh" 2>/dev/null || true
+source "${SOURCE_LIB_DIR}/logging.sh" 2>/dev/null || true
+source "${SOURCE_LIB_DIR}/pause-state.sh" 2>/dev/null || true
+source "${SOURCE_LIB_DIR}/time-validation.sh" 2>/dev/null || true
 # Source configure modules for error message display
-source "${LIB_DIR}/configure-core.sh" 2>/dev/null || true
-source "${LIB_DIR}/configure-time.sh" 2>/dev/null || true
-source "${LIB_DIR}/configure-ui.sh" 2>/dev/null || true
-source "${LIB_DIR}/configure-dialogs.sh" 2>/dev/null || true
+source "${SOURCE_LIB_DIR}/configure-core.sh" 2>/dev/null || true
+source "${SOURCE_LIB_DIR}/configure-time.sh" 2>/dev/null || true
+source "${SOURCE_LIB_DIR}/configure-ui.sh" 2>/dev/null || true
+source "${SOURCE_LIB_DIR}/configure-dialogs.sh" 2>/dev/null || true
 
 # Check if zenity is available
 has_zenity() {
@@ -326,43 +335,81 @@ For more information, see the README.md file."
     show_text_info "Help and Information" "${help_text}" "${use_gui}"
 }
 
-# Show disable instructions
-show_disable_instructions() {
+# View pause status
+view_pause_status() {
     local use_gui="$1"
     
-    local instructions="How to Temporarily Disable the Service:
-
-METHOD 1 - Using this Management Interface:
-Select 'Disable Service' from the main menu.
-
-METHOD 2 - Using Command Line:
-Run these commands:
-  systemctl --user stop sleep-warning.timer
-  systemctl --user disable sleep-warning.timer
-
-The service will stop checking for restricted hours immediately.
-You can re-enable it anytime using this management interface."
+    # Check if pause state functions are available
+    if ! type is_pause_active >/dev/null 2>&1 || ! type can_pause_today >/dev/null 2>&1; then
+        show_message "Pause Status" "Pause status functions are not available.\n\nThis feature requires pause-state.sh library." "warning" "${use_gui}"
+        return 1
+    fi
     
-    show_message "How to Disable Service" "${instructions}" "info" "${use_gui}"
-}
-
-# Show enable instructions
-show_enable_instructions() {
-    local use_gui="$1"
+    local status_text="Pause Feature Status\n\n"
     
-    local instructions="How to Re-enable the Service:
-
-METHOD 1 - Using this Management Interface:
-Select 'Enable Service' from the main menu.
-
-METHOD 2 - Using Command Line:
-Run these commands:
-  systemctl --user enable sleep-warning.timer
-  systemctl --user start sleep-warning.timer
-
-The service will start checking for restricted hours immediately."
+    # Check if pause is enabled
+    local pause_enabled
+    pause_enabled=$(grep -E "^[[:space:]]*PAUSE_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    if [ -z "${pause_enabled}" ] || [ "${pause_enabled}" = "true" ] || [ "${pause_enabled}" = "1" ] || [ "${pause_enabled}" = "yes" ]; then
+        status_text="${status_text}Feature: Enabled\n"
+    else
+        status_text="${status_text}Feature: Disabled\n"
+    fi
     
-    show_message "How to Enable Service" "${instructions}" "info" "${use_gui}"
+    # Get pause duration
+    local pause_duration
+    pause_duration=$(grep -E "^[[:space:]]*PAUSE_DURATION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    if [ -z "${pause_duration}" ]; then
+        pause_duration="5"
+    fi
+    status_text="${status_text}Duration: ${pause_duration} minutes\n"
+    
+    # Note: Once-per-day limit is ALWAYS enforced (not configurable)
+    status_text="${status_text}Once Per Day: Always Enabled (not configurable)\n"
+    status_text="${status_text}\n"
+    
+    # Check if pause is currently active
+    if is_pause_active; then
+        local pause_end_timestamp
+        pause_end_timestamp=$(get_pause_end_timestamp)
+        if [ -n "${pause_end_timestamp}" ]; then
+            local pause_end_time
+            pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
+            status_text="${status_text}Current Status: ACTIVE\n"
+            status_text="${status_text}Pause expires at: ${pause_end_time}\n"
+        else
+            status_text="${status_text}Current Status: ACTIVE (end time unknown)\n"
+        fi
+    else
+        status_text="${status_text}Current Status: Not active\n"
+    fi
+    
+    # Display last pause date
+    local last_pause_date
+    last_pause_date=$(get_last_pause_date)
+    if [ -n "${last_pause_date}" ]; then
+        status_text="${status_text}Last Pause Date: ${last_pause_date}\n"
+    else
+        status_text="${status_text}Last Pause Date: Never used\n"
+    fi
+    
+    # Display whether pause is available today
+    if can_pause_today; then
+        status_text="${status_text}Pause Available Today: Yes\n"
+    else
+        status_text="${status_text}Pause Available Today: No\n"
+        if [ "${pause_enabled}" != "true" ] && [ "${pause_enabled}" != "1" ] && [ "${pause_enabled}" != "yes" ]; then
+            status_text="${status_text}  (Pause feature is disabled)\n"
+        else
+            status_text="${status_text}  (Already used today or once-per-day limit enabled)\n"
+        fi
+    fi
+    
+    status_text="${status_text}\n"
+    status_text="${status_text}Note: Pause only suppresses warning popups.\n"
+    status_text="${status_text}Restrictions (configure.sh blocking, uninstall.sh protection) still apply during pause."
+    
+    show_message "Pause Status" "${status_text}" "info" "${use_gui}"
 }
 
 # Show uninstall information
@@ -402,9 +449,7 @@ show_menu_gui() {
         "Temporarily Disable Service" \
         "Re-enable Service" \
         "View Service Logs" \
-        "Show File Locations" \
-        "How to Disable (Instructions)" \
-        "How to Enable (Instructions)" \
+        "View Pause Status" \
         "Uninstall Information" \
         "Help and Information" \
         "Exit" \
@@ -432,22 +477,20 @@ show_menu_text() {
         echo "4. Temporarily Disable Service"
         echo "5. Re-enable Service"
         echo "6. View Service Logs"
-        echo "7. Show File Locations"
-        echo "8. How to Disable (Instructions)"
-        echo "9. How to Enable (Instructions)"
-        echo "10. Uninstall Information"
-        echo "11. Help and Information"
-        echo "12. Exit"
+        echo "7. View Pause Status"
+        echo "8. Uninstall Information"
+        echo "9. Help and Information"
+        echo "10. Exit"
         echo ""
-        read -p "Select an option [1-12]: " choice
+        read -p "Select an option [1-10]: " choice
         
         case "${choice}" in
-            1|2|3|4|5|6|7|8|9|10|11|12)
+            1|2|3|4|5|6|7|8|9|10)
                 echo "${choice}"
                 return 0
                 ;;
             *)
-                echo "Invalid option. Please select 1-12."
+                echo "Invalid option. Please select 1-10."
                 ;;
         esac
     done
@@ -483,7 +526,7 @@ main() {
             choice=$(show_menu_text)
         fi
         
-        if [ -z "${choice}" ] || [ "${choice}" = "Exit" ] || [ "${choice}" = "12" ]; then
+        if [ -z "${choice}" ] || [ "${choice}" = "Exit" ] || [ "${choice}" = "10" ]; then
             break
         fi
         
@@ -506,19 +549,13 @@ main() {
             "View Service Logs"|6)
                 view_logs "${use_gui}"
                 ;;
-            "Show File Locations"|7)
-                show_file_locations "${use_gui}"
+            "View Pause Status"|7)
+                view_pause_status "${use_gui}"
                 ;;
-            "How to Disable (Instructions)"|8)
-                show_disable_instructions "${use_gui}"
-                ;;
-            "How to Enable (Instructions)"|9)
-                show_enable_instructions "${use_gui}"
-                ;;
-            "Uninstall Information"|10)
+            "Uninstall Information"|8)
                 show_uninstall_info "${use_gui}"
                 ;;
-            "Help and Information"|11)
+            "Help and Information"|9)
                 show_help "${use_gui}"
                 ;;
         esac

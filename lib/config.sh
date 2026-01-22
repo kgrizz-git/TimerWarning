@@ -45,6 +45,18 @@ DEFAULT_CONFIGURE_BLOCK_ENABLED=false
 # Options: "none" (no protection), "difficult" (require verification)
 DEFAULT_UNINSTALL_PROTECTION_MODE="none"
 
+# Default pause enabled setting - used if config file missing or invalid
+# This controls whether users can pause warning popups for a short period (Enhancement #21)
+DEFAULT_PAUSE_ENABLED=true
+
+# Default pause duration (in minutes) - used if config file missing or invalid
+# This controls how long warning popups are paused when user clicks pause button (Enhancement #21)
+DEFAULT_PAUSE_DURATION=5
+
+# Pause state file location - stores pause state and last pause date
+# This file tracks when pause expires and when pause was last used (Enhancement #21)
+PAUSE_STATE_FILE="${CONFIG_DIR}/.pause_state"
+
 # Default restricted hours (used if config file missing or invalid)
 # Format: day_number=start_hour-end_hour
 # Day numbers: 0=Sunday, 1=Monday, ..., 6=Saturday
@@ -306,6 +318,60 @@ get_uninstall_protection_mode() {
         echo "${DEFAULT_UNINSTALL_PROTECTION_MODE}"
         return 0
     fi
+}
+
+# Get pause enabled setting from configuration file
+# Returns "true" if pause feature is enabled, "false" otherwise
+# This is for Enhancement #21 (One-Time Pause Feature)
+get_pause_enabled() {
+    # Check if config file exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "${DEFAULT_PAUSE_ENABLED}"
+        return 0
+    fi
+    
+    # Read PAUSE_ENABLED from config file
+    local pause_enabled
+    pause_enabled=$(grep -E "^[[:space:]]*PAUSE_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    
+    if [ "${pause_enabled}" = "true" ] || [ "${pause_enabled}" = "1" ] || [ "${pause_enabled}" = "yes" ]; then
+        echo "true"
+        return 0
+    elif [ "${pause_enabled}" = "false" ] || [ "${pause_enabled}" = "0" ] || [ "${pause_enabled}" = "no" ]; then
+        echo "false"
+        return 0
+    else
+        # Invalid or missing, use default
+        echo "${DEFAULT_PAUSE_ENABLED}"
+        return 0
+    fi
+}
+
+# Get pause duration from configuration file
+# Returns pause duration in minutes (5 or 10)
+# This is for Enhancement #21 (One-Time Pause Feature)
+get_pause_duration() {
+    # Check if config file exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "${DEFAULT_PAUSE_DURATION}"
+        return 0
+    fi
+    
+    # Read PAUSE_DURATION from config file
+    local duration
+    duration=$(grep -E "^[[:space:]]*PAUSE_DURATION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    
+    if [ -n "${duration}" ] && [[ "${duration}" =~ ^[0-9]+$ ]]; then
+        # Validate duration (must be 5 or 10)
+        if [ "${duration}" -eq 5 ] || [ "${duration}" -eq 10 ]; then
+            echo "${duration}"
+            return 0
+        fi
+    fi
+    
+    # Invalid or missing, use default
+    echo "${DEFAULT_PAUSE_DURATION}"
+    return 0
 }
 
 # Parse configuration file

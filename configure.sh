@@ -119,7 +119,7 @@ main() {
     # This is a sparse array indexed 0-6 (Sunday-Saturday) with entries like:
     #   CONFIG_LOCK_HOURS_MONDAY=9-17
     declare -g -a lock_hours_lines=()
-    declare -g check_interval popup_size popup_position min_display_time popup_immovable configure_block_enabled uninstall_protection_mode
+    declare -g check_interval popup_size popup_position min_display_time popup_immovable configure_block_enabled uninstall_protection_mode pause_enabled pause_duration
     
     # Load existing configuration
     # Function sets global variables and populates global arrays directly
@@ -153,7 +153,7 @@ main() {
         
         # Show main menu
         local menu_choice
-        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}")
+        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}")
         local menu_exit=$?
         
         if [ "${menu_exit}" -eq 2 ] || [ "${menu_choice}" = "CANCELLED" ]; then
@@ -297,6 +297,29 @@ main() {
                 fi
                 ;;
             9)
+                # Pause Settings Configuration (Enhancement #21)
+                local new_pause_enabled
+                new_pause_enabled=$(get_pause_enabled_config "${use_gui}")
+                if [ "${new_pause_enabled}" = "CANCELLED" ]; then
+                    # User already confirmed cancellation
+                    exit 0
+                else
+                    pause_enabled="${new_pause_enabled}"
+                fi
+                
+                # Only configure duration if pause is enabled
+                if [ "${pause_enabled}" = "true" ]; then
+                    local new_pause_duration
+                    new_pause_duration=$(get_pause_duration_config "${use_gui}")
+                    if [ "${new_pause_duration}" = "CANCELLED" ]; then
+                        # User already confirmed cancellation
+                        exit 0
+                    else
+                        pause_duration="${new_pause_duration}"
+                    fi
+                fi
+                ;;
+            10)
                 # Review and Save
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
                 if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}"; then
@@ -350,7 +373,7 @@ main() {
                     # Write configuration (with possibly modified values after safety overrides)
                     # Pass both restriction config_lines and lock_hours_lines (Phase 2),
                     # followed by optional safety override flags so write_config can add comments.
-                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
+                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
                         # Update timer file if it exists
                         if [ -f "${TIMER_FILE}" ]; then
                             if update_timer_file "${check_interval}"; then

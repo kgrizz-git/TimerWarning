@@ -2,7 +2,7 @@
 - **Description**: Allow users to pause restrictions for a short period (5 or 10 minutes) once per day, with the pause option available directly from the warning popup. This provides users with flexibility for legitimate exceptions (e.g., finishing a task, handling an emergency) while maintaining overall restriction effectiveness
 - **Files Affected**: `sleep-warning.sh`, `sleep-warning.conf`, `configure.sh`
 - **Priority**: Medium (improves user experience and flexibility while maintaining restriction effectiveness)
-- **Status**: Not implemented
+- **Status**: Implementation Complete (Phases 1-6), Testing and Documentation Pending (Phases 7-8)
 - **Feasibility Assessment**: ✅ **Highly Feasible** - Simple timer mechanism with state tracking
 - **Implementation Approach**:
   - **Popup Button Integration**:
@@ -26,7 +26,7 @@
   - **Config Options**:
     - `PAUSE_ENABLED=true/false` - Enable/disable pause feature (default: `true`)
     - `PAUSE_DURATION=5|10` - Pause duration in minutes (default: `5`)
-    - `PAUSE_ONCE_PER_DAY=true/false` - Limit to one pause per day (default: `true`)
+    - **Note**: Once-per-day limit is ALWAYS enforced (not configurable) - this is important for maintaining restriction effectiveness
   - **Popup Integration**:
     - **zenity**: `zenity --warning --text="..." --extra-button="Pause 5 min" --extra-button="Pause 10 min"`
     - **yad**: `yad --warning --text="..." --button="Pause 5 min:5" --button="Pause 10 min:10"`
@@ -109,10 +109,10 @@ Pause is a **temporary suppression of warnings only**, not a release of restrict
   - `PAUSE_END_TIMESTAMP` - Unix timestamp when pause expires
   - `LAST_PAUSE_DATE` - Date of last pause in YYYY-MM-DD format
 - Before allowing a new pause, system checks:
-  1. If `PAUSE_ONCE_PER_DAY=true` (config setting)
-  2. Compares `LAST_PAUSE_DATE` with today's date (`date +%Y-%m-%d`)
-  3. If dates match → pause already used today, block new pause
-  4. If dates differ → new day, allow pause
+  1. Compares `LAST_PAUSE_DATE` with today's date (`date +%Y-%m-%d`)
+  2. If dates match → pause already used today, block new pause
+  3. If dates differ → new day, allow pause
+  - **Note**: Once-per-day limit is ALWAYS enforced (not configurable)
 - Daily reset happens automatically at midnight (date comparison handles this)
 - If pause expires but same day, `LAST_PAUSE_DATE` remains, preventing additional pauses
 - Next day, date comparison allows new pause
@@ -138,47 +138,45 @@ Pause is a **temporary suppression of warnings only**, not a release of restrict
 #### Phase 1: Configuration Infrastructure
 **Goal**: Add pause configuration options to the config system
 
-- [ ] **1.1** Add pause configuration defaults to `lib/config.sh`:
-  - [ ] Add `DEFAULT_PAUSE_ENABLED=true`
-  - [ ] Add `DEFAULT_PAUSE_DURATION=5` (minutes)
-  - [ ] Add `DEFAULT_PAUSE_ONCE_PER_DAY=true`
-  - [ ] Add `PAUSE_STATE_FILE="${CONFIG_DIR}/.pause_state"` constant (define in config.sh alongside other path constants)
+- [x] **1.1** Add pause configuration defaults to `lib/config.sh`:
+  - [x] Add `DEFAULT_PAUSE_ENABLED=true`
+  - [x] Add `DEFAULT_PAUSE_DURATION=5` (minutes)
+  - [x] ~~Add `DEFAULT_PAUSE_ONCE_PER_DAY=true`~~ **REMOVED** - Once-per-day limit is always enforced (not configurable)
+  - [x] Add `PAUSE_STATE_FILE="${CONFIG_DIR}/.pause_state"` constant (define in config.sh alongside other path constants)
 
-- [ ] **1.2** Add pause configuration getter functions to `lib/config.sh`:
-  - [ ] `get_pause_enabled()` - Returns "true" or "false"
-  - [ ] `get_pause_duration()` - Returns pause duration in minutes (5 or 10)
-  - [ ] `get_pause_once_per_day()` - Returns "true" or "false"
+- [x] **1.2** Add pause configuration getter functions to `lib/config.sh`:
+  - [x] `get_pause_enabled()` - Returns "true" or "false"
+  - [x] `get_pause_duration()` - Returns pause duration in minutes (5 or 10)
+  - [x] ~~`get_pause_once_per_day()` - Returns "true" or "false"~~ **REMOVED** - Once-per-day limit is always enforced (not configurable)
 
-- [ ] **1.3** Add pause configuration reading to `lib/configure-config.sh`:
-  - [ ] Update `load_existing_config()` to read pause settings
-  - [ ] Add pause settings to `write_config()` function
+- [x] **1.3** Add pause configuration reading to `lib/configure-config.sh`:
+  - [x] Update `load_existing_config()` to read pause settings
+  - [x] Add pause settings to `write_config()` function
 
-- [ ] **1.4** Add pause configuration prompts to `lib/configure-input.sh`:
-  - [ ] `get_pause_enabled_config(use_gui)` - Prompt for enable/disable
-  - [ ] `get_pause_duration_config(use_gui)` - Prompt for 5 or 10 minutes
-  - [ ] `get_pause_once_per_day_config(use_gui)` - Prompt for once-per-day limit
+- [x] **1.4** Add pause configuration prompts to `lib/configure-input.sh`:
+  - [x] `get_pause_enabled_config(use_gui)` - Prompt for enable/disable
+  - [x] `get_pause_duration_config(use_gui)` - Prompt for 5 or 10 minutes
+  - [x] ~~`get_pause_once_per_day_config(use_gui)` - Prompt for once-per-day limit~~ **REMOVED** - Once-per-day limit is always enforced (not configurable)
 
 #### Phase 2: Pause State Management
 **Goal**: Create pause state file management functions
 
-- [ ] **2.1** Create pause state management functions in new file `lib/pause-state.sh`:
-  - [ ] `is_pause_active()` - Check if pause is currently active (returns 0 if active, 1 if not)
+- [x] **2.1** Create pause state management functions in new file `lib/pause-state.sh`:
+  - [x] `is_pause_active()` - Check if pause is currently active (returns 0 if active, 1 if not)
     - Reads pause state file
     - Compares current time with pause end timestamp
     - Returns 0 if current time < pause end time, 1 otherwise
-  - [ ] `get_pause_end_timestamp()` - Get pause end timestamp from state file (returns Unix timestamp or empty)
-  - [ ] `get_last_pause_date()` - Get last pause date from state file (returns YYYY-MM-DD or empty)
-  - [ ] `can_pause_today()` - Check if user can pause today (returns 0 if yes, 1 if no)
+  - [x] `get_pause_end_timestamp()` - Get pause end timestamp from state file (returns Unix timestamp or empty)
+  - [x] `get_last_pause_date()` - Get last pause date from state file (returns YYYY-MM-DD or empty)
+  - [x] `can_pause_today()` - Check if user can pause today (returns 0 if yes, 1 if no)
     - Checks if pause is enabled (`get_pause_enabled()`)
     - If pause disabled, return 1 (cannot pause)
-    - Checks if once-per-day limit is enabled (`get_pause_once_per_day()`)
-    - If once-per-day disabled, return 0 (can pause)
-    - If once-per-day enabled:
-      - Get last pause date from state file (`get_last_pause_date()`)
-      - Get today's date: `date +%Y-%m-%d`
-      - If last pause date is empty or different from today → return 0 (can pause)
-      - If last pause date equals today → return 1 (cannot pause, already used today)
-  - [ ] `activate_pause(duration_minutes)` - Activate pause for specified duration
+    - Once-per-day limit is ALWAYS enforced (not configurable)
+    - Get last pause date from state file (`get_last_pause_date()`)
+    - Get today's date: `date +%Y-%m-%d`
+    - If last pause date is empty or different from today → return 0 (can pause)
+    - If last pause date equals today → return 1 (cannot pause, already used today)
+  - [x] `activate_pause(duration_minutes)` - Activate pause for specified duration
     - Calculates pause end timestamp: `current_time + (duration_minutes * 60)`
     - Gets today's date: `date +%Y-%m-%d`
     - Writes pause state file with format:
@@ -190,43 +188,43 @@ Pause is a **temporary suppression of warnings only**, not a release of restrict
     - Creates config directory if it doesn't exist
     - Logs pause activation with end time and date
     - Returns 0 on success, 1 on error
-  - [ ] `clear_pause_state()` - Clear expired or invalid pause state
+  - [x] `clear_pause_state()` - Clear expired or invalid pause state
     - Removes pause state file if it exists
     - Logs state clearing
-  - [ ] `check_and_clear_expired_pause()` - Check if pause expired and clear if needed
+  - [x] `check_and_clear_expired_pause()` - Check if pause expired and clear if needed
     - Called before showing warnings
     - If pause end time < current time, clear pause state
 
-- [ ] **2.2** Add pause state file format validation:
-  - [ ] Validate timestamp format (must be numeric)
-  - [ ] Validate date format (must be YYYY-MM-DD)
-  - [ ] Handle corrupted or invalid state files gracefully (clear and log error)
+- [x] **2.2** Add pause state file format validation:
+  - [x] Validate timestamp format (must be numeric)
+  - [x] Validate date format (must be YYYY-MM-DD)
+  - [x] Handle corrupted or invalid state files gracefully (clear and log error)
 
 #### Phase 3: Popup Button Integration
 **Goal**: Add pause buttons to warning popup
 
-  - [ ] **3.1** Modify `show_warning()` in `lib/popup-display.sh`:
-  - [ ] **Before building message, check if pause is available:**
-    - [ ] Call `can_pause_today()` to check if pause can be used today
-    - [ ] Get configured pause duration from `get_pause_duration()` (returns 5 or 10)
-    - [ ] Determine which pause button to show:
+  - [x] **3.1** Modify `show_warning()` in `lib/popup-display.sh`:
+  - [x] **Before building message, check if pause is available:**
+    - [x] Call `can_pause_today()` to check if pause can be used today
+    - [x] Get configured pause duration from `get_pause_duration()` (returns 5 or 10)
+    - [x] Determine which pause button to show:
       - If pause available: Show button for configured duration only (if `PAUSE_DURATION=5`, show "Pause 5 min"; if `PAUSE_DURATION=10`, show "Pause 10 min")
       - If pause not available: Don't show pause buttons
-    - [ ] **Important**: Pause buttons are available even during minimum display time - clicking pause will immediately close the popup (bypassing minimum display time)
-  - [ ] **Add pause buttons directly to warning popup** (user clicks button in the popup window itself):
-    - [ ] **zenity**: ✅ **SUPPORTS** `--extra-button` on `--warning` dialogs (NO popup type change needed)
+    - [x] **Important**: Pause buttons are available even during minimum display time - clicking pause will immediately close the popup (bypassing minimum display time)
+  - [x] **Add pause buttons directly to warning popup** (user clicks button in the popup window itself):
+    - [x] **zenity**: ✅ **SUPPORTS** `--extra-button` on `--warning` dialogs (NO popup type change needed)
       - Use temporary file to capture stdout (zenity prints button label to stdout when extra button clicked)
       - Add `--extra-button="Pause 5 min"` (if `PAUSE_DURATION=5`)
       - Add `--extra-button="Pause 10 min"` (if `PAUSE_DURATION=10`)
       - Parse exit code: Exit code 1 = extra button clicked
       - Read button label from temporary file (e.g., "Pause 5 min" or "Pause 10 min")
       - Example: `zenity --warning --text="..." --extra-button="Pause 5 min" > /tmp/zenity_output 2>/dev/null`
-    - [ ] **yad**: ✅ **SUPPORTS** `--button` on `--warning` dialogs (NO popup type change needed)
+    - [x] **yad**: ✅ **SUPPORTS** `--button` on `--warning` dialogs (NO popup type change needed)
       - Add `--button="Pause 5 min:5"` (if `PAUSE_DURATION=5`) - exit code will be 5
       - Add `--button="Pause 10 min:10"` (if `PAUSE_DURATION=10`) - exit code will be 10
       - Parse exit code: Exit code matches button value (5 or 10)
       - Example: `yad --warning --text="..." --button="Pause 5 min:5" --button="OK:0"` (if duration is 5)
-    - [ ] **kdialog**: ⚠️ **LIMITED SUPPORT** - `--sorry` (warning) doesn't support custom buttons
+    - [x] **kdialog**: ⚠️ **LIMITED SUPPORT** - `--sorry` (warning) doesn't support custom buttons
       - **Option 1**: Show separate pause selection dialog BEFORE `show_warning()` returns (RECOMMENDED)
         - After `--sorry` dialog closes (user clicks OK), check if pause is available
         - If pause available, show `--menu` dialog with pause options **immediately** (synchronously, blocking)
@@ -241,106 +239,126 @@ Pause is a **temporary suppression of warnings only**, not a release of restrict
       - **Option 3**: Add pause instructions in message text (fallback)
         - Include text like "To pause warnings, use: manage.sh --pause" (if manage.sh supports pause command)
       - **Recommended**: Use Option 1 (separate dialog shown synchronously before function returns)
-  - [ ] **Handle pause button clicks** (when user clicks pause button in popup):
-    - [ ] Parse which pause duration was selected from button click
-    - [ ] Call `activate_pause(duration)` with selected duration
-    - [ ] Calculate pause end time for display: `date -d "@${pause_end_timestamp}" +"%H:%M"`
-    - [ ] **Close warning popup immediately** (even if minimum display time is active - pause bypasses minimum display time)
-    - [ ] Show confirmation dialog using same dialog tool as warning popup: "Warning popups paused until [HH:MM]"
-    - [ ] Log pause activation with timestamp and duration
-    - [ ] Return early from `show_warning()` (don't wait for popup close)
-  - [ ] **Handle kdialog pause menu** (after warning popup closes):
-    - [ ] After `--sorry` dialog closes, check if pause is available (`can_pause_today()`)
-    - [ ] If pause available, show `--menu` dialog **synchronously** (blocking, before function returns)
-    - [ ] User selects pause duration from menu
-    - [ ] **If user cancels menu dialog**: Treat as if no pause was selected (normal flow, no pause activated)
-    - [ ] **If user selects pause duration**: Activate pause **immediately** (before `show_warning()` returns)
-    - [ ] Show confirmation dialog using same dialog tool (kdialog): "Warning popups paused until [HH:MM]"
-    - [ ] Log pause activation
-    - [ ] **Critical**: Pause must be activated before script exits, so next timer event sees pause state
+  - [x] **Handle pause button clicks** (when user clicks pause button in popup):
+    - [x] Parse which pause duration was selected from button click
+    - [x] Call `activate_pause(duration)` with selected duration
+    - [x] Calculate pause end time for display: `date -d "@${pause_end_timestamp}" +"%H:%M"`
+    - [x] **Close warning popup immediately** (even if minimum display time is active - pause bypasses minimum display time)
+    - [x] Show confirmation dialog using same dialog tool as warning popup: "Warning popups paused until [HH:MM]"
+    - [x] Log pause activation with timestamp and duration
+    - [x] Return early from `show_warning()` (don't wait for popup close)
+  - [x] **Handle kdialog pause menu** (after warning popup closes):
+    - [x] After `--sorry` dialog closes, check if pause is available (`can_pause_today()`)
+    - [x] If pause available, show `--menu` dialog **synchronously** (blocking, before function returns)
+    - [x] User selects pause duration from menu
+    - [x] **If user cancels menu dialog**: Treat as if no pause was selected (normal flow, no pause activated)
+    - [x] **If user selects pause duration**: Activate pause **immediately** (before `show_warning()` returns)
+    - [x] Show confirmation dialog using same dialog tool (kdialog): "Warning popups paused until [HH:MM]"
+    - [x] Log pause activation
+    - [x] **Critical**: Pause must be activated before script exits, so next timer event sees pause state
 
-- [ ] **3.2** Update popup message based on pause availability:
-  - [ ] If pause already used today and `PAUSE_ONCE_PER_DAY=true`:
-    - [ ] Optionally add message: "Pause already used today"
-    - [ ] Don't show pause buttons
-  - [ ] If pause is disabled:
-    - [ ] Don't show pause buttons
-  - [ ] If pause is currently active:
-    - [ ] Don't show warning popup at all (handled in main script)
+- [x] **3.2** Update popup message based on pause availability:
+  - [x] If pause already used today (once-per-day limit is always enforced):
+    - [x] Optionally add message: "Pause already used today"
+    - [x] Don't show pause buttons
+  - [x] If pause is disabled:
+    - [x] Don't show pause buttons
+  - [x] If pause is currently active:
+    - [x] Don't show warning popup at all (handled in main script)
 
 #### Phase 4: Main Script Integration
 **Goal**: Integrate pause checking into main warning logic
 
-- [ ] **4.1** Modify `sleep-warning.sh` main function:
-  - [ ] Before checking restricted hours, call `check_and_clear_expired_pause()`
-  - [ ] After determining if hour is restricted, check pause state:
-    - [ ] If `is_pause_active()` returns 0 (pause active):
-      - [ ] Skip showing warning popup
-      - [ ] Log pause status: "Pause active, skipping warning popup"
-      - [ ] Exit normally (return 0)
-      - [ ] **IMPORTANT**: Pause only suppresses popup - restrictions are still active
-      - [ ] **IMPORTANT**: `configure.sh` and `uninstall.sh` blocking still apply (pause does NOT affect them)
-  - [ ] Only show warning if hour is restricted AND pause is not active
-  - [ ] **Documentation**: Add comment clarifying that pause only affects popup display, not restriction enforcement
+- [x] **4.1** Modify `sleep-warning.sh` main function:
+  - [x] Before checking restricted hours, call `check_and_clear_expired_pause()`
+  - [x] After determining if hour is restricted, check pause state:
+    - [x] If `is_pause_active()` returns 0 (pause active):
+      - [x] Skip showing warning popup
+      - [x] Log pause status: "Pause active, skipping warning popup"
+      - [x] Exit normally (return 0)
+      - [x] **IMPORTANT**: Pause only suppresses popup - restrictions are still active
+      - [x] **IMPORTANT**: `configure.sh` and `uninstall.sh` blocking still apply (pause does NOT affect them)
+  - [x] Only show warning if hour is restricted AND pause is not active
+  - [x] **Documentation**: Add comment clarifying that pause only affects popup display, not restriction enforcement
 
-- [ ] **4.2** Source pause state management module:
-  - [ ] Add `source "${LIB_DIR}/pause-state.sh"` to script sourcing section
-  - [ ] Ensure pause-state.sh sources config.sh and logging.sh
+- [x] **4.2** Source pause state management module:
+  - [x] Add `source "${LIB_DIR}/pause-state.sh"` to script sourcing section
+  - [x] Ensure pause-state.sh sources config.sh and logging.sh
 
 #### Phase 5: Configuration Wizard Integration
 **Goal**: Add pause configuration to configure.sh
 
-- [ ] **5.1** Add pause configuration menu option to `configure.sh`:
-  - [ ] Add "Enable pause and configure duration" as menu option 9 (current option 9 "Uninstall Protection Configuration" becomes option 10)
-  - [ ] Update `show_main_menu()` in `lib/configure-display.sh` to include new menu item
-  - [ ] Add case statement in `configure.sh` main loop to handle menu option 9
-  - [ ] Call pause configuration functions from `lib/configure-input.sh`:
-    - [ ] `get_pause_enabled_config(use_gui)` - Enable/disable pause feature
-    - [ ] `get_pause_duration_config(use_gui)` - Set duration (5 or 10 minutes)
-    - [ ] `get_pause_once_per_day_config(use_gui)` - Enable/disable once-per-day limit
+- [x] **5.1** Add pause configuration menu option to `configure.sh`:
+  - [x] Add "Enable pause and configure duration" as menu option 9 (current option 9 "Uninstall Protection Configuration" becomes option 10)
+  - [x] Update `show_main_menu()` in `lib/configure-display.sh` to include new menu item
+  - [x] Add case statement in `configure.sh` main loop to handle menu option 9
+  - [x] Call pause configuration functions from `lib/configure-input.sh`:
+    - [x] `get_pause_enabled_config(use_gui)` - Enable/disable pause feature
+    - [x] `get_pause_duration_config(use_gui)` - Set duration (5 or 10 minutes)
+    - [x] ~~`get_pause_once_per_day_config(use_gui)` - Enable/disable once-per-day limit~~ **REMOVED** - Once-per-day limit is always enforced (not configurable)
 
-- [ ] **5.2** Update configuration workflow:
-  - [ ] Add pause settings to configuration summary display
-  - [ ] Include pause settings in config file write operations
+- [x] **5.2** Update configuration workflow:
+  - [x] Add pause settings to configuration summary display
+  - [x] Include pause settings in config file write operations
 
 #### Phase 6: Status Display (Optional Enhancement)
 **Goal**: Show pause status in status/manage commands
 
-- [ ] **6.1** Add pause status to `status.sh`:
-  - [ ] Source `lib/pause-state.sh` if available
-  - [ ] Add pause status section to `show_configuration()` function
-  - [ ] Check if pause is active using `is_pause_active()`
-  - [ ] Display pause end time if active (formatted as HH:MM)
-  - [ ] Display last pause date
-  - [ ] Display whether pause is available today using `can_pause_today()`
-  - [ ] Display pause configuration (enabled/disabled, duration, once-per-day setting)
+- [x] **6.1** Add pause status to `status.sh`:
+  - [x] Source `lib/pause-state.sh` if available
+  - [x] Add pause status section to `show_configuration()` function
+  - [x] Check if pause is active using `is_pause_active()`
+  - [x] Display pause end time if active (formatted as HH:MM)
+  - [x] Display last pause date
+  - [x] Display whether pause is available today using `can_pause_today()`
+  - [x] Display pause configuration (enabled/disabled, duration) - Note: once-per-day is always enforced
 
-- [ ] **6.2** Add pause status to `manage.sh`:
-  - [ ] Source `lib/pause-state.sh` if available
-  - [ ] Add "View Pause Status" menu option to both GUI and text menus
-  - [ ] Create `view_pause_status()` function that displays:
-    - [ ] Whether pause is currently active
-    - [ ] Pause end time if active
-    - [ ] Last pause date
-    - [ ] Whether pause is available today
-    - [ ] Current pause configuration settings
+- [x] **6.2** Add pause status to `manage.sh`:
+  - [x] Source `lib/pause-state.sh` if available
+  - [x] Add "View Pause Status" menu option to both GUI and text menus
+  - [x] Create `view_pause_status()` function that displays:
+    - [x] Whether pause is currently active
+    - [x] Pause end time if active
+    - [x] Last pause date
+    - [x] Whether pause is available today
+    - [x] Current pause configuration settings
 
 #### Phase 7: Testing
 **Goal**: Comprehensive testing of pause feature
 
-- [ ] **7.1** Create test script `tests/test-pause-feature.sh`:
-  - [ ] Test pause state file creation and reading
-  - [ ] Test pause activation with 5 and 10 minute durations
-  - [ ] Test pause expiration and auto-clearing
-  - [ ] Test once-per-day limit enforcement
-  - [ ] Test pause button clicks in popup (zenity/yad/kdialog)
-  - [ ] Test warning suppression during active pause
-  - [ ] Test daily reset (simulate date change)
-  - [ ] Test edge cases:
-    - [ ] System time changes during pause
-    - [ ] Corrupted pause state file
-    - [ ] Missing pause state file
-    - [ ] Pause state file with invalid format
+- [x] **7.1** Create test script `tests/test-pause-feature.sh`:
+  - [x] Test pause state file creation and reading
+    - ✅ Pause state file created with correct permissions (0600)
+    - ✅ Pause state file has correct format (PAUSE_END_TIMESTAMP and LAST_PAUSE_DATE)
+    - ✅ `get_pause_end_timestamp()` returns valid timestamp
+    - ✅ `get_last_pause_date()` returns today's date
+  - [x] Test pause activation with 5 and 10 minute durations
+    - ✅ 5 minute pause sets correct end timestamp
+    - ✅ 10 minute pause sets correct end timestamp
+    - ✅ Invalid duration (15 min) is rejected
+  - [x] Test pause expiration and auto-clearing
+    - ✅ `is_pause_active()` returns false when pause is expired
+    - ✅ `check_and_clear_expired_pause()` clears expired pause (keeps LAST_PAUSE_DATE)
+    - ✅ `check_and_clear_expired_pause()` preserves active pause
+  - [x] Test once-per-day limit enforcement
+    - ✅ `can_pause_today()` returns false when already used today
+    - ✅ `can_pause_today()` returns true when last pause was yesterday
+    - ✅ `can_pause_today()` returns false when pause disabled
+  - [ ] Test pause button clicks in popup (zenity/yad/kdialog) - **Manual testing required**
+  - [ ] Test warning suppression during active pause - **Manual testing required**
+  - [ ] Test daily reset (simulate date change) - **Manual testing required**
+  - [x] Test edge cases:
+    - [x] Corrupted pause state file
+      - ✅ `get_pause_end_timestamp()` handles invalid timestamp
+      - ✅ `is_pause_active()` handles invalid timestamp
+      - ✅ `get_last_pause_date()` handles invalid date format
+    - [x] Missing pause state file
+      - ✅ All functions handle missing file gracefully
+      - ✅ `can_pause_today()` allows pause when file is missing
+    - [x] Pause state file with invalid format - **Covered in corrupted file tests**
+    - [ ] System time changes during pause - **Manual testing required**
+
+**Test Results**: 27 automated tests created and executed - **All 27 tests passed** ✅
 
 - [ ] **7.2** Manual testing checklist:
   - [ ] Enable pause feature via configure.sh
@@ -357,20 +375,33 @@ Pause is a **temporary suppression of warnings only**, not a release of restrict
   - [ ] Verify `LAST_PAUSE_DATE` in pause state file matches date when pause was used
   - [ ] Test with 10 minute duration
   - [ ] Test with pause disabled (buttons should not appear)
-  - [ ] Test with once-per-day disabled (multiple pauses allowed same day)
+  - [ ] ~~Test with once-per-day disabled (multiple pauses allowed same day)~~ **REMOVED** - Once-per-day limit is always enforced (not configurable)
 
 #### Phase 8: Documentation
 **Goal**: Update documentation for pause feature
 
-- [ ] **8.1** Update user documentation:
-  - [ ] Add pause feature description to `user-docs/USER_GUIDE.md`
-  - [ ] Add pause configuration instructions to `user-docs/CONFIGURATION.md`
-  - [ ] Update README.md with pause feature mention
+- [x] **8.1** Update user documentation:
+  - [x] Add pause feature description to `user-docs/USER_GUIDE.md`
+    - ✅ Added "Pause Feature (One-Time Pause)" section with usage instructions
+    - ✅ Added pause feature to "How It Works" and "Key Concepts" sections
+  - [x] Add pause configuration instructions to `user-docs/CONFIGURATION.md`
+    - ✅ Added "Pause Feature (One-Time Pause)" configuration section with all options
+    - ✅ Documented `PAUSE_ENABLED` and `PAUSE_DURATION` settings
+    - ✅ Explained what pause affects and what it doesn't affect
+  - [x] Update README.md with pause feature mention
+    - ✅ Added pause feature to Features list
 
-- [ ] **8.2** Update developer documentation:
-  - [ ] Document pause state file format
-  - [ ] Document pause state management functions
-  - [ ] Add pause feature to technical details
+- [x] **8.2** Update developer documentation:
+  - [x] Document pause state file format
+    - ✅ Documented in "Implementation Notes" section of this plan
+    - ✅ File location: `~/.config/sleep-warning/.pause_state`
+    - ✅ Format: `PAUSE_END_TIMESTAMP` and `LAST_PAUSE_DATE`
+  - [x] Document pause state management functions
+    - ✅ Functions documented in `lib/pause-state.sh` with comments
+    - ✅ Functions: `is_pause_active()`, `can_pause_today()`, `activate_pause()`, `check_and_clear_expired_pause()`, etc.
+  - [x] Add pause feature to technical details
+    - ✅ Implementation details documented in this enhancement plan
+    - ✅ Technical approach documented in "Implementation Notes" section
 
 ### Implementation Notes
 
@@ -385,7 +416,7 @@ Pause is a **temporary suppression of warnings only**, not a release of restrict
 - **Daily Tracking Logic**:
   - `LAST_PAUSE_DATE` stores the date (YYYY-MM-DD) when pause was last used
   - Before allowing pause, system compares `LAST_PAUSE_DATE` with today's date
-  - If dates match → pause already used today (if `PAUSE_ONCE_PER_DAY=true`)
+  - If dates match → pause already used today (once-per-day limit is always enforced)
   - If dates differ → new day, allow pause
   - Date comparison automatically handles midnight rollover (new day = new pause available)
   - `PAUSE_END_TIMESTAMP` tracks when current pause expires (if pause is active)
@@ -443,7 +474,7 @@ Pause is a **temporary suppression of warnings only**, not a release of restrict
 
 ### Success Criteria
 - [ ] Users can pause **warning popups** for 5 or 10 minutes from warning popup
-- [ ] Pause is limited to once per day (if enabled)
+- [ ] Pause is limited to once per day (always enforced, not configurable)
 - [ ] **Warning popups are suppressed** during active pause
 - [ ] **`configure.sh` blocking still works** during pause (pause does NOT affect it)
 - [ ] **`uninstall.sh` protection still works** during pause (pause does NOT affect it)
@@ -494,7 +525,7 @@ Pause is a **temporary suppression of warnings only**, not a release of restrict
      - `PAUSE_END_TIMESTAMP` = current_time + pause_duration
      - `LAST_PAUSE_DATE` = today's date
 - **Automatic daily reset**: Date comparison automatically handles midnight (new day = new pause available)
-- **Pause expiration**: When pause expires, only `PAUSE_END_TIMESTAMP` is cleared; `LAST_PAUSE_DATE` remains until the next day (even if pause expires on the same day, `LAST_PAUSE_DATE` persists to prevent additional pauses if once-per-day limit is enabled)
+- **Pause expiration**: When pause expires, only `PAUSE_END_TIMESTAMP` is cleared; `LAST_PAUSE_DATE` remains until the next day (even if pause expires on the same day, `LAST_PAUSE_DATE` persists to enforce the always-on once-per-day limit)
 
 ### Related Documentation
 

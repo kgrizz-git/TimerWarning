@@ -13,6 +13,7 @@
 # Dependencies:
 #   - config.sh (for configuration functions)
 #   - logging.sh (for logging functions)
+#   - pause-state.sh (for pause state management functions - Enhancement #21)
 #   - display-detection.sh (for display environment detection)
 #   - desktop-environment.sh (for dialog tool detection)
 #   - window-management.sh (for window manipulation)
@@ -21,6 +22,7 @@
 # Usage: Source this file after all dependency modules
 #   source lib/config.sh
 #   source lib/logging.sh
+#   source lib/pause-state.sh
 #   source lib/display-detection.sh
 #   source lib/desktop-environment.sh
 #   source lib/window-management.sh
@@ -119,6 +121,14 @@ show_warning() {
     local next_unrestricted_time
     next_unrestricted_time=$(get_next_unrestricted_time)
     
+    # Check if pause is available (Enhancement #21)
+    local pause_available=false
+    local pause_duration=""
+    if can_pause_today; then
+        pause_available=true
+        pause_duration=$(get_pause_duration)
+    fi
+    
     # Build base message (without countdown - countdown will be added dynamically)
     local base_message="⚠️  Late Night Usage Warning ⚠️
 
@@ -150,14 +160,33 @@ This warning will appear ${interval_text} while you continue using your computer
     case "${dialog_tool}" in
         zenity)
             # zenity doesn't support position natively, only size
-            zenity --warning \
-                --title="${window_title}" \
-                --text="${message}" \
-                --modal \
-                --width="${width}" \
-                --height="${height}" \
-                2>/dev/null &
-            popup_pid=$!
+            # Check if pause button should be added (Enhancement #21)
+            local zenity_output_file
+            zenity_output_file=$(mktemp)
+            
+            if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
+                # Add pause button based on configured duration
+                local pause_button_label="Pause ${pause_duration} min"
+                zenity --warning \
+                    --title="${window_title}" \
+                    --text="${message}" \
+                    --modal \
+                    --width="${width}" \
+                    --height="${height}" \
+                    --extra-button="${pause_button_label}" \
+                    > "${zenity_output_file}" 2>/dev/null &
+                popup_pid=$!
+            else
+                # No pause button
+                zenity --warning \
+                    --title="${window_title}" \
+                    --text="${message}" \
+                    --modal \
+                    --width="${width}" \
+                    --height="${height}" \
+                    > "${zenity_output_file}" 2>/dev/null &
+                popup_pid=$!
+            fi
             
             # Reposition window after creation if position is top-left
             if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
@@ -169,19 +198,38 @@ This warning will appear ${interval_text} while you continue using your computer
             # Use --fixed to enforce dimensions (prevents YAD from auto-resizing based on text)
             # For center position, use --center flag (more reliable than geometry calculation)
             # For top-left, use --posx and --posy flags (more reliable than --geometry)
+            # Check if pause button should be added (Enhancement #21)
             if [ "${popup_position}" = "center" ]; then
                 # Use --center flag for proper centering
-                yad --warning \
-                    --title="${window_title}" \
-                    --text="${message}" \
-                    --modal \
-                    --width="${width}" \
-                    --height="${height}" \
-                    --center \
-                    --fixed \
-                    --on-top \
-                    2>/dev/null &
-                popup_pid=$!
+                if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
+                    # Add pause button based on configured duration
+                    yad --warning \
+                        --title="${window_title}" \
+                        --text="${message}" \
+                        --modal \
+                        --width="${width}" \
+                        --height="${height}" \
+                        --center \
+                        --fixed \
+                        --on-top \
+                        --button="Pause ${pause_duration} min:${pause_duration}" \
+                        --button="OK:0" \
+                        2>/dev/null &
+                    popup_pid=$!
+                else
+                    # No pause button
+                    yad --warning \
+                        --title="${window_title}" \
+                        --text="${message}" \
+                        --modal \
+                        --width="${width}" \
+                        --height="${height}" \
+                        --center \
+                        --fixed \
+                        --on-top \
+                        2>/dev/null &
+                    popup_pid=$!
+                fi
             else
                 # For top-left or other positions, calculate coordinates and use --posx/--posy
                 local coords
@@ -190,18 +238,37 @@ This warning will appear ${interval_text} while you continue using your computer
                 pos_x=$(echo "${coords}" | cut -d' ' -f1)
                 pos_y=$(echo "${coords}" | cut -d' ' -f2)
                 
-                yad --warning \
-                    --title="${window_title}" \
-                    --text="${message}" \
-                    --modal \
-                    --width="${width}" \
-                    --height="${height}" \
-                    --posx="${pos_x}" \
-                    --posy="${pos_y}" \
-                    --fixed \
-                    --on-top \
-                    2>/dev/null &
-                popup_pid=$!
+                if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
+                    # Add pause button based on configured duration
+                    yad --warning \
+                        --title="${window_title}" \
+                        --text="${message}" \
+                        --modal \
+                        --width="${width}" \
+                        --height="${height}" \
+                        --posx="${pos_x}" \
+                        --posy="${pos_y}" \
+                        --fixed \
+                        --on-top \
+                        --button="Pause ${pause_duration} min:${pause_duration}" \
+                        --button="OK:0" \
+                        2>/dev/null &
+                    popup_pid=$!
+                else
+                    # No pause button
+                    yad --warning \
+                        --title="${window_title}" \
+                        --text="${message}" \
+                        --modal \
+                        --width="${width}" \
+                        --height="${height}" \
+                        --posx="${pos_x}" \
+                        --posy="${pos_y}" \
+                        --fixed \
+                        --on-top \
+                        2>/dev/null &
+                    popup_pid=$!
+                fi
                 
                 # Also reposition as backup in case --posx/--posy doesn't work properly (top-left only)
                 if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
@@ -212,6 +279,7 @@ This warning will appear ${interval_text} while you continue using your computer
         kdialog)
             # kdialog has no size/position control
             # Note: kdialog doesn't support --warning, use --sorry for warning messages
+            # kdialog doesn't support custom buttons on --sorry, so we'll show menu after warning closes
             kdialog --title "${window_title}" \
                 --sorry "${message}" \
                 2>/dev/null &
@@ -374,7 +442,108 @@ This warning will appear ${interval_text} while you continue using your computer
             
             # Check if popup is still running
             if ! kill -0 "${popup_pid}" 2>/dev/null; then
-                # Popup was closed prematurely, reopen it with updated countdown immediately
+                # Popup was closed - check if it was due to pause button click (Enhancement #21)
+                local popup_exit_code=0
+                wait "${popup_pid}" 2>/dev/null
+                popup_exit_code=$?
+                
+                # Handle pause button clicks
+                if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
+                    case "${dialog_tool}" in
+                        zenity)
+                            # zenity: exit code 1 = extra button clicked
+                            if [ ${popup_exit_code} -eq 1 ]; then
+                                local button_label
+                                button_label=$(cat "${zenity_output_file}" 2>/dev/null | tr -d '\n')
+                                rm -f "${zenity_output_file}"
+                                
+                                if [ -n "${button_label}" ] && echo "${button_label}" | grep -q "Pause.*min"; then
+                                    # Extract duration from button label
+                                    local clicked_duration
+                                    clicked_duration=$(echo "${button_label}" | grep -oE '[0-9]+' | head -n1)
+                                    
+                                    if [ -n "${clicked_duration}" ] && [ "${clicked_duration}" -eq "${pause_duration}" ]; then
+                                        # Activate pause
+                                        if activate_pause "${clicked_duration}"; then
+                                            # Show confirmation dialog
+                                            local pause_end_timestamp
+                                            pause_end_timestamp=$(get_pause_end_timestamp)
+                                            local pause_end_time
+                                            pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
+                                            
+                                            zenity --info \
+                                                --title="Pause Activated" \
+                                                --text="Warning popups paused until ${pause_end_time}" \
+                                                --width=400 \
+                                                --height=150 \
+                                                2>/dev/null
+                                            
+                                            # Return early (bypass minimum display time)
+                                            return 0
+                                        fi
+                                    fi
+                                fi
+                            fi
+                            rm -f "${zenity_output_file}"
+                            ;;
+                        yad)
+                            # yad: exit code matches button value
+                            if [ ${popup_exit_code} -eq "${pause_duration}" ]; then
+                                # Pause button was clicked
+                                if activate_pause "${pause_duration}"; then
+                                    # Show confirmation dialog
+                                    local pause_end_timestamp
+                                    pause_end_timestamp=$(get_pause_end_timestamp)
+                                    local pause_end_time
+                                    pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
+                                    
+                                    yad --info \
+                                        --title="Pause Activated" \
+                                        --text="Warning popups paused until ${pause_end_time}" \
+                                        --width=400 \
+                                        --height=150 \
+                                        --button="OK:0" \
+                                        2>/dev/null
+                                    
+                                    # Return early (bypass minimum display time)
+                                    return 0
+                                fi
+                            fi
+                            ;;
+                        kdialog)
+                            # kdialog: show menu dialog after warning closes (even during minimum display time)
+                            if can_pause_today; then
+                                local pause_choice
+                                pause_choice=$(kdialog --title "Pause Warnings" \
+                                    --menu "Pause warning popups for:" \
+                                    "5" "5 minutes" \
+                                    "10" "10 minutes" \
+                                    "cancel" "Cancel" \
+                                    2>/dev/null)
+                                
+                                if [ -n "${pause_choice}" ] && [ "${pause_choice}" != "cancel" ]; then
+                                    if [ "${pause_choice}" = "5" ] || [ "${pause_choice}" = "10" ]; then
+                                        if activate_pause "${pause_choice}"; then
+                                            local pause_end_timestamp
+                                            pause_end_timestamp=$(get_pause_end_timestamp)
+                                            local pause_end_time
+                                            pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
+                                            
+                                            kdialog --title "Pause Activated" \
+                                                --msgbox "Warning popups paused until ${pause_end_time}" \
+                                                2>/dev/null
+                                            
+                                            # Return early (bypass minimum display time)
+                                            return 0
+                                        fi
+                                    fi
+                                fi
+                            fi
+                            ;;
+                    esac
+                fi
+                
+                # Popup was closed (not due to pause), reopen it with updated countdown immediately
                 update_popup_countdown "${remaining}"
             elif [ $((elapsed % 5)) -eq 0 ] && [ "${elapsed}" -gt 0 ]; then
                 # Update countdown every 5 seconds (at 5, 10, 15, etc.)
@@ -393,6 +562,94 @@ This warning will appear ${interval_text} while you continue using your computer
             wait "${popup_pid}" 2>/dev/null
             local popup_exit_code=$?
             
+            # Handle pause button clicks after minimum display time (Enhancement #21)
+            if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
+                case "${dialog_tool}" in
+                    zenity)
+                        # zenity: exit code 1 = extra button clicked
+                        if [ ${popup_exit_code} -eq 1 ]; then
+                            local button_label
+                            button_label=$(cat "${zenity_output_file}" 2>/dev/null | tr -d '\n')
+                            rm -f "${zenity_output_file}"
+                            
+                            if [ -n "${button_label}" ] && echo "${button_label}" | grep -q "Pause.*min"; then
+                                local clicked_duration
+                                clicked_duration=$(echo "${button_label}" | grep -oE '[0-9]+' | head -n1)
+                                
+                                if [ -n "${clicked_duration}" ] && [ "${clicked_duration}" -eq "${pause_duration}" ]; then
+                                    if activate_pause "${clicked_duration}"; then
+                                        local pause_end_timestamp
+                                        pause_end_timestamp=$(get_pause_end_timestamp)
+                                        local pause_end_time
+                                        pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
+                                        
+                                        zenity --info \
+                                            --title="Pause Activated" \
+                                            --text="Warning popups paused until ${pause_end_time}" \
+                                            --width=400 \
+                                            --height=150 \
+                                            2>/dev/null
+                                        
+                                        return 0
+                                    fi
+                                fi
+                            fi
+                        fi
+                        rm -f "${zenity_output_file}"
+                        ;;
+                    yad)
+                        # yad: exit code matches button value
+                        if [ ${popup_exit_code} -eq "${pause_duration}" ]; then
+                            if activate_pause "${pause_duration}"; then
+                                local pause_end_timestamp
+                                pause_end_timestamp=$(get_pause_end_timestamp)
+                                local pause_end_time
+                                pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
+                                
+                                yad --info \
+                                    --title="Pause Activated" \
+                                    --text="Warning popups paused until ${pause_end_time}" \
+                                    --width=400 \
+                                    --height=150 \
+                                    --button="OK:0" \
+                                    2>/dev/null
+                                
+                                return 0
+                            fi
+                        fi
+                        ;;
+                    kdialog)
+                        # kdialog: show menu dialog after warning closes
+                        if can_pause_today; then
+                            local pause_choice
+                            pause_choice=$(kdialog --title "Pause Warnings" \
+                                --menu "Pause warning popups for:" \
+                                "5" "5 minutes" \
+                                "10" "10 minutes" \
+                                "cancel" "Cancel" \
+                                2>/dev/null)
+                            
+                            if [ -n "${pause_choice}" ] && [ "${pause_choice}" != "cancel" ]; then
+                                if [ "${pause_choice}" = "5" ] || [ "${pause_choice}" = "10" ]; then
+                                    if activate_pause "${pause_choice}"; then
+                                        local pause_end_timestamp
+                                        pause_end_timestamp=$(get_pause_end_timestamp)
+                                        local pause_end_time
+                                        pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
+                                        
+                                        kdialog --title "Pause Activated" \
+                                            --msgbox "Warning popups paused until ${pause_end_time}" \
+                                            2>/dev/null
+                                        
+                                        return 0
+                                    fi
+                                fi
+                            fi
+                        fi
+                        ;;
+                esac
+            fi
+            
             if [ ${popup_exit_code} -eq 0 ]; then
                 log_to_file "INFO" "Popup closed by user after minimum display time"
             else
@@ -408,6 +665,94 @@ This warning will appear ${interval_text} while you continue using your computer
             if kill -0 "${popup_pid}" 2>/dev/null; then
                 wait "${popup_pid}" 2>/dev/null
                 local popup_exit_code=$?
+                
+                # Handle pause button clicks (Enhancement #21)
+                if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
+                    case "${dialog_tool}" in
+                        zenity)
+                            # zenity: exit code 1 = extra button clicked
+                            if [ ${popup_exit_code} -eq 1 ]; then
+                                local button_label
+                                button_label=$(cat "${zenity_output_file}" 2>/dev/null | tr -d '\n')
+                                rm -f "${zenity_output_file}"
+                                
+                                if [ -n "${button_label}" ] && echo "${button_label}" | grep -q "Pause.*min"; then
+                                    local clicked_duration
+                                    clicked_duration=$(echo "${button_label}" | grep -oE '[0-9]+' | head -n1)
+                                    
+                                    if [ -n "${clicked_duration}" ] && [ "${clicked_duration}" -eq "${pause_duration}" ]; then
+                                        if activate_pause "${clicked_duration}"; then
+                                            local pause_end_timestamp
+                                            pause_end_timestamp=$(get_pause_end_timestamp)
+                                            local pause_end_time
+                                            pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
+                                            
+                                            zenity --info \
+                                                --title="Pause Activated" \
+                                                --text="Warning popups paused until ${pause_end_time}" \
+                                                --width=400 \
+                                                --height=150 \
+                                                2>/dev/null
+                                            
+                                            return 0
+                                        fi
+                                    fi
+                                fi
+                            fi
+                            rm -f "${zenity_output_file}"
+                            ;;
+                        yad)
+                            # yad: exit code matches button value
+                            if [ ${popup_exit_code} -eq "${pause_duration}" ]; then
+                                if activate_pause "${pause_duration}"; then
+                                    local pause_end_timestamp
+                                    pause_end_timestamp=$(get_pause_end_timestamp)
+                                    local pause_end_time
+                                    pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
+                                    
+                                    yad --info \
+                                        --title="Pause Activated" \
+                                        --text="Warning popups paused until ${pause_end_time}" \
+                                        --width=400 \
+                                        --height=150 \
+                                        --button="OK:0" \
+                                        2>/dev/null
+                                    
+                                    return 0
+                                fi
+                            fi
+                            ;;
+                        kdialog)
+                            # kdialog: show menu dialog after warning closes
+                            if can_pause_today; then
+                                local pause_choice
+                                pause_choice=$(kdialog --title "Pause Warnings" \
+                                    --menu "Pause warning popups for:" \
+                                    "5" "5 minutes" \
+                                    "10" "10 minutes" \
+                                    "cancel" "Cancel" \
+                                    2>/dev/null)
+                                
+                                if [ -n "${pause_choice}" ] && [ "${pause_choice}" != "cancel" ]; then
+                                    if [ "${pause_choice}" = "5" ] || [ "${pause_choice}" = "10" ]; then
+                                        if activate_pause "${pause_choice}"; then
+                                            local pause_end_timestamp
+                                            pause_end_timestamp=$(get_pause_end_timestamp)
+                                            local pause_end_time
+                                            pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
+                                            
+                                            kdialog --title "Pause Activated" \
+                                                --msgbox "Warning popups paused until ${pause_end_time}" \
+                                                2>/dev/null
+                                            
+                                            return 0
+                                        fi
+                                    fi
+                                fi
+                            fi
+                            ;;
+                    esac
+                fi
                 
                 if [ ${popup_exit_code} -eq 0 ]; then
                     log_to_file "INFO" "Popup closed by user"
