@@ -121,53 +121,7 @@
 - [ ] **Document license choice** - Note in info/LICENSE_OPTIONS.md which license was chosen and why
 
 #### Checklist 5.5: PayPal Donation Links
-- [ ] **Create PayPal donation account** - Set up PayPal Business or Personal account
-- [ ] **Generate PayPal donation button/link** - Use PayPal's button generator or create custom link
-  - [ ] Choose button style (text link, button image, or custom HTML)
-  - [ ] Set donation amount options (fixed or user-defined)
-  - [ ] Configure currency (USD, EUR, etc.)
-- [ ] **Add donation section to README.md**
-  - [ ] Place in appropriate location (e.g., after Features, before Installation)
-  - [ ] Include brief, friendly message explaining purpose
-  - [ ] Add PayPal donation button/link
-  - [ ] Make it optional and non-intrusive
-- [ ] **Add donation link to other documentation** (optional)
-  - [ ] Consider adding to footer of main documentation files
-  - [ ] Add to CONTRIBUTING.md if applicable
-- [ ] **Test donation link** - Verify link works correctly and opens PayPal securely
-- [ ] **Consider alternative payment methods** (optional)
-  - [ ] GitHub Sponsors
-  - [ ] Ko-fi
-  - [ ] Patreon
-  - [ ] Bitcoin/crypto addresses
-- [ ] **Add acknowledgment section** (optional) - Thank donors in README or separate file
-- [ ] **Keep donation requests respectful** - Make it clear donations are optional and appreciated
-
-#### Checklist 6: Future Enhancements
-- [ ] **1. Enhanced Display Detection** - Improve display detection for Wayland/gamescope with multiple fallback strategies (Partially implemented, needs enhancement) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#1-enhanced-display-detection) for details
-- [ ] **2. Dialog Tool Priority System** - Intelligent dialog tool selection based on environment (Basic implementation exists, needs enhancement) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#2-dialog-tool-priority-system) for details
-- [ ] **3. Enhanced Window Size Options and Display-Based Sizing** - More predefined sizes and percentage-based sizing based on display resolution - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#3-enhanced-window-size-options-and-display-based-sizing) for details
-- [ ] **4. Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode and adjust behavior accordingly - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#4-systemd-service-environment-detection) for details
-- [ ] **5. Configurable Warning Messages** - Allow users to customize warning message text per day or time range - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#5-configurable-warning-messages) for details
-- [ ] **6. Escalating Warnings** - Show progressively stronger warnings if user continues using system during restricted hours - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#6-escalating-warnings) for details
-- [ ] **7. Warning Event Logging** - Log each warning event with timestamp, window state, display environment, and dialog tool - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#7-warning-event-logging) for details
-- [ ] **8. Temporary Disable via Config** - Allow users to temporarily disable warnings via configuration file or command - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#8-temporary-disable-via-config) for details
-- [ ] **9. System Sleep/Hibernate Detection** - Skip warnings if system was recently resumed from sleep - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#9-system-sleephibernate-detection) for details
-- [ ] **10. Audio Alerts** - Add optional audio notification (beep, sound file) alongside visual popup - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#10-audio-alerts) for details
-- [ ] **11. Desktop Notification Fallback** - Use desktop notification system (notify-send) as fallback if dialog tools fail - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#11-desktop-notification-fallback) for details
-- [ ] **12. Wayland-Specific Window Management** - Implement Wayland-native window control using wlr-randr or similar tools - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#12-wayland-specific-window-management) for details
-- [ ] **13. Distribution-Specific Optimizations** - Add optimizations for specific distributions (e.g., KDE-specific features on KDE systems) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#13-distribution-specific-optimizations) for details
-- [x] **14. Immovable Popup Window** - Prevent user from moving/dragging the popup window during minimum display time ✅ **IMPLEMENTED** - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#14-immovable-popup-window) for details
-- [ ] **14.5. Configure.sh GUI Window Behavior** - Fix issue where configure.sh GUI windows can be mistaken for the popup and end up staying on top and being immovable; the actual warning popup should stay on top - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#145-configuresh-gui-window-behavior) for details
-- [ ] **15. Auto-Close Popup Window** - Automatically close the popup window after a pre-configured time period - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#15-auto-close-popup-window) for details
-- [ ] **16a. Visual Day/Time Configuration Grid (Phase 1)** - Provide visual summary of all days and their time ranges with easy click-to-edit access for any day - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#16-visual-daytime-configuration-grid) for details
-- [ ] **16b. Visual Day/Time Configuration Grid (Phase 2)** - Extend Phase 1 with full interactive grid editing allowing click/toggle of individual hours with drag selection - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#16-visual-daytime-configuration-grid) for details
-- [ ] **17. Multi-Display Popup Support** - Display warning popups on all available displays/monitors simultaneously for maximum visibility - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#17-multi-display-popup-support) for details
-- [ ] **Alternative 1. Steam Overlay Integration** - Integrate with Steam Overlay API to display warnings within Steam's native overlay system - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#1-steam-overlay-integration) for details
-- [ ] **Alternative 2. Custom Wayland Protocol Implementation** - Develop custom Wayland protocol for notifications compatible with gamescope - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#2-custom-wayland-protocol-implementation) for details
-- [ ] **Alternative 3. Native Desktop Application (GUI Wrapper)** - Create full desktop application (GTK/Qt/Electron) to replace bash scripts - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#3-native-desktop-application-gui-wrapper) for details
-- [ ] **Alternative 4. Systemd Timer Alternative (Cron-based)** - Use cron instead of systemd timers for scheduling - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#4-systemd-timer-alternative-cron-based) for details
-- [ ] **Alternative 5. Web-Based Configuration Interface** - Create web server for configuration and management - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#5-web-based-configuration-interface) for details
+- **Status**: Moved to Enhancement #27 - See [enhancements/enhancement-27-paypal-donation-links.md](enhancements/enhancement-27-paypal-donation-links.md) for details
 
 ## File Structure
 

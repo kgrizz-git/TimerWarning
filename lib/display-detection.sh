@@ -357,3 +357,160 @@ get_display() {
     
     return 1
 }
+
+###############################################################################
+# System Mode Detection (Enhancement #4)
+#
+# These functions detect whether the system is running in Desktop Mode
+# (X11/KDE Plasma) vs Gaming Mode (Wayland/gamescope) for systemd service
+# configuration purposes.
+###############################################################################
+
+# Detect system mode: "desktop" (X11/KDE Plasma) or "gaming" (Wayland/gamescope)
+# Returns: "desktop", "gaming", or "unknown" (if detection fails)
+# Exit code: 0 if mode detected, 1 if unknown
+#
+# This function leverages existing display detection functions to determine
+# the system mode. Gaming Mode is detected when gamescope is running or when
+# Wayland is detected in a SteamOS-like environment. Desktop Mode is detected
+# when X11 is the primary display protocol.
+detect_system_mode() {
+    # Primary detection: Check for gamescope (strongest indicator of Gaming Mode)
+    if is_gamescope_running; then
+        echo "gaming"
+        return 0
+    fi
+    
+    # Secondary detection: Use display environment detection
+    local env_type
+    env_type=$(detect_display_environment)
+    
+    case "${env_type}" in
+        gamescope)
+            # gamescope detected via display environment
+            echo "gaming"
+            return 0
+            ;;
+        wayland)
+            # Wayland detected - could be Gaming Mode or other Wayland session
+            # Check for SteamOS-specific indicators
+            # On SteamOS, Gaming Mode typically uses gamescope, but if we detect
+            # Wayland without gamescope, we'll treat it as gaming mode if
+            # there's no X11 fallback available
+            if [ -z "${DISPLAY}" ] || ! validate_display_format "${DISPLAY}"; then
+                # No valid X11 display, likely Gaming Mode
+                echo "gaming"
+                return 0
+            fi
+            # Has both Wayland and X11 - check which is primary
+            # If WAYLAND_DISPLAY is set and accessible, prefer gaming mode
+            if [ -n "${WAYLAND_DISPLAY}" ] && is_wayland_display_accessible "${WAYLAND_DISPLAY}"; then
+                echo "gaming"
+                return 0
+            fi
+            # Fallback: if we have X11, assume desktop mode
+            if [ -n "${DISPLAY}" ] && validate_display_format "${DISPLAY}"; then
+                echo "desktop"
+                return 0
+            fi
+            # Ambiguous: Wayland but unclear
+            echo "unknown"
+            return 1
+            ;;
+        x11)
+            # X11 detected - Desktop Mode (KDE Plasma on SteamOS)
+            echo "desktop"
+            return 0
+            ;;
+        *)
+            # Unknown or no display detected
+            # Try loginctl as fallback
+            if command -v loginctl >/dev/null 2>&1; then
+                local session_id
+                session_id=$(get_loginctl_session_id)
+                if [ -n "${session_id}" ]; then
+                    local session_type
+                    session_type=$(loginctl show-session "${session_id}" -p Type --value 2>/dev/null)
+                    case "${session_type}" in
+                        x11)
+                            echo "desktop"
+                            return 0
+                            ;;
+                        wayland)
+                            # Check if gamescope might be running (process check)
+                            if pgrep -x gamescope >/dev/null 2>&1; then
+                                echo "gaming"
+                                return 0
+                            fi
+                            echo "gaming"
+                            return 0
+                            ;;
+                    esac
+                fi
+            fi
+            echo "unknown"
+            return 1
+            ;;
+    esac
+}
+
+# Get display identifier for detected system mode
+# Parameters:
+#   $1: System mode ("desktop" or "gaming")
+# Returns: Display identifier (DISPLAY value for desktop, WAYLAND_DISPLAY for gaming)
+#          or "unknown" if identifier cannot be determined
+# Exit code: 0 if identifier found, 1 if unknown
+#
+# This function retrieves the appropriate display identifier for the given
+# system mode, which can be used to configure systemd service environment
+# variables.
+get_mode_display_identifier() {
+    local mode="$1"
+    
+    if [ -z "${mode}" ]; then
+        # Auto-detect mode if not provided
+        mode=$(detect_system_mode)
+    fi
+    
+    case "${mode}" in
+        desktop)
+            # For Desktop Mode, return X11 DISPLAY value
+            local display_id
+            display_id=$(get_display_identifier "x11")
+            if [ -n "${display_id}" ] && [ "${display_id}" != "unknown" ]; then
+                echo "${display_id}"
+                return 0
+            fi
+            # Fallback: try common X11 display
+            if [ -S "/tmp/.X11-unix/X0" ]; then
+                echo ":0"
+                return 0
+            fi
+            echo "unknown"
+            return 1
+            ;;
+        gaming)
+            # For Gaming Mode, return Wayland display identifier
+            local wayland_id
+            wayland_id=$(get_display_identifier "wayland")
+            if [ -n "${wayland_id}" ] && [ "${wayland_id}" != "unknown" ]; then
+                echo "${wayland_id}"
+                return 0
+            fi
+            # Fallback: try to find Wayland socket
+            local candidate
+            candidate=$(find_wayland_socket_candidate)
+            if [ -n "${candidate}" ]; then
+                echo "${candidate}"
+                return 0
+            fi
+            echo "unknown"
+            return 1
+            ;;
+        *)
+            # Unknown mode
+            echo "unknown"
+            return 1
+            ;;
+    esac
+}

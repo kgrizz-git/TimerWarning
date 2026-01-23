@@ -386,6 +386,16 @@ main() {
                 # If exit code is 1, function will have already re-prompted, so we continue the loop
                 ;;
             12)
+                # Service Mode Configuration (Enhancement #4)
+                configure_service_mode "${use_gui}"
+                local service_mode_exit=$?
+                if [ "${service_mode_exit}" -eq 2 ]; then
+                    # User cancelled
+                    exit 0
+                fi
+                # Continue loop (service mode configuration doesn't affect other settings)
+                ;;
+            13)
                 # Review and Save
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
                 if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}"; then

@@ -33,8 +33,9 @@ These enhancements can be integrated into the existing bash script suite without
 ### 4. Systemd Service Environment Detection
 - **Description**: Detect Desktop Mode vs Gaming Mode and adjust behavior accordingly
 - **Priority**: Medium (improves compatibility)
-- **Status**: Not implemented
+- **Status**: ✅ **Implemented** - Core implementation complete (Phases 1-10). Automated tests passing (15/15). Mode detection and service configuration working. Manual testing on actual SteamOS Desktop/Gaming Mode environments recommended for full validation.
 - **Details**: See [enhancements/enhancement-04-systemd-service-environment-detection.md](enhancements/enhancement-04-systemd-service-environment-detection.md)
+- **Remaining**: Manual testing on actual SteamOS Desktop Mode and Gaming Mode environments (Phase 7.3-7.6). Optional: status.sh troubleshooting enhancement (Phase 6.3).
 
 ### 5. Configurable Warning Messages
 - **Description**: Allow users to customize warning message text per day or time range
@@ -196,6 +197,12 @@ These enhancements can be integrated into the existing bash script suite without
 - **Priority**: Medium (security/self-control feature; difficult mode has lower risk than total block)
 - **Status**: ✅ **Phase 1 Mostly Implemented** - Core functionality complete: `uninstall.sh` checks current time at startup and requires difficult verification process (confirmation phrase + 10 arithmetic questions in word form) if within restricted hours. User-configurable option to enable/disable difficult uninstall. Manual uninstall guide script created. **Phase 2 ✅ Complete** - Implementation complete, unit tests passing (15/15). Uninstall lock hours configuration integrated into configure.sh and visual grid view. **Remaining**: Phase 1 comprehensive testing (integration tests, edge cases), Phase 2 integration tests (uninstall.sh behavior, UI testing), verify manual uninstall guide script documentation in user docs.
 - **Details**: See [enhancements/enhancement-26-prevent-uninstall-during-restricted-hours.md](enhancements/enhancement-26-prevent-uninstall-during-restricted-hours.md). **Phase 2 Details**: See [enhancements/enhancement-26b-additional-uninstall-lock-hours.md](enhancements/enhancement-26b-additional-uninstall-lock-hours.md)
+
+### 27. PayPal Donation Links
+- **Description**: Add PayPal donation links and optional alternative payment methods to project documentation to allow users to support the project financially
+- **Priority**: Low (nice-to-have feature for project sustainability)
+- **Status**: Not implemented
+- **Details**: See [enhancements/enhancement-27-paypal-donation-links.md](enhancements/enhancement-27-paypal-donation-links.md)
 
 ## Alternative Approaches (Require Different Implementation)
 

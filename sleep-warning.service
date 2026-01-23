@@ -18,3 +18,13 @@ StandardError=journal
 #
 # Note: The script has robust display detection that works even if these variables
 # are not set, using loginctl and other fallback methods.
+#
+# Enhancement #4 - Mode-Specific Configuration:
+# The service can be configured for Desktop Mode (X11) or Gaming Mode (Wayland/gamescope)
+# via drop-in files in ~/.config/systemd/user/sleep-warning.service.d/
+# - mode-desktop.conf: Sets DISPLAY environment variable for Desktop Mode
+# - mode-gaming.conf: Sets WAYLAND_DISPLAY and GAMESCOPE_SESSION for Gaming Mode
+# These drop-in files are automatically created during installation or can be
+# configured manually via: sleep-warning-configure (option 12)
+# The service works without these drop-in files (uses environment inheritance),
+# but mode-specific configuration improves reliability and startup timing.

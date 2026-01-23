@@ -9,7 +9,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [x] **#26: Prevent uninstall.sh Execution During Restricted Hours** Phase 2 - ✅ **COMPLETE** - Separate configurable hours for difficult uninstall implemented, unit tests passing (15/15), documentation updated. Integration tests pending. 
 - [ ] **#25: User-Selectable Dialog Tool** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: configuration option, wizard integration, status display, automated tests passing. **Remaining**: Manual testing (configuration wizard GUI/text mode, status display, popup fallback behavior, service restart persistence)
 - [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - ✅ **MOSTLY IMPLEMENTED** - Main functionality implemented for configure.sh. **Remaining**: Comprehensive testing across all dialog tools (YAD/Zenity/KDialog) and environments (Wayland/X11/KDE); extend priority system to other relevant scripts (manage.sh, status.sh, uninstall.sh)
-- [ ] **#4: Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode
+- [ ] **#4: Systemd Service Environment Detection** - ✅ **MOSTLY IMPLEMENTED** - Core implementation complete (Phases 1-10): mode detection functions, service configuration infrastructure, installation/configuration integration, logging, automated tests (15/15 passing), documentation. **Remaining**: Manual testing on actual SteamOS Desktop Mode and Gaming Mode environments (Phase 7.3-7.6), optional status.sh troubleshooting enhancement (Phase 6.3)
 - [ ] **Donation Links** - PayPal setup, GitHub sponsors, Patreon integration
 - [ ] **Licensing** - License selection and application
 - [ ] **#13a: Single Executable Installer Script** - Self-extracting installer bundling all files
@@ -35,7 +35,7 @@ This document provides a concise overview of work remaining to be completed for 
 
 - [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - ✅ **MOSTLY IMPLEMENTED** - Main functionality implemented for configure.sh. **Remaining**: Comprehensive testing across all dialog tools and environments; extend priority system to other relevant scripts (manage.sh, status.sh, uninstall.sh)
 - [ ] **#3: Enhanced Window Size Options and Display-Based Sizing** - More predefined sizes and display-based automatic sizing
-- [ ] **#4: Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode
+- [ ] **#4: Systemd Service Environment Detection** - ✅ **MOSTLY IMPLEMENTED** - Core implementation complete (Phases 1-10): mode detection functions, service configuration infrastructure, installation/configuration integration, logging, automated tests (15/15 passing), documentation. **Remaining**: Manual testing on actual SteamOS Desktop Mode and Gaming Mode environments (Phase 7.3-7.6), optional status.sh troubleshooting enhancement (Phase 6.3)
 - [ ] **#5: Configurable Warning Messages** - Customize warning text per day/time range
 - [ ] **#6: Escalating Warnings** - Progressively stronger warnings for continued usage
 - [-] ~~**#8: Temporary Disable via Config**~~ - **PARTIALLY IMPLEMENTED** - Available via `manage.sh`; future work: config file toggle and/or `configure.sh` integration. **Note**: May remove temporary disable option entirely to discourage impulsive disabling; users can modify restrictions via config or uninstall.
@@ -76,7 +76,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **Dialog Tool Testing** - Comprehensive testing of YAD/Zenity/KDialog across all environments
 
 ### Integration Testing
-- [ ] **Systemd Service Persistence** - Verify service behavior across mode transitions (Desktop ↔ Gaming)
+- [ ] **Systemd Service Persistence** - Verify service behavior across mode transitions (Desktop ↔ Gaming) - ✅ **Partially Addressed** - Enhancement #4 implements mode detection and service configuration. Manual testing on actual SteamOS environments recommended.
 - [ ] **Display Detection Edge Cases** - Test all fallback strategies in various environments
 - [ ] **Configuration Validation** - Test all validation logic with edge cases
 
@@ -85,6 +85,14 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **Maintenance Documentation** - Contributing guidelines, development setup, coding standards
 - [ ] **Licensing** - Select and apply appropriate license (MIT, GPL, etc.)
 - [ ] **Donation Integration** - Set up PayPal, GitHub Sponsors, Patreon and integrate into README/docs
+
+## Code Quality Improvements
+
+Based on [Quality Improvement Assessment (2026-01-23)](qi-assessments/qi-assessment-2026-01-23-003550.md):
+
+- [ ] **Split lib/configure-input.sh into smaller modules** - Split the 1,797-line module into focused modules (basic input, popup settings, feature toggles, time range input) for improved maintainability
+- [ ] **Extract day name conversion to shared function** - Consolidate repeated day number-to-name conversion logic in `lib/config.sh` into a shared function in `lib/configure-core.sh`
+- [ ] **Extract magic numbers to constants** - Replace hardcoded values (hour ranges 0-23, time ranges 0-300) in `lib/configure-input.sh` with named constants
 
 ## Completed Enhancements (No Remaining Work)
 
@@ -109,7 +117,8 @@ The following enhancements are fully implemented with no remaining work. They ar
 
 ---
 
-**Last Updated**: 2026-01-22 (Assessment findings addressed: Enhancement #26 status clarified, completed enhancements section added)  
+**Last Updated**: 2026-01-23 (Added code quality improvements from quality assessment)  
 **Related Documents**: 
 - [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) - Detailed enhancement descriptions
 - [linux-warning-system-plan.md](linux-warning-system-plan.md) - Master implementation plan
+- [qi-assessments/qi-assessment-2026-01-23-003550.md](qi-assessments/qi-assessment-2026-01-23-003550.md) - Quality improvement assessment

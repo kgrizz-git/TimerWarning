@@ -400,6 +400,42 @@ get_check_interval() {
     echo "$default_interval"
 }
 
+# Function to configure service for detected system mode (Enhancement #4)
+configure_service_mode() {
+    # Source service configuration module if available
+    local service_config_file="${SCRIPT_DIR}/lib/service-config.sh"
+    local display_detection_file="${SCRIPT_DIR}/lib/display-detection.sh"
+    
+    if [ ! -f "${service_config_file}" ] || [ ! -f "${display_detection_file}" ]; then
+        print_info "Service configuration modules not found, skipping mode-specific configuration"
+        return 0
+    fi
+    
+    # Source required modules
+    source "${display_detection_file}"
+    source "${service_config_file}"
+    
+    # Detect system mode
+    print_info "Detecting system mode (Desktop Mode vs Gaming Mode)..."
+    local detected_mode
+    detected_mode=$(detect_system_mode)
+    
+    if [ "${detected_mode}" = "unknown" ]; then
+        print_warning "Could not detect system mode, service will use default configuration"
+        print_warning "You can manually configure the service later using: sleep-warning-configure"
+        return 0
+    fi
+    
+    # Configure service for detected mode
+    print_info "Configuring service for ${detected_mode} mode..."
+    if configure_service_for_mode "${detected_mode}"; then
+        print_success "Service configured for ${detected_mode} mode"
+    else
+        print_warning "Failed to configure service for ${detected_mode} mode"
+        print_warning "Service will use default configuration (should still work)"
+    fi
+}
+
 # Function to generate timer file with correct interval
 generate_timer_file() {
     local interval
@@ -507,6 +543,9 @@ install_files() {
     cp "$SCRIPT_DIR/sleep-warning.service" "$SYSTEMD_USER_DIR/sleep-warning.service"
     print_success "Systemd service file installed"
     
+    # Configure service for detected system mode (Enhancement #4)
+    configure_service_mode
+    
     # Generate timer file with correct interval
     generate_timer_file
     
@@ -597,6 +636,27 @@ print_summary() {
     echo ""
     echo "The timer is now active and will check for restricted hours every $(get_check_interval) minutes."
     echo ""
+    
+    # Show detected mode information (Enhancement #4)
+    local service_config_file="${SCRIPT_DIR}/lib/service-config.sh"
+    local display_detection_file="${SCRIPT_DIR}/lib/display-detection.sh"
+    if [ -f "${service_config_file}" ] && [ -f "${display_detection_file}" ]; then
+        source "${display_detection_file}" 2>/dev/null
+        source "${service_config_file}" 2>/dev/null
+        if type detect_system_mode >/dev/null 2>&1 && type get_current_service_mode >/dev/null 2>&1; then
+            local detected_mode
+            detected_mode=$(detect_system_mode 2>/dev/null)
+            local configured_mode
+            configured_mode=$(get_current_service_mode 2>/dev/null)
+            if [ "${detected_mode}" != "unknown" ] && [ -n "${detected_mode}" ]; then
+                echo "System mode: ${detected_mode}"
+                if [ "${configured_mode}" != "none" ] && [ -n "${configured_mode}" ]; then
+                    echo "Service configured for: ${configured_mode} mode"
+                fi
+                echo ""
+            fi
+        fi
+    fi
 }
 
 # Main installation function

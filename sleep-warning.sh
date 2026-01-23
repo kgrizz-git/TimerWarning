@@ -95,6 +95,15 @@ validate_config_safety() {
 
 # Main function
 main() {
+    # Log system mode at startup (Enhancement #4)
+    if type detect_system_mode >/dev/null 2>&1; then
+        local system_mode
+        system_mode=$(detect_system_mode 2>/dev/null || echo "unknown")
+        if [ "${system_mode}" != "unknown" ]; then
+            log_to_file "INFO" "System mode detected: ${system_mode}"
+        fi
+    fi
+    
     # Check and clear expired pause state (Enhancement #21)
     # This should be done before checking restricted hours
     check_and_clear_expired_pause
@@ -219,8 +228,14 @@ main() {
         env_type=$(detect_display_environment)
         display_id=$(get_display_identifier "${env_type}")
         
+        # Get system mode for logging (Enhancement #4)
+        local system_mode="unknown"
+        if type detect_system_mode >/dev/null 2>&1; then
+            system_mode=$(detect_system_mode 2>/dev/null || echo "unknown")
+        fi
+        
         # Log warning trigger with full context
-        log_to_file "WARNING" "Restricted hour detected - Day: ${current_day}, Hour: ${current_hour}, Range: ${matched_range}, Display: ${env_type}, Display ID: ${display_id}"
+        log_to_file "WARNING" "Restricted hour detected - Day: ${current_day}, Hour: ${current_hour}, Range: ${matched_range}, Display: ${env_type}, Display ID: ${display_id}, System Mode: ${system_mode}"
         
         show_warning
     else

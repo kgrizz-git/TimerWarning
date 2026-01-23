@@ -169,7 +169,8 @@ show_main_menu() {
             "9" "Uninstall Lock Hours Configuration${uninstall_lock_status_display}" \
             "10" "Enable pause and configure duration${pause_status}" \
             "11" "Dialog Tool Selection${dialog_tool_status}" \
-            "12" "Review and Save")
+            "12" "Service Mode Configuration (Desktop/Gaming Mode)" \
+            "13" "Review and Save")
         local exit_code=$?
         
         # Check if user cancelled (empty choice and non-zero exit)
@@ -189,9 +190,9 @@ show_main_menu() {
             fi
         fi
         
-        # If OK was clicked but no item selected, default to "Review and Save" (option 12)
+        # If OK was clicked but no item selected, default to "Review and Save" (option 13)
         if [ -z "${choice}" ]; then
-            choice="12"
+            choice="13"
         fi
         
         echo "${choice}"
@@ -290,21 +291,24 @@ show_main_menu() {
         echo "11. Dialog Tool Selection${dialog_tool_status}" >&2
         echo "   Select which dialog tool to use for popup windows" >&2
         echo "" >&2
-        echo "12. Review and Save" >&2
+        echo "12. Service Mode Configuration (Desktop/Gaming Mode)" >&2
+        echo "   Configure systemd service for Desktop Mode or Gaming Mode" >&2
+        echo "" >&2
+        echo "13. Review and Save" >&2
         echo "   Review your configuration and save changes" >&2
         echo "" >&2
         echo "To cancel and exit without saving, press Ctrl+C" >&2
         echo "" >&2
         
         while true; do
-            read -p "Select option [1-12]: " choice >&2
+            read -p "Select option [1-13]: " choice >&2
             case "${choice}" in
-                1|2|3|4|5|6|7|8|9|10|11|12)
+                1|2|3|4|5|6|7|8|9|10|11|12|13)
                     echo "${choice}"
                     return 0
                     ;;
                 *)
-                    echo "Invalid option. Please enter 1-11." >&2
+                    echo "Invalid option. Please enter 1-13." >&2
                     ;;
             esac
         done

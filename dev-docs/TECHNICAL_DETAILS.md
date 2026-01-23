@@ -10,12 +10,13 @@ The Sleep Warning System uses a **modular architecture** for improved maintainab
 - **Library Modules**: 7 core modules plus additional enhancement modules in `lib/` directory (~1500 lines total)
   - `config.sh` - Configuration management
   - `logging.sh` - Logging functions
-  - `display-detection.sh` - Display environment detection
+  - `display-detection.sh` - Display environment detection and system mode detection (Enhancement #4)
   - `desktop-environment.sh` - Desktop/dialog tool detection
   - `window-management.sh` - Window manipulation
   - `time-validation.sh` - Time range validation
   - `popup-display.sh` - Warning popup display
   - `uninstall-verification.sh` - Uninstall protection verification (Enhancement #26)
+  - `service-config.sh` - Systemd service configuration for Desktop/Gaming Mode (Enhancement #4)
 
 **Benefits**:
 - Clear separation of concerns
@@ -523,7 +524,16 @@ The `install.sh` script automates the entire installation process, making it eas
    - Starts timer immediately
    - Verifies timer is active and scheduled
 
-5. **User Experience**:
+5. **Mode-Specific Service Configuration** (Enhancement #4):
+   - Automatically detects system mode (Desktop Mode vs Gaming Mode)
+   - Creates systemd drop-in files for mode-specific environment variables
+   - Desktop Mode: Sets `DISPLAY` environment variable
+   - Gaming Mode: Sets `WAYLAND_DISPLAY` and `GAMESCOPE_SESSION` environment variables
+   - Service works without mode-specific configuration (backward compatible)
+   - Users can manually reconfigure via `sleep-warning-configure` (option 12)
+   - For details, see [enhancements/enhancement-04-systemd-service-environment-detection.md](enhancements/enhancement-04-systemd-service-environment-detection.md)
+
+6. **User Experience**:
    - Provides colored output for success/error messages (with fallback for non-color terminals)
    - Shows progress during installation
    - Provides summary of what was installed
@@ -632,6 +642,97 @@ sleep-warning-manage
 - Show file locations
 - Show help/information
 - Exit
+
+## Systemd Service Environment Detection (Enhancement #4)
+
+### Overview
+
+The system automatically detects whether it's running in **Desktop Mode** (X11/KDE Plasma) or **Gaming Mode** (Wayland/gamescope) and configures the systemd service accordingly. This ensures optimal service configuration, environment variable setup, and dependency management for each mode.
+
+### Implementation Approach
+
+**Drop-in File Approach**: The system uses systemd drop-in files (`.d/` directory) to configure mode-specific environment variables without modifying the base service file. This is non-destructive and allows easy mode switching.
+
+**Location**: Drop-in files are created in `~/.config/systemd/user/sleep-warning.service.d/`
+- `mode-desktop.conf` - Desktop Mode configuration
+- `mode-gaming.conf` - Gaming Mode configuration
+
+### Mode Detection
+
+The system uses `detect_system_mode()` function in `lib/display-detection.sh` to determine the current mode:
+
+1. **Primary Detection**: Checks for gamescope process (strongest indicator of Gaming Mode)
+2. **Secondary Detection**: Uses display environment detection (`detect_display_environment()`)
+   - X11 detected → Desktop Mode
+   - Wayland/gamescope detected → Gaming Mode
+3. **Fallback**: Uses `loginctl` session type if display detection is unavailable
+
+**Returns**: `"desktop"`, `"gaming"`, or `"unknown"` (with fallback behavior)
+
+### Service Configuration
+
+**Desktop Mode Configuration**:
+- Sets `Environment=DISPLAY=:0` (or detected display value)
+- Ensures X11 display is available to the service
+
+**Gaming Mode Configuration**:
+- Sets `Environment=WAYLAND_DISPLAY=wayland-0` (or detected value)
+- Sets `Environment=GAMESCOPE_SESSION=1`
+- Ensures Wayland display is available to the service
+
+### Integration Points
+
+1. **Installation** (`install.sh`):
+   - Automatically detects mode during installation
+   - Creates appropriate drop-in file
+   - Logs detected mode in installation summary
+
+2. **Configuration** (`configure.sh`):
+   - Menu option 12: "Service Mode Configuration"
+   - Allows manual reconfiguration if mode changes
+   - Shows current detected mode and service configuration status
+
+3. **Service Startup** (`sleep-warning.sh`):
+   - Logs detected mode at startup
+   - Includes mode information in warning trigger logs
+
+### Backward Compatibility
+
+- Service works without mode-specific configuration (uses environment inheritance)
+- Existing installations continue to work
+- Script's internal display detection still functions independently
+- Drop-in files are optional enhancements, not requirements
+
+### Functions
+
+**Mode Detection** (`lib/display-detection.sh`):
+- `detect_system_mode()` - Detects Desktop Mode vs Gaming Mode
+- `get_mode_display_identifier()` - Gets display identifier for detected mode
+
+**Service Configuration** (`lib/service-config.sh`):
+- `configure_service_for_mode()` - Main configuration function
+- `create_service_dropin()` - Creates mode-specific drop-in files
+- `remove_service_dropin()` - Removes drop-in files
+- `get_current_service_mode()` - Gets current service configuration
+- `get_service_dropin_path()` - Gets drop-in directory path
+
+### Error Handling
+
+- **Unknown Mode**: Service uses default configuration (backward compatible)
+- **Permission Errors**: Function logic verified even if file writes fail
+- **Mode Transitions**: Users can manually reconfigure via `sleep-warning-configure`
+- **Non-SteamOS Systems**: Mode detection works on any Linux system (may return "unknown")
+
+### Testing
+
+Automated test suite: `tests/test-mode-detection.sh` (15 tests, all passing)
+- Module existence and function existence
+- Syntax validation
+- Mode detection logic
+- Service configuration operations
+- Error handling
+
+For detailed implementation information, see [enhancements/enhancement-04-systemd-service-environment-detection.md](enhancements/enhancement-04-systemd-service-environment-detection.md).
 
 ## Portability Considerations
 
