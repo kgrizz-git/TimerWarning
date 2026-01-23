@@ -2,6 +2,8 @@
 
 This document provides a concise overview of work remaining to be completed for the Sleep Warning System. Enhancements are listed in numerical order.
 
+**Note**: This document focuses on work that remains to be done. Fully implemented enhancements (with no remaining work) are not listed here but can be found in [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). Enhancements marked as "Mostly Implemented" or "Partially Implemented" are listed here if they have remaining work (testing, documentation, etc.).
+
 ## Priority Items
 
 - [x] **#26: Prevent uninstall.sh Execution During Restricted Hours** Phase 2 - ✅ **COMPLETE** - Separate configurable hours for difficult uninstall implemented, unit tests passing (15/15), documentation updated. Integration tests pending. 
@@ -55,7 +57,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#23: Display Restricted Times/Days in Popup** - Show configured restricted hours in warning popup
 - [ ] **#24: Unified Dialog Tool Priority (YAD → Zenity → KDialog)** - ✅ **MOSTLY IMPLEMENTED** - Core implementation complete with abstraction layer. **Remaining**: Comprehensive testing across all dialog tools and environments (Wayland/X11/KDE), verify all dialog types work correctly with each tool, test positioning (center/top-left) with all tools
 - [ ] **#25: User-Selectable Dialog Tool** - Allow manual dialog tool selection
-- [x] **#26: Prevent uninstall.sh Execution During Restricted Hours** - ✅ **Phase 1 & Phase 2 Complete** - Core functionality complete (difficult uninstall verification). Phase 2 (separate schedule for difficult uninstall) implemented with unit tests passing (15/15). **Remaining**: Integration tests (uninstall.sh behavior, UI testing), comprehensive edge case testing
+- [x] **#26: Prevent uninstall.sh Execution During Restricted Hours** - ✅ **Phase 1 Mostly Implemented, Phase 2 Complete** - Phase 1: Core functionality complete (difficult uninstall verification), testing pending. Phase 2: Implementation complete, unit tests passing (15/15), uninstall lock hours integrated into configure.sh. **Remaining**: Phase 1 comprehensive testing (integration tests, edge cases), Phase 2 integration tests (uninstall.sh behavior, UI testing), verify manual uninstall guide script documentation
 
 ## Alternative Approaches
 
@@ -84,6 +86,18 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **Licensing** - Select and apply appropriate license (MIT, GPL, etc.)
 - [ ] **Donation Integration** - Set up PayPal, GitHub Sponsors, Patreon and integrate into README/docs
 
+## Completed Enhancements (No Remaining Work)
+
+The following enhancements are fully implemented with no remaining work. They are listed here for reference but are not tracked in the remaining work sections above:
+
+- ✅ **#2: Dialog Tool Priority System** - Fully implemented (superseded by Enhancement #24)
+- ✅ **#7: Warning Event Logging** - Fully implemented (file-based logging with rotation)
+- ✅ **#11: Desktop Notification Fallback** - Fully implemented (fallback in sleep-warning.sh)
+- ✅ **#14: Immovable Popup Window** - Fully implemented (X11 support with wmctrl/xdotool)
+- ✅ **#14b: Configure.sh GUI Window Behavior** - Fully implemented (window title differentiation)
+
+**Note**: Enhancement #19 Phase 1 is complete, but Phase 2 work is integrated with Enhancement #20 and listed above. Enhancement #26 Phase 1 has remaining testing work, and Phase 2 is complete with integration tests pending (both listed above).
+
 ## Notes
 
 - Enhancements are listed in numerical order for easy reference
@@ -91,10 +105,11 @@ This document provides a concise overview of work remaining to be completed for 
 - **Phase 2** items refer to follow-up phases of multi-phase enhancements
 - **Alternative Approaches** require significant architectural changes and should be evaluated carefully
 - Testing work is critical for ensuring reliability, especially for SteamOS Gaming Mode compatibility
+- Fully completed enhancements (no remaining work) are listed in the "Completed Enhancements" section above
 
 ---
 
-**Last Updated**: 2026-01-21 (Status review completed)  
+**Last Updated**: 2026-01-22 (Assessment findings addressed: Enhancement #26 status clarified, completed enhancements section added)  
 **Related Documents**: 
 - [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) - Detailed enhancement descriptions
 - [linux-warning-system-plan.md](linux-warning-system-plan.md) - Master implementation plan

@@ -3,6 +3,16 @@
 ###############################################################################
 # Test script to verify visual grid display functionality
 # Tests that the grid can display days with various configurations
+#
+# ⚠️  WARNING: This test MODIFIES the actual configuration file
+#    (${HOME}/.config/sleep-warning/sleep-warning.conf)
+#
+#    The test backs up your config before running and restores it after,
+#    but if the test is interrupted (Ctrl+C) or crashes, your config
+#    may not be restored. Use with caution.
+#
+#    If you need to preserve your configuration, back it up manually before
+#    running this test.
 ###############################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,6 +31,17 @@ echo "=========================================="
 echo "Testing Visual Grid Display Functionality"
 echo "=========================================="
 echo ""
+
+# Cleanup function to restore config
+cleanup() {
+    if [ -f "${BACKUP_FILE}" ]; then
+        echo "Restoring original config..."
+        mv "${BACKUP_FILE}" "${CONFIG_FILE}" 2>/dev/null || true
+    fi
+}
+
+# Set up trap to ensure cleanup on exit or interrupt
+trap cleanup EXIT INT TERM
 
 # Backup existing config
 if [ -f "${CONFIG_FILE}" ]; then
@@ -123,11 +144,9 @@ echo "  - Tuesday should show blank with '(no restrictions)' (explicitly skipped
 echo "  - Wednesday should show ✗ with restrictions"
 echo ""
 
-# Restore backup
-if [ -f "${BACKUP_FILE}" ]; then
-    echo "Restoring original config..."
-    mv "${BACKUP_FILE}" "${CONFIG_FILE}"
-fi
+# Config will be restored by trap on exit
+# Explicitly call cleanup to restore now (trap will handle if script exits normally)
+cleanup
 
 echo ""
 echo -e "${GREEN}Configuration test scenarios prepared.${NC}"

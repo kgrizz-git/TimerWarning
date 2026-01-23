@@ -2,10 +2,11 @@
 
 ## Purpose
 
-This document provides a systematic approach to assess the current state of testing for the Sleep Warning System and identify remaining testing requirements. The assessment:
+This document provides a systematic approach to identify what tests need to be performed for the Sleep Warning System. The assessment:
 
-- Reviews existing testing documentation to identify gaps and incomplete test cases
-- Examines technical documentation to extract implicit testing requirements
+- Identifies existing tests that should be re-run due to code changes
+- Suggests new tests needed to cover functionality and edge cases
+- Examines code and documentation to extract test requirements
 - Analyzes shell scripts to identify functionality that requires testing
 - Categorizes tests by automation feasibility (automated vs manual/interactive)
 - Identifies test environment requirements and setup possibilities
@@ -63,38 +64,37 @@ This approach ensures:
 
 ### Assessment Process
 
-1. **Review existing test files**:
+1. **Identify tests that need re-running**:
    - Examine all test files in `tests/` directory
-   - Check when tests were last modified vs codebase changes
-   - Identify tests that may need rerunning due to code changes
-   - Note tests that may need modification for new functionality
-   - Review `tests/README.md` for documented test coverage
+   - Check when tests were last modified vs codebase changes using `git log`
+   - Check `dev-docs/testing-assessments/test-history.md` for the last time each test was run
+   - Identify tests that should be re-run due to code changes
+   - Run existing tests and document which pass, fail, or need updates
+   - Note any broken or flaky tests that need attention
 
-2. **Review existing testing documentation**:
-   - Read `dev-docs/plan-phase-4-testing.md` thoroughly
-   - Note which tests are marked as completed vs pending
-   - Identify any "NOT TESTED" annotations
-
-3. **Review technical documentation**:
-   - Read `dev-docs/TECHNICAL_DETAILS.md` for implicit testing requirements
-   - Review `dev-docs/STEAMOS_GAMING_MODE.md` for Gaming Mode-specific tests
-   - Check enhancement documents in `dev-docs/enhancements/` for feature-specific testing needs
+2. **Extract test requirements from documentation**:
+   - Read `dev-docs/plan-phase-4-testing.md` to identify pending tests
+   - Read `dev-docs/TECHNICAL_DETAILS.md` to extract test requirements for features
+   - Review `dev-docs/STEAMOS_GAMING_MODE.md` for Gaming Mode-specific test needs
+   - Check enhancement documents in `dev-docs/enhancements/` for feature-specific test requirements
    - Review `dev-docs/REMAINING_WORK_SUMMARY.md` for testing-related work items
+   - Focus on identifying what tests need to be created, not evaluating the documentation itself
 
-4. **Examine shell scripts**:
+3. **Examine code to identify missing tests**:
    - Review main scripts (`sleep-warning.sh`, `configure.sh`, `manage.sh`, `install.sh`, `uninstall.sh`)
    - Review library modules in `lib/` directory
    - Identify functionality that may not be covered by existing tests
    - Look for error handling paths that need testing
    - Identify edge cases and boundary conditions
+   - Compare code functionality with existing test coverage
 
-5. **Categorize tests**:
+4. **Categorize test needs**:
    - **Automated tests**: Can be run without user interaction
    - **Manual/Interactive tests**: Require user interaction or specific conditions
    - **Environment setup possible**: Can be tested via virtual environment, container, or temporary setup
    - **Requires specific hardware/software**: Needs actual SteamOS, specific desktop environment, etc.
 
-6. **Prioritize recommendations**:
+5. **Prioritize test recommendations**:
    - **CRITICAL**: Tests that verify core functionality or prevent system-breaking issues
    - **HIGH**: Tests for important features or edge cases
    - **MEDIUM**: Tests for less critical functionality
@@ -104,197 +104,268 @@ This approach ensures:
 
 ## Assessment Sections
 
-### Section 0: Review of Existing Test Files
+### Section 0: Tests That Need Re-Running
 
-#### 0.1: Test File Inventory and Currency Check
+#### 0.1: Identify Tests Requiring Re-Execution
 
 **Location**: `tests/` directory
 
+**Purpose**: Identify which existing tests should be re-run due to code changes or need updates.
+
 **Tasks**:
 - [ ] List all test files in `tests/` directory
-- [ ] Check modification dates of test files vs codebase files
-- [ ] Identify tests that may be outdated due to code changes
-- [ ] Review test file purposes and coverage areas
-- [ ] Check for test files that reference code that has been modified
+- [ ] For each test file, identify what code it tests
+- [ ] Use `git log` to check if tested code has changed since test was written
+- [ ] Check `dev-docs/testing-assessments/test-history.md` for the last time each test was run
+- [ ] Compare test file modification dates with codebase file modification dates
+- [ ] **CRITICAL: Identify tests that modify the actual configuration file** (`${HOME}/.config/sleep-warning/sleep-warning.conf`)
+  - [ ] Check if test backs up the config file before modifying it
+  - [ ] Check if test uses a trap (e.g., `trap cleanup EXIT`) to ensure config is restored even if test is interrupted
+  - [ ] Check if test restores the config file after completion
+  - [ ] Document which tests modify the actual config file (not just test configs)
+  - [ ] For tests that modify the actual config, add warnings to the test file header and README
+  - [ ] Recommend adding traps to tests that modify config but don't have them
+- [ ] Run each test and document results (pass/fail/skip)
+- [ ] Identify tests that fail due to code changes (not just bugs)
+- [ ] Note tests that need updates to work with new functionality
+- [ ] Update `dev-docs/testing-assessments/test-history.md` with current test execution dates and results
 
 **For each test file**:
-- [ ] Review test purpose and what it tests
-- [ ] Check if tested code has changed since test was written (use `git log` to compare modification dates)
-- [ ] Determine if test needs rerunning
-- [ ] Determine if test needs modification for new functionality
-- [ ] Note any broken or failing tests
+- [ ] Document what the test covers
+- [ ] Check if tested code files have been modified (use `git log --follow <file>`)
+- [ ] **CRITICAL: Check if test modifies the actual configuration file**
+  - [ ] Does test modify `${HOME}/.config/sleep-warning/sleep-warning.conf`? (Yes/No/Uses test config)
+  - [ ] Does test backup config before modifying? (Yes/No/N/A)
+  - [ ] Does test use trap to ensure cleanup? (Yes/No/N/A)
+  - [ ] Does test restore config after completion? (Yes/No/N/A)
+  - [ ] **WARNING**: If test modifies actual config without proper backup/restore/trap, mark as **CRITICAL ISSUE**
+- [ ] **Recommendation**: Should this test be re-run? (Yes/No/Needs Update)
+- [ ] If needs update, note what changes are required
 - [ ] Check test dependencies (required tools: expect, wmctrl, xdotool, zenity, yad, kdialog, etc.)
-- [ ] Verify test cleanup procedures (config backups/restores, temporary files)
-- [ ] Note if test is flaky or intermittent (sometimes passes, sometimes fails)
+- [ ] Note if test is currently broken or flaky
 
 **Documentation Format**:
 ```
-### Findings from Existing Test Files
+### Tests Requiring Re-Execution
 
-#### Test Files Requiring Rerun
-- [List of tests that should be rerun due to code changes]
-  - For each: Note which code files changed and when
+#### Tests That Should Be Re-Run
+- **test-example.sh**: Tests `sleep-warning.sh` which was modified on 2024-01-15
+  - Code changes: Added new feature X (lines 45-67)
+  - Recommendation: Re-run to verify existing functionality still works
+  - Status: [Passed/Failed/Needs Update]
+  - **Config File Impact**: [Modifies actual config/Uses test config/No config used]
+  - **Safety**: [Has backup+restore+trap/Needs improvement/No config impact]
 
-#### Test Files Requiring Modification
-- [List of tests that need updates for new functionality]
-  - For each: Note what new functionality needs testing
+#### Tests Requiring Updates
+- **test-config.sh**: Tests `configure.sh` which added new option Y
+  - Required updates: Test needs to cover new option Y
+  - Current coverage: Only tests options A, B, C
+  - Missing coverage: Option Y validation and error handling
+  - **Config File Impact**: [Modifies actual config/Uses test config/No config used]
+  - **Safety**: [Has backup+restore+trap/Needs improvement/No config impact]
 
-#### Outdated Tests
-- [List of tests that may be outdated]
-  - For each: Note why they're outdated
+#### Tests That Modify Actual Configuration File
+- **test-example.sh**: Modifies `${HOME}/.config/sleep-warning/sleep-warning.conf`
+  - Backup: [Yes/No] - Uses backup function
+  - Restore: [Yes/No] - Restores at end
+  - Trap: [Yes/No] - Uses `trap cleanup EXIT` to ensure restore on interrupt
+  - **Risk Level**: [CRITICAL/HIGH/MEDIUM/LOW] - If interrupted, config may not be restored
+  - **Recommendation**: [Add trap/Add backup/Add restore/Already safe/No changes needed]
+  - **Warning Added**: [Yes/No] - Test file has warning in header/README
 
-#### Test Coverage Gaps
-- [List of code areas not covered by existing tests]
+#### Test Execution Results
+- Tests Run: [X of Y]
+- Tests Passed: [X]
+- Tests Failed: [X] - [List with reasons]
+- Tests Skipped: [X] - [List with reasons]
+- **Config Files Affected**: [X tests modified actual config, Y tests used test configs]
 
-#### Test Execution Status
-- [List tests that were actually run during assessment]
-- [List test results: passed/failed/skipped]
-- [Note any test failures and their causes]
-
-#### Test Dependencies
-- [List tests with missing dependencies]
-- [Note required tools that may not be available]
-
-#### Flaky or Problematic Tests
-- [List tests that are intermittent or unreliable]
-- [Note any tests that need refactoring or improvement]
+#### Broken or Flaky Tests
+- **test-flaky.sh**: Intermittent failures due to timing issues
+  - Issue: Race condition in test setup
+  - Recommendation: Fix test or mark as known issue
+  - **Config File Impact**: [Modifies actual config/No config impact]
 ```
 
-### Section 1: Review of Existing Testing Documentation
+### Section 1: Test Requirements from Documentation
 
-#### 1.1: Phase 4 Testing Checklist Review
+#### 1.1: Extract Test Requirements from Phase 4 Testing Plan
 
 **Location**: `dev-docs/plan-phase-4-testing.md`
 
+**Purpose**: Identify specific tests that are documented as needed but not yet implemented or completed.
+
 **Tasks**:
-- [ ] Review Checklist 4.1: Functional Testing
-  - [ ] List all tests marked as `[ ]` (not completed)
-  - [ ] List all tests marked as `[X]` but with "NOT TESTED" annotations
-  - [ ] Identify tests marked as "CRITICAL"
-  - [ ] Note any tests that are partially completed
-
-- [ ] Review Checklist 4.2: Edge Case Testing
-  - [ ] List all pending edge case tests
-  - [ ] Identify edge cases that may not be covered
-  - [ ] Note SteamOS Gaming Mode-specific edge cases
-
-- [ ] Review Checklist 4.3: Installation and Uninstall Testing
-  - [ ] List all pending installation tests
-  - [ ] Identify distribution-specific testing needs
-  - [ ] Note dependency installation scenarios
-
-- [ ] Review Checklist 4.4: System Integration Testing
-  - [ ] List all pending integration tests
-  - [ ] Identify SteamOS Gaming Mode integration tests
-  - [ ] Note system behavior tests (suspend/resume, reboot)
-
-- [ ] Review Supplemental Tests
-  - [ ] List all pending supplemental tests
-  - [ ] Identify compositor helper tests
-  - [ ] Note display detection tests
-  - [ ] Note dialog tool priority tests
+- [ ] Extract all tests marked as `[ ]` (not completed) from Checklist 4.1: Functional Testing
+- [ ] Extract all tests marked as `[X]` but with "NOT TESTED" annotations
+- [ ] Identify tests marked as "CRITICAL" that need to be performed
+- [ ] Extract pending tests from Checklist 4.2: Edge Case Testing
+- [ ] Extract pending tests from Checklist 4.3: Installation and Uninstall Testing
+- [ ] Extract pending tests from Checklist 4.4: System Integration Testing
+- [ ] Extract pending supplemental tests
+- [ ] For each identified test, document:
+  - Test name/description
+  - What functionality it should test
+  - Priority level (if specified)
+  - Whether it's a new test or needs to be re-run
 
 **Documentation Format**:
 ```
-### Findings from Phase 4 Testing Checklist
-- Functional Testing Gaps: [List]
-- Edge Case Testing Gaps: [List]
-- Installation/Uninstall Testing Gaps: [List]
-- Integration Testing Gaps: [List]
-- Supplemental Testing Gaps: [List]
+### Test Requirements from Phase 4 Testing Plan
+
+#### Functional Tests Needed
+- **Test: [Name]**
+  - Description: [What it should test]
+  - Priority: [CRITICAL/HIGH/MEDIUM/LOW]
+  - Status: New test needed / Needs re-run
+  - Location in plan: Checklist 4.1, item X
+
+#### Edge Case Tests Needed
+- **Test: [Name]**
+  - Description: [What edge case it should test]
+  - Priority: [CRITICAL/HIGH/MEDIUM/LOW]
+  - Status: New test needed
+  - Location in plan: Checklist 4.2, item X
+
+#### Installation/Uninstall Tests Needed
+- [Similar format]
+
+#### Integration Tests Needed
+- [Similar format]
 ```
 
-#### 1.2: Test Suite Documentation Review
+#### 1.2: Extract Test Requirements from Test Suite Documentation
 
 **Location**: `tests/README.md`
 
+**Purpose**: Identify tests mentioned in documentation that may not exist yet or need to be created.
+
 **Tasks**:
-- [ ] Review documented test coverage
-- [ ] Identify test limitations mentioned
-- [ ] Note future enhancements listed
+- [ ] Extract any test requirements or test cases mentioned in `tests/README.md`
 - [ ] Compare documented tests with actual test files in `tests/` directory
-- [ ] Identify gaps between documentation and implementation
+- [ ] Identify tests documented but not implemented
+- [ ] Note any "future tests" or "planned tests" mentioned
 
 **Documentation Format**:
 ```
-### Findings from Test Suite Documentation
-- Documented Coverage: [Summary]
-- Known Limitations: [List]
-- Future Enhancements: [List]
-- Documentation Gaps: [List]
+### Test Requirements from Test Suite Documentation
+
+#### Documented Tests Not Yet Implemented
+- **Test: [Name from README]**
+  - Description: [What it should test]
+  - Status: Needs to be created
+  - Reference: tests/README.md, section X
+
+#### Tests Mentioned But Missing
+- [List of tests documented but not found in tests/ directory]
 ```
 
-### Section 2: Review of Technical Documentation
+### Section 2: Test Requirements from Technical Documentation
 
-#### 2.1: TECHNICAL_DETAILS.md Analysis
+#### 2.1: Extract Test Requirements from TECHNICAL_DETAILS.md
 
 **Location**: `dev-docs/TECHNICAL_DETAILS.md`
 
-**Tasks**:
-- [ ] Review "Testing Requirements" sections
-- [ ] Identify features with explicit testing requirements
-- [ ] Extract implicit testing needs from implementation details
-- [ ] Note any "CRITICAL" or "MUST TEST" annotations
-- [ ] Identify features that require specific environments
+**Purpose**: Identify what tests are needed based on features and implementation details described in technical documentation.
 
-**Key Areas to Examine**:
-- [ ] Minimum Display Time Feature (lines 114-156): X11/Wayland testing, window manager, auto-reopen, countdown
-- [ ] Full-Screen Application Compatibility (lines 157-201): Desktop environments, display protocols, Gaming Mode
-- [ ] Display Access and Detection (lines 90-106): X11/Wayland detection, fallbacks, Gaming Mode
-- [ ] Configuration File Format (lines 54-82): Parsing, validation, edge cases (overnight ranges, multiple ranges)
-- [ ] 24/7 Restriction Prevention (lines 264-383): Validation algorithm, overlap detection, safety features
-- [ ] Timer Configuration (lines 203-209): Interval config, timer file updates, accuracy
-- [ ] Script Implementation Details: configure.sh, manage.sh, install.sh, uninstall.sh testing needs
+**Tasks**:
+- [ ] Extract explicit testing requirements mentioned in "Testing Requirements" sections
+- [ ] For each feature described, identify what tests should verify it works
+- [ ] Note any "CRITICAL" or "MUST TEST" annotations and create test requirements
+- [ ] Identify environment-specific test needs (X11, Wayland, Gaming Mode, etc.)
+
+**Key Features to Extract Test Requirements For**:
+- [ ] Minimum Display Time Feature (lines 114-156): What tests verify X11/Wayland behavior, window manager compatibility, auto-reopen, countdown?
+- [ ] Full-Screen Application Compatibility (lines 157-201): What tests verify desktop environment compatibility, display protocols, Gaming Mode behavior?
+- [ ] Display Access and Detection (lines 90-106): What tests verify X11/Wayland detection, fallbacks, Gaming Mode detection?
+- [ ] Configuration File Format (lines 54-82): What tests verify parsing, validation, edge cases (overnight ranges, multiple ranges)?
+- [ ] 24/7 Restriction Prevention (lines 264-383): What tests verify validation algorithm, overlap detection, safety features?
+- [ ] Timer Configuration (lines 203-209): What tests verify interval config, timer file updates, accuracy?
+- [ ] Script Implementation: What tests are needed for configure.sh, manage.sh, install.sh, uninstall.sh?
 
 **Documentation Format**:
 ```
-### Findings from TECHNICAL_DETAILS.md
-- Explicit Testing Requirements: [List]
-- Implicit Testing Needs: [List]
-- Critical Testing Areas: [List]
-- Environment-Specific Requirements: [List]
+### Test Requirements from TECHNICAL_DETAILS.md
+
+#### Tests Needed for Minimum Display Time Feature
+- **Test: X11 minimum display time behavior**
+  - Purpose: Verify minimum display time works correctly on X11
+  - Priority: HIGH
+  - Environment: X11 desktop environment
+  - Reference: TECHNICAL_DETAILS.md lines 114-156
+
+#### Tests Needed for Configuration File Format
+- **Test: Overnight time range parsing**
+  - Purpose: Verify configuration correctly parses overnight ranges (e.g., 22:00-06:00)
+  - Priority: HIGH
+  - Reference: TECHNICAL_DETAILS.md lines 54-82
+
+[Continue for each feature...]
 ```
 
-#### 2.2: STEAMOS_GAMING_MODE.md Analysis
+#### 2.2: Extract Test Requirements from STEAMOS_GAMING_MODE.md
 
 **Location**: `dev-docs/STEAMOS_GAMING_MODE.md`
 
+**Purpose**: Identify Gaming Mode-specific tests that need to be performed.
+
 **Tasks**:
-- [ ] Review all testing sections
-- [ ] Identify Gaming Mode-specific test requirements
-- [ ] Note display detection testing needs
-- [ ] Identify popup behavior testing requirements
-- [ ] Note systemd service robustness testing
+- [ ] Extract Gaming Mode-specific test requirements
+- [ ] Identify display detection tests needed for Gaming Mode
+- [ ] Identify popup behavior tests needed for Gaming Mode
+- [ ] Identify systemd service tests needed
+- [ ] For each requirement, document what test should verify
 
 **Documentation Format**:
 ```
-### Findings from STEAMOS_GAMING_MODE.md
-- Gaming Mode Testing Requirements: [List]
-- Display Detection Testing: [List]
-- Popup Behavior Testing: [List]
-- System Integration Testing: [List]
+### Test Requirements from STEAMOS_GAMING_MODE.md
+
+#### Gaming Mode Display Detection Tests Needed
+- **Test: Gaming Mode display detection**
+  - Purpose: Verify system correctly detects Gaming Mode environment
+  - Priority: CRITICAL
+  - Environment: SteamOS Gaming Mode
+  - Reference: STEAMOS_GAMING_MODE.md, section X
+
+#### Gaming Mode Popup Behavior Tests Needed
+- **Test: Popup display in Gaming Mode**
+  - Purpose: Verify popup appears correctly in Gaming Mode
+  - Priority: CRITICAL
+  - Environment: SteamOS Gaming Mode with full-screen game
+  - Reference: STEAMOS_GAMING_MODE.md, section Y
+
+[Continue for each requirement...]
 ```
 
-#### 2.3: Enhancement Documents Analysis
+#### 2.3: Extract Test Requirements from Enhancement Documents
 
 **Location**: `dev-docs/enhancements/`
 
+**Purpose**: Identify tests needed for features described in enhancement documents.
+
 **Tasks**:
-- [ ] Review enhancement documents for testing requirements
-- [ ] Identify features that may not have corresponding tests
-- [ ] Note any testing sections in enhancement documents
+- [ ] For each enhancement document, extract test requirements
+- [ ] Identify features that may not have corresponding tests yet
 - [ ] Check for "Testing Requirements" or "Test Cases" sections
+- [ ] Document what tests should verify each enhancement works
 
 **Documentation Format**:
 ```
-### Findings from Enhancement Documents
-- Enhancement-Specific Testing Needs: [List]
-- Missing Test Coverage: [List]
+### Test Requirements from Enhancement Documents
+
+#### Tests Needed for Enhancement X
+- **Test: [Name]**
+  - Purpose: [What it should verify]
+  - Priority: [Level]
+  - Enhancement: enhancement-X.md
+  - Status: New test needed
+
+[Continue for each enhancement...]
 ```
 
-### Section 3: Shell Script Analysis
+### Section 3: Identify Missing Tests from Code Analysis
 
-#### 3.1: Main Scripts Analysis
+#### 3.1: Tests Needed for Main Scripts
 
 **Scripts to Review**:
 - `sleep-warning.sh` - Main entry point
@@ -303,39 +374,70 @@ This approach ensures:
 - `install.sh` - Installation script
 - `uninstall.sh` - Uninstall script
 
+**Purpose**: Identify functionality in main scripts that needs testing but may not be covered by existing tests.
+
 **Tasks**:
-- [ ] For each script, identify:
-  - [ ] Main execution paths
-  - [ ] Error handling paths
-  - [ ] Edge cases and boundary conditions
-  - [ ] Input validation points
-  - [ ] External dependency interactions
-  - [ ] Environment-specific behavior
+- [ ] For each script, compare functionality with existing test coverage
+- [ ] Identify main execution paths that need tests
+- [ ] Identify error handling paths that need tests
+- [ ] Identify edge cases and boundary conditions that need tests
+- [ ] Identify input validation points that need tests
+- [ ] Identify external dependency interactions that need tests
+- [ ] Identify environment-specific behavior that needs tests
+- [ ] For each identified gap, suggest a specific test
 
 **Documentation Format**:
 ```
-### Findings from Main Scripts
-- sleep-warning.sh: [Functionality needing tests]
-- configure.sh: [Functionality needing tests]
-- manage.sh: [Functionality needing tests]
-- install.sh: [Functionality needing tests]
-- uninstall.sh: [Functionality needing tests]
+### Tests Needed for Main Scripts
+
+#### sleep-warning.sh
+- **Test: Main execution path with valid config**
+  - Purpose: Verify script runs correctly with valid configuration
+  - Priority: CRITICAL
+  - Status: [Exists/Needs creation/Needs re-run]
+
+- **Test: Error handling for missing config file**
+  - Purpose: Verify script handles missing config gracefully
+  - Priority: HIGH
+  - Status: [Exists/Needs creation]
+
+[Continue for each script and functionality...]
 ```
 
-#### 3.2: Library Modules Analysis
+#### 3.2: Tests Needed for Library Modules
 
 **Modules to Review**: All files in `lib/` directory (config.sh, logging.sh, display-detection.sh, desktop-environment.sh, window-management.sh, time-validation.sh, popup-display.sh, uninstall-verification.sh, configure-*.sh, etc.)
 
+**Purpose**: Identify functions and features in library modules that need testing.
+
 **Tasks**:
-- [ ] For each module, identify: function entry points, error conditions, edge cases, external dependencies, environment-specific behavior, integration points
+- [ ] For each module, list all functions
+- [ ] Compare functions with existing test coverage
+- [ ] Identify functions that need unit tests
+- [ ] Identify error conditions that need tests
+- [ ] Identify edge cases that need tests
+- [ ] Identify external dependency interactions that need tests
+- [ ] Identify environment-specific behavior that needs tests
+- [ ] For each identified gap, suggest a specific test
 
 **Documentation Format**:
 ```
-### Findings from Library Modules
-- lib/config.sh: [Functions/features needing tests]
-- lib/display-detection.sh: [Functions/features needing tests]
-- lib/popup-display.sh: [Functions/features needing tests]
-[Continue for other modules...]
+### Tests Needed for Library Modules
+
+#### lib/config.sh
+- **Test: load_config() with valid config file**
+  - Purpose: Verify config loading works correctly
+  - Priority: CRITICAL
+  - Function: load_config()
+  - Status: [Exists/Needs creation/Needs re-run]
+
+- **Test: load_config() with invalid config file**
+  - Purpose: Verify error handling for invalid config
+  - Priority: HIGH
+  - Function: load_config()
+  - Status: [Exists/Needs creation]
+
+[Continue for each module and function...]
 ```
 
 ### Section 4: Test Execution and Results
@@ -572,16 +674,24 @@ When documenting critical recommendations, use **bold text** and clearly mark th
 
 ### Test Execution Best Practices
 
-- **Run tests before assessment**: Execute existing automated tests to establish baseline
-- **Document test results**: Record pass/fail status, execution time, and any errors
+- **Run existing tests first**: Execute existing automated tests to establish baseline and identify what needs re-running
+- **Document test results**: Record pass/fail status, execution time, and any errors for tests that are re-run
 - **Check dependencies**: Verify required tools are available before running tests
-- **Verify cleanup**: Ensure tests restore original state (configs, temp files)
-- **Use git history**: Compare test file modification dates with code changes using `git log`
-- **Test isolation**: Ensure tests don't interfere with each other or system state
+- **Use git history**: Compare test file modification dates with code changes using `git log` to identify tests that should be re-run
+- **Check test history**: Review `dev-docs/testing-assessments/test-history.md` to see when tests were last executed
+- **Update test history**: After running tests, update `dev-docs/testing-assessments/test-history.md` with execution dates and results
+- **Compare code with tests**: For each code file, check if corresponding tests exist and cover all functionality
 
 ### Documentation Standards
 
-All findings should include: clear descriptions, specific file locations/line numbers, priority justification, implementation suggestions, dependencies and prerequisites.
+All test recommendations should include:
+- **Clear test description**: What the test should verify
+- **Specific location**: File and line numbers/sections where functionality exists
+- **Priority justification**: Why this test is critical/high/medium/low priority
+- **Test type**: Automated vs manual/interactive
+- **Status**: New test needed, needs re-run, or needs update
+- **Implementation suggestions**: Suggested approach for creating the test
+- **Dependencies and prerequisites**: Required tools, environment, or setup
 
 ---
 
@@ -590,11 +700,12 @@ All findings should include: clear descriptions, specific file locations/line nu
 Before finalizing the assessment:
 
 - [ ] All sections completed
-- [ ] All findings documented
-- [ ] Tests categorized by type and automation feasibility
-- [ ] Priorities assigned to all recommendations
-- [ ] Critical recommendations clearly marked
-- [ ] Summary and roadmap completed
+- [ ] All tests requiring re-run identified and documented
+- [ ] All new tests needed identified and documented
+- [ ] Test recommendations categorized by type and automation feasibility
+- [ ] Priorities assigned to all test recommendations
+- [ ] Critical test recommendations clearly marked
+- [ ] Summary and implementation roadmap completed
 - [ ] Resource requirements identified
 - [ ] Assessment file saved with timestamp
 
@@ -605,7 +716,8 @@ Before finalizing the assessment:
 If during the assessment you discover:
 - New testing patterns or requirements
 - Missing assessment categories
-- Better ways to organize findings
-- Additional documentation sources to review
+- Better ways to identify tests that need re-running
+- Better ways to identify missing tests
+- Additional code areas or documentation sources to examine for test requirements
 
 **Add them to this master template** so future assessments benefit from the improvements.

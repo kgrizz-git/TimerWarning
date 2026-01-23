@@ -291,7 +291,10 @@ test_mixed_override_flags() {
     CONFIG_FILE="${test_config}"
     
     # Call with popup_size_overridden="true" but configure_block_overridden="" (empty)
-    write_config "10" "medium" "center" "30" "true" "false" \
+    # write_config requires 10 positional parameters: check_interval, popup_size, popup_position, 
+    # min_display_time, popup_immovable, configure_block_enabled, uninstall_protection_mode,
+    # pause_enabled, pause_duration, dialog_tool
+    write_config "10" "medium" "center" "30" "true" "false" "difficult" "true" "5" "auto" \
         "${config_lines[@]}" "true" ""
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then

@@ -305,13 +305,41 @@ show_multi_column_list_dialog() {
     
     # Count columns by finding where data starts (first non-option-looking argument)
     # Column names are the arguments before data starts
-    # Support 1, 2, or 3 columns (most common cases)
-    if [ $# -ge 3 ]; then
-        # Check if 3rd argument looks like a column name (not data)
+    # Support 1, 2, 3, or 4 columns
+    if [ $# -ge 4 ]; then
+        # Check if 4th argument looks like a column name (not data)
         # Data typically contains colons, arrows, or parentheses, while column names are simple words
-        local third_arg="$3"
+        local fourth_arg="$4"
         # Check if it contains data-like characters (parentheses, arrows, colons)
         # Column names are simple: letters and spaces only, no special characters
+        if [[ ! "${fourth_arg}" =~ [\(\):] ]] && [[ "${fourth_arg}" != *"->"* ]] && [[ "${fourth_arg}" =~ ^[A-Za-z\ ]+$ ]]; then
+            # Likely a column name - assume 4 columns
+            column_names=("$1" "$2" "$3" "$4")
+            num_columns=4
+            shift 4
+        elif [ $# -ge 3 ]; then
+            # Check if 3rd argument looks like a column name (not data)
+            local third_arg="$3"
+            if [[ ! "${third_arg}" =~ [\(\):] ]] && [[ "${third_arg}" != *"->"* ]] && [[ "${third_arg}" =~ ^[A-Za-z\ ]+$ ]]; then
+                # Likely a column name - assume 3 columns
+                column_names=("$1" "$2" "$3")
+                num_columns=3
+                shift 3
+            else
+                # Likely data - assume 2 columns
+                column_names=("$1" "$2")
+                num_columns=2
+                shift 2
+            fi
+        else
+            # Likely data - assume 2 columns
+            column_names=("$1" "$2")
+            num_columns=2
+            shift 2
+        fi
+    elif [ $# -ge 3 ]; then
+        # Check if 3rd argument looks like a column name (not data)
+        local third_arg="$3"
         if [[ ! "${third_arg}" =~ [\(\):] ]] && [[ "${third_arg}" != *"->"* ]] && [[ "${third_arg}" =~ ^[A-Za-z\ ]+$ ]]; then
             # Likely a column name - assume 3 columns
             column_names=("$1" "$2" "$3")

@@ -3,6 +3,24 @@
 ###############################################################################
 # Comprehensive test suite for configure.sh in text mode
 # Tests all scenarios and verifies config file persistence
+#
+# ⚠️  WARNING: This test MODIFIES the actual configuration file
+#    (${HOME}/.config/sleep-warning/sleep-warning.conf)
+#
+#    The test backs up your config before running and restores it after,
+#    but if the test is interrupted (Ctrl+C) or crashes, your config
+#    may not be restored. Use with caution.
+#
+#    If you need to preserve your configuration, back it up manually before
+#    running this test.
+#
+# Usage:
+#   Run all tests: ./tests/test-configure-comprehensive.sh
+#   Run individual tests: ./tests/test-configure-comprehensive.sh 1 2 3
+#   Run single test: ./tests/test-configure-comprehensive.sh 5
+#
+# Note: Running all tests at once may timeout. It's recommended to run
+# individual test scenarios separately for more reliable results.
 ###############################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,6 +60,14 @@ restore_config() {
         echo "  Removed test config"
     fi
 }
+
+# Cleanup function to ensure config is restored even on interrupt
+cleanup() {
+    restore_config
+}
+
+# Set up trap to ensure cleanup on exit or interrupt
+trap cleanup EXIT INT TERM
 
 # Create test config file
 create_test_config() {

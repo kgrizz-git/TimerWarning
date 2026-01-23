@@ -3,6 +3,16 @@
 ###############################################################################
 # Automated interactive tests for configure.sh text mode
 # Tests various scenarios by providing input and checking config file output
+#
+# ⚠️  WARNING: This test MODIFIES the actual configuration file
+#    (${HOME}/.config/sleep-warning/sleep-warning.conf)
+#
+#    The test backs up your config before running and restores it after,
+#    but if the test is interrupted (Ctrl+C) or crashes, your config
+#    may not be restored. Use with caution.
+#
+#    If you need to preserve your configuration, back it up manually before
+#    running this test.
 ###############################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -55,6 +65,14 @@ restore_config() {
         rm -f "${CONFIG_FILE}"
     fi
 }
+
+# Cleanup function to ensure config is restored even on interrupt
+cleanup() {
+    restore_config
+}
+
+# Set up trap to ensure cleanup on exit or interrupt
+trap cleanup EXIT INT TERM
 
 # Create test config file
 create_test_config() {

@@ -66,6 +66,7 @@ This approach ensures:
 5. **Review related code** - When checking an item, review all related code paths, not just the obvious ones
 6. **Perform code flow analysis** - Trace execution paths through the codebase to understand how data flows and where vulnerabilities might exist
 7. **Consider error conditions** - Analyze how the system handles invalid input, corrupted files, missing dependencies, and other error states
+8. **General security review** - In addition to the specific checklist items, perform a general security review looking for common vulnerabilities and poor security practices (see "General Security Practices Review" in Analysis Methodology section)
 
 ## Important Notes
 
@@ -224,6 +225,41 @@ For each checklist item, consider:
 6. **Malicious input**: Could input be crafted to exploit vulnerabilities?
 7. **State corruption**: What happens if system state is inconsistent?
 
+### General Security Practices Review
+
+In addition to the specific checklist items, perform a general security review of the codebase looking for:
+
+1. **Common vulnerabilities**:
+   - Command injection (unsanitized input in command execution)
+   - Path traversal (unvalidated file paths)
+   - Insecure temporary files (predictable names, world-writable)
+   - Race conditions (time-of-check to time-of-use issues)
+   - Hardcoded secrets or credentials
+   - Insecure random number generation (if applicable)
+
+2. **Poor security practices**:
+   - Missing input validation or sanitization
+   - Insufficient error handling that leaks information
+   - Overly permissive file permissions
+   - Unnecessary privilege escalation
+   - Insecure communication (if network features exist)
+   - Weak cryptographic practices (if encryption is used)
+
+3. **Code quality security concerns**:
+   - Use of deprecated or insecure functions
+   - Missing security headers or protections
+   - Inadequate logging of security events
+   - Lack of security documentation
+
+4. **Review approach**:
+   - Search for common dangerous patterns (e.g., `eval`, unquoted variables in commands, `rm -rf` with variables)
+   - Review all external command invocations for proper quoting and sanitization
+   - Check all file operations for path validation
+   - Verify all user input is validated before use
+   - Review error messages for information disclosure
+
+Document any general security concerns found in the timestamped scan file, even if they don't fit into specific checklist categories.
+
 ### Documentation Requirements
 
 When documenting issues in the timestamped scan file, include:
@@ -358,6 +394,18 @@ When documenting issues in the timestamped scan file, include:
 - [ ] **Verify**: Log files don't contain sensitive information (passwords, tokens)
 - [ ] **Check**: Error messages don't reveal system internals unnecessarily
 - [ ] **Test**: Review log file contents for sensitive data
+
+#### 4.5 General Security Practices Review
+- [ ] **Verify**: No command injection vulnerabilities (all user input properly quoted/sanitized before command execution)
+- [ ] **Check**: No use of dangerous functions like `eval` or unquoted variable expansion in command execution
+- [ ] **Test**: Search codebase for common security anti-patterns (unquoted variables, `eval`, insecure temp files)
+- [ ] **Verify**: All temporary files use secure creation methods (`mktemp` with proper templates)
+- [ ] **Check**: No hardcoded secrets, passwords, or sensitive credentials in code
+- [ ] **Test**: Review all external command invocations for proper input sanitization
+- [ ] **Verify**: File permissions are set appropriately (no world-writable files unless necessary)
+- [ ] **Check**: Error handling doesn't expose sensitive system information
+- [ ] **Test**: Review code for any deprecated or insecure function usage
+- [ ] **Verify**: All user-controlled input is validated before use in file operations or command execution
 
 ---
 
@@ -653,6 +701,9 @@ After completing a safety scan (in your timestamped scan file):
 
 ## Last Updated
 
-- **Date**: 2026-01-20
+- **Date**: 2026-01-22
 - **Version**: Current
-- **Changes**: Added Section 11 "File Safety and Unintended File Operations" to verify that scripts only affect intended files and never remove or modify files from the project directory or unrelated files outside installation locations
+- **Changes**: 
+  - Added Section 11 "File Safety and Unintended File Operations" to verify that scripts only affect intended files and never remove or modify files from the project directory or unrelated files outside installation locations
+  - Added "General Security Practices Review" subsection to Analysis Methodology section
+  - Added Section 4.5 "General Security Practices Review" checklist items for common security vulnerabilities and poor security practices
