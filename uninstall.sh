@@ -59,6 +59,15 @@ if [ -f "${SOURCE_LIB_DIR}/time-validation.sh" ]; then
     source "${SOURCE_LIB_DIR}/time-validation.sh" 2>/dev/null || true
 fi
 
+# Source display detection and desktop environment for dialog tool selection
+if [ -f "${SOURCE_LIB_DIR}/display-detection.sh" ]; then
+    source "${SOURCE_LIB_DIR}/display-detection.sh" 2>/dev/null || true
+fi
+
+if [ -f "${SOURCE_LIB_DIR}/desktop-environment.sh" ]; then
+    source "${SOURCE_LIB_DIR}/desktop-environment.sh" 2>/dev/null || true
+fi
+
 if [ -f "${SOURCE_LIB_DIR}/configure-core.sh" ]; then
     source "${SOURCE_LIB_DIR}/configure-core.sh" 2>/dev/null || true
 fi

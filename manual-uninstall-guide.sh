@@ -49,6 +49,15 @@ fi
 
 # Source library modules if available (for verification functions)
 # These are sourced with error suppression to allow guide even if some modules are missing
+# Note: Must source in dependency order for get_dialog_tool() to work correctly
+if [ -f "${SOURCE_LIB_DIR}/config.sh" ]; then
+    source "${SOURCE_LIB_DIR}/config.sh" 2>/dev/null || true
+fi
+
+if [ -f "${SOURCE_LIB_DIR}/display-detection.sh" ]; then
+    source "${SOURCE_LIB_DIR}/display-detection.sh" 2>/dev/null || true
+fi
+
 if [ -f "${SOURCE_LIB_DIR}/desktop-environment.sh" ]; then
     source "${SOURCE_LIB_DIR}/desktop-environment.sh" 2>/dev/null || true
 fi

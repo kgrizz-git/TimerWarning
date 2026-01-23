@@ -7,7 +7,7 @@ This document provides a concise overview of work remaining to be completed for 
 ## Priority Items
 
 - [x] **#26: Prevent uninstall.sh Execution During Restricted Hours** Phase 2 - ✅ **COMPLETE** - Separate configurable hours for difficult uninstall implemented, unit tests passing (15/15), documentation updated. Integration tests pending. 
-- [ ] **#25: User-Selectable Dialog Tool** - Allow manual dialog tool selection (not implemented)
+- [ ] **#25: User-Selectable Dialog Tool** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: configuration option, wizard integration, status display, automated tests passing. **Remaining**: Manual testing (configuration wizard GUI/text mode, status display, popup fallback behavior, service restart persistence)
 - [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - ✅ **MOSTLY IMPLEMENTED** - Main functionality implemented for configure.sh. **Remaining**: Comprehensive testing across all dialog tools (YAD/Zenity/KDialog) and environments (Wayland/X11/KDE); extend priority system to other relevant scripts (manage.sh, status.sh, uninstall.sh)
 - [ ] **#4: Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode
 - [ ] **Donation Links** - PayPal setup, GitHub sponsors, Patreon integration
@@ -56,7 +56,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#22a: Fix Validation Edge Cases in 24/7 Restriction Detection** - Address edge cases in validation logic (handles `start_hour == end_hour`, sparse array indices, IFS handling)
 - [ ] **#23: Display Restricted Times/Days in Popup** - Show configured restricted hours in warning popup
 - [ ] **#24: Unified Dialog Tool Priority (YAD → Zenity → KDialog)** - ✅ **MOSTLY IMPLEMENTED** - Core implementation complete with abstraction layer. **Remaining**: Comprehensive testing across all dialog tools and environments (Wayland/X11/KDE), verify all dialog types work correctly with each tool, test positioning (center/top-left) with all tools
-- [ ] **#25: User-Selectable Dialog Tool** - Allow manual dialog tool selection
+- [ ] **#25: User-Selectable Dialog Tool** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: configuration option, wizard integration, status display, automated tests passing. **Remaining**: Manual testing (configuration wizard GUI/text mode, status display, popup fallback behavior, service restart persistence)
 - [x] **#26: Prevent uninstall.sh Execution During Restricted Hours** - ✅ **Phase 1 Mostly Implemented, Phase 2 Complete** - Phase 1: Core functionality complete (difficult uninstall verification), testing pending. Phase 2: Implementation complete, unit tests passing (15/15), uninstall lock hours integrated into configure.sh. **Remaining**: Phase 1 comprehensive testing (integration tests, edge cases), Phase 2 integration tests (uninstall.sh behavior, UI testing), verify manual uninstall guide script documentation
 
 ## Alternative Approaches

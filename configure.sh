@@ -386,35 +386,6 @@ main() {
                 # If exit code is 1, function will have already re-prompted, so we continue the loop
                 ;;
             12)
-                
-                # Only configure duration if pause is enabled
-                if [ "${pause_enabled}" = "true" ]; then
-                    local new_pause_duration
-                    new_pause_duration=$(get_pause_duration_config "${use_gui}")
-                    if [ "${new_pause_duration}" = "CANCELLED" ]; then
-                        # User already confirmed cancellation
-                        exit 0
-                    else
-                        pause_duration="${new_pause_duration}"
-                    fi
-                fi
-                ;;
-            11)
-                # Dialog Tool Selection (Enhancement #25)
-                local new_dialog_tool
-                new_dialog_tool=$(get_dialog_tool_selection "${use_gui}")
-                local selection_exit=$?
-                
-                if [ ${selection_exit} -eq 2 ]; then
-                    # User confirmed cancellation - exit configuration
-                    exit 0
-                elif [ ${selection_exit} -eq 0 ]; then
-                    # Valid selection made (including "auto" if user cancelled without confirming)
-                    dialog_tool="${new_dialog_tool}"
-                fi
-                # If exit code is 1, function will have already re-prompted, so we continue the loop
-                ;;
-            12)
                 # Review and Save
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
                 if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}"; then

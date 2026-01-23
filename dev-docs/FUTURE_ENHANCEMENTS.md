@@ -188,7 +188,7 @@ These enhancements can be integrated into the existing bash script suite without
 ### 25. User-Selectable Dialog Tool
 - **Description**: Allow users to manually choose which dialog tool (zenity, yad, or kdialog) to use from a list of installed tools, overriding the automatic priority system. This gives users control over dialog tool selection when they have preferences or encounter issues with the automatic selection.
 - **Priority**: Medium (improves user control and troubleshooting flexibility)
-- **Status**: Not implemented
+- **Status**: ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: configuration option (`DIALOG_TOOL`), configuration wizard integration, status display, automated tests passing. **Remaining**: Manual testing (configuration wizard GUI/text mode, status display, popup fallback behavior when selected tool unavailable, service restart persistence)
 - **Details**: See [enhancements/enhancement-25-user-selectable-dialog-tool.md](enhancements/enhancement-25-user-selectable-dialog-tool.md)
 
 ### 26. Prevent uninstall.sh Execution During Restricted Hours (Phase 1 Mostly Implemented, Phase 2 Complete)

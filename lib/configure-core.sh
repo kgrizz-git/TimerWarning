@@ -16,6 +16,7 @@
 #
 # Dependencies:
 #   - desktop-environment.sh (for check_dialog_tool and detect_display_environment)
+#   - config.sh (for get_dialog_tool_config, Enhancement #25)
 #     Note: Functions handle case where dependencies are not yet loaded
 #
 # Global Variables/Constants:
@@ -61,12 +62,23 @@ has_dialog_tool() {
 }
 
 # Get the currently selected dialog tool
-# Requires desktop-environment.sh to be sourced
+# Respects user preference from DIALOG_TOOL config (Enhancement #25)
+# Requires desktop-environment.sh and config.sh to be sourced
 get_dialog_tool() {
     if type check_dialog_tool >/dev/null 2>&1 && type detect_display_environment >/dev/null 2>&1; then
         local env_type
         env_type=$(detect_display_environment 2>/dev/null || echo "x11")
-        check_dialog_tool "${env_type}"
+        
+        # Get user preference for dialog tool (Enhancement #25)
+        local user_preference=""
+        if type get_dialog_tool_config >/dev/null 2>&1; then
+            user_preference=$(get_dialog_tool_config 2>/dev/null || echo "auto")
+        else
+            # Fallback if config.sh not sourced
+            user_preference="auto"
+        fi
+        
+        check_dialog_tool "${env_type}" "${user_preference}"
     else
         # Fallback: return first available tool
         if command -v yad >/dev/null 2>&1; then

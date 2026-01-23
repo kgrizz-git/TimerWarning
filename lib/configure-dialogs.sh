@@ -420,7 +420,21 @@ show_multi_column_list_dialog() {
         kdialog)
             # KDialog uses --menu with tag/item pairs
             # For multi-column: use first column as tag, concatenate others as description
-            local kdialog_args=("--title" "${title}" "--menu" "${text}")
+            # Include column headers in the text parameter since kdialog --menu doesn't support column headers
+            local header_text="${text}"
+            if [ ${num_columns} -gt 1 ]; then
+                # Build column header line
+                local header_line=""
+                for col_idx in $(seq 0 $((num_columns - 1))); do
+                    if [ ${col_idx} -gt 0 ]; then
+                        header_line="${header_line} | "
+                    fi
+                    header_line="${header_line}${column_names[${col_idx}]}"
+                done
+                # Append header line to text (use $'\n' for newline in bash)
+                header_text="${text}"$'\n\n'"Columns: ${header_line}"
+            fi
+            local kdialog_args=("--title" "${title}" "--menu" "${header_text}")
             local i=0
             local num_data=${#data[@]}
             
@@ -429,14 +443,16 @@ show_multi_column_list_dialog() {
                 local tag="${data[$i]}"
                 local desc=""
                 
-                # Build description from remaining columns in this row
-                if [ $num_columns -gt 1 ]; then
-                    desc="${data[$((i + 1))]}"
-                    # Add more columns if they exist (for future extensibility)
-                    for j in $(seq 2 $((num_columns - 1))); do
-                        if [ $((i + j)) -lt $num_data ]; then
-                            desc="${desc} | ${data[$((i + j))]}"
+                # Build description from all columns in this row (including Day column)
+                # Format: "Day | value | value | value" (column headers are shown in text parameter above)
+                if [ ${num_columns} -gt 1 ]; then
+                    local col_idx=0
+                    while [ ${col_idx} -lt ${num_columns} ] && [ $((i + col_idx)) -lt ${num_data} ]; do
+                        if [ ${col_idx} -gt 0 ]; then
+                            desc="${desc} | "
                         fi
+                        desc="${desc}${data[$((i + col_idx))]}"
+                        col_idx=$((col_idx + 1))
                     done
                 else
                     desc="${tag}"

@@ -44,15 +44,25 @@ source "${SOURCE_LIB_DIR}/config.sh" 2>/dev/null || true
 source "${SOURCE_LIB_DIR}/logging.sh" 2>/dev/null || true
 source "${SOURCE_LIB_DIR}/pause-state.sh" 2>/dev/null || true
 source "${SOURCE_LIB_DIR}/time-validation.sh" 2>/dev/null || true
+# Source display detection and desktop environment for dialog tool selection
+source "${SOURCE_LIB_DIR}/display-detection.sh" 2>/dev/null || true
+source "${SOURCE_LIB_DIR}/desktop-environment.sh" 2>/dev/null || true
 # Source configure modules for error message display
 source "${SOURCE_LIB_DIR}/configure-core.sh" 2>/dev/null || true
 source "${SOURCE_LIB_DIR}/configure-time.sh" 2>/dev/null || true
 source "${SOURCE_LIB_DIR}/configure-ui.sh" 2>/dev/null || true
 source "${SOURCE_LIB_DIR}/configure-dialogs.sh" 2>/dev/null || true
 
-# Check if zenity is available
+# Check if any dialog tool is available (uses get_dialog_tool which respects user preference)
+# This replaces the old has_zenity() function to support all dialog tools
 has_zenity() {
-    command -v zenity >/dev/null 2>&1
+    # Use has_dialog_tool if available, otherwise fallback to checking zenity directly
+    if type has_dialog_tool >/dev/null 2>&1; then
+        has_dialog_tool
+    else
+        # Fallback for backward compatibility
+        command -v zenity >/dev/null 2>&1
+    fi
 }
 
 # Check if GUI is available
@@ -66,22 +76,24 @@ is_installed() {
 }
 
 # Show message (GUI or text)
+# Uses dialog abstraction to respect user's DIALOG_TOOL preference
 show_message() {
     local title="$1"
     local message="$2"
     local msg_type="${3:-info}"
     local use_gui="$4"
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
+    if [ "${use_gui}" = "true" ] && has_dialog_tool 2>/dev/null; then
+        # Use dialog abstraction functions which respect user preference
         case "${msg_type}" in
             error)
-                zenity --error --title="${title}" --text="${message}" --width=500 2>/dev/null
+                show_info_dialog "${title}" "${message}" 500 200
                 ;;
             warning)
-                zenity --warning --title="${title}" --text="${message}" --width=500 2>/dev/null
+                show_info_dialog "${title}" "${message}" 500 200
                 ;;
             *)
-                zenity --info --title="${title}" --text="${message}" --width=500 2>/dev/null
+                show_info_dialog "${title}" "${message}" 500 200
                 ;;
         esac
     else
@@ -93,18 +105,15 @@ show_message() {
 }
 
 # Show text info (for logs, config, etc.)
+# Uses dialog abstraction to respect user's DIALOG_TOOL preference
 show_text_info() {
     local title="$1"
     local content="$2"
     local use_gui="$3"
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
-        echo "${content}" | zenity --text-info \
-            --title="${title}" \
-            --width=700 \
-            --height=500 \
-            --font="monospace" \
-            2>/dev/null
+    if [ "${use_gui}" = "true" ] && has_dialog_tool 2>/dev/null; then
+        # Use dialog abstraction function which respects user preference
+        echo "${content}" | show_text_info_dialog "${title}" 700 500
     else
         echo ""
         echo "=== ${title} ==="
@@ -191,8 +200,9 @@ disable_service() {
     
     local message="This will temporarily disable the sleep warning system.\n\nYou can re-enable it later using this management interface.\n\nContinue?"
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
-        if ! zenity --question --title="Disable Service" --text="${message}" 2>/dev/null; then
+    if [ "${use_gui}" = "true" ] && has_dialog_tool 2>/dev/null; then
+        # Use dialog abstraction function which respects user preference
+        if ! show_question_dialog "Disable Service" "${message}" "Yes" "No" 600 400; then
             return 1
         fi
     else
@@ -227,8 +237,9 @@ enable_service() {
     
     local message="This will enable the sleep warning system.\n\nIt will start checking for restricted hours immediately.\n\nContinue?"
     
-    if [ "${use_gui}" = "true" ] && has_zenity; then
-        if ! zenity --question --title="Enable Service" --text="${message}" 2>/dev/null; then
+    if [ "${use_gui}" = "true" ] && has_dialog_tool 2>/dev/null; then
+        # Use dialog abstraction function which respects user preference
+        if ! show_question_dialog "Enable Service" "${message}" "Yes" "No" 600 400; then
             return 1
         fi
     else
@@ -436,13 +447,14 @@ Your configuration will be preserved unless you choose to remove it."
 }
 
 # Main menu (GUI)
+# Uses dialog abstraction to respect user's DIALOG_TOOL preference
 show_menu_gui() {
     local choice
     
-    choice=$(zenity --list \
-        --title="Sleep Warning System - Management" \
-        --text="Select an option:" \
-        --column="Option" \
+    # Use dialog abstraction function which respects user preference
+    choice=$(show_list_dialog \
+        "Sleep Warning System - Management" \
+        "Select an option:" \
         "View Service Status" \
         "View Current Configuration" \
         "Configure Restricted Hours" \
@@ -453,9 +465,8 @@ show_menu_gui() {
         "Uninstall Information" \
         "Help and Information" \
         "Exit" \
-        --width=400 \
-        --height=400 \
-        2>/dev/null)
+        400 \
+        400)
     
     if [ -z "${choice}" ]; then
         return 1
@@ -499,7 +510,8 @@ show_menu_text() {
 # Main function
 main() {
     local use_gui="false"
-    if has_gui && has_zenity; then
+    # Use has_dialog_tool instead of has_zenity to support all dialog tools
+    if has_gui && has_dialog_tool 2>/dev/null; then
         use_gui="true"
     fi
     

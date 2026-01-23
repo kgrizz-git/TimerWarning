@@ -444,7 +444,7 @@ show_visual_grid() {
                 1 \
                 "Day" \
                 "Restricted Hours" \
-                "Lock Hours" \
+                "Config Lock Hours" \
                 "Uninstall Lock Hours" \
                 "${grid_data[@]}")
             local exit_code=$?
