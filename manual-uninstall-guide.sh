@@ -519,27 +519,8 @@ show_gui_instructions() {
     final_msg="Manual Uninstallation Guide Complete!\n\n"
     final_msg="${final_msg}After completing these steps, the Sleep Warning System will be completely removed from your system."
     
-    case "${tool}" in
-        yad)
-            yad --info --title="Manual Uninstall Guide - Complete" \
-                --text="${final_msg}" \
-                --width=500 \
-                --height=200 \
-                --button="Close:0" \
-                2>/dev/null
-            ;;
-        zenity)
-            zenity --info --title="Manual Uninstall Guide - Complete" \
-                --text="${final_msg}" \
-                --width=500 \
-                2>/dev/null
-            ;;
-        kdialog)
-            kdialog --title "Manual Uninstall Guide - Complete" \
-                --msgbox "${final_msg}" \
-                2>/dev/null
-            ;;
-    esac
+    # Use dialog abstraction function for consistency
+    show_info_dialog "Manual Uninstall Guide - Complete" "${final_msg}" 500 200
 }
 
 # Function to show a single step in text mode (clears screen after)

@@ -126,6 +126,19 @@ test_check "Step 5 (Reload Systemd) is defined" \
 test_check "Script has valid bash syntax" \
     "bash -n ../manual-uninstall-guide.sh 2>&1 | wc -l | grep -q '^0$'"
 
+# Test 13: Final message uses dialog abstraction function (not direct tool calls)
+test_check "Final message uses show_info_dialog (not direct yad/zenity/kdialog calls)" \
+    "grep -A 6 '# Final message' ../manual-uninstall-guide.sh | grep -q 'show_info_dialog'"
+
+test_check "Final message does not use direct yad call" \
+    "! grep -A 10 'Final message' ../manual-uninstall-guide.sh | grep -q 'yad --info.*Manual Uninstall Guide - Complete'"
+
+test_check "Final message does not use direct zenity call" \
+    "! grep -A 10 'Final message' ../manual-uninstall-guide.sh | grep -q 'zenity --info.*Manual Uninstall Guide - Complete'"
+
+test_check "Final message does not use direct kdialog call" \
+    "! grep -A 10 'Final message' ../manual-uninstall-guide.sh | grep -q 'kdialog.*Manual Uninstall Guide - Complete'"
+
 echo ""
 echo "=========================================="
 echo "Test Results:"

@@ -21,7 +21,7 @@ These enhancements can be integrated into the existing bash script suite without
 ### 2a. Extend Dialog Tool Priority to Configuration Wizard (Implemented)
 - **Description**: Extend environment-aware dialog tool selection to `configure.sh` for consistency with `sleep-warning.sh` and better Wayland/KDE support
 - **Priority**: Medium (improves consistency and Wayland/KDE compatibility for configuration interface)
-- **Status**: ✅ **Mostly implemented** - Main functionality implemented and working for configure.sh. Dialog tool priority system extended to `configure.sh` and all configure modules. All GUI dialogs support yad/kdialog/zenity with unified priority (YAD → Zenity → KDialog). Visual Day/Time Configuration Grid uses same dialog tool selection. **Note**: Comprehensive testing across all dialog tools and environments has not yet been performed. Priority should also be applied to other relevant scripts.
+- **Status**: ✅ **Fully implemented** - Main functionality implemented and working for configure.sh and all related scripts. Dialog tool priority system extended to `configure.sh`, all configure modules, `manage.sh`, `uninstall.sh`, and `manual-uninstall-guide.sh`. All GUI dialogs support yad/kdialog/zenity with unified priority (YAD → Zenity → KDialog). Visual Day/Time Configuration Grid uses same dialog tool selection. **Testing**: Automated tests completed for `manual-uninstall-guide.sh` (30/30 tests passed). Comprehensive testing across all dialog tools and environments still recommended but not blocking.
 - **Details**: See [enhancements/enhancement-02a-extend-dialog-tool-priority-to-config-wizard.md](enhancements/enhancement-02a-extend-dialog-tool-priority-to-config-wizard.md)
 
 ### 3. Enhanced Window Size Options and Display-Based Sizing
@@ -203,6 +203,12 @@ These enhancements can be integrated into the existing bash script suite without
 - **Priority**: Low (nice-to-have feature for project sustainability)
 - **Status**: Not implemented
 - **Details**: See [enhancements/enhancement-27-paypal-donation-links.md](enhancements/enhancement-27-paypal-donation-links.md)
+
+### 28. SteamOS Newbie Installation Guide
+- **Description**: Provide comprehensive installation instructions and helpful error messages specifically for new SteamOS/Steam Deck users, including guidance on setting up sudo password (which is not set by default) and installing required packages like yad
+- **Priority**: Medium (improves accessibility for Steam Deck users, who are a key target audience)
+- **Status**: Not implemented
+- **Details**: See [enhancements/enhancement-28-steamos-newbie-installation-guide.md](enhancements/enhancement-28-steamos-newbie-installation-guide.md)
 
 ## Alternative Approaches (Require Different Implementation)
 

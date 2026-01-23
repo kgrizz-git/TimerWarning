@@ -103,16 +103,18 @@ For implementation checklists, see [plan-phase-1-setup-and-scripts.md](plan-phas
 
 ### Dialog Tool Selection
 
-**Priority Order for Gaming Mode**:
-1. **yad** (if available): Better Wayland support, `--on-top` flag, more reliable over full-screen
-2. **kdialog** (if available): Native KDE tool, may work better on SteamOS (KDE-based in Desktop Mode)
-3. **zenity** (fallback): Standard GTK dialog, may have limitations in Gaming Mode
+**Unified Priority Order** (all environments, including Gaming Mode):
+1. **yad** (preferred): Better Wayland support, `--on-top` flag, native positioning, more reliable over full-screen
+2. **zenity** (fallback): Standard GTK dialog, good compatibility, may have limitations in Gaming Mode
+3. **kdialog** (last resort): Native KDE tool, provides KDE integration when needed
+
+**Note**: The system now uses a unified priority (YAD → Zenity → KDialog) across all environments, including Gaming Mode and Desktop Mode. This ensures consistent behavior regardless of the environment.
 
 **Implementation**:
-- [x] Detect available dialog tools in priority order
-- [x] Prefer yad for Gaming Mode if detected
-- [x] Use kdialog as second choice (especially on SteamOS)
-- [x] Fall back to zenity if others unavailable
+- [x] Detect available dialog tools in unified priority order (YAD → Zenity → KDialog)
+- [x] Prefer yad when available (best Wayland support and positioning)
+- [x] Fall back to zenity if yad unavailable
+- [x] Use kdialog as last resort if others unavailable
 - [x] Log which tool is used for troubleshooting
 
 For implementation checklists, see [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md#checklist-14-implement-display-and-popup-functionality).

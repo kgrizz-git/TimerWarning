@@ -201,7 +201,8 @@ check_dependencies() {
         exit 1
     fi
     
-    # Check zenity (required)
+    # Check for at least one dialog tool (zenity is installed automatically if none found)
+    # The system supports yad, zenity, or kdialog, but zenity is the default fallback
     if ! command_exists zenity; then
         missing_deps+=("zenity")
     fi

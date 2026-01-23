@@ -114,7 +114,7 @@ CHECK_INTERVAL=10
 # Popup size: small, medium, large, or WIDTHxHEIGHT
 POPUP_SIZE=medium
 
-# Popup position: center, top-left, top-right, bottom-left, bottom-right, top-center, bottom-center
+# Popup position: center or top-left
 POPUP_POSITION=center
 
 # Minimum display time (seconds, 0-300)
@@ -426,11 +426,10 @@ This section provides guidance on configuring the system for different scenarios
 **Common Causes:**
 - Not during restricted hours (check configuration)
 - Timer not running (start with `systemctl --user start sleep-warning.timer`)
-- No dialog tool installed (install zenity):
-  - **Ubuntu/Debian/Linux Mint**: `sudo apt install zenity`
-  - **Fedora/RHEL/CentOS**: `sudo dnf install zenity`
-  - **Arch Linux/Steam OS/Manjaro**: `sudo pacman -S zenity`
-  - **openSUSE**: `sudo zypper install zenity`
+- No dialog tool installed (install at least one: yad preferred, zenity, or kdialog):
+  - **yad** (preferred): `sudo apt install yad` (Ubuntu/Debian), `sudo dnf install yad` (Fedora), `sudo pacman -S yad` (Arch/SteamOS), `sudo zypper install yad` (openSUSE)
+  - **zenity** (fallback): `sudo apt install zenity` (Ubuntu/Debian), `sudo dnf install zenity` (Fedora), `sudo pacman -S zenity` (Arch/SteamOS), `sudo zypper install zenity` (openSUSE)
+  - **kdialog** (KDE systems): Usually pre-installed on KDE, or `sudo apt install kdialog` (Ubuntu/Debian), `sudo dnf install kdialog` (Fedora), `sudo pacman -S kdialog` (Arch/SteamOS)
 - Display not available (not logged into graphical session)
 - Full-screen application blocking popup (see "Popup Doesn't Appear Over Full-Screen Games")
 

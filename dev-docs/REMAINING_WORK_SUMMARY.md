@@ -5,16 +5,15 @@ This document provides a concise overview of work remaining to be completed for 
 **Note**: This document focuses on work that remains to be done. Fully implemented enhancements (with no remaining work) are not listed here but can be found in [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). Enhancements marked as "Mostly Implemented" or "Partially Implemented" are listed here if they have remaining work (testing, documentation, etc.).
 
 ## Priority Items
-
-- [x] **#26: Prevent uninstall.sh Execution During Restricted Hours** Phase 2 - ✅ **COMPLETE** - Separate configurable hours for difficult uninstall implemented, unit tests passing (15/15), documentation updated. Integration tests pending. 
-- [ ] **#25: User-Selectable Dialog Tool** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: configuration option, wizard integration, status display, automated tests passing. **Remaining**: Manual testing (configuration wizard GUI/text mode, status display, popup fallback behavior, service restart persistence)
-- [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - ✅ **MOSTLY IMPLEMENTED** - Main functionality implemented for configure.sh. **Remaining**: Comprehensive testing across all dialog tools (YAD/Zenity/KDialog) and environments (Wayland/X11/KDE); extend priority system to other relevant scripts (manage.sh, status.sh, uninstall.sh)
-- [ ] **#4: Systemd Service Environment Detection** - ✅ **MOSTLY IMPLEMENTED** - Core implementation complete (Phases 1-10): mode detection functions, service configuration infrastructure, installation/configuration integration, logging, automated tests (15/15 passing), documentation. **Remaining**: Manual testing on actual SteamOS Desktop Mode and Gaming Mode environments (Phase 7.3-7.6), optional status.sh troubleshooting enhancement (Phase 6.3)
+- [ ] **#3: Enhanced Window Size Options and Display-Based Sizing** - More predefined sizes and display-based automatic sizing
+- [ ] **Code quality improvements** - see section below for more info on each
+    - [ ] **Split lib/configure-input.sh into smaller modules**  
+    - [ ] **Extract day name conversion to shared function**  
+    - [ ] **Extract magic numbers to constants** 
 - [ ] **Donation Links** - PayPal setup, GitHub sponsors, Patreon integration
 - [ ] **Licensing** - License selection and application
 - [ ] **#13a: Single Executable Installer Script** - Self-extracting installer bundling all files
 - [ ] **#13b: Desktop GUI Application Wrapper** - Native desktop application (GTK/Qt/Electron)
-
 
 ## Master Plan Phases
 
@@ -33,8 +32,7 @@ This document provides a concise overview of work remaining to be completed for 
 
 ## Complementary Enhancements
 
-- [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - ✅ **MOSTLY IMPLEMENTED** - Main functionality implemented for configure.sh. **Remaining**: Comprehensive testing across all dialog tools and environments; extend priority system to other relevant scripts (manage.sh, status.sh, uninstall.sh)
-- [ ] **#3: Enhanced Window Size Options and Display-Based Sizing** - More predefined sizes and display-based automatic sizing
+- [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - ✅ **MOSTLY IMPLEMENTED** - Main functionality implemented for configure.sh. **Remaining**: Comprehensive testing across all dialog tools and environments
 - [ ] **#4: Systemd Service Environment Detection** - ✅ **MOSTLY IMPLEMENTED** - Core implementation complete (Phases 1-10): mode detection functions, service configuration infrastructure, installation/configuration integration, logging, automated tests (15/15 passing), documentation. **Remaining**: Manual testing on actual SteamOS Desktop Mode and Gaming Mode environments (Phase 7.3-7.6), optional status.sh troubleshooting enhancement (Phase 6.3)
 - [ ] **#5: Configurable Warning Messages** - Customize warning text per day/time range
 - [ ] **#6: Escalating Warnings** - Progressively stronger warnings for continued usage
@@ -58,6 +56,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#24: Unified Dialog Tool Priority (YAD → Zenity → KDialog)** - ✅ **MOSTLY IMPLEMENTED** - Core implementation complete with abstraction layer. **Remaining**: Comprehensive testing across all dialog tools and environments (Wayland/X11/KDE), verify all dialog types work correctly with each tool, test positioning (center/top-left) with all tools
 - [ ] **#25: User-Selectable Dialog Tool** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: configuration option, wizard integration, status display, automated tests passing. **Remaining**: Manual testing (configuration wizard GUI/text mode, status display, popup fallback behavior, service restart persistence)
 - [x] **#26: Prevent uninstall.sh Execution During Restricted Hours** - ✅ **Phase 1 Mostly Implemented, Phase 2 Complete** - Phase 1: Core functionality complete (difficult uninstall verification), testing pending. Phase 2: Implementation complete, unit tests passing (15/15), uninstall lock hours integrated into configure.sh. **Remaining**: Phase 1 comprehensive testing (integration tests, edge cases), Phase 2 integration tests (uninstall.sh behavior, UI testing), verify manual uninstall guide script documentation
+- [ ] **#28: SteamOS Newbie Installation Guide** - Provide comprehensive installation instructions and helpful error messages specifically for new SteamOS/Steam Deck users, including guidance on setting up sudo password (which is not set by default) and installing required packages like yad
 
 ## Alternative Approaches
 
@@ -65,7 +64,6 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#2: Custom Wayland Protocol Implementation** - Custom Wayland protocol for gamescope (very complex, limited benefit)
 - [ ] **#3: Native Desktop Application (GUI Wrapper)** - Full desktop application to replace bash scripts (improves UX but not Gaming Mode compatibility)
 - [ ] **#4: Systemd Timer Alternative (Cron-based)** - Use cron instead of systemd timers
-- [x] ~~**#5: Web-Based Configuration Interface**~~ - **NOT PLANNED** - Web server for configuration (will not be implemented)
 
 ## Testing & Validation Work
 

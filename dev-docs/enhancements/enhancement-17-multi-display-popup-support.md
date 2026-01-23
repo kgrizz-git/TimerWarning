@@ -83,6 +83,11 @@
     - Detection and control more complex than X11
     - May require compositor-specific APIs or tools
     - gamescope (SteamOS Gaming Mode) may have limited multi-display support
+  - **Fullscreen Mode on Multiple Displays**:
+    - Showing simultaneous "fullscreen" popups on **two screens at once** is **technically possible but higher complexity** (requires enumerating active displays and either:
+      - Creating one popup per display, each sized to that display's work area, or
+      - Using compositor-specific APIs / window rules to mirror or span windows)
+    - True dual-display fullscreen should be considered a follow-on enhancement rather than part of the initial multi-display implementation
   - **Performance**:
     - Multiple popup processes may have minimal performance impact
     - Consider process overhead (7 displays = 7 popup processes)

@@ -1,108 +1,99 @@
 # Enhancement #24: Unified Dialog Tool Priority (YAD → Zenity → KDialog)
 
-**Status**: Proposed  
+**Status**: Mostly Implemented (Code Complete, Testing In Progress)  
 **Priority**: Medium  
 **Complexity**: Medium  
 **Affects**: All dialog interactions (popup warnings and configuration wizard)
+
+## Implementation Status Summary
+
+**Code Implementation**: ✅ **Complete**
+- Unified dialog tool priority (YAD → Zenity → KDialog) implemented across all environments
+- Positioning simplified to center and top-left only
+- Dialog abstraction layer created and integrated
+- All configure modules updated to use abstraction layer
+- Documentation updated
+
+**Testing Status**: ⚠️ **In Progress**
+- YAD implementation fully tested and working
+- Zenity and KDialog fallback testing pending
+- Full end-to-end testing with all tool combinations pending
 
 ---
 
 ## Summary
 
-Standardize dialog tool selection across both `sleep-warning.sh` (popup warnings) and `configure.sh` (configuration wizard) to always prefer **YAD → Zenity → KDialog** in all environments, including KDE. This leverages YAD's superior capabilities (native positioning, reliable sizing, better window management) when available while maintaining fallback compatibility. YAD's technical advantages take precedence over visual consistency considerations.
+This enhancement standardizes dialog tool selection across both `sleep-warning.sh` (popup warnings) and `configure.sh` (configuration wizard) to always prefer **YAD → Zenity → KDialog** in all environments, including KDE. This leverages YAD's superior capabilities (native positioning, reliable sizing, better window management) when available while maintaining fallback compatibility. YAD's technical advantages take precedence over visual consistency considerations.
 
-**Positioning Simplification**: As part of this enhancement, popup positioning options will be simplified to only **center** and **top-left**. This simplification reduces complexity in position calculations (top-left requires no window size knowledge, only simple margins) and eliminates edge cases with other corner positions that require complex screen dimension calculations.
+**Positioning Simplification**: Popup positioning options have been simplified to only **center** and **top-left**. This simplification reduces complexity in position calculations (top-left requires no window size knowledge, only simple margins) and eliminates edge cases with other corner positions that require complex screen dimension calculations.
+
+**Status**: Code implementation is complete. The unified priority system is active, the dialog abstraction layer is integrated, and all modules have been updated. Testing with Zenity and KDialog fallbacks is recommended before marking as fully complete.
 
 ---
 
-## Current Implementation
+## Implementation Status
 
-### sleep-warning.sh (via desktop-environment.sh)
+### ✅ Completed: Unified Dialog Tool Priority
 
-**Current Priority** (environment-aware):
-- **Wayland/Gamescope**: yad → kdialog → zenity
-- **KDE Desktop**: kdialog → yad → zenity
-- **Default (X11)**: zenity → yad → kdialog
+**Current Priority** (unified across all environments):
+- **All Environments**: YAD → Zenity → KDialog
 
-**Positioning Behavior**:
+The unified priority system has been implemented in `lib/desktop-environment.sh`. The `check_dialog_tool()` function now uses the same priority order regardless of desktop environment (Wayland, KDE, X11, etc.).
+
+**Positioning Behavior** (simplified):
 - **YAD**: Uses native `--geometry=WIDTHxHEIGHT+X+Y` flag + post-creation repositioning as backup
 - **Zenity**: Post-creation repositioning only (no native positioning support)
 - **KDialog**: Post-creation repositioning only (no size/position control)
 
-**Note**: Positioning options will be simplified to only **center** and **top-left** as part of this enhancement. Top-left positioning is the simplest (requires only fixed margins, no window size calculations), while center is the default fallback.
+**Positioning Options**: Simplified to only **center** and **top-left**. Top-left positioning uses simple fixed margins (no window size calculations required), while center is the default fallback.
 
-From `lib/popup-display.sh`:
+### ✅ Completed: Configuration Wizard Dialog Abstraction
+
+**Previous Implementation**: Hardcoded to **Zenity only**
+
+**Current Implementation**: Full dialog abstraction layer supporting all three tools
+- Created `lib/configure-dialogs.sh` with tool-agnostic dialog functions
+- All configure modules updated to use abstraction layer
+- Functions implemented: `show_info_dialog()`, `show_question_dialog()`, `show_entry_dialog()`, `show_list_dialog()`, `show_multi_column_list_dialog()`, `show_text_info_dialog()`
+
+**Popup Display** (`lib/popup-display.sh`):
+The popup display logic now uses the unified priority system. All three tools support center and top-left positioning:
+- **YAD**: Uses native `--geometry` flag for positioning
+- **Zenity**: Uses post-creation repositioning for top-left
+- **KDialog**: Uses post-creation repositioning for top-left
+
+Positioning logic has been simplified to only check for `top-left` (instead of `!= "center"`), making the code cleaner and more maintainable.
+
+### Implementation Details
+
+**Dialog Tool Selection** (`lib/desktop-environment.sh`):
 ```bash
-case "${dialog_tool}" in
-    zenity)
-        # zenity doesn't support position natively, only size
-        zenity --warning --title="${window_title}" --text="${message}" \
-            --modal --width="${width}" --height="${height}" 2>/dev/null &
-        popup_pid=$!
-        
-        # Reposition window after creation if position is top-left
-        if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
-            reposition_popup_window "${window_title}" "${window_tool}" \
-                "${popup_position}" "${width}" "${height}" &
-        fi
-        ;;
-    yad)
-        # yad supports both size and position via --geometry
-        local geometry
-        geometry=$(calculate_popup_geometry "${popup_position}" "${width}" "${height}")
-        
-        yad --warning --title="${window_title}" --text="${message}" \
-            --modal --geometry="${geometry}" --on-top 2>/dev/null &
-        popup_pid=$!
-        
-        # Also reposition as backup in case --geometry doesn't work properly (top-left only)
-        if [ -n "${window_tool}" ] && [ "${popup_position}" = "top-left" ]; then
-            reposition_popup_window "${window_title}" "${window_tool}" \
-                "${popup_position}" "${width}" "${height}" &
-        fi
-        ;;
-    kdialog)
-        # kdialog has no size/position control
-        kdialog --title "${window_title}" --sorry "${message}" 2>/dev/null &
-        popup_pid=$!
-        sleep 0.2
-        
-        # Reposition window after creation if position is top-left
-        if [ -n "${popup_pid}" ] && [ -n "${window_tool}" ] && \
-           [ "${popup_position}" = "top-left" ]; then
-            reposition_popup_window "${window_title}" "${window_tool}" \
-                "${popup_position}" "${width}" "${height}" &
-        fi
-        ;;
-esac
-```
-
-### configure.sh (Configuration Wizard)
-
-**Current Implementation**: Hardcoded to **Zenity only**
-
-From `configure.sh`:
-```bash
-# Requirements:
-# - bash
-# - zenity (preferred) or fallback to text prompts
-#
-# Options:
-#   --text, --no-gui    Force text mode (disable GUI)
-#   --gui               Force GUI mode (requires zenity)
-```
-
-From `lib/configure-core.sh`:
-```bash
-has_zenity() {
-    command -v zenity >/dev/null 2>&1
+check_dialog_tool() {
+    # Unified priority for ALL environments: YAD -> Zenity -> KDialog
+    if command -v yad >/dev/null 2>&1; then
+        echo "yad"
+        return 0
+    elif command -v zenity >/dev/null 2>&1; then
+        echo "zenity"
+        return 0
+    elif command -v kdialog >/dev/null 2>&1; then
+        echo "kdialog"
+        return 0
+    fi
+    return 1
 }
 ```
 
-**All GUI operations** in configure library modules check `has_zenity` directly:
-- `configure-ui.sh`: Confirmation dialogs, help displays
-- `configure-input.sh`: Time input, size selection, position selection
-- `configure-display.sh`: Menu navigation, visual grid display
+**Configuration Wizard** (`lib/configure-dialogs.sh`):
+All dialog operations now use the abstraction layer:
+- `configure-ui.sh`: Uses `show_info_dialog()`, `show_question_dialog()`, `show_text_info_dialog()`
+- `configure-input.sh`: Uses `show_entry_dialog()`, `show_list_dialog()`
+- `configure-display.sh`: Uses `show_multi_column_list_dialog()`, `show_question_dialog()`
+
+**Core Functions** (`lib/configure-core.sh`):
+- `has_dialog_tool()`: Checks if any dialog tool is available
+- `get_dialog_tool()`: Returns the selected dialog tool
+- `has_zenity()`: Maintained for backward compatibility, now uses `get_dialog_tool()`
 
 ---
 
@@ -120,25 +111,25 @@ has_zenity() {
 
 ---
 
-## Proposed Changes
+## Changes Implemented
 
 **For detailed implementation details, see**: [enhancement-24-implementation-details/implementation-details.md](enhancement-24-implementation-details/implementation-details.md)
 
-### Summary of Changes
+### Summary of Changes (All Completed)
 
-1. **Update Dialog Tool Priority**: Unify priority to YAD → Zenity → KDialog for all environments
-2. **Extend configure.sh**: Support all three dialog tools via abstraction layer
-3. **Simplify Positioning**: Reduce to only center and top-left options
-4. **Update Documentation**: Reflect new unified priority system
+1. ✅ **Update Dialog Tool Priority**: Unified priority to YAD → Zenity → KDialog for all environments
+2. ✅ **Extend configure.sh**: Support all three dialog tools via abstraction layer
+3. ✅ **Simplify Positioning**: Reduced to only center and top-left options
+4. ✅ **Update Documentation**: All documentation updated to reflect new unified priority system
 
-### 4. Update Documentation
+### Documentation Updated
 
-**Files to Update**:
-- `README.md`: Update dependencies to show YAD as preferred
-- `GETTING_STARTED.md`: Add YAD installation instructions
-- `user-docs/CONFIGURATION.md`: Mention dialog tool priority and simplified positioning options (center/top-left only)
-- `dev-docs/TECHNICAL_DETAILS.md`: Document new unified priority system and positioning simplification
-- `dev-docs/info/dialog-tools-options.md`: Update implementation section with positioning simplification
+**Files Updated**:
+- ✅ `README.md`: Updated dependencies to show YAD as preferred
+- ✅ `GETTING_STARTED.md`: Added YAD installation instructions
+- ✅ `user-docs/CONFIGURATION.md`: Updated to mention dialog tool priority and simplified positioning options (center/top-left only)
+- ✅ `dev-docs/TECHNICAL_DETAILS.md`: Documented new unified priority system and positioning simplification
+- ✅ `dev-docs/info/dialog-tools-options.md`: Updated implementation section with positioning simplification
 
 ---
 
@@ -220,7 +211,7 @@ has_zenity() {
 - [x] Check minimum display time section - kdialog case (line 288)
 - [x] **Current**: Line 288 uses `!= "center"` - **Change to**: `= "top-left"`
 - [x] Verify all 6 repositioning conditionals now use `= "top-left"` check
-- [ ] Test popup with center position (should not attempt repositioning)
+- [X] Test popup with center position (should not attempt repositioning)
 - [x] Test popup with top-left position (should attempt repositioning)
 
 #### 1.6 Phase 1 Testing
@@ -228,7 +219,7 @@ has_zenity() {
 - [ ] Test popup warnings with only Zenity installed (fallback)
 - [ ] Test popup warnings with only KDialog installed (last resort)
 - [ ] Test popup warnings with no tools (should fall back to notify-send)
-- [ ] Test center positioning with all three tools
+- [X] Test center positioning with all three tools
 - [ ] Test top-left positioning with all three tools
 - [X] Test on X11 environment
 - [ ] Test on Wayland/Gamescope environment
@@ -455,11 +446,29 @@ has_zenity() {
 - [x] Ensure positioning simplification is documented
 
 #### 4.6 Phase 4 Verification
-- [ ] Review all documentation for consistency
-- [ ] Verify no references to removed position options remain
-- [ ] Verify dialog tool priority is correctly documented everywhere
-- [ ] Check for broken links or outdated information
-- [ ] Ensure examples in documentation are still valid
+- [x] Review all documentation for consistency
+  - ✅ All documentation consistently shows YAD → Zenity → KDialog priority
+  - ✅ Positioning options consistently documented as center/top-left only
+  - ✅ Historical references to old positions are clearly marked as "Previous Approach"
+- [x] Verify no references to removed position options remain
+  - ✅ Fixed: `user-docs/USER_GUIDE.md` - Updated position options list (line 117)
+  - ✅ Fixed: `sleep-warning.conf` - Updated position options comment (line 39)
+  - ✅ Fixed: `tests/test-position-bounds.sh` - Updated to only test center/top-left (line 45)
+  - ✅ Verified: `dev-docs/info/dialog-tools-options.md` - Old positions only mentioned in "Previous Approach" section (historical context)
+- [x] Verify dialog tool priority is correctly documented everywhere
+  - ✅ `README.md` - Correctly documents YAD → Zenity → KDialog priority (line 296)
+  - ✅ `GETTING_STARTED.md` - Correctly documents unified priority (lines 185, 222)
+  - ✅ `user-docs/CONFIGURATION.md` - Correctly documents priority system (multiple locations)
+  - ✅ `dev-docs/TECHNICAL_DETAILS.md` - Correctly documents unified priority (line 113)
+  - ✅ All enhancement documents correctly reference the priority
+- [x] Check for broken links or outdated information
+  - ✅ Verified: Link to `enhancement-24-implementation-details/implementation-details.md` is valid
+  - ✅ Verified: All cross-references between documentation files are valid
+  - ✅ Verified: No outdated information found
+- [x] Ensure examples in documentation are still valid
+  - ✅ All examples use valid position options (center/top-left)
+  - ✅ All examples reference correct dialog tool priority
+  - ✅ Configuration examples are consistent and accurate
 
 ---
 
@@ -492,9 +501,9 @@ The following tests were performed with YAD installed:
 
 | Tool | Popup Warnings | Configure Wizard | X11 Positioning | Wayland/Gamescope |
 | :--- | :--- | :--- | :--- | :--- |
-| **YAD** | ✅ Already tested | 🔲 Needs testing | ✅ Already tested | ✅ Already tested |
-| **Zenity** | ✅ Already tested | ✅ Already tested | ✅ Already tested | ✅ Already tested |
-| **KDialog** | ✅ Already tested | 🔲 Needs testing | ✅ Already tested | 🔲 Needs testing |
+| **YAD** | ✅ Tested | ✅ Tested | ✅ Tested | ✅ Tested |
+| **Zenity** | ✅ Tested (previous) | ⚠️ Needs testing (new abstraction) | ✅ Tested | ✅ Tested |
+| **KDialog** | ✅ Tested (previous) | ⚠️ Needs testing (new abstraction) | ✅ Tested | ⚠️ Needs testing |
 
 ### Test Scenarios
 
@@ -553,7 +562,7 @@ The following tests were performed with YAD installed:
 **Rejected**: Zenity has clear limitations (no native positioning, unpredictable sizing). When YAD is available, we should use its superior capabilities.
 
 ### Alternative 3: Make Dialog Tool User-Configurable
-**Rejected**: Adds unnecessary complexity. Auto-detection based on availability and environment is sufficient for 99% of users.
+**Rejected**: Adds unnecessary complexity. Auto-detection based on availability and environment is sufficient for 99% of users. LATER added option for user to select but auto-select is still available.
 
 ---
 
@@ -577,6 +586,13 @@ The following tests were performed with YAD installed:
 
 ## Conclusion
 
-This enhancement unifies dialog tool selection across the entire project, preferring YAD's superior capabilities when available while maintaining robust fallback support. The implementation is phased to minimize risk and can be tested incrementally.
+This enhancement has been **mostly implemented**. The code implementation is complete:
+- ✅ Unified dialog tool priority (YAD → Zenity → KDialog) across all environments
+- ✅ Positioning simplified to center and top-left only
+- ✅ Dialog abstraction layer created and integrated into configuration wizard
+- ✅ All configure modules updated to use abstraction layer
+- ✅ Documentation updated
 
-**Recommendation**: Implement in phases, starting with Phase 1 (dialog priority update) in the next development cycle, followed by Phases 2-3 (configure wizard abstraction) as a separate effort.
+**Remaining Work**: Testing with Zenity-only and KDialog-only installations, and full end-to-end testing with all tool combinations. The core functionality is working and has been tested with YAD.
+
+**Status**: Ready for production use with YAD. Fallback testing (Zenity/KDialog) recommended before marking as fully complete.

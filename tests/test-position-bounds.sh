@@ -42,7 +42,9 @@ declare -A sizes=(
     ["large"]="2000 1350"
 )
 
-positions=("top-left" "top-center" "top-right" "bottom-left" "bottom-center" "bottom-right" "center")
+# Only test supported positions (center and top-left)
+# Other positions have been removed as part of Enhancement #24
+positions=("center" "top-left")
 
 for size_name in "small" "medium" "large"; do
     read width height <<< "${sizes[${size_name}]}"
