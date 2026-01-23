@@ -561,6 +561,71 @@ PAUSE_DURATION=10         # 10 minute pause duration
 - **Flexibility**: Provides a controlled way to temporarily suppress warnings while maintaining restriction effectiveness
 - **Self-Control Aid**: The once-per-day limit prevents overuse while allowing necessary exceptions
 
+### Dialog Tool Selection
+
+**Option**: `DIALOG_TOOL`
+
+**Description**: Allows you to manually select which dialog tool (zenity, yad, or kdialog) to use for popup windows, overriding the automatic priority system. This gives you control over dialog tool selection when you have preferences or encounter issues with the automatic selection.
+
+**Format**: `auto`, `zenity`, `yad`, or `kdialog`
+
+**Default**: `auto` (uses automatic priority system: YAD → Zenity → KDialog)
+
+**Examples**:
+```
+DIALOG_TOOL=auto      # Use automatic selection (recommended, default)
+DIALOG_TOOL=yad       # Force use of yad (if installed)
+DIALOG_TOOL=zenity    # Force use of zenity (if installed)
+DIALOG_TOOL=kdialog   # Force use of kdialog (if installed)
+```
+
+**How It Works**:
+- When set to `auto` (or not set), the system uses automatic priority selection:
+  - **YAD** (preferred) - Best positioning, Wayland support, reliable sizing
+  - **Zenity** (fallback) - Standard GTK dialog
+  - **KDialog** (last resort) - KDE dialog
+- When set to a specific tool (e.g., `yad`, `zenity`, `kdialog`):
+  - The system will use that tool if it is installed
+  - If the selected tool is not installed, the system will log a warning and automatically fall back to the automatic priority system
+  - The system logs which tool was selected and why (user preference vs automatic)
+
+**Important Notes**:
+- **Automatic selection is recommended** - The automatic priority system (YAD → Zenity → KDialog) is designed to select the best available tool for your environment
+- **Tool availability**: Only installed tools can be selected. If you select a tool that is not installed, the system will automatically fall back to the automatic priority system
+- **Backward compatibility**: Existing configurations without `DIALOG_TOOL` will default to `auto` behavior
+- **Tool capabilities**:
+  - **YAD**: Best positioning support, native Wayland support, reliable window sizing (recommended if available)
+  - **Zenity**: Standard GTK dialog, good compatibility, limited positioning support
+  - **KDialog**: KDE integration, limited positioning and sizing support
+
+**When to Use Manual Selection**:
+- **Troubleshooting**: If you encounter issues with the automatically selected tool, you can test different tools to diagnose the problem
+- **Preference**: If you have a specific preference for a particular dialog tool
+- **Compatibility**: If you need to work around tool-specific bugs or limitations
+- **Testing**: To verify that a specific tool works correctly in your environment
+
+**Configuration via Wizard**:
+- Use menu option 11: **Dialog Tool Selection** in the configuration wizard
+- The wizard shows:
+  - Current setting
+  - Recommended tool (based on automatic priority)
+  - List of installed tools with descriptions
+  - Tool recommendations based on automatic priority system
+- Only installed tools are shown in the selection list
+- The wizard validates that the selected tool is installed before saving
+
+**Viewing Current Selection**:
+- Check dialog tool: `sleep-warning-status` (shows current selection and installed tools)
+- The status display shows:
+  - User-selected tool (if manually selected) or automatic selection
+  - Warning if selected tool is not installed
+  - List of all installed tools for reference
+
+**Fallback Behavior**:
+- If the selected tool becomes unavailable (e.g., uninstalled), the system automatically falls back to the automatic priority system
+- A warning is logged when fallback occurs
+- The system continues to work normally with the best available tool
+
 ## Complete Configuration Example
 
 Here is a complete example configuration file with all options:
@@ -596,6 +661,14 @@ CONFIGURE_BLOCK_ENABLED=false
 # difficult = Difficult uninstall - requires confirmation phrase + 10 arithmetic questions (default)
 # This security feature is enabled by default
 UNINSTALL_PROTECTION_MODE=difficult
+
+# Dialog tool selection: Which dialog tool to use for popup windows (auto/zenity/yad/kdialog)
+# auto = Automatic selection (recommended, uses priority: YAD → Zenity → KDialog)
+# zenity = Force use of zenity (if installed)
+# yad = Force use of yad (if installed)
+# kdialog = Force use of kdialog (if installed)
+# If selected tool is not installed, system falls back to automatic selection
+DIALOG_TOOL=auto
 
 # Restricted hours for each day
 SUNDAY=1-5
@@ -726,7 +799,8 @@ The wizard will guide you through setting all configuration options with a user-
 8. **Uninstall Protection** - Configure protection mode for uninstall.sh during restricted hours
 9. **Uninstall Lock Hours Configuration** - Configure additional hours when difficult uninstall verification is required
 10. **Enable pause and configure duration** - Configure pause feature for warning popups
-11. **Review and Save** - Review your configuration and save changes
+11. **Dialog Tool Selection** - Select which dialog tool to use for popup windows
+12. **Review and Save** - Review your configuration and save changes
 
 **Visual Day/Time Grid**:
 The grid view (option 5) provides a convenient way to see all days of the week and their configured time ranges at a glance. The grid displays:

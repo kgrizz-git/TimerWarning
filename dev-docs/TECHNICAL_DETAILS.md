@@ -111,6 +111,48 @@ For detailed display detection strategies for SteamOS Gaming Mode, see [STEAMOS_
 - Supports configurable minimum display time (prevents closing/minimizing for set duration)
 - Dialog tool priority: YAD → Zenity → KDialog (unified across all environments)
 
+## Dialog Tool Selection
+
+**Automatic Priority System**:
+The system uses a unified priority system across all environments (including KDE):
+1. **YAD** (preferred) - Native positioning, reliable sizing, better window management, Wayland support
+2. **Zenity** (fallback) - Standard GTK dialog, pre-installed on most systems, good compatibility
+3. **KDialog** (last resort) - KDE native tool, provides KDE integration when needed
+
+**User-Selectable Dialog Tool** (Enhancement #25):
+Users can manually override the automatic priority system by setting `DIALOG_TOOL` in the configuration file:
+- **Configuration Option**: `DIALOG_TOOL=auto|zenity|yad|kdialog`
+- **Default**: `auto` (uses automatic priority system)
+- **Implementation**:
+  - `get_dialog_tool_config()` in `lib/config.sh` reads the user preference from config file
+  - `check_dialog_tool()` in `lib/desktop-environment.sh` accepts optional `user_preference` parameter
+  - If user preference is set and tool is installed, that tool is used
+  - If user preference is set but tool is not installed, system falls back to automatic priority with warning logged
+  - If user preference is `auto` or not set, automatic priority system is used
+- **Backward Compatibility**: All existing callers of `check_dialog_tool()` continue to work without modification (optional second parameter)
+- **Configuration Wizard**: Menu option 11 allows users to select dialog tool interactively, showing:
+  - Current setting
+  - Recommended tool (based on automatic priority)
+  - List of installed tools with descriptions
+  - Validation that selected tool is installed
+- **Status Display**: `status.sh` shows current dialog tool selection (user-selected or automatic) and lists installed tools
+
+**Tool Capabilities**:
+- **YAD**: Best positioning support (native `--geometry` flag), native Wayland support, reliable window sizing, superior window management
+- **Zenity**: Standard GTK dialog, good compatibility, limited positioning support (post-creation repositioning only)
+- **KDialog**: KDE integration, limited positioning and sizing support (post-creation repositioning only)
+
+**Use Cases for Manual Selection**:
+- Troubleshooting issues with automatically selected tool
+- Testing different tools to diagnose problems
+- Working around tool-specific bugs or limitations
+- Personal preference for specific tool
+
+**Fallback Behavior**:
+- If user-selected tool becomes unavailable (e.g., uninstalled), system automatically falls back to automatic priority
+- Warning is logged when fallback occurs
+- System continues to work normally with best available tool
+
 ## Minimum Display Time Feature
 
 **Description**: The popup can be configured to remain visible for a minimum duration before it can be closed, ensuring users see the warning message.

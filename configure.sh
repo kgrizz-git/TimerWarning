@@ -123,11 +123,14 @@ main() {
     # This is a sparse array indexed 0-6 (Sunday-Saturday) with entries like:
     #   UNINSTALL_LOCK_HOURS_MONDAY=9-17
     declare -g -a uninstall_lock_hours_lines=()
-    declare -g check_interval popup_size popup_position min_display_time popup_immovable configure_block_enabled uninstall_protection_mode pause_enabled pause_duration
+    declare -g check_interval popup_size popup_position min_display_time popup_immovable configure_block_enabled uninstall_protection_mode pause_enabled pause_duration dialog_tool
     
     # Load existing configuration
     # Function sets global variables and populates global arrays directly
     load_existing_config
+    
+    # Ensure dialog_tool is initialized (set by load_existing_config(), but provide fallback)
+    dialog_tool="${dialog_tool:-auto}"
     
     # Main configuration loop
     while true; do
@@ -170,9 +173,30 @@ main() {
             fi
         done
         
+        # Calculate dialog tool status for menu display
+        local dialog_tool_status=""
+        local current_dialog_tool
+        if type get_dialog_tool_config >/dev/null 2>&1; then
+            current_dialog_tool=$(get_dialog_tool_config 2>/dev/null || echo "auto")
+        else
+            # Fallback to variable (should be set from load_existing_config())
+            current_dialog_tool="${dialog_tool:-auto}"
+        fi
+        
+        if [ "${current_dialog_tool}" = "auto" ]; then
+            dialog_tool_status="(Automatic)"
+        else
+            # Check if selected tool is installed
+            if command -v "${current_dialog_tool}" >/dev/null 2>&1; then
+                dialog_tool_status="(${current_dialog_tool})"
+            else
+                dialog_tool_status="(${current_dialog_tool} - not installed)"
+            fi
+        fi
+        
         # Show main menu
         local menu_choice
-        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}")
+        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}" "${dialog_tool_status}")
         local menu_exit=$?
         
         if [ "${menu_exit}" -eq 2 ] || [ "${menu_choice}" = "CANCELLED" ]; then
@@ -337,6 +361,32 @@ main() {
                     pause_enabled="${new_pause_enabled}"
                 fi
                 
+                local new_pause_duration
+                new_pause_duration=$(get_pause_duration_config "${use_gui}")
+                if [ "${new_pause_duration}" = "CANCELLED" ]; then
+                    # User already confirmed cancellation
+                    exit 0
+                else
+                    pause_duration="${new_pause_duration}"
+                fi
+                ;;
+            11)
+                # Dialog Tool Selection (Enhancement #25)
+                local new_dialog_tool
+                new_dialog_tool=$(get_dialog_tool_selection "${use_gui}")
+                local selection_exit=$?
+                
+                if [ ${selection_exit} -eq 2 ]; then
+                    # User confirmed cancellation - exit configuration
+                    exit 0
+                elif [ ${selection_exit} -eq 0 ]; then
+                    # Valid selection made (including "auto" if user cancelled without confirming)
+                    dialog_tool="${new_dialog_tool}"
+                fi
+                # If exit code is 1, function will have already re-prompted, so we continue the loop
+                ;;
+            12)
+                
                 # Only configure duration if pause is enabled
                 if [ "${pause_enabled}" = "true" ]; then
                     local new_pause_duration
@@ -350,6 +400,21 @@ main() {
                 fi
                 ;;
             11)
+                # Dialog Tool Selection (Enhancement #25)
+                local new_dialog_tool
+                new_dialog_tool=$(get_dialog_tool_selection "${use_gui}")
+                local selection_exit=$?
+                
+                if [ ${selection_exit} -eq 2 ]; then
+                    # User confirmed cancellation - exit configuration
+                    exit 0
+                elif [ ${selection_exit} -eq 0 ]; then
+                    # Valid selection made (including "auto" if user cancelled without confirming)
+                    dialog_tool="${new_dialog_tool}"
+                fi
+                # If exit code is 1, function will have already re-prompted, so we continue the loop
+                ;;
+            12)
                 # Review and Save
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
                 if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}"; then
@@ -403,7 +468,7 @@ main() {
                     # Write configuration (with possibly modified values after safety overrides)
                     # Pass restriction config_lines, lock_hours_lines (Phase 2), and uninstall_lock_hours_lines (Enhancement #26 Phase 2),
                     # followed by optional safety override flags so write_config can add comments.
-                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
+                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${dialog_tool}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
                         # Update timer file if it exists
                         if [ -f "${TIMER_FILE}" ]; then
                             if update_timer_file "${check_interval}"; then

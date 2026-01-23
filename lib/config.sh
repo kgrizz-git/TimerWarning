@@ -45,6 +45,10 @@ DEFAULT_CONFIGURE_BLOCK_ENABLED=false
 # Options: "none" (no protection), "difficult" (require verification)
 DEFAULT_UNINSTALL_PROTECTION_MODE="difficult"
 
+# Default dialog tool selection - used if config file missing or invalid
+# Options: "auto" (automatic priority), "zenity", "yad", "kdialog"
+DEFAULT_DIALOG_TOOL="auto"
+
 # Default pause enabled setting - used if config file missing or invalid
 # This controls whether users can pause warning popups for a short period (Enhancement #21)
 DEFAULT_PAUSE_ENABLED=true
@@ -318,6 +322,40 @@ get_uninstall_protection_mode() {
         echo "${DEFAULT_UNINSTALL_PROTECTION_MODE}"
         return 0
     fi
+}
+
+# Get dialog tool selection from configuration file
+# Returns: "auto", "zenity", "yad", "kdialog", or default "auto" if invalid/missing
+# This is for Enhancement #25 (User-Selectable Dialog Tool)
+get_dialog_tool_config() {
+    # Check if config file exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "${DEFAULT_DIALOG_TOOL}"
+        return 0
+    fi
+    
+    # Read DIALOG_TOOL from config file
+    local dialog_tool
+    dialog_tool=$(grep -E "^[[:space:]]*DIALOG_TOOL[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    
+    # Validate and normalize dialog tool value
+    # Handle empty string (after trimming whitespace) as invalid
+    if [ -z "${dialog_tool}" ]; then
+        echo "${DEFAULT_DIALOG_TOOL}"
+        return 0
+    fi
+    
+    case "${dialog_tool}" in
+        auto|zenity|yad|kdialog)
+            echo "${dialog_tool}"
+            return 0
+            ;;
+        *)
+            # Invalid, use default
+            echo "${DEFAULT_DIALOG_TOOL}"
+            return 0
+            ;;
+    esac
 }
 
 # Get pause enabled setting from configuration file

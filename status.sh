@@ -453,14 +453,22 @@ show_configuration() {
         print_status "Pause Status" "Unable to check (pause-state.sh not available)" "warning"
     fi
     
+    # Get dialog tool configuration (Enhancement #25)
+    local configured_dialog_tool
+    if type get_dialog_tool_config >/dev/null 2>&1; then
+        configured_dialog_tool=$(get_dialog_tool_config)
+    else
+        # Fallback to manual parsing if function not available
+        configured_dialog_tool=$(grep -E "^[[:space:]]*DIALOG_TOOL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ -z "${configured_dialog_tool}" ]; then
+            configured_dialog_tool="auto"
+        fi
+    fi
+    
     # Detect and display dialog tool
     local dialog_tool
     local dialog_tool_status=""
     local dialog_tool_display=""
-    
-    # Check if DIALOG_TOOL is configured (for future enhancement #25)
-    local configured_dialog_tool
-    configured_dialog_tool=$(grep -E "^[[:space:]]*DIALOG_TOOL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     
     if [ -n "${configured_dialog_tool}" ] && [ "${configured_dialog_tool}" != "auto" ]; then
         # User has manually selected a dialog tool

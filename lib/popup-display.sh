@@ -78,16 +78,32 @@ show_warning() {
     # Log window state
     log_to_file "INFO" "Window state: ${window_state}, Window title: ${window_title}"
     
-    # Check for available dialog tool
-    dialog_tool=$(check_dialog_tool "${env_type}")
+    # Check user preference for dialog tool (Enhancement #25)
+    # Note: get_dialog_tool_config() is from config.sh, which should be sourced by the calling script
+    local user_dialog_preference
+    if type get_dialog_tool_config >/dev/null 2>&1; then
+        user_dialog_preference=$(get_dialog_tool_config)
+    else
+        # Fallback if config.sh not sourced (should not happen in normal operation)
+        user_dialog_preference="auto"
+    fi
+    dialog_tool=$(check_dialog_tool "${env_type}" "${user_dialog_preference}")
     if [ -z "${dialog_tool}" ]; then
         log_message "warning" "No dialog tool available (zenity/yad/kdialog)"
         log_to_file "ERROR" "No dialog tool available (zenity/yad/kdialog), Display: ${env_type}, Display ID: ${display_id}"
         return 1
     fi
     
-    # Log dialog tool used
-    log_to_file "INFO" "Using dialog tool: ${dialog_tool} (env: ${env_type})"
+    # Log selection reason
+    if [ -n "${user_dialog_preference}" ] && [ "${user_dialog_preference}" != "auto" ]; then
+        if [ "${dialog_tool}" = "${user_dialog_preference}" ]; then
+            log_to_file "INFO" "Using user-selected dialog tool: ${dialog_tool}"
+        else
+            log_to_file "WARNING" "User-selected dialog tool '${user_dialog_preference}' not installed, falling back to automatic selection: ${dialog_tool}"
+        fi
+    else
+        log_to_file "INFO" "Using automatically selected dialog tool: ${dialog_tool}"
+    fi
     
     # Get check interval for message
     local check_interval

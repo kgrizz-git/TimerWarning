@@ -4,7 +4,7 @@ This document provides a concise overview of work remaining to be completed for 
 
 ## Priority Items
 
-- [ ] **#26: Prevent uninstall.sh Execution During Restricted Hours** Phase 2 - add separate configurable hours for difficult uninstall, plus tests, documentation, etc.
+- [x] **#26: Prevent uninstall.sh Execution During Restricted Hours** Phase 2 - ✅ **COMPLETE** - Separate configurable hours for difficult uninstall implemented, unit tests passing (15/15), documentation updated. Integration tests pending. 
 - [ ] **#25: User-Selectable Dialog Tool** - Allow manual dialog tool selection (not implemented)
 - [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - ✅ **MOSTLY IMPLEMENTED** - Main functionality implemented for configure.sh. **Remaining**: Comprehensive testing across all dialog tools (YAD/Zenity/KDialog) and environments (Wayland/X11/KDE); extend priority system to other relevant scripts (manage.sh, status.sh, uninstall.sh)
 - [ ] **#4: Systemd Service Environment Detection** - Detect Desktop Mode vs Gaming Mode
@@ -55,7 +55,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#23: Display Restricted Times/Days in Popup** - Show configured restricted hours in warning popup
 - [ ] **#24: Unified Dialog Tool Priority (YAD → Zenity → KDialog)** - ✅ **MOSTLY IMPLEMENTED** - Core implementation complete with abstraction layer. **Remaining**: Comprehensive testing across all dialog tools and environments (Wayland/X11/KDE), verify all dialog types work correctly with each tool, test positioning (center/top-left) with all tools
 - [ ] **#25: User-Selectable Dialog Tool** - Allow manual dialog tool selection
-- [ ] **#26: Prevent uninstall.sh Execution During Restricted Hours** - ✅ **Phase 1 Mostly Implemented** - Core functionality complete (difficult uninstall verification). **Remaining**: PHASE 2 (add separate schedule for difficult uninstall), comprehensive testing (unit tests, integration tests, edge cases), update enhancement document status, verify manual uninstall guide script documentation in user docs
+- [x] **#26: Prevent uninstall.sh Execution During Restricted Hours** - ✅ **Phase 1 & Phase 2 Complete** - Core functionality complete (difficult uninstall verification). Phase 2 (separate schedule for difficult uninstall) implemented with unit tests passing (15/15). **Remaining**: Integration tests (uninstall.sh behavior, UI testing), comprehensive edge case testing
 
 ## Alternative Approaches
 
