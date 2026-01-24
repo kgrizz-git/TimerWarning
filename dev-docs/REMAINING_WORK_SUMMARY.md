@@ -10,6 +10,10 @@ This document provides a concise overview of work remaining to be completed for 
     - [ ] **Split lib/configure-input.sh into smaller modules**  
     - [ ] **Extract day name conversion to shared function**  
     - [ ] **Extract magic numbers to constants** 
+- [ ] **#9: System Sleep/Hibernate Detection** 
+- [ ] **#18: Config File Locking During Restricted Hours**
+- [ ] **#10: Audio Alerts** 
+- [ ] **#6: Escalating Warnings**
 - [ ] **Donation Links** - PayPal setup, GitHub sponsors, Patreon integration
 - [ ] **Licensing** - License selection and application
 - [ ] **#13a: Single Executable Installer Script** - Self-extracting installer bundling all files

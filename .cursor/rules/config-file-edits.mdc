@@ -1,0 +1,6 @@
+---
+description: 
+alwaysApply: true
+---
+
+Before running tests or bash commands that would edit my installed config file, check if it is during restricted or blocked hours, and if so, do not run them. Similarly, do not edit, remove, or overwrite the installed config file during restricted or blocked hours.
