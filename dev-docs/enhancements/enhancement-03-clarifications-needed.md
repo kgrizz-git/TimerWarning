@@ -9,7 +9,7 @@ This document provides resolved clarifications for the enhancement plan.
   - `xsmall`: 15% × 15%
   - `small`: 20% × 20%
   - `medium`: 30% × 30%
-  - `large`: 55% × 55%
+  - `large`: 50% × 50%
   - `xlarge`: 75% × 75%
   - `max`: 90% × 90%
 - **Custom size**: Default 50% × 50%, user-configurable range 15-100% (minimum matches xsmall)
@@ -51,7 +51,7 @@ This document provides resolved clarifications for the enhancement plan.
 - `xsmall`: 15% × 15%
 - `small`: 20% × 20%
 - `medium`: 30% × 30%
-- `large`: 55% × 55%
+- `large`: 50% × 50%
 - `xlarge`: 75% × 75%
 - `max`: 90% × 90%
 
@@ -95,9 +95,9 @@ This document provides resolved clarifications for the enhancement plan.
 - `xsmall`: 15% × 15% = **384 × 216** pixels
 - `small`: 20% × 20% = **512 × 288** pixels
 - `medium`: 30% × 30% = **768 × 432** pixels
-- `large`: 55% × 55% = **1408 × 792** pixels
-- `xlarge`: 75% × 75% = **1920 × 1080** pixels
-- `max`: 90% × 90% = **2304 × 1296** pixels
+- `large`: 50% × 50% = **1230 × 720** pixels
+- `xlarge`: 75% × 75% = **1845 × 1080** pixels
+- `max`: 90% × 90% = **2214 × 1296** pixels
 - `custom` (default): 50% × 50% = **1280 × 720** pixels
 - **Note**: Custom size minimum is 384×216 (matches xsmall size, 15% × 15%)
 

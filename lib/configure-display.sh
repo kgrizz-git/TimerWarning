@@ -95,14 +95,75 @@ show_main_menu() {
         tmpfile=$(mktemp)
         
         # Build window behavior description with all attributes
+        # This is for Enhancement #3 (Enhanced Window Size Options)
         local window_desc="Size: ${popup_size}"
-        if [ "${popup_size}" = "small" ]; then
-            window_desc="${window_desc} (400x250)"
-        elif [ "${popup_size}" = "medium" ]; then
-            window_desc="${window_desc} (800x500)"
-        elif [ "${popup_size}" = "large" ]; then
-            window_desc="${window_desc} (2000x1350)"
+        
+        # Get size mode to determine if we should show percentages
+        local size_mode="fixed"
+        if [ -f "${CONFIG_FILE}" ]; then
+            local existing_mode
+            existing_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+            if [ "${existing_mode}" = "display-based" ]; then
+                size_mode="display-based"
+            fi
         fi
+        
+        # Show dimensions with percentage if in display-based mode
+        if [ "${size_mode}" = "display-based" ]; then
+            case "${popup_size}" in
+                xsmall) window_desc="${window_desc} (15%×15%)" ;;
+                small) window_desc="${window_desc} (20%×20%)" ;;
+                medium) window_desc="${window_desc} (30%×30%)" ;;
+                large) window_desc="${window_desc} (50%×50%)" ;;
+                xlarge) window_desc="${window_desc} (75%×75%)" ;;
+                max) window_desc="${window_desc} (90%×90%)" ;;
+                custom)
+                    # Get custom size to show
+                    local custom_size
+                    custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    if [ -n "${custom_size}" ]; then
+                        window_desc="${window_desc} (${custom_size})"
+                    else
+                        window_desc="${window_desc} (50%×50%)"
+                    fi
+                    ;;
+                *)
+                    # Custom pixel format or percentage format
+                    if echo "${popup_size}" | grep -qE '^[0-9]+%x[0-9]+%$'; then
+                        window_desc="${window_desc} (${popup_size})"
+                    elif echo "${popup_size}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                        window_desc="${window_desc} (${popup_size}px)"
+                    fi
+                    ;;
+            esac
+        else
+            # Fixed pixel mode - show absolute dimensions
+            case "${popup_size}" in
+                xsmall) window_desc="${window_desc} (384×216)" ;;
+                small) window_desc="${window_desc} (400×250)" ;;
+                medium) window_desc="${window_desc} (800×500)" ;;
+                large) window_desc="${window_desc} (1230×720)" ;;
+                xlarge) window_desc="${window_desc} (1845×1080)" ;;
+                max) window_desc="${window_desc} (2214×1296)" ;;
+                custom)
+                    # Get custom absolute size to show
+                    local custom_absolute
+                    custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                        window_desc="${window_desc} (${custom_absolute})"
+                    else
+                        window_desc="${window_desc} (1280×720)"
+                    fi
+                    ;;
+                *)
+                    # Custom pixel format
+                    if echo "${popup_size}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                        window_desc="${window_desc} (${popup_size})"
+                    fi
+                    ;;
+            esac
+        fi
+        
         window_desc="${window_desc}, Position: ${popup_position}"
         if [ "${min_display_time}" -gt 0 ]; then
             window_desc="${window_desc}, Min Display: ${min_display_time}s"
@@ -224,14 +285,75 @@ show_main_menu() {
         echo "=== Configuration Menu ===" >&2
         echo "" >&2
         # Build window behavior description with all attributes
+        # This is for Enhancement #3 (Enhanced Window Size Options)
         local window_desc="Size: ${popup_size}"
-        if [ "${popup_size}" = "small" ]; then
-            window_desc="${window_desc} (400x250)"
-        elif [ "${popup_size}" = "medium" ]; then
-            window_desc="${window_desc} (800x500)"
-        elif [ "${popup_size}" = "large" ]; then
-            window_desc="${window_desc} (2000x1350)"
+        
+        # Get size mode to determine if we should show percentages
+        local size_mode="fixed"
+        if [ -f "${CONFIG_FILE}" ]; then
+            local existing_mode
+            existing_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+            if [ "${existing_mode}" = "display-based" ]; then
+                size_mode="display-based"
+            fi
         fi
+        
+        # Show dimensions with percentage if in display-based mode
+        if [ "${size_mode}" = "display-based" ]; then
+            case "${popup_size}" in
+                xsmall) window_desc="${window_desc} (15%×15%)" ;;
+                small) window_desc="${window_desc} (20%×20%)" ;;
+                medium) window_desc="${window_desc} (30%×30%)" ;;
+                large) window_desc="${window_desc} (50%×50%)" ;;
+                xlarge) window_desc="${window_desc} (75%×75%)" ;;
+                max) window_desc="${window_desc} (90%×90%)" ;;
+                custom)
+                    # Get custom size to show
+                    local custom_size
+                    custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    if [ -n "${custom_size}" ]; then
+                        window_desc="${window_desc} (${custom_size})"
+                    else
+                        window_desc="${window_desc} (50%×50%)"
+                    fi
+                    ;;
+                *)
+                    # Custom pixel format or percentage format
+                    if echo "${popup_size}" | grep -qE '^[0-9]+%x[0-9]+%$'; then
+                        window_desc="${window_desc} (${popup_size})"
+                    elif echo "${popup_size}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                        window_desc="${window_desc} (${popup_size}px)"
+                    fi
+                    ;;
+            esac
+        else
+            # Fixed pixel mode - show absolute dimensions
+            case "${popup_size}" in
+                xsmall) window_desc="${window_desc} (384×216)" ;;
+                small) window_desc="${window_desc} (400×250)" ;;
+                medium) window_desc="${window_desc} (800×500)" ;;
+                large) window_desc="${window_desc} (1230×720)" ;;
+                xlarge) window_desc="${window_desc} (1845×1080)" ;;
+                max) window_desc="${window_desc} (2214×1296)" ;;
+                custom)
+                    # Get custom absolute size to show
+                    local custom_absolute
+                    custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                        window_desc="${window_desc} (${custom_absolute})"
+                    else
+                        window_desc="${window_desc} (1280×720)"
+                    fi
+                    ;;
+                *)
+                    # Custom pixel format
+                    if echo "${popup_size}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                        window_desc="${window_desc} (${popup_size})"
+                    fi
+                    ;;
+            esac
+        fi
+        
         window_desc="${window_desc}, Position: ${popup_position}"
         if [ "${min_display_time}" -gt 0 ]; then
             window_desc="${window_desc}, Min Display: ${min_display_time}s"

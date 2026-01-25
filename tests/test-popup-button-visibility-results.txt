@@ -1,0 +1,36 @@
+2026-01-25 14:56:32 | xsmall | yad | 384x216 | PASS
+2026-01-25 14:56:39 | xsmall | zenity | 384x216 | PASS
+2026-01-25 14:56:45 | xsmall | kdialog | 384x216 | PASS
+2026-01-25 14:56:50 | small | yad | 400x250 | PASS
+2026-01-25 14:56:55 | small | zenity | 400x250 | PASS
+2026-01-25 14:57:01 | small | kdialog | 400x250 | PASS
+2026-01-25 14:57:07 | medium | yad | 800x500 | PASS
+2026-01-25 14:57:13 | medium | zenity | 800x500 | PASS
+2026-01-25 14:57:20 | medium | kdialog | 800x500 | PASS
+2026-01-25 14:57:31 | large | yad | 2000x1350 | PASS
+2026-01-25 14:57:47 | large | zenity | 2000x1350 | PASS
+2026-01-25 14:57:53 | large | kdialog | 2000x1350 | PASS
+2026-01-25 14:58:07 | xlarge | yad | 1920x1080 | PASS
+2026-01-25 14:58:51 | xlarge | zenity | 1920x1080 | PASS
+2026-01-25 14:58:58 | xlarge | kdialog | 1920x1080 | PASS
+2026-01-25 14:59:14 | max | yad | 2304x1296 | PASS
+2026-01-25 14:59:24 | max | zenity | 2304x1296 | PASS
+2026-01-25 14:59:31 | max | kdialog | 2304x1296 | PASS
+2026-01-25 14:59:40 | 384x216 | yad | 384x216 | PASS
+2026-01-25 14:59:47 | 384x216 | zenity | 384x216 | PASS
+2026-01-25 14:59:54 | 384x216 | kdialog | 384x216 | PASS
+2026-01-25 15:00:01 | custom 15%x15% | yad | 384x216 | PASS
+2026-01-25 15:00:07 | custom 15%x15% | zenity | 384x216 | PASS
+2026-01-25 15:00:12 | custom 15%x15% | kdialog | 384x216 | PASS
+2026-01-25 15:00:17 | custom 20%x20% | yad | 512x288 | PASS
+2026-01-25 15:00:22 | custom 20%x20% | zenity | 512x288 | PASS
+2026-01-25 15:00:26 | custom 20%x20% | kdialog | 512x288 | PASS
+2026-01-25 15:00:32 | custom 50%x50% | yad | 1280x720 | PASS
+2026-01-25 15:00:38 | custom 50%x50% | zenity | 1280x720 | PASS
+2026-01-25 15:00:43 | custom 50%x50% | kdialog | 1280x720 | PASS
+2026-01-25 15:00:49 | custom 90%x90% | yad | 2304x1296 | PASS
+2026-01-25 15:00:55 | custom 90%x90% | zenity | 2304x1296 | PASS
+2026-01-25 15:01:02 | custom 90%x90% | kdialog | 2304x1296 | PASS
+2026-01-25 15:01:12 | custom 95%x95% | yad | 2432x1368 | PASS
+2026-01-25 15:01:18 | custom 95%x95% | zenity | 2432x1368 | PASS
+2026-01-25 15:01:23 | custom 95%x95% | kdialog | 2432x1368 | PASS

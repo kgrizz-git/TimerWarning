@@ -83,7 +83,7 @@ sleep-warning-configure
 
 **Menu Options:**
 - Timer Settings - Configure check interval (1-60 minutes)
-- Window Behavior - Configure popup size, position, minimum display time, and immovable setting
+- Window Behavior - Configure popup size (including new xsmall, xlarge, max options and percentage-based sizing), position, minimum display time, and immovable setting
 - Weekdays/Weekends Configuration - Set restricted hours
 - Visual Day/Time Grid - View and edit all days at once (recommended!)
 - Security Settings - Configure blocking of configure.sh and manage.sh during restricted/lock hours
@@ -111,7 +111,9 @@ nano ~/.config/sleep-warning/config/sleep-warning.conf
 # Check interval (minutes)
 CHECK_INTERVAL=10
 
-# Popup size: small, medium, large, or WIDTHxHEIGHT
+# Popup size mode: fixed (pixels) or display-based (percentage of screen)
+POPUP_SIZE_MODE=fixed
+# Popup size: xsmall, small, medium, large, xlarge, max, or custom (WIDTHxHEIGHT or WIDTH%xHEIGHT%)
 POPUP_SIZE=medium
 
 # Popup position: center or top-left

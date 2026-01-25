@@ -142,7 +142,7 @@ SATURDAY=0-16       # 16 hours
 
 **Automatic Safety Overrides** (when high restrictions are detected):
 If you configure restrictions for more than 16 hours per day and choose to save anyway, the system automatically applies safety measures:
-- **Popup size restriction**: Popup size is limited to "small" or "medium" only (prevents overly intrusive popups when you have very limited unrestricted time)
+- **Popup size restriction**: Popup size is limited to "xsmall", "small", or "medium" only (prevents overly intrusive popups when you have very limited unrestricted time)
 - **Config locking disabled**: Config file locking features are automatically disabled (prevents locking yourself out during very limited unrestricted time)
 - **Transparency**: The config file includes comments explaining why these safety features are disabled
 
@@ -194,32 +194,91 @@ systemctl --user daemon-reload
 
 **Option**: `POPUP_SIZE`
 
-**Description**: Size of the warning popup dialog.
+**Description**: Size of the warning popup dialog. Supports both fixed pixel sizes and display-based percentage sizing.
+
+**Size Mode**: `POPUP_SIZE_MODE`
+
+**Description**: Determines how popup sizes are calculated.
+
+**Options**:
+- `fixed` (default): Uses absolute pixel values (backward compatible)
+- `display-based`: Calculates sizes as percentages of current display resolution
 
 **Format**: 
-- Predefined sizes: `small`, `medium`, `large`
-- Custom size: `WIDTHxHEIGHT` (e.g., `450x220`)
+- Predefined sizes: `xsmall`, `small`, `medium`, `large`, `xlarge`, `max`
+- Custom pixel size: `WIDTHxHEIGHT` (e.g., `1920x1080`)
+- Custom percentage size: `WIDTH%xHEIGHT%` (e.g., `50%x50%`)
 
 **Predefined Sizes**:
-- `small`: 400x250 pixels
-- `medium`: 800x500 pixels (default)
-- `large`: 2000x1350 pixels
 
-**Custom Size Format**: `WIDTHxHEIGHT`
-- Width: 200-2000 pixels
-- Height: 100-2000 pixels
+In **fixed mode** (absolute pixels):
+- `xsmall`: 384×216 pixels
+- `small`: 400×250 pixels
+- `medium`: 800×500 pixels (default)
+- `large`: 1230×720 pixels
+- `xlarge`: 1845×1080 pixels (fixed mode) or 75% × 75% of screen (display-based mode)
+- `max`: 2214×1296 pixels
 
-**Default**: `medium`
+In **display-based mode** (percentage of screen):
+- `xsmall`: 15% × 15% of screen resolution
+- `small`: 20% × 20% of screen resolution
+- `medium`: 30% × 30% of screen resolution
+- `large`: 50% × 50% of screen resolution
+- `xlarge`: 75% × 75% of screen resolution
+- `max`: 90% × 90% of screen resolution
+
+**Custom Sizes**:
+
+**Pixel Format** (`WIDTHxHEIGHT`):
+- Minimum: 384×216 pixels (matches xsmall)
+- Maximum: 95% of screen width/height (ensures buttons remain visible)
+- Example: `POPUP_SIZE=1920x1080` (1920 pixels wide, 1080 pixels tall)
+
+**Percentage Format** (`WIDTH%xHEIGHT%`):
+- Range: 15% to 95% for both width and height (95% maximum ensures buttons remain visible)
+- Minimum: 15% × 15% (matches xsmall)
+- Maximum: 95% × 95% (prevents buttons from being hidden at full screen size)
+- Example: `POPUP_SIZE=50%x50%` (50% of screen width, 50% of screen height)
 
 **Examples**:
+
+Fixed mode (default, backward compatible):
 ```
-POPUP_SIZE=medium      # Use medium size (800x500)
-POPUP_SIZE=small       # Use small size (400x250)
-POPUP_SIZE=large       # Use large size (2000x1350)
-POPUP_SIZE=450x220     # Custom size: 450 pixels wide, 220 pixels tall
+POPUP_SIZE_MODE=fixed
+POPUP_SIZE=medium      # Use medium size (800x500 pixels)
+POPUP_SIZE=xsmall      # Use xsmall size (384x216 pixels)
+POPUP_SIZE=xlarge      # Use xlarge size (1845x1080 pixels in fixed mode, 75%×75% in display-based mode)
+POPUP_SIZE=max         # Use max size (2214x1296 pixels)
+POPUP_SIZE=1920x1080   # Custom pixel size
 ```
 
-**Note**: Custom sizes outside the valid range (200-2000 width, 100-2000 height) will be reset to the default medium size.
+Display-based mode (scales with screen resolution):
+```
+POPUP_SIZE_MODE=display-based
+POPUP_SIZE=medium      # 30% × 30% of screen (e.g., 768×432 on 2560×1440 display)
+POPUP_SIZE=xsmall      # 15% × 15% of screen (e.g., 384×216 on 2560×1440 display)
+POPUP_SIZE=xlarge      # 75% × 75% of screen (e.g., 1920×1080 on 2560×1440 display) or 1845×1080 in fixed mode
+POPUP_SIZE=max         # 90% × 90% of screen (e.g., 2304×1296 on 2560×1440 display in display-based mode) or 2214×1296 in fixed mode
+POPUP_SIZE=50%x50%     # Custom percentage size (50% of screen width and height)
+POPUP_SIZE=75%x60%     # Custom percentage size (75% width, 60% height)
+```
+
+**Resolution Detection**:
+
+The system automatically detects your display resolution using:
+- **X11**: `xrandr` command
+- **Wayland**: `wlr-randr`, `swaymsg`, or `wayland-info` commands
+- **gamescope** (SteamOS): Environment variables `GAMESCOPE_WIDTH` and `GAMESCOPE_HEIGHT`
+
+If resolution detection fails, the system falls back to fixed pixel values.
+
+**Notes**:
+- Custom pixel sizes below 384×216 will be clamped to the minimum (384×216)
+- Custom percentage sizes below 15% will be clamped to 15%
+- Custom percentage sizes above 95% will be clamped to 95% (ensures buttons remain visible)
+- Custom pixel sizes exceeding 95% of screen dimensions will be clamped to 95% (ensures buttons remain visible)
+- The system detects resolution fresh each time a popup is shown (no caching)
+- On multi-monitor setups, the system uses the primary display for size calculations
 
 ### Popup Position
 
@@ -693,7 +752,9 @@ Here is a complete example configuration file with all options:
 # Check interval: How often to check for restricted hours (in minutes)
 CHECK_INTERVAL=10
 
-# Popup size: small, medium, large, or custom WIDTHxHEIGHT
+# Popup size mode: fixed (pixels) or display-based (percentage of screen)
+POPUP_SIZE_MODE=fixed
+# Popup size: xsmall, small, medium, large, xlarge, max, or custom (WIDTHxHEIGHT or WIDTH%xHEIGHT%)
 POPUP_SIZE=medium
 
 # Popup position: center or top-left
@@ -909,7 +970,8 @@ The script automatically validates configuration values:
 - **Hours**: Must be integers between 0 and 23
 - **Hour ranges**: Start hour must be less than end hour
 - **CHECK_INTERVAL**: Must be between 1 and 60
-- **POPUP_SIZE**: Must be `small`, `medium`, `large`, or match `WIDTHxHEIGHT` format
+- **POPUP_SIZE**: Must be `xsmall`, `small`, `medium`, `large`, `xlarge`, `max`, `custom`, or match `WIDTHxHEIGHT` (pixel) or `WIDTH%xHEIGHT%` (percentage) format
+- **POPUP_SIZE_MODE**: Must be `fixed` or `display-based` (default: `fixed`)
 - **POPUP_POSITION**: Must be one of the valid position names
 - **POPUP_MIN_DISPLAY_TIME**: Must be between 0 and 300
 

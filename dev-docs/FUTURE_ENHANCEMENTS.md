@@ -27,7 +27,7 @@ These enhancements can be integrated into the existing bash script suite without
 ### 3. Enhanced Window Size Options and Display-Based Sizing
 - **Description**: Add more predefined window size options and allow window sizes to be automatically calculated based on current display resolution
 - **Priority**: Medium (improves usability and adaptability across different display configurations)
-- **Status**: Not implemented
+- **Status**: ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: resolution detection module (`lib/resolution-detection.sh`), six predefined sizes (xsmall: 15%×15%, small: 20%×20%, medium: 30%×30%, large: 50%×50%, xlarge: 75%×75%, max: 90%×90%), display-based and fixed modes, percentage-based custom sizing (15-95% range), configuration wizard integration, automated tests passing (53/53 across 4 test suites), documentation complete. **Remaining**: UI/Dialog Tool Testing (button visibility for all sizes with YAD/Zenity/KDialog), resolution detection testing on Wayland and gamescope environments, multi-monitor setup testing, testing on different display resolutions (1080p, 4K, ultrawide)
 - **Details**: See [enhancements/enhancement-03-enhanced-window-size-options.md](enhancements/enhancement-03-enhanced-window-size-options.md)
 
 ### 4. Systemd Service Environment Detection
@@ -269,7 +269,7 @@ These approaches would require significant changes to the architecture or a comp
 10. ~~Desktop Notification Fallback~~ ✅ **IMPLEMENTED**
 11. Wayland-Specific Window Management
 12. Temporary Disable via Config
-13. Enhanced Window Size Options and Display-Based Sizing
+13. ~~Enhanced Window Size Options and Display-Based Sizing~~ ✅ **MOSTLY IMPLEMENTED** (core functionality complete, testing remaining)
 14. Auto-Close Popup Window
 15. ~~Visual Day/Time Configuration Grid~~ ✅ **MOSTLY IMPLEMENTED** (Phase 1 complete, Phase 2 pending)
 16. Multi-Display Popup Support

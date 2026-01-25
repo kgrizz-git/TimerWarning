@@ -25,6 +25,9 @@ load_existing_config() {
     # Initialize with defaults
     declare -g check_interval="10"
     declare -g popup_size="medium"
+    declare -g popup_size_mode="fixed"  # Enhancement #3: Size mode (fixed or display-based)
+    declare -g popup_size_custom="50%x50%"  # Enhancement #3: Custom size (percentage or pixel format)
+    declare -g popup_size_custom_absolute="1280x720"  # Enhancement #3: Absolute fallback for custom size
     declare -g popup_position="center"
     declare -g min_display_time="30"
     declare -g popup_immovable="true"
@@ -56,6 +59,30 @@ load_existing_config() {
     existing_size=$(grep -E "^[[:space:]]*POPUP_SIZE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     if [ -n "${existing_size}" ]; then
         declare -g popup_size="${existing_size}"
+    fi
+    
+    # Read popup size mode (Enhancement #3)
+    local existing_size_mode
+    existing_size_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    if [ "${existing_size_mode}" = "display-based" ]; then
+        declare -g popup_size_mode="display-based"
+    else
+        # Default to fixed for backward compatibility
+        declare -g popup_size_mode="fixed"
+    fi
+    
+    # Read popup custom size (Enhancement #3)
+    local existing_custom_size
+    existing_custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    if [ -n "${existing_custom_size}" ]; then
+        declare -g popup_size_custom="${existing_custom_size}"
+    fi
+    
+    # Read popup custom size absolute fallback (Enhancement #3)
+    local existing_custom_absolute
+    existing_custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    if [ -n "${existing_custom_absolute}" ] && echo "${existing_custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
+        declare -g popup_size_custom_absolute="${existing_custom_absolute}"
     fi
     
     # Read popup position
@@ -387,7 +414,10 @@ extract_user_comments() {
 #   $8-$9: Pause settings (pause_enabled, pause_duration) - Enhancement #21
 #   $10: Dialog tool (dialog_tool) - Enhancement #25
 #   $11: Config lock enabled (config_lock_enabled) - Enhancement #18
-#   $12+: config_lines array (7 day configurations: Sunday-Saturday)
+#   $12: Popup size mode (popup_size_mode) - Enhancement #3: fixed or display-based
+#   $13: Popup custom size (popup_size_custom) - Enhancement #3: Custom size (percentage or pixel format)
+#   $14: Popup custom size absolute (popup_size_custom_absolute) - Enhancement #3: Absolute fallback
+#   $15+: config_lines array (7 day configurations: Sunday-Saturday)
 #   After config_lines: lock_hours_lines array (optional, Enhancement #19 Phase 2)
 #   After lock_hours_lines: uninstall_lock_hours_lines array (optional, Enhancement #26 Phase 2)
 #   Optional (if override flags present): 
@@ -408,7 +438,10 @@ write_config() {
     local pause_duration="${9:-5}"
     local dialog_tool="${10:-auto}"
     local config_lock_enabled="${11:-false}"
-    shift 11
+    local popup_size_mode="${12:-fixed}"  # Enhancement #3: Size mode (fixed or display-based)
+    local popup_size_custom="${13:-50%x50%}"  # Enhancement #3: Custom size
+    local popup_size_custom_absolute="${14:-1280x720}"  # Enhancement #3: Absolute fallback
+    shift 14
     
     # Extract config_lines array, optional lock_hours_lines array, optional uninstall_lock_hours_lines array, and optional override flags
     # config_lines values are always "DAYVAR=RANGE" format (e.g., "MONDAY=0-5")
@@ -533,14 +566,31 @@ write_config() {
         echo "# Maximum: 60 minutes"
         echo "CHECK_INTERVAL=${check_interval}"
         echo "#"
-        echo "# POPUP_SIZE: Size of warning popup (small, medium, large, or custom WIDTHxHEIGHT)"
+        echo "# POPUP_SIZE: Size of warning popup (xsmall, small, medium, large, xlarge, max, custom, or custom WIDTHxHEIGHT/WIDTH%xHEIGHT%)"
         echo "# Default: medium"
+        echo "# Enhancement #3: New sizes available: xsmall, xlarge, max. Custom sizes support percentage format (WIDTH%xHEIGHT%)"
         echo "POPUP_SIZE=${popup_size}"
         # Add comment if popup size was restricted due to high restrictions
         if [ "${popup_size_overridden}" = "true" ]; then
-            echo "# POPUP_SIZE has been restricted to small/medium only because restrictions exceed 16 hours/day."
+            echo "# POPUP_SIZE has been restricted to xsmall/small/medium only because restrictions exceed 16 hours/day."
             echo "# This prevents overly intrusive popups when user has very limited unrestricted time."
         fi
+        echo "#"
+        echo "# POPUP_SIZE_MODE: Window size calculation mode (Enhancement #3)"
+        echo "# Options: fixed (absolute pixel sizes) or display-based (percentage-based)"
+        echo "# Default: fixed (for backward compatibility)"
+        echo "POPUP_SIZE_MODE=${popup_size_mode}"
+        echo "#"
+        echo "# POPUP_SIZE_CUSTOM: Custom size configuration (Enhancement #3)"
+        echo "# Format: PERCENT%xPERCENT% (e.g., 50%x50%) or WIDTHxHEIGHT (absolute pixels)"
+        echo "# If percentage format, used in display-based mode; if pixel format, used as absolute fallback"
+        echo "# Default: 50%x50%"
+        echo "POPUP_SIZE_CUSTOM=${popup_size_custom}"
+        echo "#"
+        echo "# POPUP_SIZE_CUSTOM_ABSOLUTE: Absolute pixel fallback for custom size (Enhancement #3)"
+        echo "# Used when resolution cannot be detected and custom size is percentage-based"
+        echo "# Default: 1280x720 (50% of 2560x1440)"
+        echo "POPUP_SIZE_CUSTOM_ABSOLUTE=${popup_size_custom_absolute}"
         echo "#"
         echo "# POPUP_POSITION: Position of warning popup on screen"
         echo "# Default: center"

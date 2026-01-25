@@ -42,6 +42,7 @@ source "${LIB_DIR}/window-management.sh" || exit 1
 source "${LIB_DIR}/time-validation.sh" || exit 1
 source "${LIB_DIR}/time-calculations.sh" || exit 1
 source "${LIB_DIR}/config-locking.sh" || exit 1  # Enhancement #18: Config file locking
+source "${LIB_DIR}/resolution-detection.sh" || exit 1  # Enhancement #3: Display resolution detection
 source "${LIB_DIR}/popup-display.sh" || exit 1
 
 # Validate configuration file to prevent 24/7 restrictions

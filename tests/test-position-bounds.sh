@@ -36,10 +36,11 @@ echo "Screen Resolution: ${screen_width}x${screen_height}"
 echo ""
 
 # Test all standard popup sizes
+# Updated 2026-01-25: large size changed from 2000x1350 to 1230x720 per window size adjustments
 declare -A sizes=(
     ["small"]="400 250"
     ["medium"]="800 500"
-    ["large"]="2000 1350"
+    ["large"]="1230 720"
 )
 
 # Only test supported positions (center and top-left)

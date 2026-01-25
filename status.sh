@@ -36,6 +36,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source configuration library if available (for get_popup_dimensions function)
 if [ -f "${SCRIPT_DIR}/lib/config.sh" ]; then
     source "${SCRIPT_DIR}/lib/config.sh"
+    # Source resolution detection for Enhancement #3 (needed by get_popup_dimensions)
+    if [ -f "${SCRIPT_DIR}/lib/resolution-detection.sh" ]; then
+        source "${SCRIPT_DIR}/lib/resolution-detection.sh"
+    fi
     # Override CONFIG_FILE with fallback logic if lib/config.sh was sourced
     # (lib/config.sh defines CONFIG_FILE, but we want fallback support)
     if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_FILE_OLD}" ]; then
@@ -43,6 +47,10 @@ if [ -f "${SCRIPT_DIR}/lib/config.sh" ]; then
     fi
 elif [ -f "/usr/local/bin/sleep-warning-lib/config.sh" ]; then
     source "/usr/local/bin/sleep-warning-lib/config.sh"
+    # Source resolution detection for Enhancement #3 (needed by get_popup_dimensions)
+    if [ -f "/usr/local/bin/sleep-warning-lib/resolution-detection.sh" ]; then
+        source "/usr/local/bin/sleep-warning-lib/resolution-detection.sh"
+    fi
     # Override CONFIG_FILE with fallback logic if lib/config.sh was sourced
     if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_FILE_OLD}" ]; then
         CONFIG_FILE="${CONFIG_FILE_OLD}"

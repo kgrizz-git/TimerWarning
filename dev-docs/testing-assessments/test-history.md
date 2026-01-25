@@ -554,6 +554,60 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ---
 
+## test-enhancement-03-window-sizes.sh
+
+**Last Run**: 2026-01-25  
+**Status**: ✅ **PASS** (11/11 tests passed)  
+**Execution Time**: ~3 seconds  
+**Dependencies**: bash
+
+**Findings Summary**: Comprehensive test suite for Enhancement #3 (Enhanced Window Size Options). All 11 tests pass successfully. Tests cover resolution detection, size validation, fixed/display-based modes, custom sizes, backward compatibility, and size interpretation edge cases.
+
+**Test Coverage**:
+
+**Core Functionality Tests (7 tests)**:
+- ✅ Resolution detection function exists and is callable
+- ✅ New getter functions exist (`get_popup_size_mode`, `get_popup_size_custom`, etc.)
+- ✅ `get_popup_size()` validates new sizes and formats
+- ✅ `get_popup_dimensions()` returns correct fixed mode values
+- ✅ `get_popup_dimensions()` handles percentage format
+- ✅ `get_popup_dimensions()` handles custom size
+- ✅ `get_popup_size_mode()` returns correct values
+
+**Validation and Compatibility Tests (2 tests)**:
+- ✅ Validation ranges enforce minimum 384x216
+- ✅ Backward compatibility maintained (old sizes and formats still work)
+
+**Integration Tests (2 tests)**:
+- ✅ Resolution detection integrates correctly with fallback
+- ✅ Size interpretation edge cases (format detection, percentage validation, boundary values)
+
+**Key Test Scenarios**:
+- ✅ All predefined sizes (xsmall, small, medium, large, xlarge, max) work correctly
+- ✅ Custom pixel format (`WIDTHxHEIGHT`) with minimum validation
+- ✅ Custom percentage format (`WIDTH%xHEIGHT%`) with 15-95% range validation
+- ✅ Values ≤ 100 in pixel format treated as pixels (not percentages)
+- ✅ Values > 100 in pixel format treated as pixels
+- ✅ Invalid percentages (>95% or <15%) rejected and fall back to defaults
+- ✅ Edge cases: 100%, 95%, 15%, 14% boundary testing
+- ✅ Large pixel values (2000x1350) treated as pixels, not percentages
+- ✅ Missing `POPUP_SIZE_MODE` defaults to `fixed` for backward compatibility
+
+**Results**: All tests pass. Window size functionality works correctly in both fixed and display-based modes. Size interpretation correctly distinguishes between pixel and percentage formats. Invalid values are properly rejected with fallback to safe defaults.
+
+**Related Enhancement**: Enhancement #3 - Enhanced Window Size Options and Display-Based Sizing
+
+**Test File Location**: `tests/test-enhancement-03-window-sizes.sh`
+
+**Recent Updates (2026-01-25)**:
+- Added `test_size_interpretation()` function to test edge cases around size format detection
+- Fixed `test_backward_compatibility()` to properly handle directory changes in subshells
+- Fixed `test_popup_size_mode()` to set CONFIG_FILE after sourcing config.sh
+- Updated test values to account for minimum size clamping (384x216)
+- All 11 tests now pass successfully
+
+---
+
 ## Overall Test Coverage Summary
 
 Based on the latest test execution results:
@@ -567,6 +621,7 @@ Based on the latest test execution results:
 7. **Configure.sh Comprehensive Tests**: ⚠️ **PARTIALLY TESTED** - Test runs but expect script needs updates for interactive prompts
 8. **Mode Detection (Enhancement #4)**: ✅ **FULLY TESTED** - All 15 tests passed
 9. **Manual Uninstall Guide (Enhancement #2a)**: ✅ **FULLY TESTED** - All 30 tests passed
+10. **Enhanced Window Size Options (Enhancement #3)**: ✅ **FULLY TESTED** - All 11 tests passed in test-enhancement-03-window-sizes.sh
 
 ### Known Issues
 

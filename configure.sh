@@ -247,6 +247,19 @@ main() {
                 ;;
             2)
                 # Window Behavior
+                # This is for Enhancement #3 (Enhanced Window Size Options)
+                
+                # Get size mode (fixed or display-based)
+                local new_size_mode
+                new_size_mode=$(get_popup_size_mode_config "${use_gui}")
+                if [ "${new_size_mode}" = "CANCELLED" ]; then
+                    # User already confirmed cancellation
+                    exit 0
+                else
+                    popup_size_mode="${new_size_mode}"
+                fi
+                
+                # Get popup size
                 local new_size
                 new_size=$(get_popup_size_config "${use_gui}")
                 if [ "${new_size}" = "CANCELLED" ]; then
@@ -254,6 +267,30 @@ main() {
                     exit 0
                 else
                     popup_size="${new_size}"
+                    
+                    # If custom size was selected, get the custom size values
+                    if [ "${new_size}" = "custom" ]; then
+                        # Check if custom size was configured (stored in global variable)
+                        if [ -n "${CUSTOM_POPUP_SIZE_CONFIG:-}" ]; then
+                            popup_size_custom="${CUSTOM_POPUP_SIZE_CONFIG}"
+                            
+                            # If it's a percentage format, we need an absolute fallback
+                            if echo "${popup_size_custom}" | grep -qE '^[0-9]+%x[0-9]+%$'; then
+                                # Calculate absolute fallback from percentage (based on 2560×1440)
+                                local width_percent height_percent
+                                width_percent=$(echo "${popup_size_custom}" | cut -d'x' -f1 | tr -d '%')
+                                height_percent=$(echo "${popup_size_custom}" | cut -d'x' -f2 | tr -d '%')
+                                popup_size_custom_absolute="$((2560 * width_percent / 100))x$((1440 * height_percent / 100))"
+                            else
+                                # It's already a pixel format, use it as both custom and absolute
+                                popup_size_custom_absolute="${popup_size_custom}"
+                            fi
+                        else
+                            # No custom size configured, use defaults
+                            popup_size_custom="50%x50%"
+                            popup_size_custom_absolute="1280x720"
+                        fi
+                    fi
                 fi
                 
                 local new_position
@@ -446,10 +483,15 @@ main() {
                                 continue
                             fi
                             # User confirmed - apply safety overrides before saving
-                            # Safety override 1: Restrict popup size to small/medium only
+                            # Safety override 1: Restrict popup size to xsmall/small/medium only (Enhancement #3)
                             # This prevents overly intrusive popups when user has very limited unrestricted time
                             local original_popup_size="${popup_size}"
-                            if [ "${popup_size}" = "large" ] || [ "${popup_size}" = "fullscreen" ]; then
+                            if [ "${popup_size}" = "large" ] || [ "${popup_size}" = "xlarge" ] || [ "${popup_size}" = "max" ] || [ "${popup_size}" = "fullscreen" ]; then
+                                popup_size="medium"
+                                popup_size_overridden="true"
+                            elif [ "${popup_size}" = "custom" ]; then
+                                # Check if custom size exceeds medium - if so, clamp to medium
+                                # For now, we'll change to medium if custom is selected (can be enhanced later to check actual dimensions)
                                 popup_size="medium"
                                 popup_size_overridden="true"
                             fi
@@ -478,7 +520,8 @@ main() {
                     # Write configuration (with possibly modified values after safety overrides)
                     # Pass restriction config_lines, lock_hours_lines (Phase 2), and uninstall_lock_hours_lines (Enhancement #26 Phase 2),
                     # followed by optional safety override flags so write_config can add comments.
-                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${dialog_tool}" "${config_lock_enabled}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
+                    # Enhancement #3: Include popup_size_mode, popup_size_custom, and popup_size_custom_absolute
+                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${dialog_tool}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
                         # Update timer file if it exists
                         if [ -f "${TIMER_FILE}" ]; then
                             if update_timer_file "${check_interval}"; then

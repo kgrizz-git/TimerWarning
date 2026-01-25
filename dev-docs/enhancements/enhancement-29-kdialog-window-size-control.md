@@ -1,6 +1,6 @@
 # Enhancement 29: kdialog Window Size Control
 
-- **Description**: Investigate and implement methods to control window size for kdialog warning popups, since `--geometry` is not supported for `--sorry` dialogs.
+- **Description**: Investigate and implement methods to control window size for kdialog warning popups, since `--geometry` is not supported for `--sorry` dialogs. If implemented, make sure kdialog popup is never over 95% of screen, similar to yad and zenity.
 - **Files Affected**: `lib/popup-display.sh`, `lib/config.sh` (if adding new dialog type support)
 - **Priority**: Low (kdialog is last-resort fallback, YAD and Zenity already support size control)
 - **Status**: Research Complete - Proposals Documented
