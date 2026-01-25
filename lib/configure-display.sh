@@ -61,16 +61,17 @@ get_section_status() {
 #   $4  - popup_position
 #   $5  - min_display_time
 #   $6  - popup_immovable
-#   $7  - weekdays_status
-#   $8  - weekends_status
-#   $9  - configure_block_enabled
-#   $10 - lock_hours_status (e.g., "(None)" or "(Configured)") - Enhancement #19 Phase 2
-#   $11 - uninstall_protection_mode (e.g., "none" or "difficult") - Enhancement #26
-#   $12 - uninstall_lock_hours_status (e.g., "(None)" or "(Configured)") - Enhancement #26 Phase 2
-#   $13 - pause_enabled (e.g., "true" or "false") - Enhancement #21
-#   $14 - pause_duration (e.g., "5" or "10") - Enhancement #21
-#   $15 - dialog_tool_status (e.g., " (auto)") - Enhancement #25
-#   $16 - config_lock_enabled (e.g., "true" or "false") - Enhancement #18
+#   $7  - popup_auto_close
+#   $8  - weekdays_status
+#   $9  - weekends_status
+#   $10 - configure_block_enabled
+#   $11 - lock_hours_status (e.g., "(None)" or "(Configured)") - Enhancement #19 Phase 2
+#   $12 - uninstall_protection_mode (e.g., "none" or "difficult") - Enhancement #26
+#   $13 - uninstall_lock_hours_status (e.g., "(None)" or "(Configured)") - Enhancement #26 Phase 2
+#   $14 - pause_enabled (e.g., "true" or "false") - Enhancement #21
+#   $15 - pause_duration (e.g., "5" or "10") - Enhancement #21
+#   $16 - dialog_tool_status (e.g., " (auto)") - Enhancement #25
+#   $17 - config_lock_enabled (e.g., "true" or "false") - Enhancement #18
 show_main_menu() {
     local use_gui="$1"
     local check_interval="$2"
@@ -78,16 +79,17 @@ show_main_menu() {
     local popup_position="$4"
     local min_display_time="$5"
     local popup_immovable="$6"
-    local weekdays_status="$7"
-    local weekends_status="$8"
-    local configure_block_enabled="$9"
-    local lock_hours_status="${10}"
-    local uninstall_protection_mode="${11}"
-    local uninstall_lock_hours_status="${12}"
-    local pause_enabled="${13}"
-    local pause_duration="${14}"
-    local dialog_tool_status="${15}"
-    local config_lock_enabled="${16}"
+    local popup_auto_close="$7"
+    local weekdays_status="$8"
+    local weekends_status="$9"
+    local configure_block_enabled="${10}"
+    local lock_hours_status="${11}"
+    local uninstall_protection_mode="${12}"
+    local uninstall_lock_hours_status="${13}"
+    local pause_enabled="${14}"
+    local pause_duration="${15}"
+    local dialog_tool_status="${16}"
+    local config_lock_enabled="${17}"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
@@ -174,6 +176,11 @@ show_main_menu() {
             window_desc="${window_desc}, Immovable: On"
         else
             window_desc="${window_desc}, Immovable: Off"
+        fi
+        if [ "${popup_auto_close}" = "true" ]; then
+            window_desc="${window_desc}, Auto-close: 10s after min display time"
+        else
+            window_desc="${window_desc}, Auto-close: Off"
         fi
         
         # Build security settings status indicator (combined)
@@ -364,6 +371,11 @@ show_main_menu() {
             window_desc="${window_desc}, Immovable: On"
         else
             window_desc="${window_desc}, Immovable: Off"
+        fi
+        if [ "${popup_auto_close}" = "true" ]; then
+            window_desc="${window_desc}, Auto-close: 10s after min display time"
+        else
+            window_desc="${window_desc}, Auto-close: Off"
         fi
         
         echo "1. Timer Settings (Check Interval: ${check_interval} min)" >&2
@@ -782,7 +794,8 @@ show_summary() {
     local popup_position="$4"
     local min_display_time="$5"
     local popup_immovable="$6"
-    local configure_block_enabled="$7"
+    local popup_auto_close="$7"
+    local configure_block_enabled="$8"
     # Note: summary_lines must be accessed from global scope to preserve sparse array indices
     # Passing sparse arrays as parameters re-indexes them from 0, causing display bugs
     
@@ -800,6 +813,15 @@ show_summary() {
         summary="${summary}Prevent Window Movement: Enabled\n"
     else
         summary="${summary}Prevent Window Movement: Disabled\n"
+    fi
+    if [ "${popup_auto_close}" = "true" ]; then
+        if [ "${min_display_time}" -gt 0 ]; then
+            summary="${summary}Auto-Close: Enabled (10s after min display time)\n"
+        else
+            summary="${summary}Auto-Close: Enabled (10s after popup appears)\n"
+        fi
+    else
+        summary="${summary}Auto-Close: Disabled\n"
     fi
     if [ "${configure_block_enabled}" = "true" ]; then
         summary="${summary}Block Scripts During Restricted/Lock Hours: Enabled\n"

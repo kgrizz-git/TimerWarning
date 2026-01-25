@@ -37,6 +37,16 @@ DEFAULT_MIN_DISPLAY_TIME=30
 # Default popup immovable setting - used if config file missing or invalid
 DEFAULT_POPUP_IMMOVABLE=true
 
+# Default popup auto-close setting - used if config file missing or invalid
+# This controls whether popup automatically closes 10 seconds after minimum display time completes (Enhancement #15)
+# Auto-close happens 10 seconds after minimum display time completes (additional time, not total time)
+# If minimum display time is 0, auto-close happens after 10 seconds
+DEFAULT_POPUP_AUTO_CLOSE=true
+
+# Auto-close delay (in seconds) - fixed at 10 seconds after minimum display time completes
+# This is not configurable by user - fixed for simplicity
+AUTO_CLOSE_DELAY=10
+
 # Default configure block enabled setting - used if config file missing or invalid
 # This controls whether configure.sh and manage.sh are blocked during restricted hours (Enhancement #19)
 DEFAULT_CONFIGURE_BLOCK_ENABLED=false
@@ -621,6 +631,35 @@ get_popup_immovable() {
     else
         # Invalid or missing, use default
         echo "${DEFAULT_POPUP_IMMOVABLE}"
+        return 0
+    fi
+}
+
+# Get popup auto-close setting from configuration file
+# Returns "true" if auto-close is enabled, "false" otherwise
+# Auto-close happens 10 seconds after minimum display time completes (additional time, not total time)
+# If minimum display time is 0, auto-close happens after 10 seconds
+# This is for Enhancement #15 (Auto-Close Popup Window)
+get_popup_auto_close() {
+    # Check if config file exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "${DEFAULT_POPUP_AUTO_CLOSE}"
+        return 0
+    fi
+    
+    # Read POPUP_AUTO_CLOSE from config file
+    local auto_close
+    auto_close=$(grep -E "^[[:space:]]*POPUP_AUTO_CLOSE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    
+    if [ "${auto_close}" = "true" ] || [ "${auto_close}" = "1" ] || [ "${auto_close}" = "yes" ]; then
+        echo "true"
+        return 0
+    elif [ "${auto_close}" = "false" ] || [ "${auto_close}" = "0" ] || [ "${auto_close}" = "no" ]; then
+        echo "false"
+        return 0
+    else
+        # Invalid or missing, use default
+        echo "${DEFAULT_POPUP_AUTO_CLOSE}"
         return 0
     fi
 }

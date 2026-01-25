@@ -31,6 +31,7 @@ load_existing_config() {
     declare -g popup_position="center"
     declare -g min_display_time="30"
     declare -g popup_immovable="true"
+    declare -g popup_auto_close="true"
     declare -g configure_block_enabled="false"
     declare -g uninstall_protection_mode="difficult"
     declare -g pause_enabled="true"
@@ -107,6 +108,17 @@ load_existing_config() {
             declare -g popup_immovable="true"
         elif [ "${existing_immovable}" = "false" ] || [ "${existing_immovable}" = "0" ] || [ "${existing_immovable}" = "no" ]; then
             declare -g popup_immovable="false"
+        fi
+    fi
+    
+    # Read popup auto-close setting (Enhancement #15)
+    local existing_auto_close
+    existing_auto_close=$(grep -E "^[[:space:]]*POPUP_AUTO_CLOSE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    if [ -n "${existing_auto_close}" ]; then
+        if [ "${existing_auto_close}" = "true" ] || [ "${existing_auto_close}" = "1" ] || [ "${existing_auto_close}" = "yes" ]; then
+            declare -g popup_auto_close="true"
+        elif [ "${existing_auto_close}" = "false" ] || [ "${existing_auto_close}" = "0" ] || [ "${existing_auto_close}" = "no" ]; then
+            declare -g popup_auto_close="false"
         fi
     fi
     
@@ -410,14 +422,15 @@ extract_user_comments() {
 
 # Write configuration file
 # Parameters:
-#   $1-$7: Standard configuration parameters (check_interval, popup_size, popup_position, min_display_time, popup_immovable, configure_block_enabled, uninstall_protection_mode)
-#   $8-$9: Pause settings (pause_enabled, pause_duration) - Enhancement #21
-#   $10: Dialog tool (dialog_tool) - Enhancement #25
-#   $11: Config lock enabled (config_lock_enabled) - Enhancement #18
-#   $12: Popup size mode (popup_size_mode) - Enhancement #3: fixed or display-based
-#   $13: Popup custom size (popup_size_custom) - Enhancement #3: Custom size (percentage or pixel format)
-#   $14: Popup custom size absolute (popup_size_custom_absolute) - Enhancement #3: Absolute fallback
-#   $15+: config_lines array (7 day configurations: Sunday-Saturday)
+#   $1-$7: Standard configuration parameters (check_interval, popup_size, popup_position, min_display_time, popup_immovable, popup_auto_close, configure_block_enabled)
+#   $8: Uninstall protection mode (uninstall_protection_mode)
+#   $9-$10: Pause settings (pause_enabled, pause_duration) - Enhancement #21
+#   $11: Dialog tool (dialog_tool) - Enhancement #25
+#   $12: Config lock enabled (config_lock_enabled) - Enhancement #18
+#   $13: Popup size mode (popup_size_mode) - Enhancement #3: fixed or display-based
+#   $14: Popup custom size (popup_size_custom) - Enhancement #3: Custom size (percentage or pixel format)
+#   $15: Popup custom size absolute (popup_size_custom_absolute) - Enhancement #3: Absolute fallback
+#   $16+: config_lines array (7 day configurations: Sunday-Saturday)
 #   After config_lines: lock_hours_lines array (optional, Enhancement #19 Phase 2)
 #   After lock_hours_lines: uninstall_lock_hours_lines array (optional, Enhancement #26 Phase 2)
 #   Optional (if override flags present): 
@@ -432,16 +445,17 @@ write_config() {
     local popup_position="$3"
     local min_display_time="$4"
     local popup_immovable="$5"
-    local configure_block_enabled="$6"
-    local uninstall_protection_mode="$7"
-    local pause_enabled="${8:-true}"
-    local pause_duration="${9:-5}"
-    local dialog_tool="${10:-auto}"
-    local config_lock_enabled="${11:-false}"
-    local popup_size_mode="${12:-fixed}"  # Enhancement #3: Size mode (fixed or display-based)
-    local popup_size_custom="${13:-50%x50%}"  # Enhancement #3: Custom size
-    local popup_size_custom_absolute="${14:-1280x720}"  # Enhancement #3: Absolute fallback
-    shift 14
+    local popup_auto_close="$6"
+    local configure_block_enabled="$7"
+    local uninstall_protection_mode="$8"
+    local pause_enabled="${9:-true}"
+    local pause_duration="${10:-5}"
+    local dialog_tool="${11:-auto}"
+    local config_lock_enabled="${12:-false}"
+    local popup_size_mode="${13:-fixed}"  # Enhancement #3: Size mode (fixed or display-based)
+    local popup_size_custom="${14:-50%x50%}"  # Enhancement #3: Custom size
+    local popup_size_custom_absolute="${15:-1280x720}"  # Enhancement #3: Absolute fallback
+    shift 15
     
     # Extract config_lines array, optional lock_hours_lines array, optional uninstall_lock_hours_lines array, and optional override flags
     # config_lines values are always "DAYVAR=RANGE" format (e.g., "MONDAY=0-5")
@@ -603,6 +617,15 @@ write_config() {
         echo "# POPUP_IMMOVABLE: Prevent popup window from being moved during minimum display time"
         echo "# Default: true"
         echo "POPUP_IMMOVABLE=${popup_immovable}"
+        echo "#"
+        echo "# POPUP_AUTO_CLOSE: Automatically close popup window 10 seconds after minimum display time completes"
+        echo "# Default: true (enabled by default)"
+        echo "# Options: true, false"
+        echo "# Auto-close happens 10 seconds after minimum display time completes (additional time, not total time)"
+        echo "# If minimum display time is 0, auto-close happens after 10 seconds"
+        echo "# Auto-close time is fixed at 10 seconds (not configurable)"
+        echo "# This is Enhancement #15 (Auto-Close Popup Window)"
+        echo "POPUP_AUTO_CLOSE=${popup_auto_close}"
         echo "#"
         echo "# CONFIGURE_BLOCK_ENABLED: Prevent configure.sh and manage.sh from running during restricted hours"
         echo "# Default: false (opt-in feature)"

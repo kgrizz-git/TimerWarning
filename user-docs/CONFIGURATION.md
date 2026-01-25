@@ -368,6 +368,65 @@ POPUP_IMMOVABLE=false  # Allow window movement
 - The popup window will also stay on top of other windows automatically.
 - Setting this to `false` allows users to move the popup window, which may be useful if it blocks important content.
 
+### Auto-Close Popup Window
+
+**Option**: `POPUP_AUTO_CLOSE`
+
+**Description**: Automatically closes the popup window 10 seconds after the minimum display time completes. This provides a non-interactive option for warning dismissal, allowing the popup to close automatically after it has been visible for the required duration plus a short grace period.
+
+**Format**: `true` or `false`
+
+**Default**: `true` (enabled by default)
+
+**Examples**:
+```
+POPUP_AUTO_CLOSE=true   # Enable auto-close (default)
+POPUP_AUTO_CLOSE=false  # Disable auto-close (user must close manually)
+```
+
+**How It Works**:
+- Auto-close happens **10 seconds after minimum display time completes** (additional time, not total time)
+- If `POPUP_MIN_DISPLAY_TIME=30`, the popup will auto-close after 40 seconds total (30 seconds minimum display + 10 seconds auto-close delay)
+- If `POPUP_MIN_DISPLAY_TIME=0` (disabled), the popup will auto-close after 10 seconds
+- The auto-close delay is **fixed at 10 seconds** and cannot be configured
+- If the user manually closes the popup before auto-close, the auto-close timer is automatically cancelled
+
+**Behavior Examples**:
+```
+# Example 1: Minimum display time = 30 seconds, auto-close enabled
+POPUP_MIN_DISPLAY_TIME=30
+POPUP_AUTO_CLOSE=true
+# Result: Popup must stay visible for 30 seconds, then auto-closes after 40 seconds total
+
+# Example 2: Minimum display time = 0, auto-close enabled
+POPUP_MIN_DISPLAY_TIME=0
+POPUP_AUTO_CLOSE=true
+# Result: Popup auto-closes after 10 seconds
+
+# Example 3: Minimum display time = 60 seconds, auto-close disabled
+POPUP_MIN_DISPLAY_TIME=60
+POPUP_AUTO_CLOSE=false
+# Result: Popup must stay visible for 60 seconds, then user must close manually
+```
+
+**Important Notes**:
+- **Enabled by default** - Auto-close is active unless explicitly disabled
+- **Works on all platforms** - Uses process termination (SIGTERM, then SIGKILL if needed), so it works on X11, Wayland, and gamescope
+- **Respects minimum display time** - Auto-close only starts after minimum display time completes (if minimum display time > 0)
+- **Manual close cancels timer** - If you close the popup manually before auto-close, the timer is automatically cancelled
+- **Pause button integration** - If you click the pause button, the popup closes immediately (before auto-close timer starts)
+- **Not configurable delay** - The 10-second delay is fixed and cannot be changed
+
+**Use Cases**:
+- **Hands-free operation**: Allows popups to dismiss automatically without manual interaction
+- **Reduced interruption**: Provides automatic dismissal after ensuring the warning has been visible for the required time
+- **Accessibility**: Useful for users who prefer automatic dismissal or have difficulty interacting with popups
+
+**Configuration via Wizard**:
+- Use menu option 2: **Window Behavior** in the configuration wizard
+- Auto-close is configured alongside immovable settings
+- The wizard shows current minimum display time for reference when configuring auto-close
+
 ### Block Scripts During Restricted Hours
 
 **Option**: `CONFIGURE_BLOCK_ENABLED`
@@ -766,6 +825,12 @@ POPUP_MIN_DISPLAY_TIME=30
 # Prevent window movement: Prevent popup from being moved during minimum display time (true/false)
 POPUP_IMMOVABLE=true
 
+# Auto-close popup window: Automatically close popup 10 seconds after minimum display time completes (true/false)
+# Auto-close happens 10 seconds after minimum display time completes (additional time, not total time)
+# If minimum display time is 0, auto-close happens after 10 seconds
+# Auto-close time is fixed at 10 seconds (not configurable)
+POPUP_AUTO_CLOSE=true
+
 # Block scripts during restricted hours: Prevent configure.sh and manage.sh from running during restricted hours (true/false)
 # This is an opt-in security feature - disabled by default
 CONFIGURE_BLOCK_ENABLED=false
@@ -881,6 +946,7 @@ CHECK_INTERVAL=10
 POPUP_SIZE=medium
 POPUP_POSITION=center
 POPUP_MIN_DISPLAY_TIME=30
+POPUP_AUTO_CLOSE=true
 
 # Multiple restricted periods per day
 MONDAY=0-5,22-23    # Midnight to 4:59 AM AND 10 PM to 11:59 PM

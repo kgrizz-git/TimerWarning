@@ -6,7 +6,7 @@ This document provides a concise overview of work remaining to be completed for 
 
 ## Priority Items
 - [ ] **#15: Auto-Close Popup Window** - Automatically close after configured time period
-- [ ] **Code quality improvements** - see section below for more info on each
+- [ ] **Code quality improvements** - see section below for more info on each. Make a plan before attempting.
     - [ ] **Split lib/configure-input.sh into smaller modules**  
     - [ ] **Extract day name conversion to shared function**  
     - [ ] **Extract magic numbers to constants** 

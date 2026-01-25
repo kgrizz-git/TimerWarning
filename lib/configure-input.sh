@@ -12,6 +12,7 @@
 # - get_popup_size_config()        - Get popup size from user
 # - get_min_display_time_config()  - Get minimum display time
 # - get_popup_immovable_config()   - Get immovable setting
+# - get_popup_auto_close_config() - Get auto-close setting (Enhancement #15)
 # - get_configure_block_enabled_config() - Get configure block enabled setting (Enhancement #19)
 # - get_security_settings_config() - Get combined security settings (script blocking & config locking)
 # - get_config_lock_enabled_config() - Get config lock enabled setting (Enhancement #18)
@@ -584,6 +585,125 @@ get_popup_immovable_config() {
                     ;;
                 "")
                     echo "${default_immovable}"
+                    return 0
+                    ;;
+                *)
+                    echo "Invalid choice. Please enter 'y' for yes or 'n' for no." >&2
+                    ;;
+            esac
+        done
+    fi
+}
+
+# Get popup auto-close setting from user
+# This function prompts the user to enable or disable auto-close feature
+# Auto-close happens 10 seconds after minimum display time completes
+# This is for Enhancement #15 (Auto-Close Popup Window)
+#
+# Parameters:
+#   $1 - use_gui (true/false) - Whether to use GUI dialogs or text prompts
+#
+# Returns:
+#   "true" - User enabled auto-close
+#   "false" - User disabled auto-close
+#   "CANCELLED" - User cancelled the operation
+#
+# Exit Codes:
+#   0 - Success (returns "true" or "false")
+#   2 - User cancelled (returns "CANCELLED")
+get_popup_auto_close_config() {
+    local use_gui="$1"
+    local default_auto_close="true"
+    
+    # Try to get existing setting from config
+    if [ -f "${CONFIG_FILE}" ]; then
+        local existing_auto_close
+        existing_auto_close=$(grep -E "^[[:space:]]*POPUP_AUTO_CLOSE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ -n "${existing_auto_close}" ]; then
+            if [ "${existing_auto_close}" = "true" ] || [ "${existing_auto_close}" = "1" ] || [ "${existing_auto_close}" = "yes" ]; then
+                default_auto_close="true"
+            elif [ "${existing_auto_close}" = "false" ] || [ "${existing_auto_close}" = "0" ] || [ "${existing_auto_close}" = "no" ]; then
+                default_auto_close="false"
+            fi
+        fi
+    fi
+    
+    # Get minimum display time for reference
+    local min_display_time="0"
+    if [ -f "${CONFIG_FILE}" ]; then
+        local existing_time
+        existing_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        if [ -n "${existing_time}" ] && [[ "${existing_time}" =~ ^[0-9]+$ ]] && [ "${existing_time}" -ge 0 ] && [ "${existing_time}" -le 300 ]; then
+            min_display_time="${existing_time}"
+        fi
+    fi
+    
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        # GUI mode
+        while true; do
+            local auto_close
+            local message
+            if [ "${min_display_time}" -gt 0 ]; then
+                message="Automatically close popup window 10 seconds after minimum display time completes?\n\nCurrent minimum display time: ${min_display_time} seconds\nAuto-close will happen after ${min_display_time} + 10 = $((min_display_time + 10)) seconds total\n\n(Current setting: ${default_auto_close})"
+            else
+                message="Automatically close popup window 10 seconds after it appears?\n\nCurrent minimum display time: 0 seconds (disabled)\nAuto-close will happen after 10 seconds\n\n(Current setting: ${default_auto_close})"
+            fi
+            
+            local auto_close_result
+            auto_close_result=$(show_list_dialog \
+                "Sleep Warning Configuration" \
+                "${message}" \
+                600 \
+                350 \
+                "true" "false")
+            local exit_code=$?
+            
+            if [ ${exit_code} -eq 0 ] && [ -n "${auto_close_result}" ]; then
+                auto_close="${auto_close_result}"
+            else
+                auto_close=""
+            fi
+            
+            # User cancelled
+            if [ "${exit_code}" -ne 0 ] || [ -z "${auto_close}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2  # Special return code for cancellation
+                else
+                    continue  # User wants to continue, re-prompt
+                fi
+            fi
+            
+            echo "${auto_close}"
+            return 0
+        done
+    else
+        # Text mode
+        echo "" >&2
+        echo "Popup Auto-Close Setting:" >&2
+        echo "  Automatically closes the popup window 10 seconds after minimum display time completes" >&2
+        if [ "${min_display_time}" -gt 0 ]; then
+            echo "  Current minimum display time: ${min_display_time} seconds" >&2
+            echo "  Auto-close will happen after ${min_display_time} + 10 = $((min_display_time + 10)) seconds total" >&2
+        else
+            echo "  Current minimum display time: 0 seconds (disabled)" >&2
+            echo "  Auto-close will happen after 10 seconds" >&2
+        fi
+        echo "" >&2
+        while true; do
+            read -p "Enable auto-close? [y/n, default: ${default_auto_close}]: " choice
+            choice=${choice:-${default_auto_close}}
+            case "${choice}" in
+                y|Y|yes|YES|true|TRUE|1)
+                    echo "true"
+                    return 0
+                    ;;
+                n|N|no|NO|false|FALSE|0)
+                    echo "false"
+                    return 0
+                    ;;
+                "")
+                    echo "${default_auto_close}"
                     return 0
                     ;;
                 *)

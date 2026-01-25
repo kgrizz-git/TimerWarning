@@ -147,7 +147,7 @@ main() {
     # This is a sparse array indexed 0-6 (Sunday-Saturday) with entries like:
     #   UNINSTALL_LOCK_HOURS_MONDAY=9-17
     declare -g -a uninstall_lock_hours_lines=()
-    declare -g check_interval popup_size popup_position min_display_time popup_immovable configure_block_enabled uninstall_protection_mode pause_enabled pause_duration dialog_tool config_lock_enabled
+    declare -g check_interval popup_size popup_position min_display_time popup_immovable popup_auto_close configure_block_enabled uninstall_protection_mode pause_enabled pause_duration dialog_tool config_lock_enabled
     
     # Load existing configuration
     # Function sets global variables and populates global arrays directly
@@ -220,7 +220,7 @@ main() {
         
         # Show main menu
         local menu_choice
-        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}" "${dialog_tool_status}" "${config_lock_enabled}")
+        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}" "${dialog_tool_status}" "${config_lock_enabled}")
         local menu_exit=$?
         
         if [ "${menu_exit}" -eq 2 ] || [ "${menu_choice}" = "CANCELLED" ]; then
@@ -318,6 +318,15 @@ main() {
                     exit 0
                 else
                     popup_immovable="${new_immovable}"
+                fi
+                
+                local new_auto_close
+                new_auto_close=$(get_popup_auto_close_config "${use_gui}")
+                if [ "${new_auto_close}" = "CANCELLED" ]; then
+                    # User already confirmed cancellation
+                    exit 0
+                else
+                    popup_auto_close="${new_auto_close}"
                 fi
                 ;;
             3)
@@ -461,7 +470,7 @@ main() {
             13)
                 # Review and Save
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
-                if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}"; then
+                if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${configure_block_enabled}"; then
                     # Validate restriction coverage before saving
                     local validation_result
                     validation_result=$(check_restriction_coverage "${config_lines[@]}")
@@ -521,7 +530,7 @@ main() {
                     # Pass restriction config_lines, lock_hours_lines (Phase 2), and uninstall_lock_hours_lines (Enhancement #26 Phase 2),
                     # followed by optional safety override flags so write_config can add comments.
                     # Enhancement #3: Include popup_size_mode, popup_size_custom, and popup_size_custom_absolute
-                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${dialog_tool}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
+                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${dialog_tool}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
                         # Update timer file if it exists
                         if [ -f "${TIMER_FILE}" ]; then
                             if update_timer_file "${check_interval}"; then

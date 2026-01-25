@@ -80,7 +80,7 @@ The script:
 - Supports multiple time ranges per day (comma-separated, e.g., `0-5,22-23`)
 - Supports overnight ranges that span midnight (e.g., `23-6` means 11 PM to 5:59 AM)
 
-For complete configuration documentation including all options (CHECK_INTERVAL, POPUP_SIZE, POPUP_POSITION, POPUP_MIN_DISPLAY_TIME, POPUP_IMMOVABLE), see [user-docs/CONFIGURATION.md](../user-docs/CONFIGURATION.md).
+For complete configuration documentation including all options (CHECK_INTERVAL, POPUP_SIZE, POPUP_POSITION, POPUP_MIN_DISPLAY_TIME, POPUP_IMMOVABLE, POPUP_AUTO_CLOSE), see [user-docs/CONFIGURATION.md](../user-docs/CONFIGURATION.md).
 
 ## Time Checking Logic
 - Use `date +%w` for day of week (0=Sunday, 6=Saturday)
@@ -196,6 +196,94 @@ Users can manually override the automatic priority system by setting `DIALOG_TOO
 - Test auto-reopen functionality
 - Test countdown accuracy
 - Verify window stays on top during timeout
+
+## Auto-Close Popup Window Feature (Enhancement #15)
+
+**Description**: Automatically closes the popup window 10 seconds after the minimum display time completes, providing a non-interactive option for warning dismissal.
+
+**Configuration**:
+- Setting: `POPUP_AUTO_CLOSE` in config file
+- Values: `true` or `false` (default: `true` - enabled by default)
+- Configurable via configuration wizard (Window Behavior menu option)
+
+**Implementation**:
+
+1. **Timer Mechanism**:
+   - Auto-close happens **10 seconds after minimum display time completes** (additional time, not total time)
+   - If `POPUP_MIN_DISPLAY_TIME=30`, total time until auto-close = 40 seconds (30 + 10)
+   - If `POPUP_MIN_DISPLAY_TIME=0`, auto-close happens after 10 seconds
+   - Timer starts after minimum display time loop completes (if min_display_time > 0)
+   - Timer starts immediately if min_display_time = 0
+
+2. **Process Termination Method**:
+   - Uses process termination (SIGTERM first, then SIGKILL if needed)
+   - **SIGTERM** (graceful shutdown): `kill -TERM "${popup_pid}"`
+     - Waits 0.5 seconds for process to exit
+     - Checks if process exited
+   - **SIGKILL** (force termination): `kill -KILL "${popup_pid}"` (if SIGTERM fails)
+     - Waits 0.5 seconds for process to exit
+     - Checks if process exited
+   - Works for all dialog tools (zenity, yad, kdialog) - process termination is universal
+
+3. **Timer Function**:
+   - `auto_close_popup()` - Background function that:
+     - Sleeps for 10 seconds (fixed delay)
+     - Checks if popup process is still running
+     - Closes popup using `close_popup_process()` if still running
+     - Logs auto-close events
+
+4. **Process Close Function**:
+   - `close_popup_process()` - Handles process termination:
+     - Checks if process is still running (`kill -0 "${popup_pid}"`)
+     - Returns success if process already exited (user closed manually)
+     - Tries SIGTERM first, then SIGKILL if needed
+     - Handles errors gracefully (logs warnings, doesn't crash)
+
+5. **Timer Management**:
+   - Timer PID stored when starting auto-close timer
+   - If user manually closes popup, timer is automatically cancelled
+   - If auto-close succeeds, timer process exits naturally
+   - Timer cancellation handled in main `show_warning()` function
+
+6. **Integration with Minimum Display Time**:
+   - Auto-close respects minimum display time:
+     - If `min_display_time > 0`: Wait for minimum display time to complete, then start 10-second timer
+     - If `min_display_time = 0`: Start 10-second timer immediately after popup displays
+   - Popup messages updated to show auto-close information:
+     - During minimum display time: "This popup must remain visible for X more second(s) before it can be closed. It will auto-close 10 seconds after that."
+     - If minimum display time is 0: "This popup will auto-close in 10 seconds."
+
+7. **Pause Button Integration**:
+   - If pause button is clicked, popup closes immediately (before auto-close timer starts)
+   - No timer cancellation needed (pause causes early return before timer starts)
+
+**Platform Compatibility**:
+- **X11**: Full support - process termination works on all X11 systems
+- **Wayland**: Full support - process termination works on Wayland (doesn't require window tools)
+- **gamescope (SteamOS Gaming Mode)**: Full support - process termination works in gamescope
+- **Advantage**: Unlike window management features (minimum display time enforcement), auto-close doesn't require window tools, so it works on all platforms
+
+**Logging**:
+- Logs auto-close configuration when popup is displayed
+- Logs when auto-close timer starts
+- Logs when popup is auto-closed (successful termination)
+- Logs if auto-close is cancelled (user closed manually)
+- Logs if process termination fails (SIGTERM and SIGKILL both fail)
+- Uses appropriate log levels (INFO for normal operation, WARNING for issues)
+
+**Limitations**:
+- **Fixed Delay**: Auto-close delay is fixed at 10 seconds and cannot be configured
+- **Process Termination**: Relies on process termination, which may fail in rare edge cases (both SIGTERM and SIGKILL fail)
+- **No Visual Countdown**: Currently no visual countdown for the 10-second auto-close delay (future enhancement possibility)
+
+**Testing Requirements**:
+- Test with all dialog tools (zenity, yad, kdialog)
+- Test with minimum display time enabled (e.g., 30 seconds) - verify popup closes after 40 seconds total
+- Test with minimum display time disabled (0) - verify popup closes after 10 seconds
+- Test manual close before auto-close - verify timer is cancelled
+- Test pause button with auto-close - verify popup closes immediately
+- Test on X11, Wayland, and gamescope platforms
+- Test process termination failure scenarios (if possible to simulate)
 
 ## Full-Screen Application Compatibility
 

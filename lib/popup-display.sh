@@ -29,6 +29,88 @@
 #   source lib/popup-display.sh
 ###############################################################################
 
+# Close popup process using process termination
+# Parameters:
+#   $1 - popup_pid - Process ID of the popup
+#   $2 - dialog_tool - Dialog tool used (zenity/yad/kdialog)
+# Returns: 0 on success, 1 on failure
+# This is for Enhancement #15 (Auto-Close Popup Window)
+close_popup_process() {
+    local popup_pid="$1"
+    local dialog_tool="$2"
+    
+    # Check if process is still running
+    if ! kill -0 "${popup_pid}" 2>/dev/null; then
+        # Process already exited (user closed manually)
+        log_to_file "INFO" "Popup process (PID ${popup_pid}) already exited (user closed manually)"
+        return 0
+    fi
+    
+    # Try SIGTERM first (graceful shutdown)
+    log_to_file "INFO" "Attempting to close popup (PID ${popup_pid}) using SIGTERM"
+    kill -TERM "${popup_pid}" 2>/dev/null
+    
+    # Wait briefly for process to exit
+    sleep 0.5
+    
+    # Check if process exited
+    if ! kill -0 "${popup_pid}" 2>/dev/null; then
+        log_to_file "INFO" "Popup closed successfully using SIGTERM"
+        return 0
+    fi
+    
+    # Process still running, try SIGKILL (force termination)
+    log_to_file "WARNING" "Popup process (PID ${popup_pid}) did not exit with SIGTERM, trying SIGKILL"
+    kill -KILL "${popup_pid}" 2>/dev/null
+    
+    # Wait briefly for process to exit
+    sleep 0.5
+    
+    # Check if process exited
+    if ! kill -0 "${popup_pid}" 2>/dev/null; then
+        log_to_file "INFO" "Popup closed successfully using SIGKILL"
+        return 0
+    fi
+    
+    # Both SIGTERM and SIGKILL failed
+    log_to_file "WARNING" "Failed to close popup process (PID ${popup_pid}) - both SIGTERM and SIGKILL failed"
+    return 1
+}
+
+# Auto-close popup timer function (runs in background)
+# Parameters:
+#   $1 - popup_pid - Process ID of the popup
+#   $2 - dialog_tool - Dialog tool used (zenity/yad/kdialog)
+#   $3 - window_title - Window title for logging
+#   $4 - window_tool - Window management tool (for logging)
+# This is for Enhancement #15 (Auto-Close Popup Window)
+auto_close_popup() {
+    local popup_pid="$1"
+    local dialog_tool="$2"
+    local window_title="$3"
+    local window_tool="$4"
+    
+    # Sleep for 10 seconds (fixed delay after minimum display time)
+    sleep 10
+    
+    # Check if popup process is still running
+    if ! kill -0 "${popup_pid}" 2>/dev/null; then
+        # Popup already closed (user closed manually)
+        log_to_file "INFO" "Auto-close timer: Popup already closed by user (PID ${popup_pid})"
+        return 0
+    fi
+    
+    # Close the popup
+    log_to_file "INFO" "Auto-close timer: Closing popup (PID ${popup_pid}) after 10-second delay"
+    if close_popup_process "${popup_pid}" "${dialog_tool}"; then
+        log_to_file "INFO" "Auto-close: Popup closed successfully (PID ${popup_pid})"
+        return 0
+    else
+        log_to_file "WARNING" "Auto-close: Failed to close popup (PID ${popup_pid})"
+        return 1
+    fi
+}
+
 # Display warning popup
 show_warning() {
     local dialog_tool
@@ -118,6 +200,10 @@ show_warning() {
     local min_display_time
     min_display_time=$(get_min_display_time)
     
+    # Get auto-close setting (Enhancement #15)
+    local popup_auto_close
+    popup_auto_close=$(get_popup_auto_close)
+    
     # Get dimensions
     local dimensions
     dimensions=$(get_popup_dimensions "${popup_size}")
@@ -157,9 +243,17 @@ It's recommended to get some rest. Consider taking a break or going to sleep.
 This warning will appear ${interval_text} while you continue using your computer during these hours."
     
     # Add initial countdown message if minimum display time is set
+    # Also include auto-close information if enabled (Enhancement #15)
     local countdown_msg=""
     if [ "${min_display_time}" -gt 0 ]; then
-        countdown_msg="\n\n⏱️  This popup must remain visible for ${min_display_time} more second(s) before it can be closed."
+        if [ "${popup_auto_close}" = "true" ]; then
+            countdown_msg="\n\n⏱️  This popup must remain visible for ${min_display_time} more second(s) before it can be closed. It will auto-close 10 seconds after that."
+        else
+            countdown_msg="\n\n⏱️  This popup must remain visible for ${min_display_time} more second(s) before it can be closed."
+        fi
+    elif [ "${popup_auto_close}" = "true" ]; then
+        # Minimum display time is 0, but auto-close is enabled
+        countdown_msg="\n\n⏱️  This popup will auto-close in 10 seconds."
     fi
     
     local message="${base_message}${countdown_msg}"
@@ -317,7 +411,15 @@ This warning will appear ${interval_text} while you continue using your computer
     
     # Log popup display attempt or fallback to notify-send
     if [ -n "${popup_pid}" ]; then
-        log_to_file "INFO" "Popup displayed successfully (PID: ${popup_pid}), Dialog tool: ${dialog_tool}, Size: ${popup_size}, Position: ${popup_position}, Min display time: ${min_display_time}s"
+        local auto_close_status="disabled"
+        if [ "${popup_auto_close}" = "true" ]; then
+            if [ "${min_display_time}" -gt 0 ]; then
+                auto_close_status="enabled (10s after ${min_display_time}s min display = $((min_display_time + 10))s total)"
+            else
+                auto_close_status="enabled (10s after popup appears)"
+            fi
+        fi
+        log_to_file "INFO" "Popup displayed successfully (PID: ${popup_pid}), Dialog tool: ${dialog_tool}, Size: ${popup_size}, Position: ${popup_position}, Min display time: ${min_display_time}s, Auto-close: ${auto_close_status}"
     else
         log_to_file "ERROR" "Failed to display popup, Dialog tool: ${dialog_tool}"
         if command -v notify-send >/dev/null 2>&1; then
@@ -658,11 +760,30 @@ This warning will appear ${interval_text} while you continue using your computer
             reenable_window_closing "${window_title}" "${window_tool}"
         fi
         
-        # Wait for user to actually close it (now they can)
+        # Start auto-close timer if enabled (Enhancement #15)
+        local auto_close_timer_pid=""
+        if [ "${popup_auto_close}" = "true" ] && kill -0 "${popup_pid}" 2>/dev/null; then
+            # Log auto-close configuration
+            log_to_file "INFO" "Auto-close enabled: Popup will close automatically 10 seconds after minimum display time (total: $((min_display_time + 10)) seconds)"
+            
+            # Start auto-close timer in background
+            auto_close_popup "${popup_pid}" "${dialog_tool}" "${window_title}" "${window_tool}" &
+            auto_close_timer_pid=$!
+            log_to_file "INFO" "Auto-close timer started (timer PID: ${auto_close_timer_pid})"
+        fi
+        
+        # Wait for user to actually close it (now they can) or for auto-close
         # Check if popup is still running before waiting
         if kill -0 "${popup_pid}" 2>/dev/null; then
             wait "${popup_pid}" 2>/dev/null
             local popup_exit_code=$?
+            
+            # Cancel auto-close timer if user closed popup manually
+            if [ -n "${auto_close_timer_pid}" ] && kill -0 "${auto_close_timer_pid}" 2>/dev/null; then
+                log_to_file "INFO" "User closed popup manually, cancelling auto-close timer (timer PID: ${auto_close_timer_pid})"
+                kill "${auto_close_timer_pid}" 2>/dev/null
+                wait "${auto_close_timer_pid}" 2>/dev/null
+            fi
             
             # Handle pause button clicks after minimum display time (Enhancement #21)
             if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
@@ -763,11 +884,30 @@ This warning will appear ${interval_text} while you continue using your computer
         fi
     else
         # No minimum display time, just wait normally
+        # Start auto-close timer if enabled (Enhancement #15)
+        local auto_close_timer_pid=""
+        if [ "${popup_auto_close}" = "true" ] && [ -n "${popup_pid}" ] && kill -0 "${popup_pid}" 2>/dev/null; then
+            # Log auto-close configuration
+            log_to_file "INFO" "Auto-close enabled: Popup will close automatically after 10 seconds (minimum display time is 0)"
+            
+            # Start auto-close timer in background
+            auto_close_popup "${popup_pid}" "${dialog_tool}" "${window_title}" "${window_tool}" &
+            auto_close_timer_pid=$!
+            log_to_file "INFO" "Auto-close timer started (timer PID: ${auto_close_timer_pid})"
+        fi
+        
         if [ -n "${popup_pid}" ]; then
             # Check if popup is still running before waiting
             if kill -0 "${popup_pid}" 2>/dev/null; then
                 wait "${popup_pid}" 2>/dev/null
                 local popup_exit_code=$?
+                
+                # Cancel auto-close timer if user closed popup manually
+                if [ -n "${auto_close_timer_pid}" ] && kill -0 "${auto_close_timer_pid}" 2>/dev/null; then
+                    log_to_file "INFO" "User closed popup manually, cancelling auto-close timer (timer PID: ${auto_close_timer_pid})"
+                    kill "${auto_close_timer_pid}" 2>/dev/null
+                    wait "${auto_close_timer_pid}" 2>/dev/null
+                fi
                 
                 # Handle pause button clicks (Enhancement #21)
                 if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then

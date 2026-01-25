@@ -25,13 +25,15 @@ The Sleep Warning System is a background service that monitors your computer usa
 2. **Time Check**: The system checks if the current time falls within your configured restricted hours
 3. **Warning Display**: If you're using the computer during restricted hours, a modal popup appears
 4. **User Interaction**: The popup requires acknowledgment and must remain visible for a minimum time (configurable)
-5. **Pause Feature** (Optional): Users can pause warning popups for 5 or 10 minutes once per day directly from the warning popup
+5. **Auto-Close** (Optional): The popup automatically closes 10 seconds after minimum display time completes (enabled by default)
+6. **Pause Feature** (Optional): Users can pause warning popups for 5 or 10 minutes once per day directly from the warning popup
 
 ### Key Concepts
 
 - **Restricted Hours**: Time periods when warnings will appear (configured per day of week)
 - **Check Interval**: How often the system checks for restricted hours (default: 10 minutes)
 - **Minimum Display Time**: How long the popup must remain visible before it can be closed (default: 30 seconds)
+- **Auto-Close**: Popup automatically closes 10 seconds after minimum display time completes (enabled by default)
 - **Popup Behavior**: Modal, stays on top, optionally immovable during minimum display time
 - **Pause Feature**: One-time pause option (5 or 10 minutes) available once per day from the warning popup
 
@@ -83,7 +85,7 @@ sleep-warning-configure
 
 **Menu Options:**
 - Timer Settings - Configure check interval (1-60 minutes)
-- Window Behavior - Configure popup size (including new xsmall, xlarge, max options and percentage-based sizing), position, minimum display time, and immovable setting
+- Window Behavior - Configure popup size (including new xsmall, xlarge, max options and percentage-based sizing), position, minimum display time, immovable setting, and auto-close
 - Weekdays/Weekends Configuration - Set restricted hours
 - Visual Day/Time Grid - View and edit all days at once (recommended!)
 - Security Settings - Configure blocking of configure.sh and manage.sh during restricted/lock hours
@@ -124,6 +126,10 @@ POPUP_MIN_DISPLAY_TIME=30
 
 # Prevent window movement (true/false)
 POPUP_IMMOVABLE=true
+
+# Auto-close popup window (true/false)
+# Automatically closes popup 10 seconds after minimum display time completes
+POPUP_AUTO_CLOSE=true
 
 # Restricted hours (24-hour format: START-END)
 SUNDAY=1-5
@@ -382,6 +388,43 @@ This section provides guidance on configuring the system for different scenarios
 **Goal**: Restrict both late night (10 PM-midnight) and early morning (midnight-5 AM) on weekdays.
 
 **Approach**: Use comma-separated ranges like `0-5,22-23` to create two restricted periods per day. Useful for enforcing both bedtime and wake-up time.
+
+### Understanding Auto-Close Feature
+
+The auto-close feature automatically dismisses warning popups 10 seconds after the minimum display time completes, providing a hands-free option for warning dismissal.
+
+**How Auto-Close Works**:
+- **Timing**: Auto-close happens 10 seconds after minimum display time completes (additional time, not total time)
+- **Example 1**: If minimum display time is 30 seconds, popup auto-closes after 40 seconds total (30 + 10)
+- **Example 2**: If minimum display time is 0 (disabled), popup auto-closes after 10 seconds
+- **Fixed Delay**: The 10-second delay is fixed and cannot be configured
+
+**Configuration**:
+```
+POPUP_AUTO_CLOSE=true   # Enable auto-close (default)
+POPUP_AUTO_CLOSE=false  # Disable auto-close (user must close manually)
+```
+
+**Behavior**:
+- **Enabled by default** - Auto-close is active unless you explicitly disable it
+- **Respects minimum display time** - Auto-close only starts after minimum display time completes
+- **Manual close cancels timer** - If you close the popup manually, the auto-close timer is automatically cancelled
+- **Works on all platforms** - Uses process termination, so it works on X11, Wayland, and gamescope
+- **Pause button integration** - Clicking pause closes the popup immediately (before auto-close timer starts)
+
+**Use Cases**:
+- **Hands-free operation**: Useful when you want popups to dismiss automatically without manual interaction
+- **Reduced interruption**: Provides automatic dismissal after ensuring the warning has been visible for the required time
+- **Accessibility**: Helpful for users who prefer automatic dismissal or have difficulty interacting with popups
+
+**Disabling Auto-Close**:
+If you prefer to manually close popups, you can disable auto-close:
+1. Run `sleep-warning-configure`
+2. Select option 2: **Window Behavior**
+3. When prompted, choose `false` for auto-close
+4. Save your configuration
+
+**See [CONFIGURATION.md](CONFIGURATION.md#auto-close-popup-window) for complete auto-close configuration documentation.**
 
 ## Troubleshooting
 
