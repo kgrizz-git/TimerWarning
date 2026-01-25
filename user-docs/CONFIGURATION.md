@@ -431,10 +431,32 @@ CONFIG_LOCK_HOURS_WEDNESDAY=23-6     # Block overnight (11 PM to 5:59 AM)
   - `~/.config/sleep-warning/.config_locked_snapshot`
 
 **Safety**:
-- If you configure restrictions totaling **more than 16 hours/day** (> 6720 minutes/week), the configuration wizard automatically forces `CONFIG_LOCK_ENABLED=false` to reduce lockout risk.
+- If you configure restrictions totaling **more than 9660 minutes per week** (> 23 hours/day), the configuration wizard automatically forces `CONFIG_LOCK_ENABLED=false` to prevent accidental lockout scenarios where you cannot modify your configuration during the very limited unrestricted time.
+- This safety mechanism is part of Enhancement #22 (Prevent 24/7 Restriction Configuration).
 
 **Limitations**:
-- This is deterrence-only. A determined user with sufficient access can still bypass it (e.g., stopping the service, changing permissions, or editing files outside the expected flow).
+- This is **deterrence-only**. A determined user with sufficient access can still bypass it by:
+  - Stopping the systemd timer/service
+  - Changing file permissions manually (requires write access to parent directory)
+  - Editing files outside the expected flow
+- The lock applies to the config directory and file, but cannot prevent all bypass methods (e.g., directory-level operations if user has sufficient permissions).
+
+**When Lock is Active**:
+- The config file and directory become read-only during:
+  - **Restricted hours** (your configured restriction periods)
+  - **Lock hours** (if `CONFIG_LOCK_HOURS_*` are configured)
+- If you try to run `configure.sh` during lock hours, it will show an error message and exit
+- The lock is automatically applied/removed by `sleep-warning.sh` on each timer tick
+
+**Self-Healing**:
+- The system includes a self-healing mechanism that:
+  - Detects if permissions are manually changed and re-applies the lock
+  - Can restore the config file from a snapshot if it's deleted (though directory lock makes this difficult)
+  - Runs automatically on each timer tick
+
+**Uninstall During Lock Hours**:
+- The `uninstall.sh` script can always restore permissions and uninstall successfully, even during lock hours
+- This ensures you can always uninstall the system if needed
 
 ### Uninstall Protection During Restricted Hours
 
@@ -703,6 +725,12 @@ DIALOG_TOOL=auto
 
 # Config file locking: Lock the configuration file during restricted hours (and lock hours) (true/false)
 # This is an opt-in deterrence feature - disabled by default
+# When enabled, the configuration file becomes read-only during restricted hours and configured lock hours
+# This prevents users from modifying settings during restricted periods
+# IMPORTANT: This is a deterrence feature only - it can be bypassed by determined users
+# The system automatically disables this feature if restrictions exceed 9660 minutes per week (> 23 hours/day)
+# to prevent accidental lockout scenarios
+# See "Security Settings" in the configuration wizard to enable/disable
 CONFIG_LOCK_ENABLED=false
 
 # Restricted hours for each day
@@ -829,7 +857,7 @@ The wizard will guide you through setting all configuration options with a user-
 3. **Weekdays Configuration** - Set restricted hours for Monday through Friday
 4. **Weekends Configuration** - Set restricted hours for Saturday and Sunday
 5. **Visual Day/Time Grid** - View and edit all days in a visual grid format (see below)
-6. **Security Settings** - Configure blocking of configure.sh and manage.sh during restricted/lock hours
+6. **Security Settings** - Configure blocking of configure.sh and manage.sh during restricted/lock hours, and config file locking
 7. **Lock Hours Configuration** - Configure additional hours when configuration/management is blocked (separate from restriction hours)
 8. **Uninstall Protection** - Configure protection mode for uninstall.sh during restricted hours
 9. **Uninstall Lock Hours Configuration** - Configure additional hours when difficult uninstall verification is required

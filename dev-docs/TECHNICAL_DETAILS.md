@@ -418,12 +418,169 @@ When high restrictions (> 6720 minutes) are detected and user confirms:
 
 ### Related Enhancements
 
-- **Enhancement #18 (Config File Locking)**: Automatically disabled if restrictions > 6720 minutes
+- **Enhancement #18 (Config File Locking)**: Automatically disabled if restrictions > 9660 minutes per week (> 23 hours/day)
 - **Enhancement #19 (Prevent configure.sh Execution)**: Automatically disabled if restrictions > 6720 minutes
 - **Enhancement #20 (Additional Hours for Config Locking)**: Automatically cleared if restrictions > 6720 minutes
 - **Enhancement #03 (Enhanced Window Size Options)**: Popup size automatically restricted to small/medium only if restrictions > 6720 minutes
 
 For detailed implementation notes, see [enhancements/enhancement-22-prevent-24-7-restriction-configuration.md](enhancements/enhancement-22-prevent-24-7-restriction-configuration.md).
+
+## Config File Locking (Enhancement #18)
+
+### Overview
+
+Config file locking is a deterrence feature that makes the configuration file and directory read-only during restricted hours and configured lock hours. This prevents users from easily modifying settings during times they've chosen to restrict.
+
+**Implementation**: Option A (Dedicated Config Directory) - Stronger deterrence by locking both the config directory and file.
+
+### Architecture
+
+**Module**: `lib/config-locking.sh`
+
+**Key Functions**:
+- `is_config_lock_active()` - Determines if lock should be active based on `CONFIG_LOCK_ENABLED` and current time
+- `store_lock_state()` - Saves original permissions to marker file
+- `retrieve_lock_state()` - Reads permissions from marker file for restoration
+- `apply_config_directory_lock()` - Main locking function (idempotent)
+- `check_and_restore_config_file()` - Self-healing function that detects tampering
+
+**Dependencies**:
+- `lib/config.sh` - For `CONFIG_FILE`, `CONFIG_DIR`, `get_config_lock_enabled()`, `parse_config()`, `parse_lock_hours()`
+- `lib/time-validation.sh` - For `is_restricted_hour()`, `is_lock_hour()`
+- `lib/logging.sh` - Optional, for logging warnings
+
+### Lock Mechanism
+
+**Option A Implementation** (Chosen):
+- **Config Directory**: `~/.config/sleep-warning/config/` → locked to `555` (no writes)
+- **Config File**: `~/.config/sleep-warning/config/sleep-warning.conf` → locked to `444` (read-only)
+- **Marker File**: `~/.config/sleep-warning/.config_locked` (in parent directory, accessible even when config directory is locked)
+- **Snapshot File**: `~/.config/sleep-warning/.config_locked_snapshot` (for self-healing)
+
+**Why Option A**:
+- Stronger deterrence - directory lock prevents common editor pattern of writing temp file then renaming over original
+- Prevents most bypass methods that work with file-only locks
+- Still deterrence-only (user can stop service or change permissions if they have access)
+
+### Lock State Management
+
+**Marker File Format**:
+```
+TIMESTAMP=2026-01-23T10:30:00|REASON=restricted_hours|DIR_MODE=755|FILE_MODE=644|MARKER_MODE=644
+```
+
+**Lock Application Flow**:
+1. Check if lock should be active (`is_config_lock_active()`)
+2. If active:
+   - If marker doesn't exist (first lock): Store current permissions, create snapshot, create marker
+   - Lock marker file (`chmod 444`) to prevent deletion/editing
+   - Lock directory (`chmod 555`)
+   - Lock config file (`chmod 444`)
+3. If not active:
+   - If marker exists (was locked): Restore permissions from marker, remove marker and snapshot
+
+**Permission Restoration**:
+- **CRITICAL**: System MUST restore actual original permissions (stored in marker file), not hardcoded defaults
+- Only use safe defaults (755/644) as fallback if marker file is corrupted/missing
+- Marker file permissions are restored first (to make it writable), then directory, then file
+
+### Self-Healing Mechanism
+
+**Frequency**: Runs on every timer tick (every `sleep-warning.sh` execution)
+
+**What It Checks**:
+1. Config file existence - restores from snapshot if missing
+2. Config file modification time - restores from snapshot if newer than snapshot
+3. Directory permissions - re-applies lock if writable
+4. File permissions - re-applies lock if writable
+5. Marker file permissions - re-applies lock if writable
+
+**Rationale**:
+- Low overhead (< 10ms for checks)
+- Immediate detection (catches tampering within one check interval, typically 10 minutes)
+- Defense-in-depth (directory lock prevents most bypasses, self-healing catches edge cases)
+
+### Integration Points
+
+**sleep-warning.sh**:
+- Calls `apply_config_directory_lock()` early in main function (before restriction checking)
+- Calls `check_and_restore_config_file()` after lock application (if lock is active)
+
+**configure.sh**:
+- Checks `is_config_lock_active()` before allowing configuration changes
+- Shows error message via `show_config_file_locked_error()` if locked
+- Exits without calling `write_config()` if lock is active
+
+**uninstall.sh**:
+- Always restores permissions via `restore_config_permissions()` function
+- Works even during lock hours (bypasses lock check)
+- Uses safe defaults (755/644) if marker file is missing/corrupted
+
+### Migration (Option A)
+
+**Old Location**: `~/.config/sleep-warning/sleep-warning.conf`
+**New Location**: `~/.config/sleep-warning/config/sleep-warning.conf`
+
+**Migration Process**:
+- Runs during `install.sh` execution
+- If old config exists and new doesn't:
+  1. Create backup of old config
+  2. Create config directory: `mkdir -p ~/.config/sleep-warning/config`
+  3. Copy old config to new location
+  4. Verify copy succeeded (size + checksum when available)
+  5. Remove old config only after successful verification
+- If migration fails, old config is preserved and error is logged
+
+**Backward Compatibility**: No fallback - only new location is used. Migration must succeed before system can function.
+
+### Safety Features
+
+**Automatic Disabling** (Enhancement #22):
+- If restrictions exceed 9660 minutes per week (> 23 hours/day), `CONFIG_LOCK_ENABLED` is automatically set to `false`
+- Prevents accidental lockout scenarios where users cannot modify configuration during very limited unrestricted time
+- User is informed why the feature was disabled
+
+**Uninstall Safety**:
+- `uninstall.sh` always works, even during lock hours
+- Force restores permissions before removing config files
+- No lock check in uninstall script (bypasses lock)
+
+### Edge Cases Handled
+
+1. **System Time Changes**: Lock state adapts automatically (no cached time values)
+2. **System Sleep/Resume**: Lock persists (re-applied on next timer tick)
+3. **Manual Permission Changes**: Self-healing re-applies lock on next timer tick
+4. **Config File Deletion**: Self-healing restores from snapshot (though directory lock makes this difficult)
+5. **Missing Marker File**: Treated as first lock (stores current permissions, creates marker)
+6. **Corrupted Marker File**: Uses safe defaults (755/644) for restoration, logs warning
+7. **Corrupted Snapshot File**: Doesn't restore from corrupted snapshot (prevents data loss)
+
+### Limitations
+
+**Deterrence Only**:
+- User can stop systemd timer/service to bypass
+- User can change permissions manually if they have write access to parent directory
+- User can edit files outside expected flow
+- Not a complete security boundary (no root/Polkit required)
+
+**Bypass Methods**:
+- Stop timer: `systemctl --user stop sleep-warning.timer`
+- Change permissions: `chmod 755 ~/.config/sleep-warning/config` (if user has access)
+- Edit via root/sudo (if user has root access)
+
+### Testing
+
+**Test Files**:
+- `tests/test-config-locking.sh` - Unit and edge case tests
+- `tests/test-configure-blocking.sh` - Integration test for configure.sh blocking
+- `tests/test-uninstall-lock-hours.sh` - Integration test for uninstall during lock hours
+
+**Coverage**:
+- Lock activation/deactivation
+- Permission storage and restoration
+- Self-healing mechanism
+- Edge cases (missing marker, corrupted snapshot, manual permission changes)
+- Integration with configure.sh and uninstall.sh
 
 ## Management/Help Script Details
 

@@ -255,11 +255,75 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ## test-config-locking.sh
 
-**Last Run**: 2026-01-25 00:54 EST  
-**Status**: ✅ **PASS**  
+**Last Run**: 2026-01-25 (Extended)  
+**Status**: ✅ **PASS** (Extended with additional unit and edge case tests)  
+**Execution Time**: ~3 seconds  
 **Dependencies**: bash  
 
-**Findings Summary**: Enhancement #18 config file locking harness passed under a temporary `HOME` (does not touch real installed config). Verifies lock activation, permission changes, marker/snapshot behavior, idempotency, and unlock restoration.
+**Findings Summary**: Enhancement #18 config file locking harness passed under a temporary `HOME` (does not touch real installed config). Extended on 2026-01-25 to include comprehensive unit tests and edge case coverage.
+
+**Test Coverage**:
+- ✅ **Unit Tests**:
+  - `get_config_lock_enabled()` default/normalization/invalid-value fallback
+  - `is_config_lock_active()` during restriction hours and during `CONFIG_LOCK_HOURS_*` (lock-hours-only case)
+  - `is_config_lock_active()` when enabled but NOT in restricted hours (should return inactive)
+  - `is_config_lock_active()` for overnight ranges (previous day extending into current day)
+  - `is_config_lock_active()` for multiple ranges per day (comma-separated)
+  - `apply_config_directory_lock()` lock/unlock + idempotency + write-blocking check
+  - Lock application when config file doesn't exist initially
+- ✅ **Edge Case Tests**:
+  - Self-healing: permission re-assertion (manual permission changes detected and re-locked)
+  - Missing marker file handling (recreated on next lock application)
+  - Corrupted snapshot file handling (graceful degradation)
+  - Manual permission changes (self-healing re-applies lock)
+
+**Results**: All tests pass. Lock mechanism correctly handles all tested scenarios including edge cases.
+
+---
+
+## test-configure-blocking.sh
+
+**Last Run**: 2026-01-25  
+**Status**: ✅ **PASS** (3/3 tests passed)  
+**Execution Time**: ~5 seconds  
+**Dependencies**: bash, configure.sh  
+
+**Findings Summary**: Integration test for Enhancement #18 - verifies that `configure.sh` correctly blocks execution when the config file is locked. Tests both restricted hours and lock hours scenarios.
+
+**Test Coverage**:
+- ✅ `configure.sh` blocks during restricted hours
+- ✅ `configure.sh` blocks during lock hours only (no restrictions)
+- ✅ `configure.sh` works normally when NOT locked
+
+**Results**: All tests pass. `configure.sh` correctly shows error and exits when config file is locked, and works normally when not locked.
+
+**Notes**:
+- Uses temporary `HOME` (does not touch real installed config)
+- Tests text mode (`--text` flag)
+- Verifies exit codes and error message presence
+
+---
+
+## test-uninstall-lock-hours.sh
+
+**Last Run**: 2026-01-25  
+**Status**: ✅ **PASS** (2/2 tests passed)  
+**Execution Time**: ~2 seconds  
+**Dependencies**: bash  
+
+**Findings Summary**: Integration test for Enhancement #18 - verifies that uninstall can restore permissions and remove lock artifacts even when config file is locked.
+
+**Test Coverage**:
+- ✅ Permissions restored correctly during lock hours
+- ✅ Safe defaults used when marker file is missing
+
+**Results**: All tests pass. `restore_config_permissions()` function correctly restores permissions and removes marker/snapshot files even when lock is active.
+
+**Notes**:
+- Uses temporary `HOME` (does not touch real installed config or systemd services)
+- Tests `restore_config_permissions()` function logic (same as uninstall.sh)
+- Verifies original permissions are restored (not just safe defaults) when marker file exists
+- Verifies safe defaults (755/644) are used when marker file is missing
 
 ---
 

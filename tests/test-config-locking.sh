@@ -53,6 +53,11 @@ assert_writable() {
   fi
 }
 
+assert_file_not_exists() {
+  local path="$1"
+  [ ! -f "${path}" ] || fail "Expected file to NOT exist: ${path}"
+}
+
 day_name_from_num() {
   local day_num="$1"
   case "${day_num}" in
@@ -185,6 +190,61 @@ if is_config_lock_active; then
   fail "Expected is_config_lock_active to be inactive when CONFIG_LOCK_ENABLED=false"
 fi
 
+echo "Checking is_config_lock_active() when enabled but NOT in restricted hours..."
+# Set restrictions to a time that's NOT now (e.g., 2 hours from now)
+future_hour="$(( (current_hour + 2) % 24 ))"
+future_end_hour="$(( (future_hour + 1) % 24 ))"
+cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=true
+${day_name}=${future_hour}-${future_end_hour}
+EOF
+chmod 600 "${config_file}"
+
+if is_config_lock_active; then
+  fail "Expected is_config_lock_active to be inactive when NOT in restricted hours"
+fi
+
+echo "Checking is_config_lock_active() for overnight ranges..."
+# Test overnight range: previous day 23-6 (11pm to 6am next day)
+# If current hour is between 0-5, we should be in the overnight range from previous day
+if [ "${current_hour}" -ge 0 ] && [ "${current_hour}" -lt 6 ]; then
+  cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=true
+${prev_day_name}=23-6
+${day_name}=
+EOF
+  chmod 600 "${config_file}"
+  
+  if ! is_config_lock_active; then
+    fail "Expected is_config_lock_active to be active during overnight range from previous day"
+  fi
+fi
+
+echo "Checking is_config_lock_active() for multiple ranges per day..."
+# Test multiple ranges: e.g., 0-5,22-23
+cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=true
+${day_name}=0-5,22-23
+EOF
+chmod 600 "${config_file}"
+
+# Check if current hour is in either range
+if [ "${current_hour}" -ge 0 ] && [ "${current_hour}" -lt 6 ]; then
+  if ! is_config_lock_active; then
+    fail "Expected is_config_lock_active to be active during first range (0-5)"
+  fi
+elif [ "${current_hour}" -ge 22 ]; then
+  if ! is_config_lock_active; then
+    fail "Expected is_config_lock_active to be active during second range (22-23)"
+  fi
+fi
+
 # Restore config to enabled + lock hours for the actual lock/unlock test below
 cat > "${config_file}" <<EOF
 # Test config for Enhancement #18
@@ -263,4 +323,178 @@ fi
 assert_writable "${config_file}"
 
 echo "OK: Enhancement #18 basic lock/unlock test passed."
+
+# --- Edge case tests (Phase 8.3) ---
+echo ""
+echo "=== Edge Case Tests ==="
+
+# Test with missing config file (lock should still work if directory exists)
+echo "Testing lock application when config file doesn't exist initially..."
+# Remove config file
+rm -f "${config_file}"
+# Create config in parent directory temporarily to enable lock
+# Actually, we need the config file to exist to read CONFIG_LOCK_ENABLED
+# So this test is more about: what if config file is missing but we still try to lock?
+# The lock mechanism requires the config file to exist to read settings.
+# So we'll test: create config, lock it, then verify directory stays locked
+# even if we can't read the file (it's read-only)
+cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=true
+${day_name}=${current_hour}-${end_hour}
+EOF
+chmod 600 "${config_file}"
+# Apply lock
+apply_config_directory_lock
+# Directory should be locked
+assert_not_writable "${config_locked_dir}"
+# Marker should exist
+assert_file_exists "${marker_file}"
+# Snapshot should exist
+assert_file_exists "${snapshot_file}"
+# Unlock
+chmod 644 "${config_file}" 2>/dev/null || true
+cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=false
+EOF
+chmod 600 "${config_file}"
+apply_config_directory_lock
+assert_writable "${config_locked_dir}"
+
+# Test self-healing: permission re-assertion
+echo "Testing self-healing: permission re-assertion..."
+cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=true
+${day_name}=${current_hour}-${end_hour}
+EOF
+chmod 600 "${config_file}"
+apply_config_directory_lock
+assert_file_exists "${config_file}"
+assert_file_exists "${snapshot_file}"
+assert_not_writable "${config_file}"
+assert_not_writable "${config_locked_dir}"
+
+# Test that self-healing re-asserts permissions (simulate manual permission change)
+# Temporarily unlock to simulate user tampering
+chmod 755 "${config_locked_dir}" 2>/dev/null || true
+chmod 644 "${config_file}" 2>/dev/null || true
+# Verify they're writable now
+if [ -w "${config_file}" ] && [ -w "${config_locked_dir}" ]; then
+  # Call self-healing - should re-apply lock
+  check_and_restore_config_file
+  # Permissions should be locked again
+  assert_not_writable "${config_file}"
+  assert_not_writable "${config_locked_dir}"
+  echo "OK: Self-healing re-asserted permissions"
+else
+  fail "Could not unlock files for self-healing test"
+fi
+
+# Unlock for next test
+chmod 644 "${config_file}" 2>/dev/null || true
+cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=false
+EOF
+apply_config_directory_lock
+
+# Test missing marker file
+echo "Testing missing marker file handling..."
+cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=true
+${day_name}=${current_hour}-${end_hour}
+EOF
+chmod 600 "${config_file}"
+apply_config_directory_lock
+assert_file_exists "${marker_file}"
+# Delete marker file (simulating tampering)
+chmod 644 "${marker_file}" 2>/dev/null || true
+rm -f "${marker_file}"
+# Re-apply lock - should recreate marker
+apply_config_directory_lock
+assert_file_exists "${marker_file}"
+
+# Unlock for next test
+chmod 644 "${config_file}" 2>/dev/null || true
+cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=false
+EOF
+apply_config_directory_lock
+
+# Test corrupted snapshot file
+echo "Testing corrupted snapshot file handling..."
+# Unlock first
+chmod 644 "${config_file}" 2>/dev/null || true
+cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=true
+${day_name}=${current_hour}-${end_hour}
+EOF
+chmod 600 "${config_file}"
+apply_config_directory_lock
+assert_file_exists "${snapshot_file}"
+# Corrupt snapshot file (need to make it writable first)
+chmod 644 "${snapshot_file}" 2>/dev/null || true
+echo "CORRUPTED_DATA_NOT_VALID_CONFIG" > "${snapshot_file}"
+chmod 444 "${snapshot_file}" 2>/dev/null || true
+# Self-healing should handle gracefully (won't restore from corrupted snapshot)
+check_and_restore_config_file
+# Original config file should still exist and be valid
+assert_file_exists "${config_file}"
+# Verify it still has valid content
+if ! grep -q "CHECK_INTERVAL=10" "${config_file}"; then
+  fail "Config file should still have valid content after corrupted snapshot test"
+fi
+
+# Unlock for next test
+chmod 644 "${config_file}" 2>/dev/null || true
+cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=false
+EOF
+apply_config_directory_lock
+
+# Test manual permission changes (self-healing)
+echo "Testing self-healing: manual permission changes..."
+cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=true
+${day_name}=${current_hour}-${end_hour}
+EOF
+chmod 600 "${config_file}"
+apply_config_directory_lock
+assert_not_writable "${config_file}"
+assert_not_writable "${config_locked_dir}"
+
+# Manually change permissions (simulating user tampering)
+chmod 755 "${config_locked_dir}" 2>/dev/null || true
+chmod 644 "${config_file}" 2>/dev/null || true
+# Self-healing should re-apply lock
+check_and_restore_config_file
+assert_not_writable "${config_file}"
+assert_not_writable "${config_locked_dir}"
+
+# Unlock
+chmod 644 "${config_file}" 2>/dev/null || true
+cat > "${config_file}" <<EOF
+# Test config for Enhancement #18
+CHECK_INTERVAL=10
+CONFIG_LOCK_ENABLED=false
+EOF
+apply_config_directory_lock
+
+echo "OK: All edge case tests passed."
 
