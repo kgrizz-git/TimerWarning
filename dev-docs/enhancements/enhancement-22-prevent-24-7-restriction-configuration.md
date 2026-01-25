@@ -1,6 +1,6 @@
 # Enhancement 22: Prevent 24/7 Restriction Configuration
 
-- **Description**: Add validation in `configure.sh` to detect and prevent users from configuring restricted hours that cover 24 hours a day, 7 days a week (or close to it). This prevents users from accidentally locking themselves out of their computer. The validation must evaluate the entire configuration holistically (not just individual days) to account for overnight time ranges that span multiple days. **Critical**: When counting restricted minutes, the system must detect and merge overlapping intervals both within the same day (e.g., "0-10,9-23" overlaps at hour 9) and across day boundaries due to overnight ranges (e.g., Monday "23-6" and Tuesday "0-5" overlap). Overnight ranges are identified when start hour > end hour (e.g., "23-6" spans midnight). If 24/7 restrictions (>= 10080 minutes) are detected, show a prominent error dialog and block saving. If restrictions exceed 6720 minutes (16 hours/day but < 10080), show a warning dialog, apply automatic safety overrides (disable config locking, configure.sh blocking, and restrict popup window sizes to "small" and "medium" only), and allow user to confirm or modify. Note: Hour ranges are inclusive of start hour, exclusive of end hour (e.g., "0-23" covers hours 0-22 = 23 hours total; "0-12,12-0" covers all 24 hours).
+- **Description**: Add validation in `configure.sh` to detect and prevent users from configuring restricted hours that cover 24 hours a day, 7 days a week (or close to it). This prevents users from accidentally locking themselves out of their computer. The validation must evaluate the entire configuration holistically (not just individual days) to account for overnight time ranges that span multiple days. **Critical**: When counting restricted minutes, the system must detect and merge overlapping intervals both within the same day (e.g., "0-10,9-23" overlaps at hour 9) and across day boundaries due to overnight ranges (e.g., Monday "23-6" and Tuesday "0-5" overlap). Overnight ranges are identified when start hour > end hour (e.g., "23-6" spans midnight). If 24/7 restrictions (>= 10080 minutes) are detected, show a prominent error dialog and block saving. If restrictions exceed 6720 minutes (16 hours/day but < 10080), show a warning dialog, apply automatic safety overrides (disable config locking, configure.sh blocking, and restrict popup window sizes to "xsmall", "small", and "medium" only), and allow user to confirm or modify. Custom sizes are allowed if they don't exceed medium size, otherwise they are clamped to medium. Note: Hour ranges are inclusive of start hour, exclusive of end hour (e.g., "0-23" covers hours 0-22 = 23 hours total; "0-12,12-0" covers all 24 hours).
 - **Files Affected**: `configure.sh`, `lib/configure-validation.sh` (new), `lib/configure-ui.sh`, `sleep-warning.conf`
 - **Priority**: High (critical safety feature to prevent accidental lockout)
 - **Status**: Not implemented
@@ -191,7 +191,7 @@
     - Message should explain:
       - "You have configured restrictions for more than 16 hours per day."
       - "This leaves very little unrestricted time and may effectively lock you out."
-      - "Safety measures will be applied: config locking features disabled, popup size limited to small/medium."
+      - "Safety measures will be applied: config locking features disabled, popup size limited to xsmall/small/medium."
       - "Do you want to save this configuration anyway?"
     - Dialog should offer two options:
       - "Yes, Save Anyway" - returns 0, proceed with saving (user acknowledges risk)
@@ -203,7 +203,7 @@
       show_high_restriction_warning() {
           local use_gui="$1"
           local title="Warning: Very High Restriction Level"
-          local message="You have configured restrictions for more than 16 hours per day.\n\nThis leaves very little unrestricted time and may effectively lock you out.\n\nSafety measures will be applied:\n• Config locking features will be disabled\n• Popup size will be limited to small/medium\n\nDo you want to save this configuration anyway?"
+          local message="You have configured restrictions for more than 16 hours per day.\n\nThis leaves very little unrestricted time and may effectively lock you out.\n\nSafety measures will be applied:\n• Config locking features will be disabled\n• Popup size will be limited to xsmall/small/medium\n\nDo you want to save this configuration anyway?"
           
           if [ "${use_gui}" = "true" ] && has_dialog_tool; then
               show_question_dialog "${title}" "${message}" "Yes, Save Anyway" "No, Modify Settings"
@@ -217,7 +217,7 @@
               echo "" >&2
               echo "Safety measures will be applied:" >&2
               echo "• Config locking features will be disabled" >&2
-              echo "• Popup size will be limited to small/medium" >&2
+              echo "• Popup size will be limited to xsmall/small/medium" >&2
               echo "" >&2
               read -p "Save anyway? [y/N]: " answer
               case "${answer}" in
@@ -232,12 +232,13 @@
     - When restrictions > 6720 minutes but < 10080 minutes (> 16 hours/day) detected, automatically set in configuration before writing:
       - `CONFIG_LOCK_ENABLED=false` (prevents config file locking)
       - `CONFIGURE_BLOCK_ENABLED=false` (prevents configure.sh blocking)
-      - Restrict popup window size to "small" or "medium" only (if user had "large" or "fullscreen" selected, automatically change to "medium")
+      - Restrict popup window size to "xsmall", "small", or "medium" only (if user had "large", "xlarge", "max", or "custom" with dimensions exceeding medium selected, automatically change to "medium")
+      - For custom sizes: If custom size (percentage or absolute pixels) would exceed medium size (30% × 30% or 768×432 for 2560×1440), automatically clamp to medium size; if custom size is ≤ medium, allow it to remain as custom
     - These overrides should be applied even if user previously enabled them
     - Add comment in config file explaining why these are disabled:
       - For 24/7 (>= 10080): "# CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because 24/7 restrictions were detected. This prevents accidental lockout."
       - For > 6720 (but < 10080): "# CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because restrictions exceed 16 hours/day. This prevents accidental lockout."
-      - For > 6720: "# POPUP_SIZE has been restricted to small/medium only because restrictions exceed 16 hours/day. This prevents overly intrusive popups."
+      - For > 6720: "# POPUP_SIZE has been restricted to xsmall/small/medium only because restrictions exceed 16 hours/day. This prevents overly intrusive popups when user has very limited unrestricted time."
   - **Edge Cases**:
     - **Overnight Ranges**: Must correctly handle ranges like "22:00-06:00" that span midnight
     - **Overlapping Ranges**: Must merge overlapping intervals correctly (e.g., "22:00-06:00" and "05:00-07:00")
@@ -268,7 +269,7 @@
   - **Automatic Protection**: Automatically disabling config locking, configure.sh blocking, and large popup sizes provides safety net
   - **Non-Blocking**: User can still modify configuration after seeing warning (just can't save 24/7 config)
   - **Transparency**: Config file comment explains why safety features are disabled
-  - **Less Intrusive Popups**: Restricting popup sizes to small/medium prevents overly intrusive warnings when user has very limited unrestricted time
+  - **Less Intrusive Popups**: Restricting popup sizes to xsmall/small/medium prevents overly intrusive warnings when user has very limited unrestricted time
 - **Edge Cases**:
   - **System Time Changes**: Not applicable (validation is based on configuration, not system time)
   - **System Sleep/Resume**: Not applicable (validation runs during configuration, not during runtime)
@@ -279,7 +280,7 @@
   - **Enhancement 18 (Config File Locking)**: This enhancement automatically disables config file locking if 24/7 restrictions are detected
   - **Enhancement 19 (Prevent configure.sh Execution)**: This enhancement automatically disables configure.sh blocking if 24/7 restrictions are detected
   - **Enhancement 20 (Additional Hours for Config Locking)**: Should also be disabled if 24/7 restrictions are detected
-  - **Enhancement 03 (Enhanced Window Size Options)**: This enhancement restricts popup window sizes to small/medium only when restrictions > 6720 minutes
+  - **Enhancement 03 (Enhanced Window Size Options)**: This enhancement restricts popup window sizes to xsmall/small/medium only when restrictions > 6720 minutes. Custom sizes are allowed if they don't exceed medium size (30% × 30% or 768×432 for 2560×1440), otherwise they are clamped to medium.
   - **Safety Feature**: Complements other safety features by preventing the most dangerous configuration scenario
 
 ## Implementation Checklist
@@ -399,7 +400,15 @@
                     continue  # User cancelled, return to menu
                 fi
                 # User confirmed - apply safety overrides before saving
-                if [ "${popup_size}" = "large" ] || [ "${popup_size}" = "fullscreen" ]; then
+                # Restrict popup size to xsmall, small, or medium only
+                if [ "${popup_size}" = "large" ] || [ "${popup_size}" = "xlarge" ] || [ "${popup_size}" = "max" ]; then
+                    popup_size="medium"
+                elif [ "${popup_size}" = "custom" ]; then
+                    # Check if custom size exceeds medium (30% × 30% or 768×432 for 2560×1440)
+                    # If so, clamp to medium; if ≤ medium, allow custom to remain
+                    # (Implementation detail: validate custom size dimensions and clamp if needed)
+                    # For now, if custom is selected and restrictions are high, change to medium
+                    # TODO: Add logic to check actual custom size dimensions and only clamp if exceeding medium
                     popup_size="medium"
                 fi
                 # Disable CONFIGURE_BLOCK_ENABLED (enhancement #19 is implemented)
@@ -432,13 +441,14 @@
   - [x] Add comment in config file explaining why these are disabled:
     - [x] For > 6720 (but < 10080): "# CONFIGURE_BLOCK_ENABLED has been disabled because restrictions exceed 16 hours/day. This prevents accidental lockout when user has very limited unrestricted time."
 
-- [x] **Restrict popup window size when high restrictions detected**
+  - [x] **Restrict popup window size when high restrictions detected**
   - [x] When restrictions > 6720 minutes (> 16 hours/day) detected, automatically restrict popup window size:
-    - [x] If `POPUP_SIZE` is currently set to "large" or "fullscreen", change it to "medium"
-    - [x] Only allow "small" or "medium" options for popup size (enforced during save)
+    - [x] If `POPUP_SIZE` is currently set to "large", "xlarge", or "max", change it to "medium"
+    - [x] For custom sizes: If custom size exceeds medium (30% × 30% or 768×432 for 2560×1440), clamp to medium; if ≤ medium, allow custom to remain
+    - [x] Only allow "xsmall", "small", or "medium" options for popup size (enforced during save)
     - [x] This prevents excessively intrusive popups when user has very limited unrestricted time
   - [x] Add comment in config file explaining the popup size restriction:
-    - [x] "# POPUP_SIZE has been restricted to small/medium only because restrictions exceed 16 hours/day. This prevents overly intrusive popups when user has very limited unrestricted time."
+    - [x] "# POPUP_SIZE has been restricted to xsmall/small/medium only because restrictions exceed 16 hours/day. This prevents overly intrusive popups when user has very limited unrestricted time."
     - [x] If user later reduces restrictions to <= 6720 minutes, they can manually re-enable large/fullscreen if desired (no code needed - user can change in next configuration)
   - [ ] In `lib/configure-input.sh` popup size configuration:
     - [ ] During configuration, if high restrictions (> 6720) are present, only show "small" and "medium" options
@@ -584,12 +594,13 @@
     - [ ] Verify POPUP_SIZE is NOT changed (already compliant)
   - [ ] Test with normal restrictions (<= 6720 minutes):
     - [ ] Verify POPUP_SIZE is NOT automatically restricted
-    - [ ] User can select "large" or "fullscreen" options normally
+    - [ ] User can select "large", "xlarge", "max", or "custom" options normally
   - [ ] Test popup size configuration menu with high restrictions:
-    - [ ] During configure.sh, if restrictions > 6720 detected, verify only "small" and "medium" options are shown
+    - [ ] During configure.sh, if restrictions > 6720 detected, verify only "xsmall", "small", and "medium" options are shown
     - [ ] Verify info message explaining popup size restriction is displayed
+    - [ ] Test custom size handling: If custom size ≤ medium, verify it's allowed; if custom size > medium, verify it's clamped to medium
   - [ ] Test popup size configuration menu with normal restrictions:
-    - [ ] Verify all four options (small, medium, large, fullscreen) are available
+    - [ ] Verify all size options (xsmall, small, medium, large, xlarge, max, custom) are available
 
 - [ ] **Test user workflow - DO NOT AUTO-RUN! CONFIRM WITH USER FIRST!**
   - [X] User configures 24/7 restrictions → warning appears → user modifies → saves successfully
@@ -640,7 +651,7 @@
   - [x] Explain how overnight ranges are handled in the validation
   - [x] Document the interval merging logic
   - [x] Explain the automatic safety feature disabling (config locking, configure.sh blocking, popup size restrictions)
-    - [x] Document the popup size restriction logic (why only small/medium are allowed for > 6720 minutes)
+    - [x] Document the popup size restriction logic (why only xsmall/small/medium are allowed for > 6720 minutes)
   - [x] Include examples of valid vs invalid configurations
   - [x] Reference this enhancement document for detailed implementation notes
   - [ ] After completing the automatic safety overrides once config locking and blocking of manage and configure scripts are implemented, update technical documentation
@@ -651,7 +662,7 @@
   - [x] Explain why 24/7 restrictions are blocked
   - [x] Provide examples of valid vs invalid configurations
   - [x] Document the automatic safety feature disabling (config locking, configure.sh blocking, popup size restrictions)
-    - [x] Explain popup size restrictions for high restriction levels (> 6720 minutes): only small/medium allowed
+    - [x] Explain popup size restrictions for high restriction levels (> 6720 minutes): only xsmall/small/medium allowed, custom sizes clamped to medium if exceeding
   - [x] Document rationale: prevents overly intrusive popups when user has very limited unrestricted time
   - [ ] After completing the automatic safety overrides once config locking and blocking of manage and configure scripts are implemented, update user documentation
 

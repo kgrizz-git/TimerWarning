@@ -6,13 +6,13 @@ This document provides resolved clarifications for the enhancement plan.
 
 **Decision**: 
 - **Default percentage values** (same percentage for width and height):
-  - `xsmall`: 10% × 10%
+  - `xsmall`: 15% × 15%
   - `small`: 20% × 20%
-  - `medium`: 40% × 40%
-  - `large`: 60% × 60%
-  - `xlarge`: 80% × 80%
+  - `medium`: 30% × 30%
+  - `large`: 55% × 55%
+  - `xlarge`: 75% × 75%
   - `max`: 90% × 90%
-- **Custom size**: Default 50% × 50%, user-configurable range 10-100%
+- **Custom size**: Default 50% × 50%, user-configurable range 15-100% (minimum matches xsmall)
 - **Customization**: Only the custom size can be modified by the user (predefined sizes are fixed)
 - **Configuration**: Set via `configure.sh` wizard
 - **Absolute fallback**: User can also set an absolute pixel size that will be used if resolution cannot be detected
@@ -48,11 +48,11 @@ This document provides resolved clarifications for the enhancement plan.
 ## 3. Default Percentage Values ✅ RESOLVED
 
 **Decision**: Default percentage values (width and height same):
-- `xsmall`: 10% × 10%
+- `xsmall`: 15% × 15%
 - `small`: 20% × 20%
-- `medium`: 40% × 40%
-- `large`: 60% × 60%
-- `xlarge`: 80% × 80% (updated from 75%)
+- `medium`: 30% × 30%
+- `large`: 55% × 55%
+- `xlarge`: 75% × 75%
 - `max`: 90% × 90%
 
 ## 4. Resolution Detection Function Location and Caching ✅ RESOLVED
@@ -80,6 +80,7 @@ This document provides resolved clarifications for the enhancement plan.
   - If resolution cannot be detected at configure time, allow configuration but validate at popup time
   - If popup size would exceed display, clamp to 100% and log warning
   - Consider using KDialog textbox mode as alternative if available (may handle oversized windows better)
+- **Minimum Size Update**: Minimum custom size is 384×216 (matches xsmall size, 15% × 15% of 2560×1440). Custom size cannot go below xsmall (15% or 384×216 pixels). **Testing Required**: All sizes must be tested to confirm buttons are visible and clickable. Very small windows (especially xsmall at 384×216) may have button visibility issues with Zenity and KDialog (without textbox mode).
 
 ## 7. Error/Warning Display Location ✅ RESOLVED
 
@@ -91,13 +92,14 @@ This document provides resolved clarifications for the enhancement plan.
 ## 8. Fixed Pixel Fallback Values ✅ RESOLVED
 
 **Calculation**: Based on percentages and 2560×1440 monitor resolution:
-- `xsmall`: 10% × 10% = **256 × 144** pixels
+- `xsmall`: 15% × 15% = **384 × 216** pixels
 - `small`: 20% × 20% = **512 × 288** pixels
-- `medium`: 40% × 40% = **1024 × 576** pixels
-- `large`: 60% × 60% = **1536 × 864** pixels
-- `xlarge`: 80% × 80% = **2048 × 1152** pixels
+- `medium`: 30% × 30% = **768 × 432** pixels
+- `large`: 55% × 55% = **1408 × 792** pixels
+- `xlarge`: 75% × 75% = **1920 × 1080** pixels
 - `max`: 90% × 90% = **2304 × 1296** pixels
 - `custom` (default): 50% × 50% = **1280 × 720** pixels
+- **Note**: Custom size minimum is 384×216 (matches xsmall size, 15% × 15%)
 
 **Decision**: Use these calculated values as absolute pixel fallbacks when resolution detection fails.
 
