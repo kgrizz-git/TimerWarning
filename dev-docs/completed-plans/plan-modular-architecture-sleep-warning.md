@@ -260,7 +260,7 @@ LIB_DIR="${SCRIPT_DIR}/lib"
 When installed via `install.sh`, files are placed at:
 - Main script: `~/.local/bin/sleep-warning.sh`
 - Library modules: `~/.local/lib/sleep-warning/*.sh`
-- Configuration: `~/.config/sleep-warning/sleep-warning.conf`
+- Configuration: `~/.config/sleep-warning/config/sleep-warning.conf` (older installs may have `~/.config/sleep-warning/sleep-warning.conf`)
 
 The installer automatically updates the main script to use absolute paths:
 ```bash

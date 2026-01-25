@@ -3,6 +3,7 @@
 ###############################################################################
 # Test Stay-On-Top Methods for KDE/zenity
 #
+# ⚠️ NOTE: This is an old test script. Not important to run for now.
 # This script tests different methods to keep a popup window on top
 # to identify which methods work with KDE/KWin window manager.
 #

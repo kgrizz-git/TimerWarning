@@ -3,6 +3,7 @@
 ###############################################################################
 # Debug script to identify where sleep-warning.sh hangs
 #
+# ⚠️ NOTE: This is an old test script. Not important to run for now.
 # This script runs sleep-warning.sh with debug output to identify the hang point
 ###############################################################################
 

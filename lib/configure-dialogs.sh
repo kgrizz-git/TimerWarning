@@ -306,13 +306,29 @@ show_multi_column_list_dialog() {
     # Count columns by finding where data starts (first non-option-looking argument)
     # Column names are the arguments before data starts
     # Support 1, 2, 3, or 4 columns
+    # Improved detection: Column names are typically short labels (single words or short phrases)
+    # Data typically contains numbers, parentheses, colons, slashes, or is longer descriptive text
+    # Strategy: Column names are usually single words (no spaces) or very short (<=10 chars with spaces)
+    #           Data items are longer, contain numbers/special chars, or are descriptive phrases
+    
+    # Helper function to check if argument looks like a column name
+    is_likely_column_name() {
+        local arg="$1"
+        # Single letter is always a column name
+        [[ "${arg}" =~ ^[A-Za-z]$ ]] && return 0
+        # Single word (no spaces) and reasonable length (<=12 chars) - likely column name
+        [[ ! "${arg}" =~ \  ]] && [[ "${arg}" =~ ^[A-Za-z]+$ ]] && [ ${#arg} -le 12 ] && return 0
+        # Short phrase (letters/spaces only, reasonable length) - likely column name
+        # This must allow multi-word headers like "Restricted Hours" / "Config Lock Hours".
+        [[ "${arg}" =~ ^[A-Za-z][A-Za-z\ ]*[A-Za-z]$ ]] && [ ${#arg} -le 40 ] && return 0
+        # Otherwise, likely data
+        return 1
+    }
+    
     if [ $# -ge 4 ]; then
         # Check if 4th argument looks like a column name (not data)
-        # Data typically contains colons, arrows, or parentheses, while column names are simple words
         local fourth_arg="$4"
-        # Check if it contains data-like characters (parentheses, arrows, colons)
-        # Column names are simple: letters and spaces only, no special characters
-        if [[ ! "${fourth_arg}" =~ [\(\):] ]] && [[ "${fourth_arg}" != *"->"* ]] && [[ "${fourth_arg}" =~ ^[A-Za-z\ ]+$ ]]; then
+        if is_likely_column_name "${fourth_arg}"; then
             # Likely a column name - assume 4 columns
             column_names=("$1" "$2" "$3" "$4")
             num_columns=4
@@ -320,13 +336,13 @@ show_multi_column_list_dialog() {
         elif [ $# -ge 3 ]; then
             # Check if 3rd argument looks like a column name (not data)
             local third_arg="$3"
-            if [[ ! "${third_arg}" =~ [\(\):] ]] && [[ "${third_arg}" != *"->"* ]] && [[ "${third_arg}" =~ ^[A-Za-z\ ]+$ ]]; then
+            if is_likely_column_name "${third_arg}"; then
                 # Likely a column name - assume 3 columns
                 column_names=("$1" "$2" "$3")
                 num_columns=3
                 shift 3
             else
-                # Likely data - assume 2 columns
+                # Contains numbers, special chars, or too long - likely data - assume 2 columns
                 column_names=("$1" "$2")
                 num_columns=2
                 shift 2
@@ -340,13 +356,13 @@ show_multi_column_list_dialog() {
     elif [ $# -ge 3 ]; then
         # Check if 3rd argument looks like a column name (not data)
         local third_arg="$3"
-        if [[ ! "${third_arg}" =~ [\(\):] ]] && [[ "${third_arg}" != *"->"* ]] && [[ "${third_arg}" =~ ^[A-Za-z\ ]+$ ]]; then
+        if is_likely_column_name "${third_arg}"; then
             # Likely a column name - assume 3 columns
             column_names=("$1" "$2" "$3")
             num_columns=3
             shift 3
         else
-            # Likely data - assume 2 columns
+            # Contains numbers, special chars, or too long - likely data - assume 2 columns
             column_names=("$1" "$2")
             num_columns=2
             shift 2

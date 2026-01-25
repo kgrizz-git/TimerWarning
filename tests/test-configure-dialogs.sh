@@ -17,6 +17,7 @@ LIB_DIR="${SCRIPT_DIR}/lib"
 # Source required modules
 source "${LIB_DIR}/display-detection.sh" || exit 1
 source "${LIB_DIR}/desktop-environment.sh" || exit 1
+source "${LIB_DIR}/configure-core.sh" || exit 1
 source "${LIB_DIR}/configure-dialogs.sh" || exit 1
 
 # Colors for output

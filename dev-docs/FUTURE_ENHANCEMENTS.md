@@ -210,6 +210,12 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Not implemented
 - **Details**: See [enhancements/enhancement-28-steamos-newbie-installation-guide.md](enhancements/enhancement-28-steamos-newbie-installation-guide.md)
 
+### 29. kdialog Window Size Control
+- **Description**: Attempt to provide window size control for kdialog popups by using `--textbox` with `--geometry` option (which supports geometry), with automatic fallback to `--sorry` dialog if the textbox approach doesn't work properly. This addresses the limitation that kdialog's `--geometry` option only works for `--textbox` and `--textinputbox`, not for message box types like `--sorry`.
+- **Priority**: Low (kdialog is last-resort fallback, YAD and Zenity already provide full size control)
+- **Status**: Not implemented
+- **Details**: See [enhancements/enhancement-29-kdialog-window-size-control.md](enhancements/enhancement-29-kdialog-window-size-control.md)
+
 ## Alternative Approaches (Require Different Implementation)
 
 These approaches would require significant changes to the architecture or a completely different implementation strategy:

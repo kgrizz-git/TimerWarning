@@ -23,7 +23,7 @@
 # By default, GUI mode is used if a dialog tool (yad/zenity/kdialog) is available and a display is present.
 #
 # Output:
-# - Updates ~/.config/sleep-warning/sleep-warning.conf with user selections
+# - Updates ~/.config/sleep-warning/config/sleep-warning.conf with user selections (Enhancement #18)
 ###############################################################################
 
 # Determine script directory
@@ -35,6 +35,7 @@ source "${LIB_DIR}/configure-core.sh" || exit 1
 source "${LIB_DIR}/config.sh" || exit 1
 source "${LIB_DIR}/logging.sh" || exit 1
 source "${LIB_DIR}/time-validation.sh" || exit 1
+source "${LIB_DIR}/config-locking.sh" || exit 1  # Enhancement #18: Config file locking
 source "${LIB_DIR}/display-detection.sh" || exit 1
 source "${LIB_DIR}/desktop-environment.sh" || exit 1
 source "${LIB_DIR}/configure-dialogs.sh" || exit 1
@@ -101,11 +102,34 @@ main() {
         fi
     fi
     
-    # Check if configuration is locked due to restricted hours
+    # Check if configuration script execution is locked due to restricted hours (Enhancement #19)
     if ! check_config_lock_time; then
-        # Configuration is locked - show error and exit
+        # Configuration script execution is locked - show error and exit
         show_config_locked_error "${use_gui}" "Configuration"
         exit 1
+    fi
+    
+    # Check if config file is locked (Enhancement #18)
+    # This is separate from script execution blocking - checks if file itself is locked
+    if type is_config_lock_active >/dev/null 2>&1; then
+        if is_config_lock_active 2>/dev/null; then
+            # Config file is locked - show error and exit
+            if type show_config_file_locked_error >/dev/null 2>&1; then
+                show_config_file_locked_error "${use_gui}"
+            else
+                # Fallback error message if function not available
+                if [ "${use_gui}" = "true" ]; then
+                    if command -v zenity >/dev/null 2>&1; then
+                        zenity --error --title="Configuration File Locked" --text="Configuration file is locked during restricted hours. Please try again after restrictions end." 2>/dev/null
+                    elif command -v yad >/dev/null 2>&1; then
+                        yad --error --title="Configuration File Locked" --text="Configuration file is locked during restricted hours. Please try again after restrictions end." 2>/dev/null
+                    fi
+                else
+                    echo "ERROR: Configuration file is locked during restricted hours. Please try again after restrictions end." >&2
+                fi
+            fi
+            exit 1
+        fi
     fi
     
     # Show welcome
@@ -123,7 +147,7 @@ main() {
     # This is a sparse array indexed 0-6 (Sunday-Saturday) with entries like:
     #   UNINSTALL_LOCK_HOURS_MONDAY=9-17
     declare -g -a uninstall_lock_hours_lines=()
-    declare -g check_interval popup_size popup_position min_display_time popup_immovable configure_block_enabled uninstall_protection_mode pause_enabled pause_duration dialog_tool
+    declare -g check_interval popup_size popup_position min_display_time popup_immovable configure_block_enabled uninstall_protection_mode pause_enabled pause_duration dialog_tool config_lock_enabled
     
     # Load existing configuration
     # Function sets global variables and populates global arrays directly
@@ -196,7 +220,7 @@ main() {
         
         # Show main menu
         local menu_choice
-        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}" "${dialog_tool_status}")
+        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}" "${dialog_tool_status}" "${config_lock_enabled}")
         local menu_exit=$?
         
         if [ "${menu_exit}" -eq 2 ] || [ "${menu_choice}" = "CANCELLED" ]; then
@@ -278,7 +302,7 @@ main() {
                 fi
                 ;;
             5)
-                # Visual Day/Time Grid
+                # View Weekly Hours Settings
                 # Use global variable to store result (avoid subshell issue with namerefs)
                 declare -g grid_result_var=""
                 while true; do
@@ -307,14 +331,16 @@ main() {
                 done
                 ;;
             6)
-                # Block Configuration During Restricted Hours (configure blocking during restricted/lock hours)
-                local new_block_enabled
-                new_block_enabled=$(get_configure_block_enabled_config "${use_gui}")
-                if [ "${new_block_enabled}" = "CANCELLED" ]; then
+                # Security Settings (Script Blocking & Config File Locking)
+                local security_result
+                security_result=$(get_security_settings_config "${use_gui}" "${configure_block_enabled}" "${config_lock_enabled}")
+                if [ "${security_result}" = "CANCELLED" ]; then
                     # User already confirmed cancellation
                     exit 0
                 else
-                    configure_block_enabled="${new_block_enabled}"
+                    # Parse pipe-separated result: "configure_block|config_lock"
+                    configure_block_enabled=$(echo "${security_result}" | cut -d'|' -f1)
+                    config_lock_enabled=$(echo "${security_result}" | cut -d'|' -f2)
                 fi
                 ;;
             7)
@@ -431,17 +457,20 @@ main() {
                             # Safety override 2: Disable configure.sh blocking (Enhancement #19)
                             # This prevents accidental lockout when user has very limited unrestricted time
                             # Conditional check: Only disable if the feature is enabled (not empty and not already false)
-                            # Note: CONFIG_LOCK_ENABLED (Enhancement #18) is not yet implemented, so we skip it
                             local original_configure_block="${configure_block_enabled}"
                             if [ -n "${configure_block_enabled}" ] && [ "${configure_block_enabled}" != "false" ]; then
                                 configure_block_enabled="false"
                                 configure_block_overridden="true"
                             fi
                             
-                            # Future: When Enhancement #18 (Config File Locking) is implemented, also disable:
-                            # - CONFIG_LOCK_ENABLED (set to false)
-                            # - CONFIG_LOCK_ADDITIONAL_HOURS (clear/empty)
-                            # Use feature detection: check if variables/functions exist before trying to disable
+                            # Safety override 3: Disable config file locking (Enhancement #18)
+                            # This prevents accidental lockout when user has very limited unrestricted time
+                            # Conditional check: Only disable if the feature is enabled (not empty and not already false)
+                            if [ -n "${config_lock_enabled}" ] && [ "${config_lock_enabled}" != "false" ]; then
+                                config_lock_enabled="false"
+                                # Note: Enhancement #22 integration - automatically disable if restrictions > 6720 minutes
+                                # This is a safety measure to prevent lockout scenarios
+                            fi
                             ;;
                         # "ok" - proceed normally with saving (no overrides)
                     esac
@@ -449,7 +478,7 @@ main() {
                     # Write configuration (with possibly modified values after safety overrides)
                     # Pass restriction config_lines, lock_hours_lines (Phase 2), and uninstall_lock_hours_lines (Enhancement #26 Phase 2),
                     # followed by optional safety override flags so write_config can add comments.
-                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${dialog_tool}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
+                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${dialog_tool}" "${config_lock_enabled}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
                         # Update timer file if it exists
                         if [ -f "${TIMER_FILE}" ]; then
                             if update_timer_file "${check_interval}"; then

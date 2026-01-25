@@ -34,13 +34,21 @@ SERVICE_NAME="sleep-warning"
 TIMER_NAME="${SERVICE_NAME}.timer"
 SCRIPT_PATH="${HOME}/.local/bin/${SERVICE_NAME}.sh"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
-CONFIG_FILE="${CONFIG_DIR}/sleep-warning.conf"
+# Enhancement #18: Config file is now in subdirectory
+# Use new location, but check old location as fallback for backward compatibility
+CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"
+CONFIG_FILE_OLD="${CONFIG_DIR}/sleep-warning.conf"
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 SERVICE_FILE="${SYSTEMD_USER_DIR}/${SERVICE_NAME}.service"
 TIMER_FILE="${SYSTEMD_USER_DIR}/${TIMER_NAME}"
 
 # Source required library modules for time check
 source "${SOURCE_LIB_DIR}/config.sh" 2>/dev/null || true
+# Override CONFIG_FILE with fallback logic after sourcing config.sh
+# (config.sh defines CONFIG_FILE, but we want fallback support during transition)
+if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_FILE_OLD}" ]; then
+    CONFIG_FILE="${CONFIG_FILE_OLD}"
+fi
 source "${SOURCE_LIB_DIR}/logging.sh" 2>/dev/null || true
 source "${SOURCE_LIB_DIR}/pause-state.sh" 2>/dev/null || true
 source "${SOURCE_LIB_DIR}/time-validation.sh" 2>/dev/null || true

@@ -198,6 +198,7 @@ test_create_desktop_dropin() {
         print_test_result "create_service_dropin() handles desktop mode correctly" "PASS"
     elif [ -f "${dropin_dir}/mode-desktop.conf" ]; then
         # File was created successfully
+        local dropin_file="${dropin_dir}/mode-desktop.conf"
         if grep -q "Environment=DISPLAY=:0" "${dropin_file}" 2>/dev/null; then
             print_test_result "create_service_dropin() creates desktop mode drop-in correctly" "PASS"
         else

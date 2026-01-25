@@ -3,4 +3,4 @@ description:
 alwaysApply: true
 ---
 
-Before running tests or bash commands that would edit my installed config file, check if it is during restricted or blocked hours, and if so, do not run them. Similarly, do not edit, remove, or overwrite the installed config file during restricted or blocked hours.
+Before running tests or bash commands that would edit my installed config file, check if it is during restricted or blocked hours, and if so, do not run them. Similarly, do not edit, remove, or overwrite the installed config file during restricted or blocked hours. As an alternative, when feasible you can design and run tests using a "dummy" copy config file that mimics a real one. If that would require modifying any of our actual .sh scripts, make copies of those and modify them instead.

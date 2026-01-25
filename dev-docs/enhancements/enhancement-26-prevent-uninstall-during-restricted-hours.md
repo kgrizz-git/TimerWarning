@@ -479,7 +479,7 @@ Make `uninstall.sh` more difficult to run during restricted hours when `UNINSTAL
   - [x] List all files and directories to remove:
     - [x] Systemd service file: `~/.config/systemd/user/sleep-warning.service`
     - [x] Systemd timer file: `~/.config/systemd/user/sleep-warning.timer`
-    - [x] Config file: `~/.config/sleep-warning/sleep-warning.conf`
+    - [x] Config file: `~/.config/sleep-warning/config/sleep-warning.conf` (older installs may have `~/.config/sleep-warning/sleep-warning.conf`)
     - [x] Log file: `~/.config/sleep-warning/warnings.log`
     - [x] Script files (if installed to system location)
   - [x] Provide systemd commands:

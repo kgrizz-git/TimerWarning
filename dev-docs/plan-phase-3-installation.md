@@ -10,7 +10,7 @@
 - [x] Add function to install zenity based on detected package manager - IMPLEMENTED: install_dependencies() function with package manager support
 - [x] Add function to create necessary directories (`~/.local/bin`, `~/.config/sleep-warning`, `~/.config/systemd/user`) - IMPLEMENTED: create_directories() function
 - [x] Add function to copy script to `~/.local/bin/sleep-warning.sh` - IMPLEMENTED: install_files() function
-- [x] Add function to copy default config file to `~/.config/sleep-warning/sleep-warning.conf` (only if not exists) - IMPLEMENTED: Preserves existing config
+- [x] Add function to copy default config file to `~/.config/sleep-warning/config/sleep-warning.conf` (only if not exists) - IMPLEMENTED: Preserves existing config (Enhancement #18)
 - [x] Add function to copy systemd service file to `~/.config/systemd/user/sleep-warning.service` - IMPLEMENTED: install_files() function
 - [x] Add function to copy systemd timer file to `~/.config/systemd/user/sleep-warning.timer` - IMPLEMENTED: generate_timer_file() function reads CHECK_INTERVAL from config and generates timer with correct OnCalendar value
 - [x] Add function to copy configure.sh to `~/.local/bin/sleep-warning-configure` (or similar accessible name) - IMPLEMENTED: Copies as sleep-warning-configure

@@ -327,15 +327,136 @@ check_existing_installation() {
     fi
 }
 
+# Function to migrate config file to subdirectory (Enhancement #18)
+# Migrates config from ~/.config/sleep-warning/sleep-warning.conf to
+# ~/.config/sleep-warning/config/sleep-warning.conf
+# Returns: 0 on success, 1 on error
+migrate_config_to_subdirectory() {
+    local old_config="${CONFIG_DIR}/sleep-warning.conf"
+    local new_config="${CONFIG_DIR}/config/sleep-warning.conf"
+    local backup_config="${CONFIG_DIR}/sleep-warning.conf.backup"
+    
+    # Check if old config exists
+    if [ ! -f "$old_config" ]; then
+        # No old config to migrate
+        return 0
+    fi
+    
+    # Check if new config already exists
+    if [ -f "$new_config" ]; then
+        # New config already exists, nothing to migrate
+        print_info "Config file already in new location, skipping migration"
+        return 0
+    fi
+    
+    # Migration needed: old exists and new doesn't
+    print_info "Migrating config file to subdirectory (Enhancement #18)..."
+    
+    # Create backup of old config
+    if ! cp "$old_config" "$backup_config" 2>/dev/null; then
+        print_warning "Failed to create backup of old config file"
+        print_warning "Migration will continue, but backup was not created"
+    else
+        print_success "Backup created: $backup_config"
+    fi
+    
+    # Ensure config subdirectory exists (should already exist from create_directories, but be safe)
+    if ! mkdir -p "${CONFIG_DIR}/config" 2>/dev/null; then
+        print_error "Failed to create config subdirectory"
+        return 1
+    fi
+    
+    # Copy old config to new location
+    if ! cp "$old_config" "$new_config" 2>/dev/null; then
+        print_error "Failed to copy config file to new location"
+        return 1
+    fi
+    
+    # Verify copy succeeded
+    local verification_failed=false
+    
+    # Compare file sizes
+    if command -v stat >/dev/null 2>&1; then
+        local old_size new_size
+        old_size=$(stat -c%s "$old_config" 2>/dev/null || stat -f '%z' "$old_config" 2>/dev/null)
+        new_size=$(stat -c%s "$new_config" 2>/dev/null || stat -f '%z' "$new_config" 2>/dev/null)
+        
+        if [ -z "$old_size" ] || [ -z "$new_size" ] || [ "$old_size" -ne "$new_size" ]; then
+            print_error "File size verification failed (old: ${old_size}, new: ${new_size})"
+            verification_failed=true
+        fi
+    fi
+    
+    # Compare checksums if available (prefer sha256sum, fallback to md5sum)
+    if [ "$verification_failed" = false ]; then
+        if command -v sha256sum >/dev/null 2>&1; then
+            local old_checksum new_checksum
+            old_checksum=$(sha256sum "$old_config" 2>/dev/null | cut -d' ' -f1)
+            new_checksum=$(sha256sum "$new_config" 2>/dev/null | cut -d' ' -f1)
+            
+            if [ -z "$old_checksum" ] || [ -z "$new_checksum" ] || [ "$old_checksum" != "$new_checksum" ]; then
+                print_error "SHA256 checksum verification failed"
+                verification_failed=true
+            fi
+        elif command -v md5sum >/dev/null 2>&1; then
+            local old_checksum new_checksum
+            old_checksum=$(md5sum "$old_config" 2>/dev/null | cut -d' ' -f1)
+            new_checksum=$(md5sum "$new_config" 2>/dev/null | cut -d' ' -f1)
+            
+            if [ -z "$old_checksum" ] || [ -z "$new_checksum" ] || [ "$old_checksum" != "$new_checksum" ]; then
+                print_error "MD5 checksum verification failed"
+                verification_failed=true
+            fi
+        fi
+    fi
+    
+    # Verify new file is readable
+    if [ ! -r "$new_config" ]; then
+        print_error "New config file is not readable"
+        verification_failed=true
+    fi
+    
+    # If verification failed, don't remove old config
+    if [ "$verification_failed" = true ]; then
+        print_error "Config file migration verification failed"
+        print_warning "Old config file preserved at: $old_config"
+        print_warning "New config file may be incomplete at: $new_config"
+        # Remove the potentially incomplete new config
+        rm -f "$new_config" 2>/dev/null
+        return 1
+    fi
+    
+    # Verification succeeded - remove old config
+    if ! rm -f "$old_config" 2>/dev/null; then
+        print_warning "Failed to remove old config file (migration succeeded but cleanup failed)"
+        print_warning "Old config file still exists at: $old_config"
+        print_warning "You can safely remove it manually"
+        # Migration succeeded, just cleanup failed
+        print_success "Config file migrated successfully (old file cleanup failed)"
+        return 0
+    fi
+    
+    print_success "Config file migrated successfully from $old_config to $new_config"
+    if [ -f "$backup_config" ]; then
+        print_info "Backup available at: $backup_config"
+    fi
+    
+    return 0
+}
+
 # Function to create directories
 create_directories() {
     print_info "Creating necessary directories..."
     
     mkdir -p "$INSTALL_DIR"
     mkdir -p "$CONFIG_DIR"
+    mkdir -p "${CONFIG_DIR}/config"  # Create config subdirectory for Enhancement #18
     mkdir -p "$SYSTEMD_USER_DIR"
     
     print_success "Directories created"
+    
+    # Migration: Move config file to subdirectory if old location exists (Enhancement #18)
+    migrate_config_to_subdirectory
 }
 
 # Function to ensure ~/.local/bin is in PATH
@@ -385,10 +506,20 @@ ensure_path_setup() {
 
 # Function to read CHECK_INTERVAL from config file
 get_check_interval() {
-    local config_file="$CONFIG_DIR/sleep-warning.conf"
+    local new_config_file="$CONFIG_DIR/config/sleep-warning.conf"
+    local old_config_file="$CONFIG_DIR/sleep-warning.conf"
+    local config_file=""
     local default_interval=10
-    
-    if [ -f "$config_file" ]; then
+
+    # Prefer the new config location (Enhancement #18), but fall back to old location
+    # for safety/backward-compatibility during upgrades or partial migrations.
+    if [ -f "$new_config_file" ]; then
+        config_file="$new_config_file"
+    elif [ -f "$old_config_file" ]; then
+        config_file="$old_config_file"
+    fi
+
+    if [ -n "$config_file" ] && [ -f "$config_file" ]; then
         local interval
         interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "$config_file" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
         
@@ -531,9 +662,20 @@ install_files() {
     fi
     
     # Copy config file (only if doesn't exist, to preserve user customizations)
-    if [ ! -f "$CONFIG_DIR/sleep-warning.conf" ]; then
+    local new_config="${CONFIG_DIR}/config/sleep-warning.conf"
+    local old_config="${CONFIG_DIR}/sleep-warning.conf"
+
+    # If an old-location config exists but the new one does not, try migration again
+    # (should already have run in create_directories(), but be defensive).
+    if [ -f "${old_config}" ] && [ ! -f "${new_config}" ]; then
+        print_info "Existing config found in old location; attempting migration..."
+        migrate_config_to_subdirectory || true
+    fi
+
+    if [ ! -f "${new_config}" ]; then
         if [ -f "$SCRIPT_DIR/sleep-warning.conf" ]; then
-            cp "$SCRIPT_DIR/sleep-warning.conf" "$CONFIG_DIR/sleep-warning.conf"
+            # Install default config into the NEW location (Enhancement #18)
+            cp "$SCRIPT_DIR/sleep-warning.conf" "${new_config}"
             print_success "Default configuration file installed"
         fi
     else
@@ -611,7 +753,7 @@ print_summary() {
     echo ""
     echo "Installed files:"
     echo "  • Main script: $INSTALL_DIR/sleep-warning.sh"
-    echo "  • Configuration: $CONFIG_DIR/sleep-warning.conf"
+    echo "  • Configuration: ${CONFIG_DIR}/config/sleep-warning.conf"
     echo "  • Systemd service: $SYSTEMD_USER_DIR/sleep-warning.service"
     echo "  • Systemd timer: $SYSTEMD_USER_DIR/sleep-warning.timer"
     echo ""

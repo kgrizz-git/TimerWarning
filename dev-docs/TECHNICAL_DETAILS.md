@@ -73,7 +73,7 @@ SATURDAY=1-5
 ```
 
 The script:
-- Reads configuration from `~/.config/sleep-warning/sleep-warning.conf`
+- Reads configuration from `~/.config/sleep-warning/config/sleep-warning.conf` (Enhancement #18)
 - Falls back to defaults if file doesn't exist
 - Validates hour ranges (0-23, start < end for normal ranges, start > end for overnight ranges)
 - Supports comments (lines starting with #)
@@ -285,7 +285,7 @@ The `configure.sh` script provides a user-friendly way to set up restricted hour
    - Write in the day-based format: `DAY=START_HOUR-END_HOUR`
    - Preserve existing comments if config file exists
    - Create backup of existing config before overwriting (optional)
-   - Write to `~/.config/sleep-warning/sleep-warning.conf`
+   - Write to `~/.config/sleep-warning/config/sleep-warning.conf` (Enhancement #18)
 
 5. **Fallback Support**:
    - If `zenity` unavailable, use text-based prompts
@@ -342,9 +342,9 @@ The validation uses a **holistic time coverage analysis** that evaluates all 7 d
 5. **Threshold Comparison**: Total is compared against two thresholds:
    - **THRESHOLD_BLOCK = 10080 minutes** (7 days × 24 hours × 60 minutes)
      - If total >= 10080: Configuration is **blocked** (24/7 detected)
-   - **THRESHOLD_WARN = 9660 minutes** (7 days × 23 hours × 60 minutes)
-     - If total > 9660 but < 10080: **Warning** shown (high restriction level)
-     - If total <= 9660: Configuration is **valid** (proceeds normally)
+   - **THRESHOLD_WARN = 6720 minutes** (7 days × 16 hours × 60 minutes)
+     - If total > 6720 but < 10080: **Warning** shown (high restriction level)
+     - If total <= 6720: Configuration is **valid** (proceeds normally)
 
 ### Time Range Semantics
 
@@ -363,7 +363,7 @@ The validation function (`check_restriction_coverage()` in `lib/configure-valida
    - User must modify settings to reduce restriction level
    - Prevents accidental lockout
 
-2. **"warn"** (High restriction level, > 9660 but < 10080 minutes):
+2. **"warn"** (High restriction level, > 6720 but < 10080 minutes):
    - Warning dialog shown: "Warning: Very High Restriction Level"
    - User can confirm to save anyway or modify settings
    - **Automatic safety overrides applied** if user confirms:
@@ -372,7 +372,7 @@ The validation function (`check_restriction_coverage()` in `lib/configure-valida
      - Configure.sh blocking automatically disabled (if implemented)
    - Config file includes comments explaining why safety features are disabled
 
-3. **"ok"** (Valid configuration, <= 9660 minutes):
+3. **"ok"** (Valid configuration, <= 6720 minutes):
    - Configuration proceeds normally
    - No warnings or restrictions
 
@@ -401,27 +401,27 @@ The validation function (`check_restriction_coverage()` in `lib/configure-valida
 - **Overnight ranges**: Correctly split and mapped to unified timeline
 - **Week wrap-around**: Saturday overnight ranges correctly wrap to Sunday
 - **Boundary cases**: 
-  - Exactly 9660 minutes (23 hours/day): returns "ok" (no warning)
+  - Exactly 6720 minutes (16 hours/day): returns "ok" (no warning)
   - Exactly 10080 minutes (24/7): returns "block" (prevents saving)
 - **Invalid ranges**: Skipped silently (should be caught by format validation first)
 
 ### Safety Features
 
-When high restrictions (> 9660 minutes) are detected and user confirms:
+When high restrictions (> 6720 minutes) are detected and user confirms:
 - **Popup size restriction**: Automatically limits popup size to "small" or "medium" only
   - Prevents overly intrusive popups when user has very limited unrestricted time
-  - Config file comment explains: "POPUP_SIZE has been restricted to small/medium only because restrictions exceed 23 hours/day"
+  - Config file comment explains: "POPUP_SIZE has been restricted to small/medium only because restrictions exceed 16 hours/day"
 - **Config locking disabled**: Automatically disables config file locking features (if implemented)
   - Prevents users from locking themselves out during very limited unrestricted time
-  - Config file comment explains: "CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because restrictions exceed 23 hours/day"
+  - Config file comment explains: "CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because restrictions exceed 16 hours/day"
 - **Transparency**: Config file comments clearly explain why safety features are disabled
 
 ### Related Enhancements
 
-- **Enhancement #18 (Config File Locking)**: Automatically disabled if restrictions > 9660 minutes
-- **Enhancement #19 (Prevent configure.sh Execution)**: Automatically disabled if restrictions > 9660 minutes
-- **Enhancement #20 (Additional Hours for Config Locking)**: Automatically cleared if restrictions > 9660 minutes
-- **Enhancement #03 (Enhanced Window Size Options)**: Popup size automatically restricted to small/medium only if restrictions > 9660 minutes
+- **Enhancement #18 (Config File Locking)**: Automatically disabled if restrictions > 6720 minutes
+- **Enhancement #19 (Prevent configure.sh Execution)**: Automatically disabled if restrictions > 6720 minutes
+- **Enhancement #20 (Additional Hours for Config Locking)**: Automatically cleared if restrictions > 6720 minutes
+- **Enhancement #03 (Enhanced Window Size Options)**: Popup size automatically restricted to small/medium only if restrictions > 6720 minutes
 
 For detailed implementation notes, see [enhancements/enhancement-22-prevent-24-7-restriction-configuration.md](enhancements/enhancement-22-prevent-24-7-restriction-configuration.md).
 
@@ -441,7 +441,7 @@ The `manage.sh` script provides a central interface for managing and understandi
    - Display in user-friendly format
 
 3. **Configuration View Function**:
-   - Read and display `~/.config/sleep-warning/sleep-warning.conf`
+   - Read and display `~/.config/sleep-warning/config/sleep-warning.conf`
    - Format nicely for display
    - Show in text info dialog abstraction or `less` for text mode
 
@@ -514,7 +514,7 @@ The `install.sh` script automates the entire installation process, making it eas
    - Copies script to `~/.local/bin/sleep-warning.sh`
    - Copies configure.sh to `~/.local/bin/sleep-warning-configure` (or similar accessible name)
    - Copies manage.sh to `~/.local/bin/sleep-warning-manage` (or similar accessible name)
-   - Copies default config to `~/.config/sleep-warning/sleep-warning.conf` (only if file doesn't exist, to preserve user customizations)
+   - Copies default config to `~/.config/sleep-warning/config/sleep-warning.conf` (only if file doesn't exist, to preserve user customizations)
    - Copies systemd service and timer files to `~/.config/systemd/user/`
    - Sets executable permissions on all scripts
 

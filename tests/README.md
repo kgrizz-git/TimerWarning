@@ -6,19 +6,20 @@ Comprehensive automated test suite for `configure.sh --text` mode using `expect`
 
 ## ⚠️  IMPORTANT: Tests That Modify Your Configuration File
 
-**Several tests modify the actual configuration file** (`${HOME}/.config/sleep-warning/sleep-warning.conf`):
+**Several tests run `configure.sh` (or related scripts) in a way that writes a config file under `${HOME}`.**
+These tests are configured to run under an **isolated temporary `HOME`**, so they **do not touch your real installed config**.
 
-- **test-configure-comprehensive.sh** - Modifies actual config (has backup/restore + trap)
-- **test-configure-interactive.sh** - Modifies actual config (has backup/restore + trap)
-- **test-with-expect.sh** - Modifies actual config (has backup/restore + trap)
-- **test-grid-display.sh** - Modifies actual config (has backup/restore + trap)
+- **test-configure-comprehensive.sh** - Runs under temp `HOME` (safe)
+- **test-configure-interactive.sh** - Runs under temp `HOME` (safe)
+- **test-with-expect.sh** - Runs under temp `HOME` (safe)
+- **test-grid-display.sh** - Runs under temp `HOME` (safe)
 
 **These tests:**
-- Back up your config before running
-- Restore your config after completion
-- Use traps to ensure restoration even if interrupted (Ctrl+C)
+- Create a temporary `HOME`
+- Write config to `${HOME}/.config/sleep-warning/config/sleep-warning.conf` within that temp `HOME`
+- Clean up the temp directory on exit (best-effort)
 
-**However:** If a test crashes or is forcefully killed, your config may not be restored. **Always back up your configuration manually before running these tests.**
+**However:** If a test is forcefully killed, the temp directory may remain on disk. It won’t affect your real config.
 
 **Safe tests (use test configs, don't modify actual config):**
 - **test-pause-feature.sh** - Uses test config directory
@@ -36,6 +37,11 @@ Comprehensive automated test suite for `configure.sh --text` mode using `expect`
 
 ## Running Tests
 
+### Execution guidelines (important)
+
+- **Run no more than 3 tests at a time** (especially for `expect`-driven suites).
+- **Always use a timeout**, even if generous (e.g. 60s–300s), so a hung `expect` run can’t block your session indefinitely.
+
 ### Run All Tests
 ```bash
 ./tests/test-configure-comprehensive.sh 1 2 3 4 5 6 7 8 9 10
@@ -46,6 +52,15 @@ Comprehensive automated test suite for `configure.sh --text` mode using `expect`
 ./tests/test-configure-comprehensive.sh 1 2 3    # Run tests 1, 2, and 3
 ./tests/test-configure-comprehensive.sh 5        # Run only test 5
 ./tests/test-configure-comprehensive.sh 9 10     # Run tests 9 and 10
+```
+
+### Recommended (with timeout + batching)
+
+```bash
+timeout 300s ./tests/test-configure-comprehensive.sh 1 2 3
+timeout 300s ./tests/test-configure-comprehensive.sh 4 5 6
+timeout 300s ./tests/test-configure-comprehensive.sh 7 8 9
+timeout 300s ./tests/test-configure-comprehensive.sh 10
 ```
 
 ## Test Coverage
@@ -215,72 +230,49 @@ Time range(s) for Monday (or 's' to skip):
 - **grep/sed**: Config file verification
 
 ### Test Workflow
-1. Backup existing config
-2. Create clean test config
+1. Create temporary `HOME`
+2. Create clean test config under that temp `HOME`
 3. Run expect script with test name
 4. Verify config file contents
 5. Verify status.sh output (where applicable)
-6. Restore original config
+6. Clean up the temp `HOME`
 
 ### Adding New Tests
 
-**⚠️ CRITICAL: If your test modifies the actual configuration file** (`${HOME}/.config/sleep-warning/sleep-warning.conf`), you **MUST**:
+**⚠️ CRITICAL:** If your test runs `configure.sh` or otherwise writes to `${HOME}/.config/sleep-warning/`, you should use a **temporary `HOME`** unless the test is explicitly meant to exercise “real install” behavior.
 
-1. **Back up the config before modifying it**
-2. **Restore the config after the test completes**
-3. **Use a trap to ensure restoration even if the test is interrupted**
+1. **Create a temp HOME**
+2. **Export `HOME` so scripts write into the temp**
+3. **Use a trap to ensure cleanup even if the test is interrupted**
 
-**Example pattern for tests that modify actual config:**
+**Example pattern for tests that write config (safe temp HOME):**
 ```bash
 #!/bin/bash
 
 ###############################################################################
 # Test description
 #
-# ⚠️  WARNING: This test MODIFIES the actual configuration file
-#    (${HOME}/.config/sleep-warning/sleep-warning.conf)
-#
-#    The test backs up your config before running and restores it after,
-#    but if the test is interrupted (Ctrl+C) or crashes, your config
-#    may not be restored. Use with caution.
+# Safety:
+#   This test runs under a temporary HOME directory.
 ###############################################################################
 
-CONFIG_FILE="${HOME}/.config/sleep-warning/sleep-warning.conf"
-BACKUP_FILE="${CONFIG_FILE}.test-backup-$$"
+# Note: Create temp dirs under the repo so sandboxed runs can write to them.
+TMP_BASE="$(pwd)/tests/.tmp"
+mkdir -p "${TMP_BASE}"
+tmp_home="$(mktemp -d -p "${TMP_BASE}" home.XXXXXX)"
+export HOME="${tmp_home}"
+CONFIG_FILE="${HOME}/.config/sleep-warning/config/sleep-warning.conf"
 
-# Backup and restore functions
-backup_config() {
-    if [ -f "${CONFIG_FILE}" ]; then
-        cp "${CONFIG_FILE}" "${BACKUP_FILE}"
-        echo "  Backed up existing config"
-    fi
-}
-
-restore_config() {
-    if [ -f "${BACKUP_FILE}" ]; then
-        mv "${BACKUP_FILE}" "${CONFIG_FILE}"
-        echo "  Restored original config"
-    else
-        rm -f "${CONFIG_FILE}"
-        echo "  Removed test config"
-    fi
-}
-
-# Cleanup function to ensure config is restored even on interrupt
+# Cleanup function to ensure temp HOME can always be removed
 cleanup() {
-    restore_config
+    chmod -R u+rwX "${tmp_home}" 2>/dev/null || true
+    rm -rf "${tmp_home}" 2>/dev/null || true
 }
 
 # Set up trap to ensure cleanup on exit or interrupt
 trap cleanup EXIT INT TERM
 
-# At start of test:
-backup_config
-
 # ... your test code here ...
-
-# At end of test (trap will also call this):
-restore_config
 ```
 
 **For tests that use test configs (recommended):**

@@ -7,7 +7,7 @@
   - Text-based configuration via `configure.sh` wizard
   - Manual entry of time ranges in format: `DAY=START_HOUR-END_HOUR`
   - Supports single ranges, multiple ranges (comma-separated), and overnight ranges
-  - Configuration stored in `~/.config/sleep-warning/sleep-warning.conf`
+  - Configuration stored in `~/.config/sleep-warning/config/sleep-warning.conf` (older installs may have `~/.config/sleep-warning/sleep-warning.conf`)
 
 #### Phase 1: Visual Summary and Easy Day Access (Simpler Implementation)
 - **Description**: Display a visual summary grid showing all days and their configured time ranges, with clickable day entries that open the existing configuration dialog. Provides visual overview without requiring complex grid editing implementation.

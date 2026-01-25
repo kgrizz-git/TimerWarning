@@ -21,7 +21,10 @@
 
 SCRIPT_NAME="sleep-warning-status"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
-CONFIG_FILE="${CONFIG_DIR}/sleep-warning.conf"
+# Enhancement #18: Config file is now in subdirectory
+# Use new location, but check old location as fallback for backward compatibility
+CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"
+CONFIG_FILE_OLD="${CONFIG_DIR}/sleep-warning.conf"
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 TIMER_FILE="${SYSTEMD_USER_DIR}/sleep-warning.timer"
 SERVICE_FILE="${SYSTEMD_USER_DIR}/sleep-warning.service"
@@ -33,8 +36,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source configuration library if available (for get_popup_dimensions function)
 if [ -f "${SCRIPT_DIR}/lib/config.sh" ]; then
     source "${SCRIPT_DIR}/lib/config.sh"
+    # Override CONFIG_FILE with fallback logic if lib/config.sh was sourced
+    # (lib/config.sh defines CONFIG_FILE, but we want fallback support)
+    if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_FILE_OLD}" ]; then
+        CONFIG_FILE="${CONFIG_FILE_OLD}"
+    fi
 elif [ -f "/usr/local/bin/sleep-warning-lib/config.sh" ]; then
     source "/usr/local/bin/sleep-warning-lib/config.sh"
+    # Override CONFIG_FILE with fallback logic if lib/config.sh was sourced
+    if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_FILE_OLD}" ]; then
+        CONFIG_FILE="${CONFIG_FILE_OLD}"
+    fi
+else
+    # If lib/config.sh not available, use fallback logic
+    if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_FILE_OLD}" ]; then
+        CONFIG_FILE="${CONFIG_FILE_OLD}"
+    fi
 fi
 
     # Source desktop environment library if available (for dialog tool detection)

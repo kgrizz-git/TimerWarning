@@ -5,19 +5,21 @@ This document provides a concise overview of work remaining to be completed for 
 **Note**: This document focuses on work that remains to be done. Fully implemented enhancements (with no remaining work) are not listed here but can be found in [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). Enhancements marked as "Mostly Implemented" or "Partially Implemented" are listed here if they have remaining work (testing, documentation, etc.).
 
 ## Priority Items
+- [ ] **#18: Config File Locking During Restricted Hours**
 - [ ] **#3: Enhanced Window Size Options and Display-Based Sizing** - More predefined sizes and display-based automatic sizing
 - [ ] **Code quality improvements** - see section below for more info on each
     - [ ] **Split lib/configure-input.sh into smaller modules**  
     - [ ] **Extract day name conversion to shared function**  
     - [ ] **Extract magic numbers to constants** 
 - [ ] **#9: System Sleep/Hibernate Detection** 
-- [ ] **#18: Config File Locking During Restricted Hours**
 - [ ] **#10: Audio Alerts** 
 - [ ] **#6: Escalating Warnings**
 - [ ] **Donation Links** - PayPal setup, GitHub sponsors, Patreon integration
 - [ ] **Licensing** - License selection and application
 - [ ] **#13a: Single Executable Installer Script** - Self-extracting installer bundling all files
 - [ ] **#13b: Desktop GUI Application Wrapper** - Native desktop application (GTK/Qt/Electron)
+- [ ] **ADDED HERE: Check popup, pause dialogs with all three toools** - yad, zenity, kdialog - make sure they work and cannot block script indefinitely
+- [ ] **#29: kdialog Window Size Control** - Try using `--textbox` with `--geometry` for kdialog popups to enable size control, with fallback to `--sorry` if it doesn't work properly
 
 ## Master Plan Phases
 
@@ -53,7 +55,6 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#17: Multi-Display Popup Support** - Display popups on all monitors simultaneously
 - [ ] **#18: Config File Locking During Restricted Hours** - Prevent config file modification during restricted hours
 - [ ] **#20: Additional Hours for Config Locking and configure.sh Blocking** - ✅ **Phase 1 Mostly Complete** - Lock hours for configure.sh and manage.sh blocking are implemented. **Remaining**: Add weekday/weekend together configuration options to match restricted hours flow (currently only per-day configuration available)
-- [ ] **#21: One-Time Pause Feature (5 or 10 Minutes)** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: pause state management, popup button integration, configuration options, status display. Automated tests (27 tests) all passing. Manual testing (popup button clicks, warning suppression, daily tracking) pending.
 - [ ] **#22: Prevent 24/7 Restriction Configuration** - ✅ **MOSTLY IMPLEMENTED** - Core validation logic implemented. **Remaining**: Comprehensive testing (edge cases, boundary conditions, overlapping ranges), integration testing with high restriction warnings, and revisit integration with Enhancement #18 (Config File Locking) when implemented
 - [ ] **#22a: Fix Validation Edge Cases in 24/7 Restriction Detection** - Address edge cases in validation logic (handles `start_hour == end_hour`, sparse array indices, IFS handling)
 - [ ] **#23: Display Restricted Times/Days in Popup** - Show configured restricted hours in warning popup

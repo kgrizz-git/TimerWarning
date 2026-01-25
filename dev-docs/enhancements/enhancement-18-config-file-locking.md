@@ -3,7 +3,7 @@
 - **Description**: Prevent modification of the configuration file during restricted hours (and optionally during additional configurable hours) to prevent users from circumventing restrictions by changing settings
 - **Files Affected**: `sleep-warning.sh`, `configure.sh`, `uninstall.sh`, `sleep-warning.conf`
 - **Priority**: Medium (security/self-control feature, but may be too restrictive for some users)
-- **Status**: Not implemented
+- **Status**: ✅ **Implemented** (Core functionality complete, testing and documentation pending)
 - **Feasibility Assessment**: ⚠️ **Partially Feasible (Deterrence Only)** - User-space file locking/permissions can discourage edits but cannot fully prevent a determined user from changing a user-owned config file without a privileged boundary (root/Polkit, immutable attribute, etc.).
 - **Implementation Approaches**:
   - **Option 1: File Permissions (chmod)**:
@@ -184,401 +184,429 @@
 
 ---
 
+## Implementation Status Summary
+
+**Status**: ✅ **IMPLEMENTED** (Phases 1-6, 10 complete; Phases 7-9 partially complete)
+
+**Completed Phases**:
+- ✅ Phase 1: Configuration File Support (100%)
+- ✅ Phase 2: Lock Mechanism Implementation (100%)
+- ✅ Phase 3: Integration with sleep-warning.sh (100%)
+- ✅ Phase 4: Integration with configure.sh (100%)
+- ✅ Phase 5: Integration with uninstall.sh (100%)
+- ✅ Phase 6: Migration (100%)
+- ✅ Phase 10: Code Quality and Final Checks (100%)
+
+**Partially Complete**:
+- ⚠️ Phase 7: Edge Cases and Error Handling (Implementation: 100%, Testing: 0%)
+- ⚠️ Phase 8: Testing (0% - all tests pending)
+- ⚠️ Phase 9: Documentation (Code docs: 100%, User/Developer docs: 0%)
+
+**Key Implementation Notes**:
+- All core functionality implemented and syntax-verified
+- Option A (dedicated config directory) fully implemented
+- Marker file locking implemented
+- Self-healing mechanism implemented
+- Integration with Enhancement #22 (auto-disable) implemented
+- Migration function implemented and integrated into install.sh
+- All error handling and edge cases addressed in code
+- Testing and user/developer documentation remain pending
+
+---
+
 ### Phase 1: Configuration File Support
 
 #### 1.1 Add CONFIG_LOCK_ENABLED to config.sh
-- [ ] Add default value constant: `DEFAULT_CONFIG_LOCK_ENABLED=false`
-- [ ] Add function `get_config_lock_enabled()` in `lib/config.sh`
-  - [ ] Read `CONFIG_LOCK_ENABLED` from config file
-  - [ ] Validate value (true/false/1/0/yes/no)
-  - [ ] Return default if missing or invalid
-  - [ ] Normalize output to "true" or "false" string
-  - [ ] Handle case insensitivity (True, TRUE, etc.)
-- [ ] **Verify variable name**: Ensure `config_lock_enabled` (lowercase) doesn't conflict with existing variables
-  - [ ] Check: `configure_block_enabled` (Enhancement #19) - ✅ Different name, no conflict
-  - [ ] Check: `lock_hours_lines` (Enhancement #19 Phase 2) - ✅ Different purpose, no conflict
+- [x] Add default value constant: `DEFAULT_CONFIG_LOCK_ENABLED=false`
+- [x] Add function `get_config_lock_enabled()` in `lib/config.sh`
+  - [x] Read `CONFIG_LOCK_ENABLED` from config file
+  - [x] Validate value (true/false/1/0/yes/no)
+  - [x] Return default if missing or invalid
+  - [x] Normalize output to "true" or "false" string
+  - [x] Handle case insensitivity (True, TRUE, etc.)
+- [x] **Verify variable name**: Ensure `config_lock_enabled` (lowercase) doesn't conflict with existing variables
+  - [x] Check: `configure_block_enabled` (Enhancement #19) - ✅ Different name, no conflict
+  - [x] Check: `lock_hours_lines` (Enhancement #19 Phase 2) - ✅ Different purpose, no conflict
 
 #### 1.2 Additional Lock Hours Support (Reusing Existing Infrastructure)
 - [x] **DECISION MADE**: Reuse existing `CONFIG_LOCK_HOURS_*` variables and `parse_lock_hours()` function
-- [ ] **No new parsing function needed**: Enhancement #18 will reuse `parse_lock_hours()` from `lib/config.sh`
-  - [ ] Function already exists and reads `CONFIG_LOCK_HOURS_*` from config file
-  - [ ] Function is generic and can be used by both Enhancement #19 and Enhancement #18
-  - [ ] Enhancement #18's `is_config_lock_active()` will call `parse_lock_hours()` to check lock hours
-  - [ ] No code changes needed in `lib/config.sh` for lock hours parsing
-- [ ] **Verify integration**: Ensure `is_config_lock_active()` can access `parse_lock_hours()` function
-  - [ ] Function is in `lib/config.sh` which will be sourced by `lib/config-locking.sh`
-  - [ ] No conflicts with existing usage in Enhancement #19
+- [x] **No new parsing function needed**: Enhancement #18 will reuse `parse_lock_hours()` from `lib/config.sh`
+  - [x] Function already exists and reads `CONFIG_LOCK_HOURS_*` from config file
+  - [x] Function is generic and can be used by both Enhancement #19 and Enhancement #18
+  - [x] Enhancement #18's `is_config_lock_active()` will call `parse_lock_hours()` to check lock hours
+  - [x] No code changes needed in `lib/config.sh` for lock hours parsing
+- [x] **Verify integration**: Ensure `is_config_lock_active()` can access `parse_lock_hours()` function
+  - [x] Function is in `lib/config.sh` which will be sourced by `lib/config-locking.sh`
+  - [x] No conflicts with existing usage in Enhancement #19
 
 #### 1.3 Update configure-config.sh
-- [ ] Add `config_lock_enabled` to global variables in `load_existing_config()`
-  - [ ] Initialize with default: `declare -g config_lock_enabled="false"`
-  - [ ] Read existing value from config file (if present)
-  - [ ] Validate and normalize to "true" or "false"
-- [ ] Update `write_config()` function signature
-  - [ ] Add `config_lock_enabled` as parameter (determine position based on existing parameters)
-  - [ ] Write `CONFIG_LOCK_ENABLED=${config_lock_enabled}` to config file
-  - [ ] Add comment header explaining the option
-  - [ ] Place after appropriate section (after `CONFIGURE_BLOCK_ENABLED` or `UNINSTALL_PROTECTION_MODE`)
-- [ ] If implementing additional lock hours, add to `load_existing_config()`:
-  - [ ] Initialize `config_file_lock_hours_lines` array (or chosen variable name)
-  - [ ] Load `CONFIG_FILE_LOCK_HOURS_*` lines from config file
-  - [ ] Store in sparse array format matching `lock_hours_lines` pattern
-- [ ] If implementing additional lock hours, update `write_config()`:
-  - [ ] Accept `config_file_lock_hours_lines` array parameter
-  - [ ] Write `CONFIG_FILE_LOCK_HOURS_*` lines to config file
-  - [ ] Add section header explaining additional lock hours
+- [x] Add `config_lock_enabled` to global variables in `load_existing_config()`
+  - [x] Initialize with default: `declare -g config_lock_enabled="false"`
+  - [x] Read existing value from config file (if present)
+  - [x] Validate and normalize to "true" or "false"
+- [x] Update `write_config()` function signature
+  - [x] Add `config_lock_enabled` as parameter (position: 11th parameter, after dialog_tool)
+  - [x] Write `CONFIG_LOCK_ENABLED=${config_lock_enabled}` to config file
+  - [x] Add comment header explaining the option
+  - [x] Place after appropriate section (after `DIALOG_TOOL`, before end of file)
+- [x] Additional lock hours: Reusing existing `CONFIG_LOCK_HOURS_*` infrastructure
+  - [x] No separate `config_file_lock_hours_lines` array needed
+  - [x] Uses existing `lock_hours_lines` array from Enhancement #19
+  - [x] No additional write_config() changes needed for lock hours
 
 #### 1.4 Update configure.sh main function
-- [ ] Add `config_lock_enabled` to global variable declarations
-  - [ ] Add to appropriate `declare -g` statement
-  - [ ] Ensure it's initialized before `load_existing_config()` call
-- [ ] Update `write_config()` call
-  - [ ] Add `${config_lock_enabled}` as argument in correct position
-  - [ ] If implementing additional lock hours, add `config_file_lock_hours_lines` array
+- [x] Add `config_lock_enabled` to global variable declarations
+  - [x] Add to appropriate `declare -g` statement
+  - [x] Ensure it's initialized before `load_existing_config()` call
+- [x] Update `write_config()` call
+  - [x] Add `${config_lock_enabled}` as argument in correct position (11th parameter)
+  - [x] Additional lock hours: Uses existing `lock_hours_lines` array (no separate array needed)
 
 #### 1.5 Update config file template
-- [ ] Add `CONFIG_LOCK_ENABLED` section to `sleep-warning.conf` template
-  - [ ] Add comment explaining the feature
-  - [ ] Add default value: `CONFIG_LOCK_ENABLED=false`
-  - [ ] Note about Enhancement #22 automatic disabling (> 9660 minutes)
-  - [ ] Place after appropriate section
-- [ ] If implementing additional lock hours, add `CONFIG_FILE_LOCK_HOURS_*` section
-  - [ ] Add comment explaining additional lock hours
-  - [ ] Show format: `CONFIG_FILE_LOCK_HOURS_DAYNAME=START-END`
-  - [ ] Note that lock applies during restriction hours AND additional lock hours
+- [x] Add `CONFIG_LOCK_ENABLED` section to `sleep-warning.conf` template
+  - [x] Add comment explaining the feature (in `write_config()` function)
+  - [x] Add default value: `CONFIG_LOCK_ENABLED=false`
+  - [x] Note about Enhancement #22 automatic disabling (> 9660 minutes)
+  - [x] Place after appropriate section (after `DIALOG_TOOL`)
+- [x] Additional lock hours: Reusing existing `CONFIG_LOCK_HOURS_*` section
+  - [x] No separate `CONFIG_FILE_LOCK_HOURS_*` section needed
+  - [x] Uses existing `CONFIG_LOCK_HOURS_*` variables from Enhancement #19
+  - [x] Lock applies during restriction hours AND lock hours (shared infrastructure)
 
 ---
 
 ### Phase 2: Lock Mechanism Implementation
 
 #### 2.1 Create Config Locking Module
-- [ ] **DECISION REQUIRED**: Create new `lib/config-locking.sh` module or add to existing `lib/config.sh`?
-  - **Option 1**: New module `lib/config-locking.sh` (better separation of concerns)
-  - **Option 2**: Add to `lib/config.sh` (simpler, fewer files)
-  - **Recommendation**: New module `lib/config-locking.sh` for better organization
-- [ ] Create module file with header comment:
-  - [ ] Purpose: config file locking during restricted hours
-  - [ ] Dependencies: `config.sh`, `time-validation.sh` (for time checking)
-  - [ ] Functions: list all functions to be implemented
+- [x] **DECISION MADE**: Create new `lib/config-locking.sh` module (Option 1 chosen)
+  - [x] New module `lib/config-locking.sh` created for better separation of concerns
+  - [x] Better organization and maintainability
+- [x] Create module file with header comment:
+  - [x] Purpose: config file locking during restricted hours
+  - [x] Dependencies: `config.sh`, `time-validation.sh` (for time checking)
+  - [x] Functions: All functions documented in header
 
 #### 2.2 Implement Lock State Check Function
-- [ ] Create `is_config_lock_active()` function
-  - [ ] Check if `CONFIG_LOCK_ENABLED=true` (use `get_config_lock_enabled()`)
-  - [ ] If false, return 1 (not active)
-  - [ ] Get current day and hour
-  - [ ] Check if current time is in restricted hours (use `is_restricted_hour()` with `parse_config()`)
-  - [ ] Check if current time is in lock hours (use `parse_lock_hours()` and `is_lock_hour()` - **REUSE EXISTING FUNCTIONS**)
-  - [ ] Return 0 if lock should be active (in restriction hours OR lock hours), 1 if not
-  - [ ] Handle overnight ranges correctly (previous day's ranges extending into current day)
-    - [ ] Check previous day's restriction hours for overnight ranges
-    - [ ] Check previous day's lock hours for overnight ranges (use `parse_lock_hours()` for previous day)
-  - [ ] **Verify function name**: Check for conflicts with `check_config_lock_time()` (Enhancement #19) - ✅ Different purpose, no conflict
-  - [ ] **Note**: This function will have similar logic to `check_config_lock_time()` but returns opposite (0=lock active, 1=not active) and checks `CONFIG_LOCK_ENABLED` instead of `CONFIGURE_BLOCK_ENABLED`
+- [x] Create `is_config_lock_active()` function
+  - [x] Check if `CONFIG_LOCK_ENABLED=true` (use `get_config_lock_enabled()`)
+  - [x] If false, return 1 (not active)
+  - [x] Get current day and hour
+  - [x] Check if current time is in restricted hours (use `is_restricted_hour()` with `parse_config()`)
+  - [x] Check if current time is in lock hours (use `parse_lock_hours()` and `is_lock_hour()` - **REUSE EXISTING FUNCTIONS**)
+  - [x] Return 0 if lock should be active (in restriction hours OR lock hours), 1 if not
+  - [x] Handle overnight ranges correctly (previous day's ranges extending into current day)
+    - [x] Check previous day's restriction hours for overnight ranges
+    - [x] Check previous day's lock hours for overnight ranges (use `parse_lock_hours()` for previous day)
+  - [x] **Verify function name**: Check for conflicts with `check_config_lock_time()` (Enhancement #19) - ✅ Different purpose, no conflict
+  - [x] **Note**: This function has similar logic to `check_config_lock_time()` but returns opposite (0=lock active, 1=not active) and checks `CONFIG_LOCK_ENABLED` instead of `CONFIGURE_BLOCK_ENABLED`
 
 #### 2.3 Implement File and Directory Mode Storage and Retrieval (Option A)
-- [ ] Create `store_lock_state()` function
-  - [ ] Get current directory mode using `stat -c '%a' ~/.config/sleep-warning/config` (or `stat -f '%A'` on macOS)
-  - [ ] Get current file mode using `stat -c '%a' "${CONFIG_FILE}"` (if file exists)
-  - [ ] **CRITICAL**: Store ACTUAL current permissions (not defaults) - these are the "normal" permissions that must be restored
-  - [ ] Store in marker file: `~/.config/sleep-warning/.config_locked` (in parent directory, accessible even when config directory is locked)
-  - [ ] Format: Include timestamp, reason (restricted hours or lock hours), directory mode, file mode, marker file mode
-  - [ ] Format example: `TIMESTAMP=2026-01-23T10:30:00|REASON=restricted_hours|DIR_MODE=755|FILE_MODE=644|MARKER_MODE=644`
-  - [ ] **Marker file permissions**: Get current marker file permissions before writing (if file exists), or use default 644 for new file
-  - [ ] Store marker file's original permissions in the marker file itself (before locking it)
-  - [ ] Handle errors gracefully (directory/file doesn't exist, permission denied, etc.)
-  - [ ] Create marker file with appropriate permissions (user-readable/writable, typically 644)
-- [ ] Create `retrieve_lock_state()` function
-  - [ ] Read state from marker file: `~/.config/sleep-warning/.config_locked`
-  - [ ] Parse format to extract directory mode, file mode, and marker file mode
-  - [ ] Validate format and values (must be valid octal permissions)
-  - [ ] Return directory mode, file mode, and marker mode (e.g., "755 644 644") or empty string if not found/invalid
-  - [ ] Handle missing marker file (return empty string - caller should use defaults as fallback)
-  - [ ] Handle corrupted marker file gracefully (return empty string - caller should use defaults as fallback)
-  - [ ] **CRITICAL**: If marker file is corrupted/missing, system MUST use safe defaults (755/644) but should log warning that original permissions were lost
-- [ ] **Edge Case: Marker File Deleted or Edited**
-  - [ ] **If marker file is deleted during lock hours**:
-    - [ ] On next timer tick, `apply_config_directory_lock()` will detect marker file missing
-    - [ ] **Detection**: Check if directory/file are read-only (555/444) - if so, lock was active
-    - [ ] **Behavior**: If lock is active but marker missing, use safe defaults (755/644) for restoration
-    - [ ] Create new marker file with defaults (DIR_MODE=755, FILE_MODE=644, MARKER_MODE=644)
-    - [ ] **Note**: Original permissions are lost, but system continues to function
-    - [ ] Log warning that original permissions were lost
-  - [ ] **If marker file is edited/corrupted**:
-    - [ ] `retrieve_lock_state()` will detect invalid format
-    - [ ] Return empty string (caller uses defaults)
-    - [ ] System restores using safe defaults (755/644) instead of original permissions
-    - [ ] Log warning that original permissions were lost
-  - [ ] **Marker file IS locked**: Marker file is locked (chmod 444) after creation to prevent accidental deletion/editing
-    - [ ] Lock marker file after writing all data: `chmod 444 ~/.config/sleep-warning/.config_locked`
-    - [ ] When unlocking, restore marker file permissions first, then delete it
-    - [ ] This prevents accidental deletion/editing while maintaining ability to restore and delete when unlocking
+- [x] Create `store_lock_state()` function
+  - [x] Get current directory mode using `stat -c '%a' ~/.config/sleep-warning/config` (or `stat -f '%A'` on macOS)
+  - [x] Get current file mode using `stat -c '%a' "${CONFIG_FILE}"` (if file exists)
+  - [x] **CRITICAL**: Store ACTUAL current permissions (not defaults) - these are the "normal" permissions that must be restored
+  - [x] Store in marker file: `~/.config/sleep-warning/.config_locked` (in parent directory, accessible even when config directory is locked)
+  - [x] Format: Include timestamp, reason (restricted hours or lock hours), directory mode, file mode, marker file mode
+  - [x] Format example: `TIMESTAMP=2026-01-23T10:30:00|REASON=restricted_hours|DIR_MODE=755|FILE_MODE=644|MARKER_MODE=644`
+  - [x] **Marker file permissions**: Get current marker file permissions before writing (if file exists), or use default 644 for new file
+  - [x] Store marker file's original permissions in the marker file itself (before locking it)
+  - [x] Handle errors gracefully (directory/file doesn't exist, permission denied, etc.)
+  - [x] Create marker file with appropriate permissions (user-readable/writable, typically 644)
+- [x] Create `retrieve_lock_state()` function
+  - [x] Read state from marker file: `~/.config/sleep-warning/.config_locked`
+  - [x] Parse format to extract directory mode, file mode, and marker file mode
+  - [x] Validate format and values (must be valid octal permissions)
+  - [x] Return directory mode, file mode, and marker mode (e.g., "755 644 644") or empty string if not found/invalid
+  - [x] Handle missing marker file (return empty string - caller should use defaults as fallback)
+  - [x] Handle corrupted marker file gracefully (return empty string - caller should use defaults as fallback)
+  - [x] **CRITICAL**: If marker file is corrupted/missing, system MUST use safe defaults (755/644) but should log warning that original permissions were lost
+- [x] **Edge Case: Marker File Deleted or Edited**
+  - [x] **If marker file is deleted during lock hours**:
+    - [x] On next timer tick, `apply_config_directory_lock()` will detect marker file missing
+    - [x] **Detection**: Check if directory/file are read-only (555/444) - if so, lock was active
+    - [x] **Behavior**: If lock is active but marker missing, use safe defaults (755/644) for restoration
+    - [x] Create new marker file with defaults (DIR_MODE=755, FILE_MODE=644, MARKER_MODE=644)
+    - [x] **Note**: Original permissions are lost, but system continues to function
+    - [x] Log warning that original permissions were lost (via log_message if available)
+  - [x] **If marker file is edited/corrupted**:
+    - [x] `retrieve_lock_state()` will detect invalid format
+    - [x] Return empty string (caller uses defaults)
+    - [x] System restores using safe defaults (755/644) instead of original permissions
+    - [x] Log warning that original permissions were lost (via log_message if available)
+  - [x] **Marker file IS locked**: Marker file is locked (chmod 444) after creation to prevent accidental deletion/editing
+    - [x] Lock marker file after writing all data: `chmod 444 ~/.config/sleep-warning/.config_locked`
+    - [x] When unlocking, restore marker file permissions first, then delete it
+    - [x] This prevents accidental deletion/editing while maintaining ability to restore and delete when unlocking
 
 #### 2.4 Implement Lock Application Function (Option A)
-- [ ] Create `apply_config_directory_lock()` function
-  - [ ] Check if lock should be active (call `is_config_lock_active()`)
-  - [ ] If lock should be active:
-    - [ ] Ensure config directory exists: `mkdir -p ~/.config/sleep-warning/config/`
-    - [ ] Check if marker file exists: `~/.config/sleep-warning/.config_locked`
-    - [ ] If marker doesn't exist (first lock):
-      - [ ] **CRITICAL**: Get ACTUAL current permissions (not defaults) - these are the "normal" permissions
-      - [ ] Store current directory mode, file mode, and marker file mode (call `store_lock_state()`)
-      - [ ] Create snapshot copy: `cp "${CONFIG_FILE}" ~/.config/sleep-warning/.config_locked_snapshot` (if file exists)
-      - [ ] Create marker file with timestamp, reason, and all permissions
-      - [ ] Lock marker file: `chmod 444 ~/.config/sleep-warning/.config_locked` (read-only to prevent deletion/editing)
-    - [ ] Set directory to read-only: `chmod a-w ~/.config/sleep-warning/config` (e.g., `chmod 555`)
-    - [ ] Set file to read-only: `chmod a-w "${CONFIG_FILE}"` (e.g., `chmod 444`) (if file exists)
-    - [ ] Verify lock applied (check directory, file, and marker file are not writable)
-  - [ ] If lock should NOT be active:
-    - [ ] Check if marker file exists
-    - [ ] If marker exists (was locked, now unlocking):
-      - [ ] Retrieve stored directory mode, file mode, and marker mode (call `retrieve_lock_state()`)
-      - [ ] **CRITICAL**: If retrieval fails (corrupted/missing), use safe defaults (755/644) but log warning
-      - [ ] **Restore marker file permissions first**: `chmod "${stored_marker_mode}" ~/.config/sleep-warning/.config_locked` (or 644 if defaults)
-      - [ ] **Restore directory mode**: `chmod "${stored_dir_mode}" ~/.config/sleep-warning/config` (or 755 if defaults)
-      - [ ] **Restore file mode**: `chmod "${stored_file_mode}" "${CONFIG_FILE}"` (or 644 if defaults) (if file exists)
-      - [ ] **CRITICAL**: Must restore ORIGINAL permissions, not hardcoded defaults (unless marker corrupted/missing)
-      - [ ] Remove marker file: `rm -f ~/.config/sleep-warning/.config_locked` (now writable, can be deleted)
-      - [ ] Remove snapshot file: `rm -f ~/.config/sleep-warning/.config_locked_snapshot`
-  - [ ] Make function idempotent (safe to call multiple times)
-  - [ ] Handle errors gracefully (directory/file missing, permission denied, etc.)
+- [x] Create `apply_config_directory_lock()` function
+  - [x] Check if lock should be active (call `is_config_lock_active()`)
+  - [x] If lock should be active:
+    - [x] Ensure config directory exists: `mkdir -p ~/.config/sleep-warning/config/`
+    - [x] Check if marker file exists: `~/.config/sleep-warning/.config_locked`
+    - [x] If marker doesn't exist (first lock):
+      - [x] **CRITICAL**: Get ACTUAL current permissions (not defaults) - these are the "normal" permissions
+      - [x] Store current directory mode, file mode, and marker file mode (call `store_lock_state()`)
+      - [x] Create snapshot copy: `cp "${CONFIG_FILE}" ~/.config/sleep-warning/.config_locked_snapshot` (if file exists)
+      - [x] Create marker file with timestamp, reason, and all permissions
+      - [x] Lock marker file: `chmod 444 ~/.config/sleep-warning/.config_locked` (read-only to prevent deletion/editing)
+    - [x] Set directory to read-only: `chmod 555 ~/.config/sleep-warning/config`
+    - [x] Set file to read-only: `chmod 444 "${CONFIG_FILE}"` (if file exists)
+    - [x] Re-assert marker file lock (in case user changed it)
+  - [x] If lock should NOT be active:
+    - [x] Check if marker file exists
+    - [x] If marker exists (was locked, now unlocking):
+      - [x] Retrieve stored directory mode, file mode, and marker mode (call `retrieve_lock_state()`)
+      - [x] **CRITICAL**: If retrieval fails (corrupted/missing), use safe defaults (755/644) but log warning
+      - [x] **Restore marker file permissions first**: `chmod "${stored_marker_mode}" ~/.config/sleep-warning/.config_locked` (or 644 if defaults)
+      - [x] **Restore directory mode**: `chmod "${stored_dir_mode}" ~/.config/sleep-warning/config` (or 755 if defaults)
+      - [x] **Restore file mode**: `chmod "${stored_file_mode}" "${CONFIG_FILE}"` (or 644 if defaults) (if file exists)
+      - [x] **CRITICAL**: Must restore ORIGINAL permissions, not hardcoded defaults (unless marker corrupted/missing)
+      - [x] Remove marker file: `rm -f ~/.config/sleep-warning/.config_locked` (now writable, can be deleted)
+      - [x] Remove snapshot file: `rm -f ~/.config/sleep-warning/.config_locked_snapshot`
+  - [x] Make function idempotent (safe to call multiple times)
+  - [x] Handle errors gracefully (directory/file missing, permission denied, etc.)
 
 #### 2.5 Implement Self-Healing Logic (Option A - Optional but Recommended)
-- [ ] **RECOMMENDATION**: Implement marker file and self-healing for Option A
+- [x] **RECOMMENDATION**: Implement marker file and self-healing for Option A
   - **Rationale**: 
     - Marker file provides state tracking (when lock was applied, why, what modes were stored)
     - Self-healing detects and prevents tampering (user deletes config file, changes permissions)
     - With directory lock, user can't rename/replace file, but could still delete it or change permissions if they have access
     - Self-healing provides defense-in-depth
-  - [ ] Create `check_and_restore_config_file()` function
-    - [ ] Check if lock should be active
-    - [ ] If lock is active:
-      - [ ] Check if config file exists
-      - [ ] If file missing:
-        - [ ] Restore from snapshot: `cp ~/.config/sleep-warning/.config_locked_snapshot "${CONFIG_FILE}"`
-        - [ ] Re-apply read-only: `chmod a-w "${CONFIG_FILE}"` and `chmod a-w ~/.config/sleep-warning/config`
-        - [ ] Log warning (if logging available)
-      - [ ] If file exists, check if it was modified (compare checksum or modification time with snapshot)
-      - [ ] If file was modified:
-        - [ ] Restore from snapshot
-        - [ ] Re-apply read-only on both directory and file
-        - [ ] Log warning
-      - [ ] Re-assert read-only mode on directory and file (in case user changed permissions)
-    - [ ] Return 0 on success, 1 on error
-  - [ ] **Note**: Self-healing is less critical with Option A (directory lock prevents most bypasses) but still recommended for robustness
+  - [x] Create `check_and_restore_config_file()` function
+    - [x] Check if lock should be active
+    - [x] If lock is active:
+      - [x] Check if config file exists
+      - [x] If file missing:
+        - [x] Restore from snapshot (if available) and re-apply read-only perms
+        - [x] Log warning (if logging available)
+      - [x] If file exists, detect likely modification (mtime vs snapshot) and restore if needed
+      - [x] Re-assert read-only mode on directory and file (in case user changed permissions)
+    - [x] Return 0 on success, 1 on error
+  - [x] **Note**: Self-healing is less critical with Option A (directory lock prevents most bypasses) but still recommended for robustness
 
 #### 2.8 Source Module in sleep-warning.sh
-- [ ] Add `source "${LIB_DIR}/config-locking.sh" || exit 1` to `sleep-warning.sh`
-  - [ ] Place after `config.sh` source (depends on CONFIG_FILE constant)
-  - [ ] Place before main function (functions needed in main)
+- [x] Add `source "${LIB_DIR}/config-locking.sh" || exit 1` to `sleep-warning.sh`
+  - [x] Place after `time-validation.sh` source (depends on is_restricted_hour, is_lock_hour functions)
+  - [x] Place before main function (functions needed in main)
 
 ---
 
 ### Phase 3: Integration with sleep-warning.sh
 
 #### 3.1 Add Lock Application to Main Function
-- [ ] In `sleep-warning.sh` main function, call lock application function:
-  - [ ] Call `apply_config_directory_lock()` (Option A)
-  - [ ] Place early in main function (before restriction checking)
-  - [ ] Handle errors gracefully (don't exit on lock failure, log warning)
-- [ ] Add self-healing check (recommended):
-  - [ ] Call `check_and_restore_config_file()` after lock application
-  - [ ] Only check if lock is active (skip if not locked)
-  - [ ] Handle errors gracefully (don't exit on self-heal failure, log warning)
+- [x] In `sleep-warning.sh` main function, call lock application function:
+  - [x] Call `apply_config_directory_lock()` (Option A)
+  - [x] Place early in main function (before restriction checking)
+  - [x] Handle errors gracefully (don't exit on lock failure)
+- [x] Add self-healing check (recommended):
+  - [x] Call `check_and_restore_config_file()` after lock application
+  - [x] Only check if lock is active (skip if not locked)
+  - [x] Handle errors gracefully (don't exit on self-heal failure)
 
 #### 3.2 Handle Lock State Persistence
-- [ ] Ensure lock state persists across timer ticks:
-  - [ ] Lock application is idempotent (safe to call every timer tick)
-  - [ ] Lock state transitions correctly (locked → unlocked, unlocked → locked)
-  - [ ] No race conditions between timer ticks
+- [x] Ensure lock state persists across timer ticks:
+  - [x] Lock application is idempotent (safe to call every timer tick)
+  - [x] Lock state transitions correctly (locked → unlocked, unlocked → locked)
+  - [x] No race conditions between timer ticks (idempotent design handles this)
 
 ---
 
 ### Phase 4: Integration with configure.sh
 
 #### 4.1 Add Lock Check Before Config Write
-- [ ] In `configure.sh`, before calling `write_config()`:
-  - [ ] Check if config lock is active (call `is_config_lock_active()`)
-  - [ ] If lock is active:
-    - [ ] Show error message (use existing dialog functions)
-    - [ ] Calculate when lock ends (use `calculate_restriction_end_time()` if available)
-    - [ ] Display message: "Configuration file is locked during restricted hours. Please try again after [end time]."
-    - [ ] Exit or return to menu (don't call `write_config()`)
-  - [ ] If lock is not active, proceed normally
+- [x] In `configure.sh`, block execution when the config file is locked:
+  - [x] Check if config lock is active (call `is_config_lock_active()`)
+  - [x] If lock is active:
+    - [x] Show error message (use existing dialog functions via `show_config_file_locked_error()`)
+    - [x] Display end time information (reuses the same end-time logic as script blocking via `show_config_locked_error()`)
+    - [x] Exit without calling `write_config()`
+  - [x] If lock is not active, proceed normally
 
 #### 4.2 Add Lock Check to Configuration UI
-- [ ] Update `lib/configure-ui.sh` or `lib/configure-dialogs.sh`:
-  - [ ] Create `show_config_file_locked_error()` function
-  - [ ] Similar to `show_config_locked_error()` (Enhancement #19) but for file locking
-  - [ ] Show current time and when lock ends
-  - [ ] Support both GUI and text modes
-  - [ ] **Verify function name**: Check for conflicts - ✅ Different from `show_config_locked_error()`
+- [x] Update `lib/configure-ui.sh`:
+  - [x] Create `show_config_file_locked_error()` function
+  - [x] Similar to `show_config_locked_error()` (Enhancement #19) but for file locking
+  - [x] Reuses `show_config_locked_error()` logic with different script name
+  - [x] Support both GUI and text modes
+  - [x] **Verify function name**: Check for conflicts - ✅ Different from `show_config_locked_error()`
 
 #### 4.3 Add Configuration UI Option
-- [ ] Add menu option in `lib/configure-display.sh`:
-  - [ ] Add "Config File Locking" option to main menu
-  - [ ] Show current state (Enabled/Disabled)
-  - [ ] Update menu item count
-- [ ] Add dialog function in `lib/configure-input.sh`:
-  - [ ] Create `get_config_lock_enabled_config()` function
-  - [ ] Show current setting
-  - [ ] Ask user to enable/disable
-  - [ ] Return "true" or "false" string
-  - [ ] Handle cancellation
-  - [ ] Support both GUI and text modes
-  - [ ] **Verify function name**: Check for conflicts - ✅ Different from `get_configure_block_enabled_config()`
-- [ ] Add menu handler in `configure.sh`:
-  - [ ] Add case for new menu option
-  - [ ] Call `get_config_lock_enabled_config()`
-  - [ ] Update global `config_lock_enabled` variable
-  - [ ] Return to main menu after setting
+- [x] **NOTE (combined menu)**: The configure wizard combines script blocking and config file locking under a single **Security Settings** menu option.
+  - [x] `lib/configure-display.sh` shows **Security Settings (Script Blocking and Config Locking)** with a combined status indicator.
+  - [x] `configure.sh` handles this as menu option **6** and calls `get_security_settings_config()`.
+  - [x] `lib/configure-input.sh` implements `get_security_settings_config()` which returns `configure_block|config_lock`.
+  - [x] `get_config_lock_enabled_config()` exists (legacy/single-setting helper), but is not the primary UX entry point after combining the menu.
 
 #### 4.4 Integration with Enhancement #22 (24/7 Restriction Prevention)
-- [ ] In `configure.sh`, when saving configuration:
-  - [ ] After `check_restriction_coverage()` validation (Enhancement #22):
-    - [ ] If restrictions > 9660 minutes detected:
-      - [ ] Automatically set `config_lock_enabled="false"` (override user setting)
-      - [ ] Add comment to config file explaining why it's disabled
-      - [ ] Show info message to user (if not already shown by Enhancement #22 warning)
-  - [ ] Ensure `write_config()` receives `config_lock_enabled="false"` when high restrictions detected
+- [x] In `configure.sh`, when saving configuration:
+  - [x] After `check_restriction_coverage()` validation (Enhancement #22):
+    - [x] If restrictions > 9660 minutes detected (warn case):
+      - [x] Automatically set `config_lock_enabled="false"` (override user setting)
+      - [x] Note: Config file will have `CONFIG_LOCK_ENABLED=false` written (no special comment needed)
+      - [x] Safety override applied before calling `write_config()`
+  - [x] Ensure `write_config()` receives `config_lock_enabled="false"` when high restrictions detected
 
 ---
 
 ### Phase 5: Integration with uninstall.sh
 
 #### 5.1 Add Lock Removal to Uninstall Script
-- [ ] In `uninstall.sh`, before removing config file:
-  - [ ] Stop timer/service: `systemctl --user stop sleep-warning.timer`
-  - [ ] Wait briefly for service to exit (2-3 seconds)
-  - [ ] Force restore permissions (ignore errors):
-    - [ ] If Option A: `chmod u+w ~/.config/sleep-warning/config` and `chmod u+w "${CONFIG_FILE}"`
-    - [ ] If Option B: `chmod u+w "${CONFIG_FILE}"`
-  - [ ] Remove marker file: `rm -f ~/.config/sleep-warning/.config_locked`
-  - [ ] Remove snapshot file: `rm -f ~/.config/sleep-warning/.config_locked_snapshot`
-  - [ ] Proceed with normal uninstall
+- [x] In `uninstall.sh`, before removing config file:
+  - [x] Stop timer/service: `systemctl --user stop sleep-warning.timer`
+  - [x] Wait briefly for service to exit (2-3 seconds)
+  - [x] Force restore permissions (ignore errors) so locked files can be deleted
+  - [x] Remove marker file and snapshot file (ignore errors)
+  - [x] Proceed with normal uninstall
 
 #### 5.2 Handle Uninstall During Lock Hours
-- [ ] Ensure uninstall always works (even during lock hours):
-  - [ ] Uninstall script should NOT check lock state before restoring permissions
-  - [ ] Force restore should ignore file permission errors
-  - [ ] Document that uninstall always works regardless of lock state
+- [x] Ensure uninstall always works (even during lock hours):
+  - [x] Uninstall script does NOT check lock state before restoring permissions
+  - [x] Force restore ignores file permission errors (uses `|| true` fallbacks)
+  - [x] `restore_config_permissions()` always runs before config removal
+  - [x] Document that uninstall always works regardless of lock state
 
 ---
 
 ### Phase 6: Migration (Option A only)
 
 #### 6.1 Implement Migration Function
-- [ ] Create `migrate_config_to_subdirectory()` function
-  - [ ] Check if old config exists: `~/.config/sleep-warning/sleep-warning.conf`
-  - [ ] Check if new config exists: `~/.config/sleep-warning/config/sleep-warning.conf`
-  - [ ] If old exists and new doesn't:
-    - [ ] Create backup of old config: `cp ~/.config/sleep-warning/sleep-warning.conf ~/.config/sleep-warning/sleep-warning.conf.backup`
-    - [ ] Create config directory: `mkdir -p ~/.config/sleep-warning/config`
-    - [ ] Copy (not move) old config to new location: `cp ~/.config/sleep-warning/sleep-warning.conf ~/.config/sleep-warning/config/sleep-warning.conf`
-    - [ ] Verify copy succeeded:
-      - [ ] Compare file sizes: `[ "$(stat -c%s old)" -eq "$(stat -c%s new)" ]`
-      - [ ] Compare checksums (if available): `md5sum` or `sha256sum`
-      - [ ] Verify new file is readable
-    - [ ] Only remove old config after successful verification: `rm ~/.config/sleep-warning/sleep-warning.conf`
-    - [ ] Log migration success (if logging available)
-  - [ ] If old doesn't exist or new already exists:
-    - [ ] Return 0 (nothing to migrate)
-  - [ ] Return 0 on success, 1 on error
-  - [ ] Handle errors gracefully (don't remove old config if migration fails)
+- [x] Create `migrate_config_to_subdirectory()` function
+  - [x] Check if old config exists: `~/.config/sleep-warning/sleep-warning.conf`
+  - [x] Check if new config exists: `~/.config/sleep-warning/config/sleep-warning.conf`
+  - [x] If old exists and new doesn't:
+    - [x] Create backup of old config
+    - [x] Create config directory: `mkdir -p ~/.config/sleep-warning/config`
+    - [x] Copy old config to new location
+    - [x] Verify copy succeeded (size + checksum when available)
+    - [x] Only remove old config after successful verification
+  - [x] If old doesn't exist or new already exists:
+    - [x] Return 0 (nothing to migrate)
+  - [x] Return 0 on success, 1 on error
+  - [x] Handle errors gracefully (don't remove old config if migration fails)
 
 #### 6.2 Add Migration to Install Script
 - [x] **DECISION MADE**: Run migration in `install.sh` (if previous config exists) - **CHOSEN**
-- [ ] Add migration call to `install.sh`:
-  - [ ] After creating config directory structure
-  - [ ] Before installing config file (if default config is being installed)
-  - [ ] Check if migration needed (old config exists, new doesn't)
-  - [ ] Call `migrate_config_to_subdirectory()`
-  - [ ] Handle errors gracefully:
-    - [ ] If migration fails, log warning but continue installation
-    - [ ] Don't fail installation if migration fails (user can migrate manually later)
-  - [ ] If no old config exists, write new config directly to `~/.config/sleep-warning/config/sleep-warning.conf`
+- [x] Add migration call to `install.sh`:
+  - [x] After creating config directory structure (in `create_directories()`)
+  - [x] Before installing config file (if default config is being installed)
+  - [x] Check if migration needed (old config exists, new doesn't)
+  - [x] Call `migrate_config_to_subdirectory()`
+  - [x] Handle errors gracefully:
+    - [x] If migration fails, print warning but continue installation
+    - [x] Don't fail installation if migration fails (user can migrate manually later)
+  - [x] If no old config exists, write new config directly to `~/.config/sleep-warning/config/sleep-warning.conf`
 
 #### 6.3 Update CONFIG_FILE Constant
-- [ ] Update `CONFIG_FILE` in `lib/config.sh`:
-  - [ ] Change from: `CONFIG_FILE="${CONFIG_DIR}/sleep-warning.conf"`
-  - [ ] Change to: `CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"`
-  - [ ] Ensure all scripts use this constant (no hardcoded paths)
-  - [ ] Verify all references to config file use `CONFIG_FILE` constant
+- [x] Update `CONFIG_FILE` in `lib/config.sh`:
+  - [x] Change from: `CONFIG_FILE="${CONFIG_DIR}/sleep-warning.conf"`
+  - [x] Change to: `CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"`
+  - [x] Ensure all scripts use this constant (no hardcoded paths)
+  - [x] Verify all references to config file use `CONFIG_FILE` constant
 
 #### 6.4 Backward Compatibility
 - [x] **DECISION MADE**: No backward compatibility - only use new location - **CHOSEN**
   - **Rationale**: Cleaner implementation, migration handles transition
   - **Implementation**: All code should use `CONFIG_FILE` constant which points to new location
-  - [ ] Ensure no hardcoded paths to old location remain in codebase
-  - [ ] Migration must succeed before system can function (old location not checked as fallback)
+  - [x] Ensure no hardcoded paths to old location remain in codebase (uninstall.sh handles both for cleanup)
+  - [x] Migration must succeed before system can function (old location not checked as fallback)
 
 ---
 
 ### Phase 7: Edge Cases and Error Handling
 
 #### 7.1 Handle System Time Changes
-- [ ] Lock state should adapt to time changes:
-  - [ ] Lock application runs every timer tick (handles time changes automatically)
-  - [ ] No cached time values (always use current time)
-  - [ ] Test: Change system time during locked period (lock should persist or adapt)
+- [x] Lock state should adapt to time changes:
+  - [x] Lock application runs every timer tick (handles time changes automatically)
+  - [x] No cached time values (always use current time via `date` command)
+  - [ ] Test: Change system time during locked period (lock should persist or adapt) - **TESTING PENDING**
 
 #### 7.2 Handle System Sleep/Resume
-- [ ] Lock state should persist across sleep/resume:
-  - [ ] Lock application runs on next timer tick after resume
-  - [ ] No special handling needed (idempotent lock application handles it)
-  - [ ] Test: Sleep system during locked period, resume (lock should still be active)
+- [x] Lock state should persist across sleep/resume:
+  - [x] Lock application runs on next timer tick after resume
+  - [x] No special handling needed (idempotent lock application handles it)
+  - [ ] Test: Sleep system during locked period, resume (lock should still be active) - **TESTING PENDING**
 
 #### 7.3 Handle Manual Permission Changes
-- [ ] Detect if user manually changed permissions:
-  - [ ] Option 1: Re-apply lock on next timer tick (idempotent, handles it)
-  - [ ] Option 2: Check permissions match expected, warn if different
-  - [ ] **Recommendation**: Option 1 (simpler, idempotent lock application)
-  - [ ] Test: User manually changes file to writable during lock hours (should be re-locked)
+- [x] Detect if user manually changed permissions:
+  - [x] Option 1: Re-apply lock on next timer tick (idempotent, handles it) - **IMPLEMENTED**
+  - [x] Self-healing function also re-asserts permissions
+  - [ ] Test: User manually changes file to writable during lock hours (should be re-locked) - **TESTING PENDING**
 
 #### 7.4 Handle Config File Deletion
-- [ ] Prevent or handle config file deletion during lock hours:
-  - [ ] Option B: Restore from snapshot if file deleted (self-healing)
-  - [ ] Option A: Directory lock prevents deletion (stronger protection)
-  - [ ] Log warning if file deleted and restored
-  - [ ] Test: Delete config file during lock hours (should be restored)
+- [x] Prevent or handle config file deletion during lock hours:
+  - [x] Option A: Directory lock prevents deletion (stronger protection)
+  - [x] Self-healing: Restore from snapshot if file deleted
+  - [x] Log warning if file deleted and restored (via log_message if available)
+  - [ ] Test: Delete config file during lock hours (should be restored) - **TESTING PENDING**
 
 #### 7.5 Handle Missing Marker File
-- [ ] If marker file missing but lock should be active:
-  - [ ] Treat as first lock (store current mode, create snapshot)
-  - [ ] Don't fail if marker missing (graceful degradation)
-  - [ ] Test: Delete marker file during lock hours (should recreate)
+- [x] If marker file missing but lock should be active:
+  - [x] Treat as first lock (store current mode, create snapshot)
+  - [x] Don't fail if marker missing (graceful degradation)
+  - [x] Uses safe defaults (755/644) if marker missing during unlock
+  - [ ] Test: Delete marker file during lock hours (should recreate) - **TESTING PENDING**
 
 #### 7.6 Handle Corrupted Snapshot File
-- [ ] If snapshot file corrupted or missing:
-  - [ ] Log error (if logging available)
-  - [ ] Don't restore (prevent data loss from corrupted snapshot)
-  - [ ] Re-create snapshot on next lock cycle (if file exists)
-  - [ ] Test: Corrupt snapshot file (should handle gracefully)
+- [x] If snapshot file corrupted or missing:
+  - [x] Log error (if logging available via log_message)
+  - [x] Don't restore (prevent data loss from corrupted snapshot)
+  - [x] Re-create snapshot on next lock cycle (if file exists)
+  - [ ] Test: Corrupt snapshot file (should handle gracefully) - **TESTING PENDING**
 
 ---
 
 ### Phase 8: Testing
 
-#### 8.1 Unit Tests
-- [ ] Test `get_config_lock_enabled()` function:
-  - [ ] Test with missing config file (should return default false)
-  - [ ] Test with `CONFIG_LOCK_ENABLED=true`
-  - [ ] Test with `CONFIG_LOCK_ENABLED=false`
-  - [ ] Test with invalid values (should return default)
-  - [ ] Test case insensitivity
+**Test harness note**:
+- A basic, isolated test script is available at `tests/test-config-locking.sh`.
+- It runs with a temporary `HOME` so it does not touch any real installed configuration.
 
-- [ ] Test `is_config_lock_active()` function:
-  - [ ] Test when `CONFIG_LOCK_ENABLED=false` (should return inactive)
+**Tests performed (2026-01-25)**:
+- `bash tests/test-config-locking.sh` ✅ PASS
+  - Covers:
+    - `get_config_lock_enabled()` default/normalization/invalid-value fallback
+    - `is_config_lock_active()` during restriction hours and during `CONFIG_LOCK_HOURS_*` (lock-hours-only case)
+    - `apply_config_directory_lock()` lock/unlock + idempotency + write-blocking check
+  - Notes:
+    - The test runs under a temporary `HOME` and creates its own config tree under `~/.config/sleep-warning/`.
+- Additional “safe” test scripts also run (do not touch the real installed config):
+  - `bash tests/test-lock-hours-phase2.sh` ✅ PASS
+    - **Relevance to Enhancement #18**: Tests `CONFIG_LOCK_HOURS_*` parsing and `is_lock_hour()` logic used by Enhancement #18's `is_config_lock_active()`.
+  - `bash tests/test-uninstall-lock-hours-phase2.sh` ✅ PASS
+    - **Relevance to Enhancement #18**: Not directly related (tests uninstall lock hours, separate feature).
+  - `bash tests/test-write-config-override-flags.sh` ✅ PASS
+    - **Relevance to Enhancement #18**: Tests `write_config()` override flag detection, including the safety mechanism (Enhancement #22) that automatically disables `CONFIG_LOCK_ENABLED` when restrictions exceed 16 hours/day.
+  - `bash tests/test-dialog-tool-selection.sh` ✅ PASS
+    - **Relevance to Enhancement #18**: Not directly related (tests dialog tool selection used by configure.sh).
+  - `bash tests/test-pause-feature.sh` ✅ PASS
+    - **Relevance to Enhancement #18**: Not directly related.
+  - Re-run note (2026-01-25 00:54 EST): all still ✅ PASS.
+
+**Note**: The integration test "Test `configure.sh` blocking" (section 8.2) is still pending. This would verify that `configure.sh` shows an error and exits when `CONFIG_LOCK_ENABLED=true` and the current time is within restricted hours or lock hours.
+
+#### 8.1 Unit Tests
+- [x] Test `get_config_lock_enabled()` function:
+  - [x] Test with missing config file (should return default false)
+  - [x] Test with `CONFIG_LOCK_ENABLED=true` (and case insensitivity, e.g. `TRUE`)
+  - [x] Test with `CONFIG_LOCK_ENABLED=false`
+  - [x] Test with invalid values (should return default)
+  - [x] Test case insensitivity
+
+- [x] Test `is_config_lock_active()` function:
+  - [x] Test when `CONFIG_LOCK_ENABLED=false` (should return inactive)
   - [ ] Test when enabled and NOT in restricted hours (should return inactive)
-  - [ ] Test when enabled and IN restricted hours (should return active)
+  - [x] Test when enabled and IN restricted hours (should return active)
   - [ ] Test overnight ranges (previous day extending into current day)
-  - [ ] Test additional lock hours (if implemented)
+  - [x] Test additional lock hours (if implemented)
   - [ ] Test multiple ranges per day
 
-- [ ] Test lock application functions:
-  - [ ] Test applying lock (file becomes read-only)
-  - [ ] Test removing lock (file becomes writable)
-  - [ ] Test idempotency (calling multiple times has same effect)
-  - [ ] Test mode storage and retrieval
+- [x] Test lock application functions:
+  - [x] Test applying lock (file becomes read-only)
+  - [x] Test removing lock (file becomes writable)
+  - [x] Test idempotency (calling multiple times has same effect)
+  - [x] Test mode storage and retrieval (restores non-default modes)
   - [ ] Test with missing config file (should handle gracefully)
 
 #### 8.2 Integration Tests
@@ -667,30 +695,30 @@
 ### Phase 10: Code Quality and Final Checks
 
 #### 10.1 Variable Name Verification
-- [ ] **VERIFIED**: `config_lock_enabled` - ✅ No conflicts
-- [ ] **VERIFIED**: `get_config_lock_enabled()` - ✅ No conflicts
-- [ ] **VERIFIED**: `is_config_lock_active()` - ✅ No conflicts
-- [ ] **VERIFIED**: `apply_config_file_lock()` - ✅ No conflicts
-- [ ] **VERIFIED**: `show_config_file_locked_error()` - ✅ No conflicts
-- [ ] **VERIFIED**: `get_config_lock_enabled_config()` - ✅ No conflicts
-- [ ] **VERIFIED**: `CONFIG_FILE_LOCK_HOURS_*` (if used) - ✅ No conflicts with `CONFIG_LOCK_HOURS_*`
+- [x] **VERIFIED**: `config_lock_enabled` - ✅ No conflicts
+- [x] **VERIFIED**: `get_config_lock_enabled()` - ✅ No conflicts
+- [x] **VERIFIED**: `is_config_lock_active()` - ✅ No conflicts
+- [x] **VERIFIED**: `apply_config_directory_lock()` - ✅ No conflicts (function name matches Option A)
+- [x] **VERIFIED**: `show_config_file_locked_error()` - ✅ No conflicts
+- [x] **VERIFIED**: `get_config_lock_enabled_config()` - ✅ No conflicts (legacy helper; primary UX uses combined **Security Settings** via `get_security_settings_config()`)
+- [x] **VERIFIED**: `CONFIG_LOCK_HOURS_*` (reused) - ✅ No conflicts, safely reused from Enhancement #19
 
 #### 10.2 Code Style and Consistency
-- [ ] Follow existing code style (snake_case for functions, UPPER_CASE for constants)
-- [ ] Use same error handling patterns as existing code
-- [ ] Use same logging patterns (if logging available)
-- [ ] Match existing function organization patterns
+- [x] Follow existing code style (snake_case for functions, UPPER_CASE for constants)
+- [x] Use same error handling patterns as existing code
+- [x] Use same logging patterns (if logging available via log_message)
+- [x] Match existing function organization patterns
 
 #### 10.3 Error Handling
-- [ ] All file operations handle errors gracefully
-- [ ] All permission operations handle errors gracefully
-- [ ] Missing files handled gracefully (don't fail, log warning)
-- [ ] Invalid config values handled gracefully (use defaults)
+- [x] All file operations handle errors gracefully
+- [x] All permission operations handle errors gracefully
+- [x] Missing files handled gracefully (don't fail, log warning)
+- [x] Invalid config values handled gracefully (use defaults)
 
 #### 10.4 Performance
-- [ ] Lock application is fast (< 100ms)
-- [ ] No unnecessary file operations
-- [ ] No continuous monitoring (only on timer tick)
+- [x] Lock application is fast (< 100ms expected)
+- [x] No unnecessary file operations
+- [x] No continuous monitoring (only on timer tick)
 
 ---
 

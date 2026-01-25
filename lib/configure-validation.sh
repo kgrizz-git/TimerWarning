@@ -107,7 +107,7 @@ merge_overlapping_intervals() {
 #   Validates configuration to prevent users from accidentally configuring
 #   24/7 restrictions (all 24 hours, 7 days a week) which would effectively
 #   lock them out of their computer. Also detects high restriction levels
-#   (> 23 hours/day) and warns the user.
+#   (> HOURS_PER_DAY_WARN hours/day, default: 16 hours/day) and warns the user.
 #
 # Algorithm Overview:
 #   1. Parse all time ranges from config_lines array (7 days: Sunday-Saturday)
@@ -130,8 +130,8 @@ merge_overlapping_intervals() {
 #
 # Output:
 #   Returns one of three strings via stdout:
-#   - "ok"    : Valid configuration (<= 9660 minutes, <= 23 hours/day)
-#   - "warn"  : High restriction level (> 9660 minutes, > 23 hours/day, but < 10080)
+#   - "ok"    : Valid configuration (<= 6720 minutes, <= 16 hours/day)
+#   - "warn"  : High restriction level (> 6720 minutes, > 16 hours/day, but < 10080)
 #   - "block" : 24/7 restrictions detected (>= 10080 minutes, all 24 hours × 7 days)
 #
 # Usage:
@@ -162,14 +162,16 @@ merge_overlapping_intervals() {
 #   - All overlaps are automatically merged to avoid double-counting
 #
 # Thresholds:
-#   - THRESHOLD_BLOCK = 10080 minutes (7 days × 24 hours × 60 minutes)
-#     → Configuration blocked if total >= 10080
-#   - THRESHOLD_WARN = 9660 minutes (7 days × 23 hours × 60 minutes)
-#     → Warning shown if total > 9660 but < 10080
+#   Thresholds are defined globally in configure-core.sh:
+#   - THRESHOLD_BLOCK = HOURS_PER_DAY_BLOCK × 60 × 7 (default: 24 hours/day = 10080 minutes)
+#     → Configuration blocked if total >= THRESHOLD_BLOCK
+#   - THRESHOLD_WARN = HOURS_PER_DAY_WARN × 60 × 7 (default: 16 hours/day = 6720 minutes)
+#     → Warning shown if total > THRESHOLD_WARN but < THRESHOLD_BLOCK
 #   - Boundary cases:
-#     * Exactly 9660 minutes (23 hours/day): returns "ok" (no warning)
-#     * Exactly 10079 minutes: returns "warn" (high but not 24/7)
-#     * Exactly 10080 minutes: returns "block" (24/7 detected)
+#     * Exactly THRESHOLD_WARN minutes: returns "ok" (no warning)
+#     * Exactly (THRESHOLD_BLOCK - 1) minutes: returns "warn" (high but not 24/7)
+#     * Exactly THRESHOLD_BLOCK minutes: returns "block" (24/7 detected)
+#   To change thresholds, modify HOURS_PER_DAY_WARN or HOURS_PER_DAY_BLOCK in configure-core.sh
 #
 # Performance:
 #   Time complexity: O(n log n) where n = total number of time ranges
@@ -193,19 +195,14 @@ check_restriction_coverage() {
     
     # Constants for time calculations
     # These constants define the time units used in the unified weekly timeline
-    local MINUTES_PER_HOUR=60      # 60 minutes per hour
+    # Note: MINUTES_PER_HOUR is defined globally in configure-core.sh
     local MINUTES_PER_DAY=1440     # 24 hours × 60 minutes = 1440 minutes per day
     local MINUTES_PER_WEEK=10080   # 7 days × 1440 minutes = 10080 minutes per week
     
-    # Validation thresholds
-    # THRESHOLD_BLOCK: 24/7 restrictions (all 24 hours × 7 days = 10080 minutes)
-    #   If total restricted minutes >= 10080, configuration is blocked
-    local THRESHOLD_BLOCK=10080
-    
-    # THRESHOLD_WARN: High restriction level (> 23 hours/day = 9660 minutes/week)
-    #   If total restricted minutes > 9660 but < 10080, show warning
-    #   Note: Exactly 9660 (23 hours/day) is considered "ok" (no warning)
-    local THRESHOLD_WARN=9660
+    # Validation thresholds are defined globally in configure-core.sh:
+    # - THRESHOLD_BLOCK: 24/7 restrictions (calculated from HOURS_PER_DAY_BLOCK)
+    # - THRESHOLD_WARN: High restriction level (calculated from HOURS_PER_DAY_WARN)
+    # These are used directly from the global scope
     
     # Process each day (indices 0-6: Sunday-Saturday)
     for i in 0 1 2 3 4 5 6; do
@@ -263,6 +260,7 @@ check_restriction_coverage() {
             fi
             
             # Convert hours to minutes
+            # Note: MINUTES_PER_HOUR is defined globally in configure-core.sh
             local start_minute=$((start_hour * MINUTES_PER_HOUR))
             local end_minute=$((end_hour * MINUTES_PER_HOUR))
             
@@ -323,19 +321,22 @@ check_restriction_coverage() {
     done <<< "${final_intervals}"
     
     # Determine validation result based on thresholds
-    # Note: Boundary cases are handled explicitly:
-    # - Exactly 9660 minutes (23 hours/day): returns "ok" (no warning)
-    # - Exactly 10080 minutes (24/7): returns "block" (prevents saving)
+    # Note: Thresholds are defined globally in configure-core.sh:
+    # - THRESHOLD_BLOCK = HOURS_PER_DAY_BLOCK × 60 × 7 (default: 24 hours/day = 10080 minutes)
+    # - THRESHOLD_WARN = HOURS_PER_DAY_WARN × 60 × 7 (default: 16 hours/day = 6720 minutes)
+    # Boundary cases:
+    # - Exactly THRESHOLD_WARN minutes: returns "ok" (no warning)
+    # - Exactly THRESHOLD_BLOCK minutes: returns "block" (prevents saving)
     if [ "${total}" -ge "${THRESHOLD_BLOCK}" ]; then
-        # 24/7 restrictions detected: total >= 10080 minutes
+        # 24/7 restrictions detected: total >= THRESHOLD_BLOCK minutes
         # Configuration must be blocked to prevent accidental lockout
         echo "block"
     elif [ "${total}" -gt "${THRESHOLD_WARN}" ]; then
-        # High restriction level: total > 9660 but < 10080 minutes
+        # High restriction level: total > THRESHOLD_WARN but < THRESHOLD_BLOCK minutes
         # Show warning dialog, allow user to confirm or modify
         echo "warn"
     else
-        # Valid configuration: total <= 9660 minutes (<= 23 hours/day)
+        # Valid configuration: total <= THRESHOLD_WARN minutes
         # Proceed with normal save flow
         echo "ok"
     fi

@@ -19,7 +19,7 @@ This document provides comprehensive details about how the config file locking m
 ### Script Components
 
 #### 1. Locking Functions Module
-**File**: `lib/config-locking.sh` (new module to be created)
+**File**: `lib/config-locking.sh`
 
 **Contains**:
 - `is_config_lock_active()` - Checks if lock should be active
@@ -35,6 +35,15 @@ This document provides comprehensive details about how the config file locking m
 - Sources the locking module
 - Calls the locking functions in its main function
 - Runs automatically via systemd timer
+
+#### 2b. Configuration Wizard (toggle + safety UI)
+**File**: `configure.sh`
+
+**Role**:
+- Provides a **combined "Security Settings"** menu option that configures:
+  - Script blocking (Enhancement #19)
+  - Config file locking enable/disable (Enhancement #18)
+- Blocks execution when config file locking is active (shows a “config file locked” error and exits).
 
 #### 3. Systemd Timer
 **File**: `sleep-warning.timer`
@@ -72,20 +81,20 @@ This document provides comprehensive details about how the config file locking m
 ```bash
 # sleep-warning.sh structure (simplified)
 
-# 1. Source all modules (including new config-locking.sh)
+# 1. Source all modules (including config-locking.sh)
 source "${LIB_DIR}/config.sh" || exit 1
-source "${LIB_DIR}/config-locking.sh" || exit 1  # NEW
+source "${LIB_DIR}/config-locking.sh" || exit 1
 source "${LIB_DIR}/logging.sh" || exit 1
 # ... other modules ...
 
 # 2. Main function
 main() {
     # 3. Apply config file lock (EARLY - before other checks)
-    apply_config_directory_lock()  # NEW - does all the locking work
+    apply_config_directory_lock()  # Does all the locking work
     
     # 4. Self-healing check (if lock is active)
     if is_config_lock_active; then
-        check_and_restore_config_file()  # NEW - detects tampering
+        check_and_restore_config_file()  # Detects tampering
     fi
     
     # 5. Continue with normal sleep warning logic
@@ -545,7 +554,7 @@ Self-healing provides **defense-in-depth** by detecting and reversing these atte
 
 ### Safety Features
 
-- **Uninstall Always Works**: `uninstall.sh` always restores permissions, even during lock hours
+- **Uninstall Always Works**: `uninstall.sh` stops the timer, restores permissions (best-effort), then removes files — even during lock hours
 - **Automatic Disabling**: Enhancement #22 automatically disables locking if restrictions > 9660 minutes/week
 - **Opt-in**: Feature is disabled by default (`CONFIG_LOCK_ENABLED=false`)
 

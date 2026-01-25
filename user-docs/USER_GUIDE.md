@@ -65,7 +65,7 @@ manual-uninstall-guide          # Manual uninstall instructions (always availabl
 
 ### File Locations
 
-- **Configuration**: `~/.config/sleep-warning/sleep-warning.conf`
+- **Configuration**: `~/.config/sleep-warning/config/sleep-warning.conf` (older installs may have `~/.config/sleep-warning/sleep-warning.conf`)
 - **User Log**: `~/.config/sleep-warning/warnings.log`
 - **Main Script**: `~/.local/bin/sleep-warning.sh`
 - **Service File**: `~/.config/systemd/user/sleep-warning.service`
@@ -102,7 +102,7 @@ For detailed information about the configuration wizard, see [CONFIGURATION.md](
 You can also edit the configuration file directly:
 
 ```bash
-nano ~/.config/sleep-warning/sleep-warning.conf
+nano ~/.config/sleep-warning/config/sleep-warning.conf
 ```
 
 **Configuration File Format:**
@@ -522,7 +522,7 @@ sudo pacman -S wmctrl xdotool
 **Solution:**
 1. **Verify configuration file location:**
    ```bash
-   cat ~/.config/sleep-warning/sleep-warning.conf
+   cat ~/.config/sleep-warning/config/sleep-warning.conf
    ```
    Check that your changes are saved.
 
@@ -616,7 +616,7 @@ To test the popup during non-restricted hours, temporarily modify your configura
 
 1. **Edit configuration:**
    ```bash
-   nano ~/.config/sleep-warning/sleep-warning.conf
+   nano ~/.config/sleep-warning/config/sleep-warning.conf
    ```
 
 2. **Add a test range that includes current time:**
@@ -700,12 +700,12 @@ The system runs as a user service, meaning:
 
 **Backup:**
 ```bash
-cp ~/.config/sleep-warning/sleep-warning.conf ~/sleep-warning-backup.conf
+cp ~/.config/sleep-warning/config/sleep-warning.conf ~/sleep-warning-backup.conf
 ```
 
 **Restore:**
 ```bash
-cp ~/sleep-warning-backup.conf ~/.config/sleep-warning/sleep-warning.conf
+cp ~/sleep-warning-backup.conf ~/.config/sleep-warning/config/sleep-warning.conf
 ```
 
 **Note**: After restoring, changes take effect on the next check (within configured interval).

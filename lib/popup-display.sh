@@ -293,7 +293,7 @@ This warning will appear ${interval_text} while you continue using your computer
             fi
             ;;
         kdialog)
-            # kdialog has no size/position control
+            # kdialog --geometry is not supported for --sorry dialogs (only works for --textbox and --textinputbox)
             # Note: kdialog doesn't support --warning, use --sorry for warning messages
             # kdialog doesn't support custom buttons on --sorry, so we'll show menu after warning closes
             kdialog --title "${window_title}" \
@@ -550,6 +550,7 @@ This warning will appear ${interval_text} while you continue using your computer
                                                 --text="Warning popups paused until ${pause_end_time}" \
                                                 --width=400 \
                                                 --height=150 \
+                                                --timeout=30 \
                                                 2>/dev/null
                                             
                                             # Return early (bypass minimum display time)
@@ -577,6 +578,7 @@ This warning will appear ${interval_text} while you continue using your computer
                                         --width=400 \
                                         --height=150 \
                                         --button="OK:0" \
+                                        --timeout=30 \
                                         2>/dev/null
                                     
                                     # Return early (bypass minimum display time)
@@ -588,12 +590,12 @@ This warning will appear ${interval_text} while you continue using your computer
                             # kdialog: show menu dialog after warning closes (even during minimum display time)
                             if can_pause_today; then
                                 local pause_choice
-                                pause_choice=$(kdialog --title "Pause Warnings" \
+                                pause_choice=$(timeout 30 kdialog --title "Pause Warnings" \
                                     --menu "Pause warning popups for:" \
                                     "5" "5 minutes" \
                                     "10" "10 minutes" \
                                     "cancel" "Cancel" \
-                                    2>/dev/null)
+                                    2>/dev/null || echo "")
                                 
                                 if [ -n "${pause_choice}" ] && [ "${pause_choice}" != "cancel" ]; then
                                     if [ "${pause_choice}" = "5" ] || [ "${pause_choice}" = "10" ]; then
@@ -603,8 +605,7 @@ This warning will appear ${interval_text} while you continue using your computer
                                             local pause_end_time
                                             pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
                                             
-                                            kdialog --title "Pause Activated" \
-                                                --msgbox "Warning popups paused until ${pause_end_time}" \
+                                            kdialog --passivepopup "Warning popups paused until ${pause_end_time}" 30 \
                                                 2>/dev/null
                                             
                                             # Return early (bypass minimum display time)
@@ -689,6 +690,7 @@ This warning will appear ${interval_text} while you continue using your computer
                                             --text="Warning popups paused until ${pause_end_time}" \
                                             --width=400 \
                                             --height=150 \
+                                            --timeout=30 \
                                             2>/dev/null
                                         
                                         return 0
@@ -713,6 +715,7 @@ This warning will appear ${interval_text} while you continue using your computer
                                     --width=400 \
                                     --height=150 \
                                     --button="OK:0" \
+                                    --timeout=30 \
                                     2>/dev/null
                                 
                                 return 0
@@ -723,12 +726,12 @@ This warning will appear ${interval_text} while you continue using your computer
                         # kdialog: show menu dialog after warning closes
                         if can_pause_today; then
                             local pause_choice
-                            pause_choice=$(kdialog --title "Pause Warnings" \
+                            pause_choice=$(timeout 30 kdialog --title "Pause Warnings" \
                                 --menu "Pause warning popups for:" \
                                 "5" "5 minutes" \
                                 "10" "10 minutes" \
                                 "cancel" "Cancel" \
-                                2>/dev/null)
+                                2>/dev/null || echo "")
                             
                             if [ -n "${pause_choice}" ] && [ "${pause_choice}" != "cancel" ]; then
                                 if [ "${pause_choice}" = "5" ] || [ "${pause_choice}" = "10" ]; then
@@ -738,8 +741,7 @@ This warning will appear ${interval_text} while you continue using your computer
                                         local pause_end_time
                                         pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
                                         
-                                        kdialog --title "Pause Activated" \
-                                            --msgbox "Warning popups paused until ${pause_end_time}" \
+                                        kdialog --passivepopup "Warning popups paused until ${pause_end_time}" 30 \
                                             2>/dev/null
                                         
                                         return 0
@@ -793,6 +795,7 @@ This warning will appear ${interval_text} while you continue using your computer
                                                 --text="Warning popups paused until ${pause_end_time}" \
                                                 --width=400 \
                                                 --height=150 \
+                                                --timeout=30 \
                                                 2>/dev/null
                                             
                                             return 0
@@ -817,6 +820,7 @@ This warning will appear ${interval_text} while you continue using your computer
                                         --width=400 \
                                         --height=150 \
                                         --button="OK:0" \
+                                        --timeout=30 \
                                         2>/dev/null
                                     
                                     return 0
@@ -827,12 +831,12 @@ This warning will appear ${interval_text} while you continue using your computer
                             # kdialog: show menu dialog after warning closes
                             if can_pause_today; then
                                 local pause_choice
-                                pause_choice=$(kdialog --title "Pause Warnings" \
+                                pause_choice=$(timeout 30 kdialog --title "Pause Warnings" \
                                     --menu "Pause warning popups for:" \
                                     "5" "5 minutes" \
                                     "10" "10 minutes" \
                                     "cancel" "Cancel" \
-                                    2>/dev/null)
+                                    2>/dev/null || echo "")
                                 
                                 if [ -n "${pause_choice}" ] && [ "${pause_choice}" != "cancel" ]; then
                                     if [ "${pause_choice}" = "5" ] || [ "${pause_choice}" = "10" ]; then
@@ -842,8 +846,7 @@ This warning will appear ${interval_text} while you continue using your computer
                                             local pause_end_time
                                             pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
                                             
-                                            kdialog --title "Pause Activated" \
-                                                --msgbox "Warning popups paused until ${pause_end_time}" \
+                                            kdialog --passivepopup "Warning popups paused until ${pause_end_time}" 30 \
                                                 2>/dev/null
                                             
                                             return 0

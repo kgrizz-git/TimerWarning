@@ -19,6 +19,7 @@
 # - show_high_restriction_warning() - Show warning dialog for high restriction levels
 # - calculate_restriction_end_time() - Calculate when current restriction period ends
 # - show_config_locked_error()    - Show error when configure.sh/manage.sh is blocked (Enhancement #19)
+# - show_config_file_locked_error() - Show error when config file is locked (Enhancement #18)
 #
 # Dependencies:
 # - configure-core.sh (for has_dialog_tool, CONFIG_FILE)
@@ -122,7 +123,7 @@ OVERLAPPING RANGES:
 SAFETY FEATURE - 24/7 Restriction Prevention:
   • The system prevents configuring restrictions for all 24 hours, 7 days a week
   • If you configure 24/7 restrictions, you'll see an error and cannot save
-  • If you configure > 23 hours/day, you'll see a warning and can choose to save anyway
+  • If you configure > 16 hours/day, you'll see a warning and can choose to save anyway
   • Safety features (popup size limits, config locking disabled) are automatically applied for high restriction levels
 
 NAVIGATION:
@@ -181,7 +182,7 @@ both will cover Tuesday midnight-4:59 AM (redundant but harmless).
 SAFETY FEATURE:
 The system includes a safety feature that prevents you from accidentally
 configuring restrictions for all 24 hours, 7 days a week (which would
-lock you out). If you configure very high restriction levels (> 23 hours/day),
+lock you out). If you configure very high restriction levels (> 16 hours/day),
 you'll see a warning and safety features will be automatically applied.
 
 Examples:
@@ -403,7 +404,7 @@ Configuration cannot be saved until you reduce the restriction level."
 }
 
 # Show high restriction warning dialog
-# This is displayed when validation detects restrictions exceeding 23 hours/day (> 9660 minutes)
+# This is displayed when validation detects restrictions exceeding THRESHOLD_WARN minutes (> HOURS_PER_DAY_WARN hours/day)
 # Returns 0 if user confirms (save anyway), 1 if user cancels (modify settings)
 show_high_restriction_warning() {
     local use_gui="$1"
@@ -411,7 +412,7 @@ show_high_restriction_warning() {
     local title="Warning: Very High Restriction Level"
     local message="⚠️  ⚠️  WARNING  ⚠️  ⚠️
 
-You have configured restrictions for more than 23 hours per day.
+You have configured restrictions for more than 16 hours per day.
 
 This leaves very little unrestricted time and may effectively lock you out.
 
@@ -428,7 +429,7 @@ Do you want to save this configuration anyway?"
         echo "" >&2
         echo "⚠️  ⚠️  WARNING: Very High Restriction Level  ⚠️  ⚠️" >&2
         echo "" >&2
-        echo "You have configured restrictions for more than 23 hours per day." >&2
+        echo "You have configured restrictions for more than 16 hours per day." >&2
         echo "This leaves very little unrestricted time and may effectively lock you out." >&2
         echo "" >&2
         echo "Safety measures will be applied:" >&2
@@ -923,4 +924,17 @@ show_config_locked_error() {
         echo "Please try again after the lock period ends." >&2
         echo "" >&2
     fi
+}
+
+# Show error when config file is locked (Enhancement #18)
+# This function displays an error message when the user tries to save configuration
+# but the config file is locked due to restricted hours or lock hours
+# Parameters:
+#   $1 - use_gui (true/false)
+# Dependencies: Same as show_config_locked_error
+show_config_file_locked_error() {
+    local use_gui="$1"
+    
+    # Reuse the same logic as show_config_locked_error but with different message
+    show_config_locked_error "${use_gui}" "Configuration File"
 }

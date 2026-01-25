@@ -13,6 +13,8 @@
 # - get_min_display_time_config()  - Get minimum display time
 # - get_popup_immovable_config()   - Get immovable setting
 # - get_configure_block_enabled_config() - Get configure block enabled setting (Enhancement #19)
+# - get_security_settings_config() - Get combined security settings (script blocking & config locking)
+# - get_config_lock_enabled_config() - Get config lock enabled setting (Enhancement #18)
 # - get_popup_position_config()    - Get popup position
 # - get_check_interval()           - Get check interval
 # - get_day_hours()                - Get time ranges for a day (complex with navigation)
@@ -380,6 +382,256 @@ get_configure_block_enabled_config() {
                     echo "Invalid choice. Please enter 'y' for yes or 'n' for no." >&2
                     ;;
             esac
+        done
+    fi
+}
+
+# Get combined security settings (configure block and config file locking)
+# Parameters:
+#   $1 - use_gui (true/false)
+#   $2 - current_configure_block_enabled (current value)
+#   $3 - current_config_lock_enabled (current value)
+# Returns:
+#   "configure_block|config_lock" - Both settings as pipe-separated values
+#   "CANCELLED" - User cancelled the operation
+# Exit Codes:
+#   0 - Success (returns "true|true", "true|false", "false|true", or "false|false")
+#   2 - User cancelled (returns "CANCELLED")
+get_security_settings_config() {
+    local use_gui="$1"
+    local current_configure_block="${2:-false}"
+    local current_config_lock="${3:-false}"
+    
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        # GUI mode - use a form dialog or multi-step dialog
+        while true; do
+            # First, ask about configure block
+            local block_enabled_result
+            block_enabled_result=$(show_list_dialog \
+                "Sleep Warning Configuration - Security Settings" \
+                "Block configure.sh and manage.sh during restricted hours?\n\nWhen enabled, the configuration and management scripts will be blocked from running during restricted hours to prevent circumventing restrictions.\n\nNote: This must be enabled for 'Additional Configuration Block Hours' to take effect.\n\nCurrent setting: ${current_configure_block}" \
+                700 \
+                400 \
+                "true" "false")
+            local exit_code=$?
+            
+            if [ ${exit_code} -ne 0 ] || [ -z "${block_enabled_result}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2
+                else
+                    continue
+                fi
+            fi
+            
+            # Then, ask about config file locking
+            local lock_enabled_result
+            lock_enabled_result=$(show_list_dialog \
+                "Sleep Warning Configuration - Security Settings" \
+                "Enable config file locking during restricted hours?\n\nWhen enabled, the config file and directory are made read-only during restricted hours and any configured lock hours to prevent users from circumventing restrictions by changing settings.\n\nNote: Automatically disabled if restrictions exceed ${THRESHOLD_WARN} minutes/week (> $(get_threshold_warn_description)) for safety.\n\nCurrent setting: ${current_config_lock}" \
+                700 \
+                450 \
+                "true" "false")
+            exit_code=$?
+            
+            if [ ${exit_code} -ne 0 ] || [ -z "${lock_enabled_result}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2
+                else
+                    continue
+                fi
+            fi
+            
+            # Return both values pipe-separated
+            echo "${block_enabled_result}|${lock_enabled_result}"
+            return 0
+        done
+    else
+        # Text mode
+        echo "" >&2
+        echo "Security Settings Configuration" >&2
+        echo "" >&2
+        echo "1. Block configure.sh and manage.sh during restricted hours" >&2
+        echo "   When enabled, configure.sh and manage.sh will be blocked from running" >&2
+        echo "   during restricted hours to prevent circumventing restrictions." >&2
+        echo "   Note: This must be enabled for 'Additional Configuration Block Hours' to take effect." >&2
+        echo "" >&2
+        echo "2. Config file locking during restricted hours" >&2
+        echo "   When enabled, the config file and directory are made read-only during" >&2
+        echo "   restricted hours and any configured lock hours to prevent users from" >&2
+        echo "   circumventing restrictions by changing settings." >&2
+        echo "" >&2
+        echo "   This is a deterrence mechanism, not true security. A determined user" >&2
+        echo "   can still bypass it by changing permissions or stopping the timer." >&2
+        echo "" >&2
+        echo "   Note: Automatically disabled if restrictions exceed 6720 minutes/week" >&2
+        echo "   (> 16 hours/day) for safety." >&2
+        echo "" >&2
+        
+        # Get configure block setting
+        local block_enabled
+        while true; do
+            read -p "Block configure.sh and manage.sh during restricted hours? [y/n, default: ${current_configure_block}]: " choice >&2
+            choice=${choice:-${current_configure_block}}
+            case "${choice}" in
+                y|Y|yes|YES|true|TRUE|1)
+                    block_enabled="true"
+                    break
+                    ;;
+                n|N|no|NO|false|FALSE|0)
+                    block_enabled="false"
+                    break
+                    ;;
+                "")
+                    block_enabled="${current_configure_block}"
+                    break
+                    ;;
+                *)
+                    echo "Invalid choice. Please enter 'y' for yes or 'n' for no." >&2
+                    ;;
+            esac
+        done
+        
+        # Get config lock setting
+        local lock_enabled
+        while true; do
+            read -p "Enable config file locking during restricted hours? [y/n, default: ${current_config_lock}]: " choice >&2
+            choice=${choice:-${current_config_lock}}
+            case "${choice}" in
+                y|Y|yes|YES|true|TRUE|1)
+                    lock_enabled="true"
+                    break
+                    ;;
+                n|N|no|NO|false|FALSE|0)
+                    lock_enabled="false"
+                    break
+                    ;;
+                "")
+                    lock_enabled="${current_config_lock}"
+                    break
+                    ;;
+                *)
+                    echo "Invalid choice. Please enter 'y' for yes or 'n' for no." >&2
+                    ;;
+            esac
+        done
+        
+        # Return both values pipe-separated
+        echo "${block_enabled}|${lock_enabled}"
+        return 0
+    fi
+}
+
+# Get config lock enabled setting from user
+# Parameters:
+#   $1 - use_gui (true/false)
+# Returns:
+#   "true" - User enabled config file locking
+#   "false" - User disabled config file locking
+#   "CANCELLED" - User cancelled the operation
+# Exit Codes:
+#   0 - Success (returns "true" or "false")
+#   2 - User cancelled (returns "CANCELLED")
+get_config_lock_enabled_config() {
+    local use_gui="$1"
+    local default_lock_enabled="false"
+    
+    # Try to get existing setting from config
+    if [ -f "${CONFIG_FILE}" ]; then
+        local existing_lock_enabled
+        existing_lock_enabled=$(grep -E "^[[:space:]]*CONFIG_LOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ -n "${existing_lock_enabled}" ]; then
+            if [ "${existing_lock_enabled}" = "true" ] || [ "${existing_lock_enabled}" = "1" ] || [ "${existing_lock_enabled}" = "yes" ]; then
+                default_lock_enabled="true"
+            elif [ "${existing_lock_enabled}" = "false" ] || [ "${existing_lock_enabled}" = "0" ] || [ "${existing_lock_enabled}" = "no" ]; then
+                default_lock_enabled="false"
+            fi
+        fi
+    fi
+    
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        # GUI mode
+        while true; do
+            local lock_enabled
+            local lock_enabled_result
+            lock_enabled_result=$(show_list_dialog \
+                "Sleep Warning Configuration - Config File Locking" \
+                "Enable config file locking during restricted hours?\n\nWhen enabled, the config file and directory are made read-only during restricted hours and any configured lock hours to prevent users from circumventing restrictions by changing settings.\n\nNote: Automatically disabled if restrictions exceed ${THRESHOLD_WARN} minutes/week (> $(get_threshold_warn_description)) for safety.\n\nCurrent setting: ${default_lock_enabled}" \
+                700 \
+                450 \
+                "true" "false")
+            local exit_code=$?
+            
+            if [ ${exit_code} -eq 0 ] && [ -n "${lock_enabled_result}" ]; then
+                lock_enabled="${lock_enabled_result}"
+            else
+                lock_enabled=""
+            fi
+            
+            # User cancelled
+            if [ ${exit_code} -ne 0 ] || [ -z "${lock_enabled}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2  # Special return code for cancellation
+                else
+                    continue  # User wants to continue, re-prompt
+                fi
+            fi
+            
+            # Validate result
+            if [ "${lock_enabled}" = "true" ] || [ "${lock_enabled}" = "false" ]; then
+                echo "${lock_enabled}"
+                return 0
+            else
+                # Invalid result (shouldn't happen, but handle gracefully)
+                continue
+            fi
+        done
+    else
+        # Text mode
+        while true; do
+            echo "" >&2
+            echo "Config File Locking (Enhancement #18)" >&2
+            echo "" >&2
+            echo "When enabled, the config file and directory are made read-only during" >&2
+            echo "restricted hours and any configured lock hours to prevent users from" >&2
+            echo "circumventing restrictions by changing settings." >&2
+            echo "" >&2
+            echo "This is a deterrence mechanism, not true security. A determined user" >&2
+            echo "can still bypass it by changing permissions or stopping the timer." >&2
+            echo "" >&2
+            echo "Note: Automatically disabled if restrictions exceed ${THRESHOLD_WARN} minutes/week" >&2
+            echo "(> $(get_threshold_warn_description)) for safety." >&2
+            echo "" >&2
+            echo "Current setting: ${default_lock_enabled}" >&2
+            echo "" >&2
+            read -p "Enable config file locking? [true/false]: " lock_enabled >&2
+            
+            # Handle cancellation (Ctrl+C or empty input)
+            if [ -z "${lock_enabled}" ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2
+                else
+                    continue
+                fi
+            fi
+            
+            # Normalize input
+            lock_enabled=$(echo "${lock_enabled}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+            
+            # Validate and return
+            if [ "${lock_enabled}" = "true" ] || [ "${lock_enabled}" = "1" ] || [ "${lock_enabled}" = "yes" ]; then
+                echo "true"
+                return 0
+            elif [ "${lock_enabled}" = "false" ] || [ "${lock_enabled}" = "0" ] || [ "${lock_enabled}" = "no" ]; then
+                echo "false"
+                return 0
+            else
+                echo "Invalid input. Please enter 'true' or 'false'." >&2
+                continue
+            fi
         done
     fi
 }

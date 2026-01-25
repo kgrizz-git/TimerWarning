@@ -148,7 +148,7 @@ By default, warnings are shown during:
 - **Weekdays (Monday-Friday)**: Midnight (00:00) to 6:00 AM
 - **Weekends (Saturday-Sunday)**: 1:00 AM to 6:00 AM
 
-You can customize these hours using the configuration wizard (`sleep-warning-configure`) or by editing `~/.config/sleep-warning/sleep-warning.conf` manually.
+You can customize these hours using the configuration wizard (`sleep-warning-configure`) or by editing `~/.config/sleep-warning/config/sleep-warning.conf` manually.
 
 ## Configuration
 
@@ -160,7 +160,7 @@ sleep-warning-configure
 
 The configuration wizard provides options for timer settings, window behavior, and day-by-day hour configuration. The **Visual Day/Time Grid** is particularly useful for seeing your entire schedule at once and making quick edits.
 
-Or edit the configuration file directly at `~/.config/sleep-warning/sleep-warning.conf`:
+Or edit the configuration file directly at `~/.config/sleep-warning/config/sleep-warning.conf`:
 
 ```
 # Format: DAY=START_HOUR-END_HOUR (24-hour format, 0-23)

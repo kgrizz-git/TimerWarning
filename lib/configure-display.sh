@@ -9,7 +9,7 @@
 # Functions:
 # - get_section_status()  - Get status indicators for menu display
 # - show_main_menu()      - Show main navigation menu
-# - show_visual_grid()    - Display visual day/time grid for editing (restricted hours and lock hours)
+# - show_visual_grid()    - Display weekly hours settings grid for editing (restricted hours and lock hours)
 # - show_summary()        - Show configuration summary with overlap detection
 #
 # Dependencies:
@@ -69,6 +69,8 @@ get_section_status() {
 #   $12 - uninstall_lock_hours_status (e.g., "(None)" or "(Configured)") - Enhancement #26 Phase 2
 #   $13 - pause_enabled (e.g., "true" or "false") - Enhancement #21
 #   $14 - pause_duration (e.g., "5" or "10") - Enhancement #21
+#   $15 - dialog_tool_status (e.g., " (auto)") - Enhancement #25
+#   $16 - config_lock_enabled (e.g., "true" or "false") - Enhancement #18
 show_main_menu() {
     local use_gui="$1"
     local check_interval="$2"
@@ -85,6 +87,7 @@ show_main_menu() {
     local pause_enabled="${13}"
     local pause_duration="${14}"
     local dialog_tool_status="${15}"
+    local config_lock_enabled="${16}"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
@@ -112,12 +115,20 @@ show_main_menu() {
             window_desc="${window_desc}, Immovable: Off"
         fi
         
-        # Build security settings status indicator
+        # Build security settings status indicator (combined)
+        # Ensure variables have defaults if not set
+        local config_lock_val="${config_lock_enabled:-false}"
+        local configure_block_val="${configure_block_enabled:-false}"
+        
         local security_status=""
-        if [ "${configure_block_enabled}" = "true" ]; then
-            security_status=" (Enabled)"
+        if [ "${configure_block_val}" = "true" ] && [ "${config_lock_val}" = "true" ]; then
+            security_status=" (Both Enabled)"
+        elif [ "${configure_block_val}" = "true" ]; then
+            security_status=" (Script Block: On, File Lock: Off)"
+        elif [ "${config_lock_val}" = "true" ]; then
+            security_status=" (Script Block: Off, File Lock: On)"
         else
-            security_status=" (Disabled)"
+            security_status=" (Both Disabled)"
         fi
         
         # Build lock hours status indicator (Phase 2)
@@ -149,6 +160,16 @@ show_main_menu() {
             pause_status=" (Disabled)"
         fi
         
+        # Ensure all status variables are set (prevent empty values from causing misalignment)
+        local safe_security_status="${security_status:- (Both Disabled)}"
+        local safe_lock_status="${lock_status_display:-}"
+        local safe_uninstall_protection="${uninstall_protection_status:- (Disabled)}"
+        local safe_uninstall_lock="${uninstall_lock_status_display:-}"
+        local safe_pause_status="${pause_status:- (Disabled)}"
+        local safe_dialog_status="${dialog_tool_status:-}"
+        local safe_weekdays="${weekdays_status:-}"
+        local safe_weekends="${weekends_status:-}"
+        
         local choice
         choice=$(show_multi_column_list_dialog \
             "Sleep Warning Configuration" \
@@ -160,15 +181,15 @@ show_main_menu() {
             "Description" \
             "1" "Timer Settings (Check Interval: ${check_interval} min)" \
             "2" "Window Behavior (${window_desc})" \
-            "3" "Weekdays Configuration ${weekdays_status}" \
-            "4" "Weekends Configuration ${weekends_status}" \
-            "5" "Visual Day/Time Grid" \
-            "6" "Block Configuration During Restricted Hours${security_status}" \
-            "7" "Additional Configuration Block Hours${lock_status_display}" \
-            "8" "Uninstall Protection${uninstall_protection_status}" \
-            "9" "Uninstall Lock Hours Configuration${uninstall_lock_status_display}" \
-            "10" "Enable pause and configure duration${pause_status}" \
-            "11" "Dialog Tool Selection${dialog_tool_status}" \
+            "3" "Weekdays Configuration ${safe_weekdays}" \
+            "4" "Weekends Configuration ${safe_weekends}" \
+            "5" "View Weekly Hours Settings" \
+            "6" "Security Settings (Script Blocking and Config Locking)${safe_security_status}" \
+            "7" "Additional Configuration Block Hours${safe_lock_status}" \
+            "8" "Uninstall Protection${safe_uninstall_protection}" \
+            "9" "Additional Uninstall Protection Hours${safe_uninstall_lock}" \
+            "10" "Enable pause and configure duration${safe_pause_status}" \
+            "11" "Dialog Tool Selection${safe_dialog_status}" \
             "12" "Service Mode Configuration (Desktop/Gaming Mode)" \
             "13" "Review and Save")
         local exit_code=$?
@@ -235,28 +256,35 @@ show_main_menu() {
         echo "4. Weekends Configuration ${weekends_status}" >&2
         echo "   Set restricted hours for Saturday and Sunday" >&2
         echo "" >&2
-        echo "5. Visual Day/Time Grid" >&2
+        echo "5. View Weekly Hours Settings" >&2
         echo "   View and edit all days in a visual grid format" >&2
         echo "" >&2
-        # Build security settings status indicator
+        # Build security settings status indicator (combined)
+        # Ensure variables have defaults if not set
+        local config_lock_val="${config_lock_enabled:-false}"
+        local configure_block_val="${configure_block_enabled:-false}"
+        
         local security_status=""
-        if [ "${configure_block_enabled}" = "true" ]; then
-            security_status=" (Enabled)"
+        if [ "${configure_block_val}" = "true" ] && [ "${config_lock_val}" = "true" ]; then
+            security_status=" (Both Enabled)"
+        elif [ "${configure_block_val}" = "true" ]; then
+            security_status=" (Script Block: On, File Lock: Off)"
+        elif [ "${config_lock_val}" = "true" ]; then
+            security_status=" (Script Block: Off, File Lock: On)"
         else
-            security_status=" (Disabled)"
+            security_status=" (Both Disabled)"
         fi
         # Build lock hours status indicator (Phase 2)
         local lock_status_display=""
         if [ -n "${lock_hours_status}" ]; then
             lock_status_display=" ${lock_hours_status}"
         fi
-        echo "6. Block Configuration During Restricted Hours${security_status}" >&2
-        echo "   Enable/disable blocking of configure.sh and manage.sh during restricted hours" >&2
-        echo "   (Must be enabled for Additional Configuration Block Hours to take effect)" >&2
+        echo "6. Security Settings (Script Blocking and Config Locking)${security_status}" >&2
+        echo "   Configure blocking of configure.sh/manage.sh and config file locking during restricted hours" >&2
         echo "" >&2
         echo "7. Additional Configuration Block Hours${lock_status_display}" >&2
         echo "   Configure additional hours when configuration/management is blocked" >&2
-        echo "   (Only applies when Block Configuration During Restricted Hours is enabled)" >&2
+        echo "   (Only applies when Security Settings - Script Blocking is enabled)" >&2
         echo "" >&2
         # Build uninstall protection status indicator (Enhancement #26)
         local uninstall_protection_status=""
@@ -273,7 +301,7 @@ show_main_menu() {
         if [ -n "${uninstall_lock_hours_status}" ]; then
             uninstall_lock_status_display=" ${uninstall_lock_hours_status}"
         fi
-        echo "9. Uninstall Lock Hours Configuration${uninstall_lock_status_display}" >&2
+        echo "9. Additional Uninstall Protection Hours${uninstall_lock_status_display}" >&2
         echo "   Configure additional hours when difficult uninstall verification is required" >&2
         echo "   (Only applies when Uninstall Protection is enabled)" >&2
         echo "" >&2
@@ -439,11 +467,12 @@ show_visual_grid() {
             fi
             
             # Use multi-column abstraction function
+            # Width reduced another 25% (1400 -> 1050)
             local selected
             selected=$(show_multi_column_list_dialog \
-                "Visual Day/Time Grid" \
+                "View Weekly Hours Settings" \
                 "Select a day to edit its restricted hours, lock hours, or uninstall lock hours:" \
-                1200 \
+                1050 \
                 500 \
                 1 \
                 "Day" \

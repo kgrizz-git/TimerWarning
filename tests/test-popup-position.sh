@@ -3,6 +3,7 @@
 ###############################################################################
 # Test script for popup position functionality
 #
+# ⚠️ NOTE: This is an old test script. Not important to run for now.
 # This script tests whether popups appear at the configured position
 # for different dialog tools (zenity, yad, kdialog)
 ###############################################################################

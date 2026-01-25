@@ -3,23 +3,15 @@
 ###############################################################################
 # Test runner using expect for interactive testing
 #
-# ⚠️  WARNING: This test MODIFIES the actual configuration file
-#    (${HOME}/.config/sleep-warning/sleep-warning.conf)
-#
-#    The test backs up your config before running and restores it after,
-#    but if the test is interrupted (Ctrl+C) or crashes, your config
-#    may not be restored. Use with caution.
-#
-#    If you need to preserve your configuration, back it up manually before
-#    running this test.
+# Safety:
+#   This test does NOT touch your real installed config.
+#   It runs under an isolated temporary HOME directory.
 ###############################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CONFIGURE_SCRIPT="${PROJECT_ROOT}/configure.sh"
 EXPECT_SCRIPT="${SCRIPT_DIR}/test-configure-expect.exp"
-CONFIG_FILE="${HOME}/.config/sleep-warning/sleep-warning.conf"
-BACKUP_FILE="${CONFIG_FILE}.test-backup-$$"
 TEST_DIR="${PROJECT_ROOT}/tests/test-configs"
 mkdir -p "${TEST_DIR}"
 
@@ -40,24 +32,18 @@ if ! command -v expect >/dev/null 2>&1; then
     exit 1
 fi
 
-# Backup and restore config
-backup_config() {
-    if [ -f "${CONFIG_FILE}" ]; then
-        cp "${CONFIG_FILE}" "${BACKUP_FILE}"
-    fi
-}
+# Run under temp HOME so we never touch the real config.
+# Note: Create temp dirs under the repo so sandboxed runs can write to them.
+TMP_BASE="${PROJECT_ROOT}/tests/.tmp"
+mkdir -p "${TMP_BASE}"
+tmp_home="$(mktemp -d -p "${TMP_BASE}" home.XXXXXX)"
+export HOME="${tmp_home}"
+CONFIG_FILE="${HOME}/.config/sleep-warning/config/sleep-warning.conf"
 
-restore_config() {
-    if [ -f "${BACKUP_FILE}" ]; then
-        mv "${BACKUP_FILE}" "${CONFIG_FILE}"
-    else
-        rm -f "${CONFIG_FILE}"
-    fi
-}
-
-# Cleanup function to ensure config is restored even on interrupt
+# Cleanup function to ensure temp HOME can always be removed
 cleanup() {
-    restore_config
+    chmod -R u+rwX "${tmp_home}" 2>/dev/null || true
+    rm -rf "${tmp_home}" 2>/dev/null || true
 }
 
 # Set up trap to ensure cleanup on exit or interrupt
@@ -125,8 +111,6 @@ echo "Automated Interactive Tests with expect"
 echo "=========================================="
 echo ""
 
-backup_config
-
 # Test 1: Menu display
 echo -e "${BLUE}Test 1: Text mode menu display${NC}"
 run_expect_test "menu_display" "" "Menu shows all options"
@@ -179,8 +163,6 @@ echo ""
 echo -e "${BLUE}Test 9: Backward compatibility${NC}"
 run_expect_test "backward_compat" "" "Options 1-4 still accessible"
 echo ""
-
-restore_config
 
 echo "=========================================="
 echo "Test Results:"

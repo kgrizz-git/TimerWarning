@@ -128,6 +128,10 @@ This approach ensures:
 - [ ] Run each test and document results (pass/fail/skip)
 - [ ] Identify tests that fail due to code changes (not just bugs)
 - [ ] Note tests that need updates to work with new functionality
+- [ ] **Identify outdated tests**: Check if any tests test functionality that no longer exists, has been removed, or is no longer relevant
+  - [ ] For each outdated test, determine if it should be removed or kept for historical reference
+  - [ ] Suggest adding a comment at the top of outdated tests stating they are outdated and no longer relevant
+  - [ ] Document the reason why the test is outdated (e.g., feature removed, functionality changed, replaced by different approach)
 - [ ] Update `dev-docs/testing-assessments/test-history.md` with current test execution dates and results
 
 **For each test file**:
@@ -139,8 +143,12 @@ This approach ensures:
   - [ ] Does test use trap to ensure cleanup? (Yes/No/N/A)
   - [ ] Does test restore config after completion? (Yes/No/N/A)
   - [ ] **WARNING**: If test modifies actual config without proper backup/restore/trap, mark as **CRITICAL ISSUE**
-- [ ] **Recommendation**: Should this test be re-run? (Yes/No/Needs Update)
+- [ ] **Recommendation**: Should this test be re-run? (Yes/No/Needs Update/Outdated)
 - [ ] If needs update, note what changes are required
+- [ ] **Check if test is outdated**: Does this test cover functionality that no longer exists or is no longer relevant?
+  - [ ] If outdated, document why (feature removed, functionality changed, replaced by different approach)
+  - [ ] Suggest adding a comment in the test file stating it is outdated and no longer relevant
+  - [ ] Determine if test should be removed or kept for historical reference
 - [ ] Check test dependencies (required tools: expect, wmctrl, xdotool, zenity, yad, kdialog, etc.)
 - [ ] Note if test is currently broken or flaky
 
@@ -185,6 +193,14 @@ This approach ensures:
   - Issue: Race condition in test setup
   - Recommendation: Fix test or mark as known issue
   - **Config File Impact**: [Modifies actual config/No config impact]
+
+#### Outdated Tests (No Longer Relevant)
+- **test-outdated.sh**: Tests functionality that has been removed or replaced
+  - Reason outdated: [Feature removed/Functionality changed/Replaced by different approach]
+  - Tested code: [What code/feature it was testing]
+  - Recommendation: Add comment at top of test file stating: "# OUTDATED: This test is no longer relevant because [reason]. Kept for historical reference."
+  - Action: [Remove test/Keep with comment/Update to test new functionality]
+  - **Config File Impact**: [Modifies actual config/Uses test config/No config used]
 ```
 
 ### Section 1: Test Requirements from Documentation

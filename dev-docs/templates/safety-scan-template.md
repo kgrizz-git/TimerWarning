@@ -612,7 +612,7 @@ When documenting issues in the timestamped scan file, include:
 - [ ] **Verify**: `install.sh` only creates/copies files to intended installation locations
 - [ ] **Check**: `install.sh` doesn't remove or overwrite files outside installation directories
 - [ ] **Test**: Run `install.sh` and verify it doesn't modify project directory files
-- [ ] **Verify**: `configure.sh` only modifies the config file in `~/.config/sleep-warning/sleep-warning.conf`
+- [ ] **Verify**: `configure.sh` only modifies the config file in `~/.config/sleep-warning/config/sleep-warning.conf` (older installs may have `~/.config/sleep-warning/sleep-warning.conf`)
 - [ ] **Check**: `configure.sh` doesn't delete or rename any files
 - [ ] **Test**: Run `configure.sh` and verify no files are deleted or renamed
 - [ ] **Verify**: `manage.sh` doesn't perform any file deletion operations

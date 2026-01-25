@@ -4,22 +4,22 @@
 # Test script to verify visual grid display functionality
 # Tests that the grid can display days with various configurations
 #
-# ⚠️  WARNING: This test MODIFIES the actual configuration file
-#    (${HOME}/.config/sleep-warning/sleep-warning.conf)
-#
-#    The test backs up your config before running and restores it after,
-#    but if the test is interrupted (Ctrl+C) or crashes, your config
-#    may not be restored. Use with caution.
-#
-#    If you need to preserve your configuration, back it up manually before
-#    running this test.
+# Safety:
+#   This test does NOT touch your real installed config.
+#   It runs under an isolated temporary HOME directory.
 ###############################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CONFIGURE_SCRIPT="${PROJECT_ROOT}/configure.sh"
-CONFIG_FILE="${HOME}/.config/sleep-warning/sleep-warning.conf"
-BACKUP_FILE="${CONFIG_FILE}.test-backup"
+
+# Run under temp HOME so we never touch the real config.
+# Note: Create temp dirs under the repo so sandboxed runs can write to them.
+TMP_BASE="${PROJECT_ROOT}/tests/.tmp"
+mkdir -p "${TMP_BASE}"
+tmp_home="$(mktemp -d -p "${TMP_BASE}" home.XXXXXX)"
+export HOME="${tmp_home}"
+CONFIG_FILE="${HOME}/.config/sleep-warning/config/sleep-warning.conf"
 
 # Colors
 GREEN='\033[0;32m'
@@ -32,22 +32,14 @@ echo "Testing Visual Grid Display Functionality"
 echo "=========================================="
 echo ""
 
-# Cleanup function to restore config
+# Cleanup function to remove temp HOME
 cleanup() {
-    if [ -f "${BACKUP_FILE}" ]; then
-        echo "Restoring original config..."
-        mv "${BACKUP_FILE}" "${CONFIG_FILE}" 2>/dev/null || true
-    fi
+    chmod -R u+rwX "${tmp_home}" 2>/dev/null || true
+    rm -rf "${tmp_home}" 2>/dev/null || true
 }
 
 # Set up trap to ensure cleanup on exit or interrupt
 trap cleanup EXIT INT TERM
-
-# Backup existing config
-if [ -f "${CONFIG_FILE}" ]; then
-    echo "Backing up existing config..."
-    cp "${CONFIG_FILE}" "${BACKUP_FILE}"
-fi
 
 # Test 1: Grid with empty config (all days unrestricted)
 echo -e "${YELLOW}Test 1: Grid with empty config${NC}"
@@ -82,9 +74,9 @@ SATURDAY=1-5
 EOF
 
 echo "Expected:"
-echo "  - Monday-Friday should show ✗ with '12:00 AM → 4:59 AM'"
-echo "  - Saturday should show ✗ with '1:00 AM → 4:59 AM'"
-echo "  - Sunday should show blank with '(no restrictions)'"
+echo "  - Monday-Friday should show '12:00 AM → 5:00 AM'"
+echo "  - Saturday should show '1:00 AM → 5:00 AM'"
+echo "  - Sunday should show '(no restrictions)'"
 echo ""
 
 # Test 3: Grid with overnight ranges
@@ -102,8 +94,8 @@ TUESDAY=22-8
 EOF
 
 echo "Expected:"
-echo "  - Monday should show ✗ with '11:00 PM → 5:59 AM (Tuesday)'"
-echo "  - Tuesday should show ✗ with '10:00 PM → 7:59 AM (Wednesday)'"
+echo "  - Monday should show '11:00 PM → 6:00 AM (Tuesday)'"
+echo "  - Tuesday should show '10:00 PM → 8:00 AM (Wednesday)'"
 echo ""
 
 # Test 4: Grid with multiple time ranges

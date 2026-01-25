@@ -7,13 +7,12 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-CONFIGURE_SCRIPT="${PROJECT_ROOT}/configure.sh"
+LIB_DIR="${PROJECT_ROOT}/lib"
 
-# Source the functions we need (by extracting them)
-source <(sed -n '/^# Day names array/,/^# Check if zenity/p' "${CONFIGURE_SCRIPT}")
-source <(sed -n '/^format_hour_12h()/,/^}$/p' "${CONFIGURE_SCRIPT}")
-source <(sed -n '/^format_range_human()/,/^}$/p' "${CONFIGURE_SCRIPT}")
-source <(sed -n '/^format_ranges_human()/,/^}$/p' "${CONFIGURE_SCRIPT}")
+# Source the functions we need from their modular homes.
+# These functions used to live in the monolithic configure.sh, but are now in lib/ modules.
+source "${LIB_DIR}/configure-core.sh" || exit 1   # format_hour_12h, DAY_NAMES
+source "${LIB_DIR}/configure-time.sh" || exit 1   # format_range_human, format_ranges_human
 
 # Colors
 GREEN='\033[0;32m'

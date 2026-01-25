@@ -31,6 +31,7 @@
 INSTALL_DIR="${HOME}/.local/bin"
 LIB_DIR="${HOME}/.local/lib/sleep-warning"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
+# Enhancement #18: Config file is now in subdirectory (but we handle both old and new locations)
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 
 # Determine script directory and library path
@@ -141,6 +142,67 @@ print_info() {
     echo -e "${BLUE}ℹ${NC} $1"
 }
 
+# Function to restore config file permissions (Enhancement #18)
+# This ensures config file and directory are writable before uninstall
+restore_config_permissions() {
+    local config_dir_locked="${CONFIG_DIR}/config"
+    local config_file="${config_dir_locked}/sleep-warning.conf"
+    local marker_file="${CONFIG_DIR}/.config_locked"
+    local snapshot_file="${CONFIG_DIR}/.config_locked_snapshot"
+
+    # Uninstall must be able to remove config files even if they are locked.
+    # Best-effort approach:
+    # - Make marker/snapshot writable (if present)
+    # - Restore directory/file permissions (prefer stored modes if marker exists)
+    # - Remove marker/snapshot to prevent re-lock artifacts
+    #
+    # IMPORTANT: For uninstall purposes, we only need the config to be deletable.
+    # If the marker is missing/corrupt, safe defaults are sufficient.
+    print_info "Ensuring config file permissions are writable (Enhancement #18)..."
+
+    # Always try to make marker/snapshot writable first (ignore errors)
+    chmod 644 "${marker_file}" 2>/dev/null || true
+    chmod 644 "${snapshot_file}" 2>/dev/null || true
+
+    local dir_mode="755"
+    local file_mode="644"
+
+    # If marker exists, try to restore the original modes for completeness
+    if [ -f "${marker_file}" ]; then
+        local marker_content
+        marker_content=$(cat "${marker_file}" 2>/dev/null)
+
+        if echo "${marker_content}" | grep -q "DIR_MODE="; then
+            dir_mode=$(echo "${marker_content}" | sed -n 's/.*DIR_MODE=\([0-7]\{3,4\}\).*/\1/p' 2>/dev/null || echo "755")
+        fi
+        if echo "${marker_content}" | grep -q "FILE_MODE="; then
+            file_mode=$(echo "${marker_content}" | sed -n 's/.*FILE_MODE=\([0-7]\{3,4\}\).*/\1/p' 2>/dev/null || echo "644")
+        fi
+    fi
+
+    # Validate modes (fallback to safe defaults)
+    if ! [[ "${dir_mode}" =~ ^[0-7]{3,4}$ ]]; then
+        dir_mode="755"
+    fi
+    if ! [[ "${file_mode}" =~ ^[0-7]{3,4}$ ]]; then
+        file_mode="644"
+    fi
+
+    # Restore directory/file permissions (ignore errors)
+    if [ -d "${config_dir_locked}" ]; then
+        chmod "${dir_mode}" "${config_dir_locked}" 2>/dev/null || chmod 755 "${config_dir_locked}" 2>/dev/null || true
+    fi
+    if [ -f "${config_file}" ]; then
+        chmod "${file_mode}" "${config_file}" 2>/dev/null || chmod 644 "${config_file}" 2>/dev/null || true
+    fi
+
+    # Remove marker and snapshot files (ignore errors)
+    rm -f "${marker_file}" 2>/dev/null || true
+    rm -f "${snapshot_file}" 2>/dev/null || true
+
+    print_success "Config file permissions ensured writable"
+}
+
 # Function to stop and disable timer
 stop_timer() {
     print_info "Stopping systemd timer..."
@@ -148,6 +210,8 @@ stop_timer() {
     if systemctl --user is-active --quiet sleep-warning.timer 2>/dev/null; then
         if systemctl --user stop sleep-warning.timer; then
             print_success "Timer stopped"
+            # Wait briefly for service to exit (prevents re-locking)
+            sleep 2
         else
             print_warning "Failed to stop timer (may not be running)"
         fi
@@ -227,26 +291,54 @@ remove_scripts() {
 
 # Function to remove configuration file
 remove_config() {
+    # Enhancement #18: Config file is now in subdirectory
+    local config_file="${CONFIG_DIR}/config/sleep-warning.conf"
+    local old_config_file="${CONFIG_DIR}/sleep-warning.conf"
+    
     if [ "$REMOVE_CONFIG" = true ]; then
-        if [ -f "$CONFIG_DIR/sleep-warning.conf" ]; then
-            rm -f "$CONFIG_DIR/sleep-warning.conf"
+        # Remove new location
+        if [ -f "${config_file}" ]; then
+            rm -f "${config_file}"
             print_success "Configuration file removed"
-            
-            # Remove config directory if empty
-            if [ -d "$CONFIG_DIR" ] && [ -z "$(ls -A "$CONFIG_DIR" 2>/dev/null)" ]; then
-                rmdir "$CONFIG_DIR" 2>/dev/null && print_success "Config directory removed" || true
-            fi
-        else
+        fi
+        # Remove old location (if migration didn't happen)
+        if [ -f "${old_config_file}" ]; then
+            rm -f "${old_config_file}"
+            print_success "Old configuration file removed"
+        fi
+        
+        # Remove config subdirectory if empty
+        if [ -d "${CONFIG_DIR}/config" ] && [ -z "$(ls -A "${CONFIG_DIR}/config" 2>/dev/null)" ]; then
+            rmdir "${CONFIG_DIR}/config" 2>/dev/null && print_success "Config subdirectory removed" || true
+        fi
+        
+        # Remove config directory if empty
+        if [ -d "$CONFIG_DIR" ] && [ -z "$(ls -A "$CONFIG_DIR" 2>/dev/null)" ]; then
+            rmdir "$CONFIG_DIR" 2>/dev/null && print_success "Config directory removed" || true
+        fi
+        
+        if [ ! -f "${config_file}" ] && [ ! -f "${old_config_file}" ]; then
             print_info "Configuration file not found"
         fi
     else
-        if [ -f "$CONFIG_DIR/sleep-warning.conf" ]; then
+        if [ -f "${config_file}" ] || [ -f "${old_config_file}" ]; then
             echo ""
             echo -n "Remove configuration file? (y/N): "
             read -r response
             if [[ "$response" =~ ^[Yy]$ ]]; then
-                rm -f "$CONFIG_DIR/sleep-warning.conf"
-                print_success "Configuration file removed"
+                if [ -f "${config_file}" ]; then
+                    rm -f "${config_file}"
+                    print_success "Configuration file removed"
+                fi
+                if [ -f "${old_config_file}" ]; then
+                    rm -f "${old_config_file}"
+                    print_success "Old configuration file removed"
+                fi
+                
+                # Remove config subdirectory if empty
+                if [ -d "${CONFIG_DIR}/config" ] && [ -z "$(ls -A "${CONFIG_DIR}/config" 2>/dev/null)" ]; then
+                    rmdir "${CONFIG_DIR}/config" 2>/dev/null && print_success "Config subdirectory removed" || true
+                fi
                 
                 # Remove config directory if empty
                 if [ -d "$CONFIG_DIR" ] && [ -z "$(ls -A "$CONFIG_DIR" 2>/dev/null)" ]; then
@@ -255,6 +347,8 @@ remove_config() {
             else
                 print_info "Configuration file preserved"
             fi
+        else
+            print_info "Configuration file not found"
         fi
     fi
 }
@@ -363,6 +457,10 @@ main() {
     
     # Stop and disable timer
     stop_timer
+
+    # Ensure config file/directory are writable before attempting removal
+    # (Timer is stopped to prevent immediate re-locking)
+    restore_config_permissions
     
     # Remove systemd files
     remove_systemd_files

@@ -33,6 +33,7 @@ load_existing_config() {
     declare -g pause_enabled="true"
     declare -g pause_duration="5"
     declare -g dialog_tool="auto"
+    declare -g config_lock_enabled="false"
     
     # Clear existing arrays (they should already be declared as global by caller)
     config_lines=()
@@ -144,6 +145,18 @@ load_existing_config() {
         esac
     fi
     # If empty or invalid, keep default "auto" (already set above)
+    
+    # Read config lock enabled setting (Enhancement #18)
+    local existing_config_lock_enabled
+    existing_config_lock_enabled=$(grep -E "^[[:space:]]*CONFIG_LOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    if [ -n "${existing_config_lock_enabled}" ]; then
+        if [ "${existing_config_lock_enabled}" = "true" ] || [ "${existing_config_lock_enabled}" = "1" ] || [ "${existing_config_lock_enabled}" = "yes" ]; then
+            declare -g config_lock_enabled="true"
+        elif [ "${existing_config_lock_enabled}" = "false" ] || [ "${existing_config_lock_enabled}" = "0" ] || [ "${existing_config_lock_enabled}" = "no" ]; then
+            declare -g config_lock_enabled="false"
+        fi
+    fi
+    # If invalid, keep default "false" (already set above)
     
     # Load day configurations
     for i in 0 1 2 3 4 5 6; do
@@ -372,7 +385,9 @@ extract_user_comments() {
 # Parameters:
 #   $1-$7: Standard configuration parameters (check_interval, popup_size, popup_position, min_display_time, popup_immovable, configure_block_enabled, uninstall_protection_mode)
 #   $8-$9: Pause settings (pause_enabled, pause_duration) - Enhancement #21
-#   $11+: config_lines array (7 day configurations: Sunday-Saturday)
+#   $10: Dialog tool (dialog_tool) - Enhancement #25
+#   $11: Config lock enabled (config_lock_enabled) - Enhancement #18
+#   $12+: config_lines array (7 day configurations: Sunday-Saturday)
 #   After config_lines: lock_hours_lines array (optional, Enhancement #19 Phase 2)
 #   After lock_hours_lines: uninstall_lock_hours_lines array (optional, Enhancement #26 Phase 2)
 #   Optional (if override flags present): 
@@ -392,7 +407,8 @@ write_config() {
     local pause_enabled="${8:-true}"
     local pause_duration="${9:-5}"
     local dialog_tool="${10:-auto}"
-    shift 10
+    local config_lock_enabled="${11:-false}"
+    shift 11
     
     # Extract config_lines array, optional lock_hours_lines array, optional uninstall_lock_hours_lines array, and optional override flags
     # config_lines values are always "DAYVAR=RANGE" format (e.g., "MONDAY=0-5")
@@ -495,7 +511,8 @@ write_config() {
     fi
     
     # Create config directory if it doesn't exist
-    mkdir -p "${CONFIG_DIR}"
+    # Enhancement #18: Config file is now in subdirectory
+    mkdir -p "${CONFIG_DIR}/config"
     
     # Extract user comments from existing file
     local user_comments
@@ -521,7 +538,7 @@ write_config() {
         echo "POPUP_SIZE=${popup_size}"
         # Add comment if popup size was restricted due to high restrictions
         if [ "${popup_size_overridden}" = "true" ]; then
-            echo "# POPUP_SIZE has been restricted to small/medium only because restrictions exceed 23 hours/day."
+            echo "# POPUP_SIZE has been restricted to small/medium only because restrictions exceed 16 hours/day."
             echo "# This prevents overly intrusive popups when user has very limited unrestricted time."
         fi
         echo "#"
@@ -545,7 +562,7 @@ write_config() {
         echo "CONFIGURE_BLOCK_ENABLED=${configure_block_enabled}"
         # Add comment if configure block was disabled due to high restrictions
         if [ "${configure_block_overridden}" = "true" ]; then
-            echo "# CONFIGURE_BLOCK_ENABLED has been disabled because restrictions exceed 23 hours/day."
+            echo "# CONFIGURE_BLOCK_ENABLED has been disabled because restrictions exceed 16 hours/day."
             echo "# This prevents accidental lockout when user has very limited unrestricted time."
         fi
         echo "#"
@@ -584,6 +601,15 @@ write_config() {
         echo "# If selected tool is not installed, system falls back to automatic selection"
         echo "# This is Enhancement #25 (User-Selectable Dialog Tool)"
         echo "DIALOG_TOOL=${dialog_tool}"
+        echo "#"
+        echo "# CONFIG_LOCK_ENABLED: Enable/disable config file locking during restricted hours"
+        echo "# Default: false (opt-in feature)"
+        echo "# When enabled, the config file and directory are made read-only during restricted hours"
+        echo "# and any configured lock hours to prevent users from circumventing restrictions"
+        echo "# by changing settings. This is a deterrence mechanism, not true security."
+        echo "# This is Enhancement #18 (Config File Locking During Restricted Hours)"
+        echo "# Note: Automatically disabled if restrictions exceed ${THRESHOLD_WARN} minutes/week (> $(get_threshold_warn_description)) (Enhancement #22)"
+        echo "CONFIG_LOCK_ENABLED=${config_lock_enabled}"
         echo "#"
         echo "# This file was generated by the configuration wizard on $(date)"
         

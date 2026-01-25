@@ -20,9 +20,9 @@ This document provides a systematic approach to analyze shell scripts (`.sh` fil
 Instead, for each quality improvement assessment:
 
 1. **Create a new timestamped copy** of this template:
-   - Copy this entire file to `dev-docs/qi-assessments/qi-assessment-YYYY-MM-DD-HHMMSS.md`
+   - Copy this entire file to `dev-docs/code-assessments/qi-assessment-YYYY-MM-DD-HHMMSS.md`
    - Use format: `qi-assessment-2024-01-15-143022.md` (year-month-day-hour-minute-second)
-   - Example command: `cp dev-docs/templates/qi-assessment-template.md "dev-docs/qi-assessments/qi-assessment-$(date +%Y-%m-%d-%H%M%S).md"`
+   - Example command: `cp dev-docs/templates/qi-assessment-template.md "dev-docs/code-assessments/qi-assessment-$(date +%Y-%m-%d-%H%M%S).md"`
 
 2. **Work with the timestamped copy**:
    - Fill in the analysis sections with actual findings

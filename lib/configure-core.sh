@@ -13,6 +13,8 @@
 # - has_gui()                - Check if GUI is available
 # - minutes_to_oncalendar()  - Convert minutes to systemd OnCalendar format
 # - format_hour_12h()        - Format hour to 12-hour format with AM/PM
+# - get_threshold_warn_description()  - Get human-readable warning threshold description
+# - get_threshold_block_description() - Get human-readable block threshold description
 #
 # Dependencies:
 #   - desktop-environment.sh (for check_dialog_tool and detect_display_environment)
@@ -28,6 +30,10 @@
 # - SERVICE_NAME             - Service name for systemd
 # - DAY_NAMES                - Array of day names (Sunday-Saturday)
 # - DAY_VARS                 - Array of day variable names for config file
+# - HOURS_PER_DAY_WARN       - Warning threshold in hours/day (default: 23)
+# - HOURS_PER_DAY_BLOCK      - Block threshold in hours/day (default: 24)
+# - THRESHOLD_WARN           - Warning threshold in minutes/week (calculated)
+# - THRESHOLD_BLOCK          - Block threshold in minutes/week (calculated)
 #
 # Dependencies: None (base module)
 ###############################################################################
@@ -35,7 +41,8 @@
 # Script configuration
 SCRIPT_NAME="sleep-warning-configure"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
-CONFIG_FILE="${CONFIG_DIR}/sleep-warning.conf"
+# Enhancement #18: Config file is now in subdirectory
+CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 TIMER_FILE="${SYSTEMD_USER_DIR}/sleep-warning.timer"
 SERVICE_NAME="sleep-warning"
@@ -43,6 +50,17 @@ SERVICE_NAME="sleep-warning"
 # Day names array
 declare -a DAY_NAMES=("Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday")
 declare -a DAY_VARS=("SUNDAY" "MONDAY" "TUESDAY" "WEDNESDAY" "THURSDAY" "FRIDAY" "SATURDAY")
+
+# Restriction validation thresholds (Enhancement #22)
+# These define when to warn or block configuration based on total restricted minutes per week
+# Calculated as: hours_per_day × 60 minutes × 7 days
+# To change thresholds, modify HOURS_PER_DAY_WARN or HOURS_PER_DAY_BLOCK
+HOURS_PER_DAY_WARN=16      # Warning threshold: > 16 hours/day
+HOURS_PER_DAY_BLOCK=24     # Block threshold: >= 24 hours/day (24/7 restrictions)
+MINUTES_PER_HOUR=60
+DAYS_PER_WEEK=7
+THRESHOLD_WARN=$((HOURS_PER_DAY_WARN * MINUTES_PER_HOUR * DAYS_PER_WEEK))      # Currently 6720
+THRESHOLD_BLOCK=$((HOURS_PER_DAY_BLOCK * MINUTES_PER_HOUR * DAYS_PER_WEEK))     # 10080
 
 # Check if any dialog tool is available
 # Requires desktop-environment.sh to be sourced
@@ -135,5 +153,21 @@ format_hour_12h() {
         echo "${hour}:00 AM"
     else
         echo "$((hour - 12)):00 PM"
+    fi
+}
+
+# Get human-readable description of warning threshold
+# Returns: "X hours/day" format
+get_threshold_warn_description() {
+    echo "${HOURS_PER_DAY_WARN} hours/day"
+}
+
+# Get human-readable description of block threshold
+# Returns: "24/7" or "X hours/day" format
+get_threshold_block_description() {
+    if [ "${HOURS_PER_DAY_BLOCK}" -eq 24 ]; then
+        echo "24/7"
+    else
+        echo "${HOURS_PER_DAY_BLOCK} hours/day"
     fi
 }

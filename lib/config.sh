@@ -17,7 +17,8 @@
 # Script configuration
 SCRIPT_NAME="sleep-warning"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
-CONFIG_FILE="${CONFIG_DIR}/sleep-warning.conf"
+# Config file is now in a dedicated subdirectory for locking support (Enhancement #18)
+CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"
 LOG_FILE="${CONFIG_DIR}/warnings.log"
 MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10 MB max log size
 
@@ -56,6 +57,10 @@ DEFAULT_PAUSE_ENABLED=true
 # Default pause duration (in minutes) - used if config file missing or invalid
 # This controls how long warning popups are paused when user clicks pause button (Enhancement #21)
 DEFAULT_PAUSE_DURATION=5
+
+# Default config lock enabled setting - used if config file missing or invalid
+# This controls whether config file locking is enabled during restricted hours (Enhancement #18)
+DEFAULT_CONFIG_LOCK_ENABLED=false
 
 # Pause state file location - stores pause state and last pause date
 # This file tracks when pause expires and when pause was last used (Enhancement #21)
@@ -410,6 +415,33 @@ get_pause_duration() {
     # Invalid or missing, use default
     echo "${DEFAULT_PAUSE_DURATION}"
     return 0
+}
+
+# Get config lock enabled setting from configuration file
+# Returns "true" if config file locking is enabled, "false" otherwise
+# This is for Enhancement #18 (Config File Locking During Restricted Hours)
+get_config_lock_enabled() {
+    # Check if config file exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "${DEFAULT_CONFIG_LOCK_ENABLED}"
+        return 0
+    fi
+    
+    # Read CONFIG_LOCK_ENABLED from config file
+    local lock_enabled
+    lock_enabled=$(grep -E "^[[:space:]]*CONFIG_LOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    
+    if [ "${lock_enabled}" = "true" ] || [ "${lock_enabled}" = "1" ] || [ "${lock_enabled}" = "yes" ]; then
+        echo "true"
+        return 0
+    elif [ "${lock_enabled}" = "false" ] || [ "${lock_enabled}" = "0" ] || [ "${lock_enabled}" = "no" ]; then
+        echo "false"
+        return 0
+    else
+        # Invalid or missing, use default
+        echo "${DEFAULT_CONFIG_LOCK_ENABLED}"
+        return 0
+    fi
 }
 
 # Parse configuration file

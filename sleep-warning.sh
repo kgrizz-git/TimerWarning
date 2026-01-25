@@ -14,7 +14,7 @@
 # - Graphical desktop environment
 #
 # Configuration:
-# - Reads from ~/.config/sleep-warning/sleep-warning.conf
+# - Reads from ~/.config/sleep-warning/config/sleep-warning.conf (Enhancement #18)
 # - Falls back to default values if config file missing
 #
 # Usage:
@@ -41,6 +41,7 @@ source "${LIB_DIR}/desktop-environment.sh" || exit 1
 source "${LIB_DIR}/window-management.sh" || exit 1
 source "${LIB_DIR}/time-validation.sh" || exit 1
 source "${LIB_DIR}/time-calculations.sh" || exit 1
+source "${LIB_DIR}/config-locking.sh" || exit 1  # Enhancement #18: Config file locking
 source "${LIB_DIR}/popup-display.sh" || exit 1
 
 # Validate configuration file to prevent 24/7 restrictions
@@ -95,6 +96,19 @@ validate_config_safety() {
 
 # Main function
 main() {
+    # Apply config file lock (Enhancement #18)
+    # This should be done early, before other operations
+    if type apply_config_directory_lock >/dev/null 2>&1; then
+        apply_config_directory_lock 2>/dev/null || true
+    fi
+    
+    # Self-healing check (if lock is active)
+    if type is_config_lock_active >/dev/null 2>&1 && type check_and_restore_config_file >/dev/null 2>&1; then
+        if is_config_lock_active 2>/dev/null; then
+            check_and_restore_config_file 2>/dev/null || true
+        fi
+    fi
+    
     # Log system mode at startup (Enhancement #4)
     if type detect_system_mode >/dev/null 2>&1; then
         local system_mode

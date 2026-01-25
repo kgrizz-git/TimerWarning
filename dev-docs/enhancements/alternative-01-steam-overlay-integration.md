@@ -86,7 +86,7 @@
 - ❌ **User must open overlay** - Notification appears in overlay, user must press Shift+Tab to see it (unless notification is persistent)
 
 **Configuration**:
-- Uses same configuration file as main system (`~/.config/sleep-warning/sleep-warning.conf`)
+- Uses same configuration file as main system (`~/.config/sleep-warning/config/sleep-warning.conf`; older installs may have `~/.config/sleep-warning/sleep-warning.conf`)
 - Restricted hours, check interval, and other settings shared with main system
 - Can be configured via main configuration script (`sleep-warning-configure`)
 - Plugin-specific settings (if any) can be added to config file

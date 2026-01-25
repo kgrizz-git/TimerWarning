@@ -8,6 +8,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CONFIGURE_SCRIPT="${PROJECT_ROOT}/configure.sh"
+LIB_DIR="${PROJECT_ROOT}/lib"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -51,52 +52,52 @@ test_check "Text mode flag (--text)" "${CONFIGURE_SCRIPT} --text --help 2>&1 | g
 test_check "Script syntax validation" "bash -n ${CONFIGURE_SCRIPT}"
 
 # Test 4: Menu option 5 exists in code
-test_check "Menu option 5 (Visual Day/Time Grid) exists" "grep -q '5.*Visual Day/Time Grid' ${CONFIGURE_SCRIPT}"
+test_check "Menu option 5 (Visual Day/Time Grid) exists" "grep -q 'Visual Day/Time Grid' ${LIB_DIR}/configure-display.sh"
 
 # Test 5: show_visual_grid function exists
-test_check "show_visual_grid function exists" "grep -q '^show_visual_grid()' ${CONFIGURE_SCRIPT}"
+test_check "show_visual_grid function exists" "grep -q '^show_visual_grid()' ${LIB_DIR}/configure-display.sh"
 
 # Test 6: configure_day_from_grid function exists
-test_check "configure_day_from_grid function exists" "grep -q '^configure_day_from_grid()' ${CONFIGURE_SCRIPT}"
+test_check "configure_day_from_grid function exists" "grep -q '^configure_day_from_grid()' ${LIB_DIR}/configure-workflow.sh"
 
 # Test 7: Case statement handles option 5
-test_check "Case statement handles option 5" "grep -A 5 '^[[:space:]]*5)' ${CONFIGURE_SCRIPT} | grep -q 'Visual Day/Time Grid'"
+test_check "Case statement handles option 5" "grep -A 15 '^[[:space:]]*5)' ${CONFIGURE_SCRIPT} | grep -q 'show_visual_grid'"
 
 # Test 8: Text mode menu shows option 5
-test_check "Text mode menu includes option 5" "grep -q 'echo.*5\. Visual Day/Time Grid' ${CONFIGURE_SCRIPT}"
+test_check "Text mode menu includes option 5" "grep -q 'Visual Day/Time Grid' ${LIB_DIR}/configure-display.sh"
 
 # Test 9: Text mode grid display function exists
-test_check "Text mode grid display code exists" "grep -q '=== Visual Day/Time Grid ===' ${CONFIGURE_SCRIPT}"
+test_check "Text mode grid display code exists" "grep -q '^show_visual_grid()' ${LIB_DIR}/configure-display.sh && grep -q 'Visual Day/Time Grid' ${LIB_DIR}/configure-display.sh"
 
 # Test 10: format_ranges_human function exists (used by grid)
-test_check "format_ranges_human function exists" "grep -q '^format_ranges_human()' ${CONFIGURE_SCRIPT}"
+test_check "format_ranges_human function exists" "grep -q '^format_ranges_human()' ${LIB_DIR}/configure-time.sh"
 
 # Test 11: Grid handles empty/unconfigured days
-test_check "Grid handles empty days" "grep -A 10 'Day has no configuration' ${CONFIGURE_SCRIPT} | grep -q 'no restrictions'"
+test_check "Grid handles empty days" "grep -q 'No restrictions' ${LIB_DIR}/configure-display.sh && grep -q '\\(no restrictions\\)' ${LIB_DIR}/configure-time.sh"
 
-# Test 12: Grid shows status indicator for restricted days
-test_check "Grid shows status indicator" "grep -q 'status_indicator.*✗' ${CONFIGURE_SCRIPT}"
+# Test 12: Grid renders a tabular listing (text mode)
+test_check "Grid renders table rows" "grep -Fq 'printf \"%d.\\t%-9s\\t' ${LIB_DIR}/configure-display.sh"
 
 # Test 13: Back to menu option exists in grid
-test_check "Back to menu option in grid" "grep -q 'Back to Main Menu' ${CONFIGURE_SCRIPT}"
+test_check "Back to menu option in grid" "grep -q '0\\. Back to Main Menu' ${LIB_DIR}/configure-display.sh"
 
 # Test 14: Grid navigation loop exists
-test_check "Grid navigation loop exists" "grep -B 2 'grid_result.*show_visual_grid' ${CONFIGURE_SCRIPT} | grep -q 'while true'"
+test_check "Grid navigation loop exists" "grep -B 2 -A 2 'show_visual_grid' ${CONFIGURE_SCRIPT} | grep -q 'while true'"
 
 # Test 15: Weekday bulk apply prompt exists
-test_check "Weekday bulk apply prompt" "grep -q 'ask_weekday_together' ${CONFIGURE_SCRIPT}"
+test_check "Weekday bulk apply prompt" "grep -q 'ask_weekday_together' ${LIB_DIR}/configure-ui.sh"
 
 # Test 16: Weekend bulk apply prompt exists
-test_check "Weekend bulk apply prompt" "grep -q 'ask_weekend_together' ${CONFIGURE_SCRIPT}"
+test_check "Weekend bulk apply prompt" "grep -q 'ask_weekend_together' ${LIB_DIR}/configure-ui.sh"
 
 # Test 17: Overnight range formatting exists
-test_check "Overnight range formatting" "grep -A 5 'Handle overnight ranges' ${CONFIGURE_SCRIPT} | grep -q 'overnight'"
+test_check "Overnight range formatting" "grep -q 'Handle overnight ranges' ${LIB_DIR}/configure-time.sh || grep -q 'Overnight' ${LIB_DIR}/configure-time.sh"
 
 # Test 18: Multiple time ranges support
-test_check "Multiple time ranges support" "grep -q 'format_ranges_human' ${CONFIGURE_SCRIPT}"
+test_check "Multiple time ranges support" "grep -q '^format_ranges_human()' ${LIB_DIR}/configure-time.sh"
 
-# Test 19: Menu validation accepts 1-6
-test_check "Menu validation accepts 1-6" "grep -q '1|2|3|4|5|6' ${CONFIGURE_SCRIPT}"
+# Test 19: Menu includes more than 1-6 (modular wizard expanded)
+test_check "Menu includes option 13 (Review and Save)" "grep -q '^[[:space:]]*13)' ${CONFIGURE_SCRIPT}"
 
 # Test 20: Backward compatibility - options 1-4 still exist
 test_check "Backward compatibility - option 1 exists" "grep -q '^[[:space:]]*1)' ${CONFIGURE_SCRIPT}"

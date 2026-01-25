@@ -3,7 +3,8 @@
 ###############################################################################
 # Test Immovable Window Methods
 #
-# This script tests different methods for making a popup window immovable
+# ⚠️ NOTE: This is an old test script. Not important to run for now.
+# It tests different methods for making a popup window immovable
 # as described in dev-docs/FUTURE_ENHANCEMENTS.md section 13.
 #
 # Each method is tested one at a time with a 5-second countdown.

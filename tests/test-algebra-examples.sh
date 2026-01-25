@@ -20,37 +20,23 @@ echo "===================================================================="
 echo ""
 echo "The function generates arithmetic questions in word form to prevent"
 echo "copy-pasting into browsers. Questions use three complexity levels:"
-echo "1. Simple: a * b + c or a * b - c"
-echo "2. Medium: a * b + (c * d) or a * b - (c * d) or a * b + (c - d)"
-echo "3. Complex: a * b op1 (c * d) op2 (e op3 f) op4 g"
+echo "1. Medium: a * b + (c * d) or a * b - (c * d) or a * b + (c - d)"
+echo "2. Complex: a * b op1 (c * d) op2 (e op3 f) op4 g"
 echo ""
 echo "Here are example questions:"
 echo ""
 
-# Generate multiple questions and show them
-echo "=== SIMPLE QUESTIONS ==="
-echo ""
-simple_count=0
-while [ ${simple_count} -lt 5 ]; do
-    question_data=$(generate_algebra_question)
-    question_text=$(echo "${question_data}" | cut -d'|' -f1)
-    correct_answer=$(echo "${question_data}" | cut -d'|' -f2)
-    
-    # Check if it's simple (no parentheses)
-    if ! echo "${question_text}" | grep -q "("; then
-        simple_count=$((simple_count + 1))
-        echo "Example ${simple_count}:"
-        echo "  Question: ${question_text}"
-        echo "  Correct Answer: ${correct_answer}"
-        echo ""
-    fi
-done
+# Generate multiple questions and show them.
+# Note: "Simple" questions were removed from the generator by design, so this script
+# only displays Medium and Complex examples.
 
-echo ""
 echo "=== MEDIUM QUESTIONS (with one set of parentheses) ==="
 echo ""
 medium_count=0
-while [ ${medium_count} -lt 5 ]; do
+attempts=0
+max_attempts=500
+while [ ${medium_count} -lt 5 ] && [ ${attempts} -lt ${max_attempts} ]; do
+    attempts=$((attempts + 1))
     question_data=$(generate_algebra_question)
     question_text=$(echo "${question_data}" | cut -d'|' -f1)
     correct_answer=$(echo "${question_data}" | cut -d'|' -f2)
@@ -65,12 +51,18 @@ while [ ${medium_count} -lt 5 ]; do
         echo ""
     fi
 done
+if [ ${medium_count} -lt 5 ]; then
+    echo "Note: Only generated ${medium_count}/5 medium questions after ${attempts} attempts."
+    echo ""
+fi
 
 echo ""
 echo "=== COMPLEX QUESTIONS (with multiple parentheses) ==="
 echo ""
 complex_count=0
-while [ ${complex_count} -lt 5 ]; do
+attempts=0
+while [ ${complex_count} -lt 5 ] && [ ${attempts} -lt ${max_attempts} ]; do
+    attempts=$((attempts + 1))
     question_data=$(generate_algebra_question)
     question_text=$(echo "${question_data}" | cut -d'|' -f1)
     correct_answer=$(echo "${question_data}" | cut -d'|' -f2)
@@ -85,6 +77,10 @@ while [ ${complex_count} -lt 5 ]; do
         echo ""
     fi
 done
+if [ ${complex_count} -lt 5 ]; then
+    echo "Note: Only generated ${complex_count}/5 complex questions after ${attempts} attempts."
+    echo ""
+fi
 
 echo ""
 echo "===================================================================="

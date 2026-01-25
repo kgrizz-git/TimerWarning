@@ -24,10 +24,12 @@ Both steps are necessary for a complete setup.
 
 The configuration file is located at:
 ```
-~/.config/sleep-warning/sleep-warning.conf
+~/.config/sleep-warning/config/sleep-warning.conf
 ```
 
 If the configuration file does not exist, the system will use default values. You can create the file manually or use the interactive configuration wizard (`configure.sh` or `sleep-warning-configure`).
+
+**Migration note (Enhancement #18)**: Older versions used `~/.config/sleep-warning/sleep-warning.conf`. The installer migrates that file to the new location when upgrading.
 
 ## File Format
 
@@ -98,12 +100,12 @@ The configuration wizard includes a critical safety feature that prevents you fr
 **How It Works**:
 - When you save your configuration, the system automatically checks the total restriction coverage across all 7 days
 - If you configure restrictions for **all 24 hours, 7 days a week** (10080 minutes total), the configuration will be **blocked** and you'll see an error message
-- If you configure restrictions for **more than 23 hours per day** (> 9660 minutes total), you'll see a **warning** and can choose to save anyway or modify your settings
+- If you configure restrictions for **more than 16 hours per day** (> 6720 minutes total), you'll see a **warning** and can choose to save anyway or modify your settings
 
 **Why This Matters**:
 - Configuring 24/7 restrictions would leave no unrestricted time to modify settings or use your computer
 - The system prevents this accidental lockout scenario
-- If you need very high restriction levels (> 23 hours/day), you can still save, but safety features will be automatically applied (see below)
+- If you need very high restriction levels (> 16 hours/day), you can still save, but safety features will be automatically applied (see below)
 
 **Examples**:
 ```
@@ -117,29 +119,29 @@ FRIDAY=0-12,12-0    # 24 hours
 SATURDAY=0-12,12-0  # 24 hours
 # Total: 10080 minutes (24 hours × 7 days) - BLOCKED
 
-# This configuration would show a WARNING (> 23 hours/day):
-SUNDAY=0-23         # 23 hours (00:00-22:59)
-MONDAY=0-23         # 23 hours
-TUESDAY=0-23        # 23 hours
-WEDNESDAY=0-23      # 23 hours
-THURSDAY=0-23       # 23 hours
-FRIDAY=0-23         # 23 hours
-SATURDAY=0-23,23-0  # 24 hours (0-23 + 23-0)
-# Total: 9661 minutes (> 23 hours/day) - WARNING shown
+# This configuration would show a WARNING (> 16 hours/day):
+SUNDAY=0-16         # 16 hours (00:00-15:59)
+MONDAY=0-16         # 16 hours
+TUESDAY=0-16        # 16 hours
+WEDNESDAY=0-16      # 16 hours
+THURSDAY=0-16       # 16 hours
+FRIDAY=0-16         # 16 hours
+SATURDAY=0-16,16-17 # 17 hours (0-16 + 16-17)
+# Total: 6721 minutes (> 16 hours/day) - WARNING shown
 
-# This configuration is VALID (<= 23 hours/day):
-SUNDAY=0-23         # 23 hours
-MONDAY=0-23         # 23 hours
-TUESDAY=0-23        # 23 hours
-WEDNESDAY=0-23      # 23 hours
-THURSDAY=0-23       # 23 hours
-FRIDAY=0-23         # 23 hours
-SATURDAY=0-23       # 23 hours
-# Total: 9660 minutes (exactly 23 hours/day) - VALID, no warning
+# This configuration is VALID (<= 16 hours/day):
+SUNDAY=0-16         # 16 hours
+MONDAY=0-16         # 16 hours
+TUESDAY=0-16        # 16 hours
+WEDNESDAY=0-16      # 16 hours
+THURSDAY=0-16       # 16 hours
+FRIDAY=0-16         # 16 hours
+SATURDAY=0-16       # 16 hours
+# Total: 6720 minutes (exactly 16 hours/day) - VALID, no warning
 ```
 
 **Automatic Safety Overrides** (when high restrictions are detected):
-If you configure restrictions for more than 23 hours per day and choose to save anyway, the system automatically applies safety measures:
+If you configure restrictions for more than 16 hours per day and choose to save anyway, the system automatically applies safety measures:
 - **Popup size restriction**: Popup size is limited to "small" or "medium" only (prevents overly intrusive popups when you have very limited unrestricted time)
 - **Config locking disabled**: Config file locking features are automatically disabled (prevents locking yourself out during very limited unrestricted time)
 - **Transparency**: The config file includes comments explaining why these safety features are disabled
@@ -357,6 +359,10 @@ CONFIGURE_BLOCK_ENABLED=false  # Disable blocking (default)
 
 **Description**: Additional hours for blocking `configure.sh` and `manage.sh` (separate from restriction hours). When `CONFIGURE_BLOCK_ENABLED=true`, these scripts are blocked during restriction hours OR lock hours (OR logic). This allows you to configure separate lock periods beyond your normal restriction hours.
 
+**Used by multiple features**:
+- When **`CONFIGURE_BLOCK_ENABLED=true`** (Enhancement #19), `configure.sh`/`manage.sh` are blocked during **restricted hours OR lock hours**.
+- When **`CONFIG_LOCK_ENABLED=true`** (Enhancement #18), the **config file** is locked during **restricted hours OR lock hours**.
+
 **Format**: `CONFIG_LOCK_HOURS_DAYNAME=START_HOUR-END_HOUR`
 
 **Days**: `CONFIG_LOCK_HOURS_SUNDAY`, `CONFIG_LOCK_HOURS_MONDAY`, `CONFIG_LOCK_HOURS_TUESDAY`, `CONFIG_LOCK_HOURS_WEDNESDAY`, `CONFIG_LOCK_HOURS_THURSDAY`, `CONFIG_LOCK_HOURS_FRIDAY`, `CONFIG_LOCK_HOURS_SATURDAY`
@@ -404,6 +410,31 @@ CONFIG_LOCK_HOURS_WEDNESDAY=23-6     # Block overnight (11 PM to 5:59 AM)
 **Limitations**:
 - Same limitations as `CONFIGURE_BLOCK_ENABLED` - can be bypassed by modifying system time or editing scripts directly
 - Designed as a **self-control aid**, not a security measure against determined users with system access
+
+### Config File Locking During Restricted Hours
+
+**Option**: `CONFIG_LOCK_ENABLED`
+
+**Description**: When enabled, the system makes the configuration directory and config file **read-only** during **restricted hours OR lock hours**. This is a deterrence feature to make it harder to change settings during times you’ve chosen to restrict.
+
+**Format**: `true` or `false`
+
+**Default**: `false` (disabled - opt-in feature)
+
+**How It Works** (Enhancement #18):
+- When active, `sleep-warning.sh` applies a directory/file permission lock:
+  - Directory: `~/.config/sleep-warning/config` → typically `555` (no writes)
+  - File: `~/.config/sleep-warning/config/sleep-warning.conf` → typically `444` (read-only)
+- A marker file is used to restore the original permissions when unlocking:
+  - `~/.config/sleep-warning/.config_locked`
+- A snapshot may be used for self-healing if the file is deleted/modified while locked:
+  - `~/.config/sleep-warning/.config_locked_snapshot`
+
+**Safety**:
+- If you configure restrictions totaling **more than 16 hours/day** (> 6720 minutes/week), the configuration wizard automatically forces `CONFIG_LOCK_ENABLED=false` to reduce lockout risk.
+
+**Limitations**:
+- This is deterrence-only. A determined user with sufficient access can still bypass it (e.g., stopping the service, changing permissions, or editing files outside the expected flow).
 
 ### Uninstall Protection During Restricted Hours
 
@@ -670,6 +701,10 @@ UNINSTALL_PROTECTION_MODE=difficult
 # If selected tool is not installed, system falls back to automatic selection
 DIALOG_TOOL=auto
 
+# Config file locking: Lock the configuration file during restricted hours (and lock hours) (true/false)
+# This is an opt-in deterrence feature - disabled by default
+CONFIG_LOCK_ENABLED=false
+
 # Restricted hours for each day
 SUNDAY=1-5
 MONDAY=0-5
@@ -825,9 +860,9 @@ By default, the wizard uses GUI mode if zenity is available and a display is pre
 You can manually edit the configuration file using any text editor:
 
 ```bash
-nano ~/.config/sleep-warning/sleep-warning.conf
+nano ~/.config/sleep-warning/config/sleep-warning.conf
 # or
-vim ~/.config/sleep-warning/sleep-warning.conf
+vim ~/.config/sleep-warning/config/sleep-warning.conf
 # or use your preferred text editor
 ```
 
@@ -856,7 +891,7 @@ Invalid values will be ignored and default values will be used instead. The scri
 
 ### Configuration Not Taking Effect
 
-1. **Check file location**: Ensure the file is at `~/.config/sleep-warning/sleep-warning.conf`
+1. **Check file location**: Ensure the file is at `~/.config/sleep-warning/config/sleep-warning.conf`
 2. **Check file permissions**: The file should be readable by your user
 3. **Check syntax**: Ensure there are no syntax errors (missing `=`, invalid characters, etc.)
 4. **Check logs**: View the log file at `~/.config/sleep-warning/warnings.log` for any errors
@@ -878,7 +913,7 @@ Select "View Current Configuration" from the menu.
 Or view it directly:
 
 ```bash
-cat ~/.config/sleep-warning/sleep-warning.conf
+cat ~/.config/sleep-warning/config/sleep-warning.conf
 ```
 
 ## Additional Resources
