@@ -195,9 +195,9 @@ check_restriction_coverage() {
     
     # Constants for time calculations
     # These constants define the time units used in the unified weekly timeline
-    # Note: MINUTES_PER_HOUR is defined globally in configure-core.sh
-    local MINUTES_PER_DAY=1440     # 24 hours × 60 minutes = 1440 minutes per day
-    local MINUTES_PER_WEEK=10080   # 7 days × 1440 minutes = 10080 minutes per week
+    # Use centralized constants from configure-core.sh if available, otherwise use fallback values
+    local MINUTES_PER_DAY="${MINUTES_PER_DAY:-1440}"     # 24 hours × 60 minutes = 1440 minutes per day
+    local MINUTES_PER_WEEK="${MINUTES_PER_WEEK:-10080}"   # 7 days × 1440 minutes = 10080 minutes per week
     
     # Validation thresholds are defined globally in configure-core.sh:
     # - THRESHOLD_BLOCK: 24/7 restrictions (calculated from HOURS_PER_DAY_BLOCK)

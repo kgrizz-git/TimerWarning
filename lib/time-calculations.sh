@@ -252,9 +252,9 @@ calculate_total_day_duration() {
 build_weekly_restricted_intervals() {
     local all_intervals=()
     
-    # Constants for time calculations
-    local MINUTES_PER_HOUR=60
-    local MINUTES_PER_DAY=1440
+    # Constants for time calculations (use centralized constants if available)
+    local MINUTES_PER_HOUR="${MINUTES_PER_HOUR:-60}"
+    local MINUTES_PER_DAY="${MINUTES_PER_DAY:-1440}"
     
     # Process each day (indices 0-6: Sunday-Saturday)
     local i
@@ -422,9 +422,10 @@ format_minute_offset_to_time() {
     local minute_offset=$1
     local current_minute_offset=$2
     
-    local MINUTES_PER_DAY=1440
-    local MINUTES_PER_HOUR=60
-    local MINUTES_PER_WEEK=10080
+    # Use constants from configure-core.sh if available, otherwise use local fallback values
+    local MINUTES_PER_DAY="${MINUTES_PER_DAY:-1440}"
+    local MINUTES_PER_HOUR="${MINUTES_PER_HOUR:-60}"
+    local MINUTES_PER_WEEK="${MINUTES_PER_WEEK:-10080}"
     
     # Calculate day, hour, and minute from offset
     local day=$((minute_offset / MINUTES_PER_DAY))
@@ -540,7 +541,7 @@ get_next_unrestricted_time() {
     
     # Search forward from current time to find first unrestricted minute
     # Optimize by jumping to end of restricted intervals instead of checking minute by minute
-    local MINUTES_PER_WEEK=10080
+    local MINUTES_PER_WEEK="${MINUTES_PER_WEEK:-10080}"
     local search_minute="${current_minute}"
     local start_minute="${current_minute}"
     local found=false

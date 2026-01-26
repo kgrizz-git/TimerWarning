@@ -32,10 +32,10 @@ get_hour_zenity() {
     fi
     
     # Validate hour
-    if ! [[ "${hour}" =~ ^[0-9]+$ ]] || [ "${hour}" -lt 0 ] || [ "${hour}" -gt 23 ]; then
+    if ! [[ "${hour}" =~ ^[0-9]+$ ]] || [ "${hour}" -lt "${MIN_HOUR}" ] || [ "${hour}" -gt "${MAX_HOUR}" ]; then
         show_info_dialog \
             "Invalid Hour" \
-            "Invalid hour. Please enter a number between 0 and 23."
+            "Invalid hour. Please enter a number between ${MIN_HOUR} and ${MAX_HOUR}."
         echo ""
         return 1
     fi
@@ -53,11 +53,11 @@ get_hour_text() {
         read -p "${prompt} [${default}]: " hour
         hour=${hour:-${default}}
         
-        if [[ "${hour}" =~ ^[0-9]+$ ]] && [ "${hour}" -ge 0 ] && [ "${hour}" -le 23 ]; then
+        if [[ "${hour}" =~ ^[0-9]+$ ]] && [ "${hour}" -ge "${MIN_HOUR}" ] && [ "${hour}" -le "${MAX_HOUR}" ]; then
             echo "${hour}"
             return 0
         else
-            echo "Invalid hour. Please enter a number between 0 and 23." >&2
+            echo "Invalid hour. Please enter a number between ${MIN_HOUR} and ${MAX_HOUR}." >&2
         fi
     done
 }

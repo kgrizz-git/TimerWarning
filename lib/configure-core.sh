@@ -15,6 +15,8 @@
 # - format_hour_12h()        - Format hour to 12-hour format with AM/PM
 # - get_threshold_warn_description()  - Get human-readable warning threshold description
 # - get_threshold_block_description() - Get human-readable block threshold description
+# - day_num_to_name_upper()  - Convert day number to uppercase day name (for config file)
+# - day_num_to_name_title()  - Convert day number to titlecase day name (for display)
 #
 # Dependencies:
 #   - desktop-environment.sh (for check_dialog_tool and detect_display_environment)
@@ -57,10 +59,24 @@ declare -a DAY_VARS=("SUNDAY" "MONDAY" "TUESDAY" "WEDNESDAY" "THURSDAY" "FRIDAY"
 # To change thresholds, modify HOURS_PER_DAY_WARN or HOURS_PER_DAY_BLOCK
 HOURS_PER_DAY_WARN=16      # Warning threshold: > 16 hours/day
 HOURS_PER_DAY_BLOCK=24     # Block threshold: >= 24 hours/day (24/7 restrictions)
-MINUTES_PER_HOUR=60
-DAYS_PER_WEEK=7
+readonly MINUTES_PER_HOUR=60
+readonly DAYS_PER_WEEK=7
+readonly MINUTES_PER_DAY=$((MINUTES_PER_HOUR * 24))      # 1440 minutes per day
+readonly MINUTES_PER_WEEK=$((MINUTES_PER_DAY * DAYS_PER_WEEK))  # 10080 minutes per week
 THRESHOLD_WARN=$((HOURS_PER_DAY_WARN * MINUTES_PER_HOUR * DAYS_PER_WEEK))      # Currently 6720
 THRESHOLD_BLOCK=$((HOURS_PER_DAY_BLOCK * MINUTES_PER_HOUR * DAYS_PER_WEEK))     # 10080
+
+# Hour range constants (for validation)
+readonly MIN_HOUR=0
+readonly MAX_HOUR=23
+
+# Time range constants (for minimum display time validation)
+readonly MIN_DISPLAY_TIME=0
+readonly MAX_DISPLAY_TIME=300
+
+# Check interval constants (for validation)
+readonly MIN_CHECK_INTERVAL=1
+readonly MAX_CHECK_INTERVAL=60
 
 # Check if any dialog tool is available
 # Requires desktop-environment.sh to be sourced
@@ -169,5 +185,35 @@ get_threshold_block_description() {
         echo "24/7"
     else
         echo "${HOURS_PER_DAY_BLOCK} hours/day"
+    fi
+}
+
+# Convert day number to uppercase day name (for config file)
+# Parameters:
+#   $1 - day_num (0-6, Sunday=0, Saturday=6)
+# Returns: Uppercase day name (e.g., "SUNDAY", "MONDAY")
+# Exit codes: 0 on success, 1 on invalid day number
+# This function uses the DAY_VARS array for consistency
+day_num_to_name_upper() {
+    local day_num="$1"
+    if [ "${day_num}" -ge 0 ] && [ "${day_num}" -le 6 ]; then
+        echo "${DAY_VARS[${day_num}]}"
+    else
+        return 1
+    fi
+}
+
+# Convert day number to titlecase day name (for display)
+# Parameters:
+#   $1 - day_num (0-6, Sunday=0, Saturday=6)
+# Returns: Titlecase day name (e.g., "Sunday", "Monday")
+# Exit codes: 0 on success, 1 on invalid day number
+# This function uses the DAY_NAMES array for consistency
+day_num_to_name_title() {
+    local day_num="$1"
+    if [ "${day_num}" -ge 0 ] && [ "${day_num}" -le 6 ]; then
+        echo "${DAY_NAMES[${day_num}]}"
+    else
+        return 1
     fi
 }

@@ -131,6 +131,38 @@ For each documentation file, assess:
 1. **Accuracy**: Does the documentation correctly describe what the code does?
 2. **Agreement**: Do multiple documentation sources agree on the same information?
 3. **Completion**: Are all features, options, edge cases, and behaviors documented?
+4. **Purpose and Organization**: Is the documentation serving its intended purpose effectively?
+
+### Step 4: Documentation Purpose and Organization Evaluation
+
+Evaluate whether each documentation file is serving its intended purpose and is appropriately organized:
+
+1. **Document Purpose Alignment**:
+   - **README.md**: Should be accessible, relatively brief, and provide a quick overview. It should help users quickly understand what the project does and how to get started.
+   - **USER_GUIDE.md**: Should be more detailed and comprehensive, providing thorough guidance for end users on all features, configuration, troubleshooting, and usage scenarios.
+   - **TECHNICAL_DETAILS.md**: Should be targeted at developers, providing implementation details, architecture, code structure, and technical specifications.
+   - **GETTING_STARTED.md**: Should focus on initial setup and installation, providing a clear path for new users.
+   - **CONFIGURATION.md**: Should be a focused reference for all configuration options and their effects.
+
+2. **Content Appropriateness**:
+   - Is the level of detail appropriate for the document's intended audience?
+   - Is the document too brief for its purpose, or too verbose?
+   - Does the document contain information that belongs in a different document?
+   - Is the document missing information that should be included based on its purpose?
+
+3. **Document Organization and Structure**:
+   - Should any documents be merged together (e.g., if they cover overlapping topics and are both brief)?
+   - Should any documents be split (e.g., if a single document is too long and covers multiple distinct topics)?
+   - Should any documents be renamed to better reflect their content or purpose?
+   - Is content distributed appropriately across documents, or should some content be moved to better serve readers?
+   - Are there redundant sections across multiple documents that should be consolidated?
+   - Are there gaps where information is missing from all documents?
+
+4. **Accessibility and Usability**:
+   - Can users easily find the information they need?
+   - Is the document structure logical and easy to navigate?
+   - Are there clear navigation aids (table of contents, cross-references, etc.)?
+   - Is the document appropriately scoped for its target audience?
 
 ---
 
@@ -285,6 +317,41 @@ For each documentation file, assess:
 - [ ] **Complex Logic**: Verify complex code sections have explanatory comments
 - [ ] **Configuration Comments**: Verify config file has comments explaining options
 
+### Documentation Purpose and Organization Evaluation
+
+#### README.md Purpose Evaluation
+
+- [ ] **Accessibility**: Is README.md accessible and easy to understand for new users?
+- [ ] **Brevity**: Is README.md relatively brief and focused on overview/quick start?
+- [ ] **Appropriate Detail Level**: Does it provide the right level of detail for a README (not too brief, not too detailed)?
+- [ ] **Content Appropriateness**: Does it contain only information appropriate for a README, or should some content be moved to USER_GUIDE or other docs?
+- [ ] **Organization**: Is the structure logical and easy to navigate?
+
+#### USER_GUIDE.md Purpose Evaluation
+
+- [ ] **Comprehensiveness**: Is USER_GUIDE.md detailed and comprehensive enough for end users?
+- [ ] **Appropriate Detail Level**: Does it provide thorough guidance without being overwhelming?
+- [ ] **Content Appropriateness**: Does it contain user-focused information, or does it include developer details that belong in TECHNICAL_DETAILS?
+- [ ] **Organization**: Is the structure logical and easy to navigate for users seeking specific information?
+- [ ] **Completeness**: Does it cover all user-facing features and use cases?
+
+#### TECHNICAL_DETAILS.md Purpose Evaluation
+
+- [ ] **Developer Focus**: Is TECHNICAL_DETAILS.md appropriately targeted at developers?
+- [ ] **Technical Depth**: Does it provide sufficient technical detail for developers?
+- [ ] **Content Appropriateness**: Does it contain developer-focused information, or does it include user guidance that belongs in USER_GUIDE?
+- [ ] **Organization**: Is the structure logical for developers seeking implementation details?
+
+#### Cross-Document Organization Evaluation
+
+- [ ] **Content Distribution**: Is content distributed appropriately across documents, or should some content be redistributed?
+- [ ] **Merging Candidates**: Are there documents that should be merged (e.g., overlapping brief documents)?
+- [ ] **Splitting Candidates**: Are there documents that should be split (e.g., overly long documents covering multiple topics)?
+- [ ] **Renaming Candidates**: Are there documents that should be renamed to better reflect their content or purpose?
+- [ ] **Redundancy**: Are there redundant sections across multiple documents that should be consolidated?
+- [ ] **Gaps**: Are there information gaps where content is missing from all documents?
+- [ ] **Navigation**: Are there clear cross-references and navigation aids between related documents?
+
 ---
 
 ## Assessment Results Template
@@ -410,6 +477,90 @@ Use this structure in your timestamped assessment file:
 ### Inconsistent Information: [Topic]
 [Repeat for each inconsistency]
 
+## Documentation Purpose and Organization Issues
+
+### Purpose Misalignment: [Document Name]
+
+**Document**: `file.md`  
+**Intended Purpose**: [What the document should be for]  
+**Current State**: [What the document currently is]
+
+**Issues**:
+- [Issue description]
+- [Issue description]
+
+**Impact**: High/Medium/Low - [Description of impact]
+
+**Suggested Changes**: 
+- [Specific change recommendation]
+- [Specific change recommendation]
+
+### Organization Issues
+
+#### Content Distribution Issues
+
+**Issue**: [Description of content distribution problem]
+
+**Current State**:
+- `doc1.md` contains: [Description]
+- `doc2.md` contains: [Description]
+
+**Problem**: [Why current distribution is problematic]
+
+**Suggested Redistribution**: [How content should be redistributed]
+
+#### Merging Candidates
+
+**Documents to Merge**: `doc1.md` + `doc2.md`
+
+**Reason**: [Why these should be merged]
+- Overlapping content: [Description]
+- Both are brief: [Description]
+- Related topics: [Description]
+
+**Suggested Merged Document**: [Proposed name and structure]
+
+#### Splitting Candidates
+
+**Document to Split**: `doc.md`
+
+**Reason**: [Why this should be split]
+- Too long: [Length/scope issue]
+- Covers multiple distinct topics: [Topics]
+- Different audiences: [Audience differences]
+
+**Suggested Split**: 
+- `new-doc1.md`: [Content/topic]
+- `new-doc2.md`: [Content/topic]
+
+#### Renaming Candidates
+
+**Document**: `current-name.md`
+
+**Current Name Issues**: [Why current name is problematic]
+
+**Suggested New Name**: `proposed-name.md`
+
+**Reason**: [Why new name better reflects content/purpose]
+
+#### Redundancy Issues
+
+**Redundant Content**: [Description of redundant content]
+
+**Locations**:
+- `doc1.md`, Section X
+- `doc2.md`, Section Y
+
+**Suggested Resolution**: [How to consolidate or remove redundancy]
+
+#### Content Gaps
+
+**Missing Information**: [Description of missing information]
+
+**Impact**: High/Medium/Low - [Description of impact]
+
+**Suggested Location**: [Where this information should be added]
+
 ## Prioritized Recommendations
 
 ### High Priority (Critical Inaccuracies or Missing Critical Information)
@@ -449,12 +600,17 @@ Use this structure in your timestamped assessment file:
   - **Accuracy Issues**: X
   - **Agreement Issues**: X
   - **Completion Issues**: X
+  - **Purpose and Organization Issues**: X
 - **High Priority Issues**: X
 - **Medium Priority Issues**: X
 - **Low Priority Issues**: X
 - **Undocumented Features**: X
 - **Undocumented Configuration Options**: X
 - **Cross-Documentation Inconsistencies**: X
+- **Documents Recommended for Merging**: X
+- **Documents Recommended for Splitting**: X
+- **Documents Recommended for Renaming**: X
+- **Content Redistribution Recommendations**: X
 
 ## Next Steps
 
@@ -483,10 +639,18 @@ Use this structure in your timestamped assessment file:
 
 - **Consistency**: Documentation should be consistent across all files. If multiple docs describe the same feature, they should agree.
 
+- **Purpose and Organization**: Documentation should serve its intended purpose effectively:
+  - **README.md** should be accessible and relatively brief for quick reference
+  - **USER_GUIDE.md** should be detailed and comprehensive for end users
+  - **TECHNICAL_DETAILS.md** should be targeted at developers with technical depth
+  - Documents should be appropriately organized, with content distributed logically
+  - Consider whether documents should be merged, split, renamed, or have content redistributed to better serve readers
+
 ---
 
 ## Template Version
 
-- **Version**: 1.0
+- **Version**: 1.1
 - **Created**: 2026-01-20
-- **Last Updated**: 2026-01-20
+- **Last Updated**: 2026-01-26
+- **Changes in v1.1**: Added documentation purpose and organization evaluation criteria

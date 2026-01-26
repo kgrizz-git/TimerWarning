@@ -4,7 +4,21 @@ This document summarizes the eligibility requirements for GitHub Sponsors, based
 
 ## Overview
 
-GitHub Sponsors allows the developer community to financially support open source contributors directly on GitHub. To become eligible to receive sponsorships, you must meet specific requirements.
+**What is GitHub Sponsors?**
+
+GitHub Sponsors is a platform that allows the developer community to financially support open source contributors and organizations directly on GitHub. It's essentially a voluntary donation/support system where:
+
+- **Sponsors** (individuals or organizations) choose to financially support developers/projects they value
+- **Sponsored developers** receive payments from sponsors who appreciate their work
+- **100% of sponsorships from personal accounts** go to the sponsored developer (no fees)
+- Sponsors can choose from **monthly or one-time** payment tiers
+- It's completely **voluntary** - sponsors decide who and how much to support
+
+Think of it like Patreon or Ko-fi, but integrated directly into GitHub. Sponsors can see your profile, repositories, and choose to support you because they find your work valuable.
+
+**Eligibility Overview**
+
+To become eligible to receive sponsorships through GitHub Sponsors, you must meet specific requirements related to open source contributions.
 
 ## Eligibility Requirements
 
@@ -49,6 +63,24 @@ GitHub's definition is intentionally broad. Simply having a public repository wi
 - Reporting bugs, triaging issues, or helping with design
 
 **Important**: Your project must have an open source license (e.g., MIT, GPL, Apache) to be considered open source. A public repository without a license is not legally open source.
+
+### OSI Approval and Non-Commercial Licenses
+
+**Does GitHub Sponsors require OSI-approved licenses?**
+
+GitHub's documentation states that you must "contribute to an open source project" but doesn't explicitly require OSI approval. However, GitHub generally considers projects with standard open source licenses (MIT, GPL, Apache, BSD, etc.) as "open source."
+
+**What about non-commercial licenses?**
+
+Non-commercial licenses (like License Zero Noncommercial) are **not OSI-approved** and are considered "source-available" rather than "open source." GitHub's eligibility requirements are somewhat ambiguous on this point:
+
+- GitHub requires contributing to "an open source project"
+- Non-commercial licenses restrict commercial use, which violates the Open Source Definition
+- GitHub may or may not accept non-commercial licenses for GitHub Sponsors eligibility
+
+**Recommendation**: If you want to ensure GitHub Sponsors eligibility, use an OSI-approved open source license (MIT, GPL, Apache, etc.). If you use a non-commercial license, you may need to contact GitHub Support to confirm eligibility, as the documentation doesn't explicitly address this scenario.
+
+**Alternative**: You can still accept donations through other platforms (Patreon, Ko-fi, PayPal) regardless of your license choice.
 
 ## Project Eligibility Assessment
 

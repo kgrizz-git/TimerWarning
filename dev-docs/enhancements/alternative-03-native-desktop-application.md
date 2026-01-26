@@ -18,5 +18,7 @@
 - **Complementary Option**: Could be developed alongside bash scripts as alternative interface
 - **Priority**: Medium (improves user experience but not Gaming Mode compatibility)
 - **Status**: Not implemented
-- **Related**: See [info/DISTRIBUTION_OPTIONS.md](../info/DISTRIBUTION_OPTIONS.md) for packaging options
+- **Related**: 
+  - See [info/DISTRIBUTION_OPTIONS.md](../info/DISTRIBUTION_OPTIONS.md) for packaging options
+  - See [alternative-06-executable-binary-distribution.md](alternative-06-executable-binary-distribution.md) for executable/binary distribution options including compiled language rewrite
 

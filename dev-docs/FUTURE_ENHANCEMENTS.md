@@ -257,6 +257,12 @@ These approaches would require significant changes to the architecture or a comp
 - **Status**: ❌ **NOT PLANNED** - This enhancement will not be implemented
 - **Details**: See [enhancements/alternative-05-web-based-configuration-interface.md](enhancements/alternative-05-web-based-configuration-interface.md)
 
+### 6. Executable/Binary Distribution Options
+- **Description**: Various approaches for distributing the project as executable binaries or packaged applications where end-users would not have direct access to the source code. Options include self-extracting installer, shell compiler (shc), obfuscation tools, package managers, and complete rewrite in compiled language.
+- **Priority**: Medium (improves distribution options and provides source code protection options)
+- **Status**: Not implemented
+- **Details**: See [enhancements/alternative-06-executable-binary-distribution.md](enhancements/alternative-06-executable-binary-distribution.md)
+
 ## Recommended Implementation Priority
 
 **High Priority (Required for Gaming Mode Compatibility)**:

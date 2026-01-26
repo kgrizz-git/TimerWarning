@@ -41,7 +41,7 @@ get_check_interval() {
             # Get interval using dialog tool
             interval=$(show_entry_dialog \
                 "Sleep Warning Configuration" \
-                "How often should the system check for restricted hours?\n\nEnter interval in minutes (1-60):" \
+                "How often should the system check for restricted hours?\n\nEnter interval in minutes (${MIN_CHECK_INTERVAL}-${MAX_CHECK_INTERVAL}):" \
                 "${default_interval}")
             local exit_code=$?
             
@@ -62,10 +62,10 @@ get_check_interval() {
             fi
             
             # Validate interval
-            if ! [[ "${interval}" =~ ^[0-9]+$ ]] || [ "${interval}" -lt 1 ] || [ "${interval}" -gt 60 ]; then
+            if ! [[ "${interval}" =~ ^[0-9]+$ ]] || [ "${interval}" -lt "${MIN_CHECK_INTERVAL}" ] || [ "${interval}" -gt "${MAX_CHECK_INTERVAL}" ]; then
                 show_info_dialog \
                     "Invalid Interval" \
-                    "Invalid interval. Please enter a number between 1 and 60 minutes."
+                    "Invalid interval. Please enter a number between ${MIN_CHECK_INTERVAL} and ${MAX_CHECK_INTERVAL} minutes."
                 continue
             fi
             
@@ -100,7 +100,7 @@ get_check_interval() {
             read -p "Check interval in minutes (1-60) [${default_interval}]: " interval
             interval=${interval:-${default_interval}}
             
-            if [[ "${interval}" =~ ^[0-9]+$ ]] && [ "${interval}" -ge 1 ] && [ "${interval}" -le 60 ]; then
+            if [[ "${interval}" =~ ^[0-9]+$ ]] && [ "${interval}" -ge "${MIN_CHECK_INTERVAL}" ] && [ "${interval}" -le "${MAX_CHECK_INTERVAL}" ]; then
                 # Validate timing configuration (Enhancement #9)
                 # Check against current POPUP_MIN_DISPLAY_TIME
                 local current_min_display_time
@@ -126,7 +126,7 @@ get_check_interval() {
                 echo "${interval}"
                 return 0
             else
-                echo "Invalid interval. Please enter a number between 1 and 60." >&2
+                echo "Invalid interval. Please enter a number between ${MIN_CHECK_INTERVAL} and ${MAX_CHECK_INTERVAL}." >&2
             fi
         done
     fi
@@ -145,11 +145,11 @@ get_day_hours() {
             # Build prompt text with examples
             local prompt_text="Configure restricted hours for ${day_name}:\n\n"
             prompt_text="${prompt_text}24-HOUR FORMAT:\n"
-            prompt_text="${prompt_text}• Hours use 24-hour format (0-23)\n"
-            prompt_text="${prompt_text}• 0 = midnight (12:00 AM)\n"
+            prompt_text="${prompt_text}• Hours use 24-hour format (${MIN_HOUR}-${MAX_HOUR})\n"
+            prompt_text="${prompt_text}• ${MIN_HOUR} = midnight (12:00 AM)\n"
             prompt_text="${prompt_text}• 12 = noon (12:00 PM)\n"
             prompt_text="${prompt_text}• 22 = 10:00 PM\n"
-            prompt_text="${prompt_text}• 23 = 11:00 PM\n\n"
+            prompt_text="${prompt_text}• ${MAX_HOUR} = 11:00 PM\n\n"
             prompt_text="${prompt_text}Format options:\n"
             prompt_text="${prompt_text}• Single: 0-5 (midnight to 4:59 AM)\n"
             prompt_text="${prompt_text}• Multiple: 0-5,22-23 (two periods)\n"
@@ -264,8 +264,8 @@ get_day_hours() {
                 end_hour=$(echo "${range}" | cut -d'-' -f2)
                 
                 # Validate hour values
-                if [ "${start_hour}" -lt 0 ] || [ "${start_hour}" -gt 23 ] || \
-                   [ "${end_hour}" -lt 0 ] || [ "${end_hour}" -gt 23 ]; then
+                if [ "${start_hour}" -lt "${MIN_HOUR}" ] || [ "${start_hour}" -gt "${MAX_HOUR}" ] || \
+                   [ "${end_hour}" -lt "${MIN_HOUR}" ] || [ "${end_hour}" -gt "${MAX_HOUR}" ]; then
                     valid=false
                     break
                 fi
@@ -280,7 +280,7 @@ get_day_hours() {
             if [ "${valid}" = "false" ]; then
                 show_info_dialog \
                     "Invalid Hour Values" \
-                    "Invalid hour values. Hours must be 0-23, and start cannot equal end."
+                    "Invalid hour values. Hours must be ${MIN_HOUR}-${MAX_HOUR}, and start cannot equal end."
                 continue
             fi
             
@@ -354,11 +354,15 @@ get_day_hours() {
                 fi
                 
                 if [ "${has_overnight}" = "true" ]; then
-                    # Use DAY_NAMES array if available, otherwise fallback to case statement
+                    # Use shared function if available, otherwise use DAY_NAMES array, then fallback to case statement
                     local prev_day_name
-                    if [ -n "${DAY_NAMES[${prev_day_index}]:-}" ]; then
+                    if type day_num_to_name_title >/dev/null 2>&1; then
+                        prev_day_name=$(day_num_to_name_title "${prev_day_index}" 2>/dev/null || echo "")
+                    fi
+                    if [ -z "${prev_day_name}" ] && [ -n "${DAY_NAMES[${prev_day_index}]:-}" ]; then
                         prev_day_name="${DAY_NAMES[${prev_day_index}]}"
-                    else
+                    fi
+                    if [ -z "${prev_day_name}" ]; then
                         case "${prev_day_index}" in
                             0) prev_day_name="Sunday" ;;
                             1) prev_day_name="Monday" ;;
@@ -407,11 +411,11 @@ get_day_hours() {
         echo "=== Configuring ${day_name} ===" >&2
         echo "" >&2
         echo "24-HOUR FORMAT:" >&2
-        echo "  • Hours use 24-hour format (0-23)" >&2
-        echo "  • 0 = midnight (12:00 AM)" >&2
+        echo "  • Hours use 24-hour format (${MIN_HOUR}-${MAX_HOUR})" >&2
+        echo "  • ${MIN_HOUR} = midnight (12:00 AM)" >&2
         echo "  • 12 = noon (12:00 PM)" >&2
         echo "  • 22 = 10:00 PM" >&2
-        echo "  • 23 = 11:00 PM" >&2
+        echo "  • ${MAX_HOUR} = 11:00 PM" >&2
         echo "" >&2
         echo "IMPORTANT - Overnight ranges:" >&2
         echo "  If you enter '23-6' on ${day_name}, it means:" >&2
@@ -495,8 +499,8 @@ get_day_hours() {
                 end_hour=$(echo "${range}" | cut -d'-' -f2)
                 
                 # Validate hour values
-                if [ "${start_hour}" -lt 0 ] || [ "${start_hour}" -gt 23 ] || \
-                   [ "${end_hour}" -lt 0 ] || [ "${end_hour}" -gt 23 ]; then
+                if [ "${start_hour}" -lt "${MIN_HOUR}" ] || [ "${start_hour}" -gt "${MAX_HOUR}" ] || \
+                   [ "${end_hour}" -lt "${MIN_HOUR}" ] || [ "${end_hour}" -gt "${MAX_HOUR}" ]; then
                     valid=false
                     break
                 fi
@@ -509,7 +513,7 @@ get_day_hours() {
             done
             
             if [ "${valid}" = "false" ]; then
-                echo "Error: Invalid hour values. Hours must be 0-23, and start cannot equal end." >&2
+                echo "Error: Invalid hour values. Hours must be ${MIN_HOUR}-${MAX_HOUR}, and start cannot equal end." >&2
                 continue
             fi
             
@@ -590,11 +594,15 @@ get_day_hours() {
                 fi
                 
                 if [ "${has_overnight}" = "true" ]; then
-                    # Use DAY_NAMES array if available, otherwise fallback to case statement
+                    # Use shared function if available, otherwise use DAY_NAMES array, then fallback to case statement
                     local prev_day_name
-                    if [ -n "${DAY_NAMES[${prev_day_index}]:-}" ]; then
+                    if type day_num_to_name_title >/dev/null 2>&1; then
+                        prev_day_name=$(day_num_to_name_title "${prev_day_index}" 2>/dev/null || echo "")
+                    fi
+                    if [ -z "${prev_day_name}" ] && [ -n "${DAY_NAMES[${prev_day_index}]:-}" ]; then
                         prev_day_name="${DAY_NAMES[${prev_day_index}]}"
-                    else
+                    fi
+                    if [ -z "${prev_day_name}" ]; then
                         case "${prev_day_index}" in
                             0) prev_day_name="Sunday" ;;
                             1) prev_day_name="Monday" ;;

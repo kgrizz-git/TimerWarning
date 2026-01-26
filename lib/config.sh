@@ -612,7 +612,10 @@ get_min_display_time() {
     local min_time
     min_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     
-    if [ -n "${min_time}" ] && [[ "${min_time}" =~ ^[0-9]+$ ]] && [ "${min_time}" -ge 0 ] && [ "${min_time}" -le 300 ]; then
+    # Use constants if available (from configure-core.sh), otherwise use hardcoded values
+    local min_display_time_val="${MIN_DISPLAY_TIME:-0}"
+    local max_display_time_val="${MAX_DISPLAY_TIME:-300}"
+    if [ -n "${min_time}" ] && [[ "${min_time}" =~ ^[0-9]+$ ]] && [ "${min_time}" -ge "${min_display_time_val}" ] && [ "${min_time}" -le "${max_display_time_val}" ]; then
         echo "${min_time}"
         return 0
     else
@@ -870,16 +873,24 @@ parse_config() {
     local day_name
     
     # Convert day number to day name
-    case "${day_num}" in
-        0) day_name="SUNDAY" ;;
-        1) day_name="MONDAY" ;;
-        2) day_name="TUESDAY" ;;
-        3) day_name="WEDNESDAY" ;;
-        4) day_name="THURSDAY" ;;
-        5) day_name="FRIDAY" ;;
-        6) day_name="SATURDAY" ;;
-        *) return 1 ;;
-    esac
+    # Use shared function if available (from configure-core.sh), otherwise fallback to case statement
+    if type day_num_to_name_upper >/dev/null 2>&1; then
+        if ! day_name=$(day_num_to_name_upper "${day_num}" 2>/dev/null); then
+            return 1
+        fi
+    else
+        # Fallback if configure-core.sh not sourced
+        case "${day_num}" in
+            0) day_name="SUNDAY" ;;
+            1) day_name="MONDAY" ;;
+            2) day_name="TUESDAY" ;;
+            3) day_name="WEDNESDAY" ;;
+            4) day_name="THURSDAY" ;;
+            5) day_name="FRIDAY" ;;
+            6) day_name="SATURDAY" ;;
+            *) return 1 ;;
+        esac
+    fi
     
     # Check if config file exists
     if [ ! -f "${CONFIG_FILE}" ]; then
@@ -935,16 +946,24 @@ parse_lock_hours() {
     local day_name
     
     # Convert day number to day name
-    case "${day_num}" in
-        0) day_name="SUNDAY" ;;
-        1) day_name="MONDAY" ;;
-        2) day_name="TUESDAY" ;;
-        3) day_name="WEDNESDAY" ;;
-        4) day_name="THURSDAY" ;;
-        5) day_name="FRIDAY" ;;
-        6) day_name="SATURDAY" ;;
-        *) return 1 ;;
-    esac
+    # Use shared function if available (from configure-core.sh), otherwise fallback to case statement
+    if type day_num_to_name_upper >/dev/null 2>&1; then
+        if ! day_name=$(day_num_to_name_upper "${day_num}" 2>/dev/null); then
+            return 1
+        fi
+    else
+        # Fallback if configure-core.sh not sourced
+        case "${day_num}" in
+            0) day_name="SUNDAY" ;;
+            1) day_name="MONDAY" ;;
+            2) day_name="TUESDAY" ;;
+            3) day_name="WEDNESDAY" ;;
+            4) day_name="THURSDAY" ;;
+            5) day_name="FRIDAY" ;;
+            6) day_name="SATURDAY" ;;
+            *) return 1 ;;
+        esac
+    fi
     
     # Check if config file exists
     if [ ! -f "${CONFIG_FILE}" ]; then
@@ -1037,16 +1056,24 @@ parse_uninstall_lock_hours() {
     fi
     
     # Convert day number to day name
-    case "${day_num}" in
-        0) day_name="SUNDAY" ;;
-        1) day_name="MONDAY" ;;
-        2) day_name="TUESDAY" ;;
-        3) day_name="WEDNESDAY" ;;
-        4) day_name="THURSDAY" ;;
-        5) day_name="FRIDAY" ;;
-        6) day_name="SATURDAY" ;;
-        *) return 1 ;;
-    esac
+    # Use shared function if available (from configure-core.sh), otherwise fallback to case statement
+    if type day_num_to_name_upper >/dev/null 2>&1; then
+        if ! day_name=$(day_num_to_name_upper "${day_num}" 2>/dev/null); then
+            return 1
+        fi
+    else
+        # Fallback if configure-core.sh not sourced
+        case "${day_num}" in
+            0) day_name="SUNDAY" ;;
+            1) day_name="MONDAY" ;;
+            2) day_name="TUESDAY" ;;
+            3) day_name="WEDNESDAY" ;;
+            4) day_name="THURSDAY" ;;
+            5) day_name="FRIDAY" ;;
+            6) day_name="SATURDAY" ;;
+            *) return 1 ;;
+        esac
+    fi
     
     # Check if config file exists
     if [ ! -f "${CONFIG_FILE}" ]; then

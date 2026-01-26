@@ -5,11 +5,8 @@ This document provides a concise overview of work remaining to be completed for 
 **Note**: This document focuses on work that remains to be done. Fully implemented enhancements (with no remaining work) are not listed here but can be found in [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). Enhancements marked as "Mostly Implemented" or "Partially Implemented" are listed here if they have remaining work (testing, documentation, etc.).
 
 ## Priority Items
-- [ ] **Code quality improvements** - see section below for more info on each. Make a plan before attempting.
-    - [ ] **Extract day name conversion to shared function**  
-    - [ ] **Extract magic numbers to constants** 
 - [ ] **#10: Audio Alerts** 
-- [ ] **Donation Links** - PayPal setup, GitHub sponsors, Patreon integration
+- [ ] **#27 Donation Links** - PayPal setup, GitHub sponsors, Patreon integration
 - [ ] **Licensing** - License selection and application
 - [ ] **#13a: Single Executable Installer Script** - Self-extracting installer bundling all files
 - [ ] **#13b: Desktop GUI Application Wrapper** - Native desktop application (GTK/Qt/Electron)
@@ -58,6 +55,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#24: Unified Dialog Tool Priority (YAD → Zenity → KDialog)** - ✅ **MOSTLY IMPLEMENTED** - Core implementation complete with abstraction layer. **Remaining**: Comprehensive testing across all dialog tools and environments (Wayland/X11/KDE), verify all dialog types work correctly with each tool, test positioning (center/top-left) with all tools
 - [ ] **#25: User-Selectable Dialog Tool** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: configuration option, wizard integration, status display, automated tests passing. **Remaining**: Manual testing (configuration wizard GUI/text mode, status display, popup fallback behavior, service restart persistence)
 - [x] **#26: Prevent uninstall.sh Execution During Restricted Hours** - ✅ **Phase 1 Mostly Implemented, Phase 2 Complete** - Phase 1: Core functionality complete (difficult uninstall verification), testing pending. Phase 2: Implementation complete, unit tests passing (15/15), uninstall lock hours integrated into configure.sh. **Remaining**: Phase 1 comprehensive testing (integration tests, edge cases), Phase 2 integration tests (uninstall.sh behavior, UI testing), verify manual uninstall guide script documentation
+- [ ] **#27: Donation Links** - PayPal setup, GitHub sponsors, Patreon integration - See [enhancements/enhancement-27-paypal-donation-links.md](enhancements/enhancement-27-paypal-donation-links.md)
 - [ ] **#28: SteamOS Newbie Installation Guide** - Provide comprehensive installation instructions and helpful error messages specifically for new SteamOS/Steam Deck users, including guidance on setting up sudo password (which is not set by default) and installing required packages like yad
 - [ ] **#29: kdialog Window Size Control** - Try using `--textbox` with `--geometry` for kdialog popups to enable size control, with fallback to `--sorry` if it doesn't work properly. If implemented, make sure kdialog popup is never over 95% of screen, similar to yad and zenity.
 
@@ -67,6 +65,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#2: Custom Wayland Protocol Implementation** - Custom Wayland protocol for gamescope (very complex, limited benefit)
 - [ ] **#3: Native Desktop Application (GUI Wrapper)** - Full desktop application to replace bash scripts (improves UX but not Gaming Mode compatibility)
 - [ ] **#4: Systemd Timer Alternative (Cron-based)** - Use cron instead of systemd timers
+- [ ] **#6: Executable/Binary Distribution Options** - Various approaches for distributing as executables/binaries where end-users don't have source code access (self-extracting installer, shell compiler, obfuscation, package managers, compiled language rewrite). See [enhancements/alternative-06-executable-binary-distribution.md](enhancements/alternative-06-executable-binary-distribution.md)
 
 ## Testing & Validation Work
 
@@ -84,16 +83,16 @@ This document provides a concise overview of work remaining to be completed for 
 ## Documentation Work
 
 - [ ] **Maintenance Documentation** - Contributing guidelines, development setup, coding standards
-- [ ] **Licensing** - Select and apply appropriate license (MIT, GPL, etc.)
+- [ ] **Licensing** - Select and apply appropriate license (MIT, GPL, etc.) - See [LICENSE_OPTIONS.md](info/LICENSE_OPTIONS.md) and [plan-phase-5-documentation.md](plan-phase-5-documentation.md#checklist-54-license-selection-and-implementation)
 - [ ] **Donation Integration** - Set up PayPal, GitHub Sponsors, Patreon and integrate into README/docs
 
 ## Code Quality Improvements
 
 Based on [Quality Improvement Assessment (2026-01-23)](qi-assessments/qi-assessment-2026-01-23-003550.md):
 
-- [x] **Split lib/configure-input.sh into smaller modules** - ✅ **COMPLETED** - Split the 2,571-line module into 5 focused modules (configure-input-basic.sh, configure-input-popup.sh, configure-input-features.sh, configure-input-time.sh, configure-input-service.sh) for improved maintainability. All tests passing (44/44). See [plan-split-configure-input.md](plans/plan-split-configure-input.md)
-- [ ] **Extract day name conversion to shared function** - Consolidate repeated day number-to-name conversion logic in `lib/config.sh` into a shared function in `lib/configure-core.sh`
-- [ ] **Extract magic numbers to constants** - Replace hardcoded values (hour ranges 0-23, time ranges 0-300) in `lib/configure-input.sh` with named constants
+- [x] **Split lib/configure-input.sh into smaller modules** - ✅ **COMPLETED** - Split the 2,571-line module into 5 focused modules (configure-input-basic.sh, configure-input-popup.sh, configure-input-features.sh, configure-input-time.sh, configure-input-service.sh) for improved maintainability. All tests passing (44/44). See [plan-split-configure-input.md](completed-plans/plan-split-configure-input.md)
+- [x] **Extract day name conversion to shared function** - ✅ **COMPLETED** - Consolidated repeated day number-to-name conversion logic into shared functions `day_num_to_name_upper()` and `day_num_to_name_title()` in `lib/configure-core.sh`. Updated `lib/config.sh` (3 functions) and `lib/configure-input-time.sh` (2 locations) to use shared functions with fallback for compatibility. All tests passing (32/32 in test-day-name-conversion.sh, plus 69 related tests verified). See [plan-code-quality-improvements.md](plan-code-quality-improvements.md)
+- [x] **Extract magic numbers to constants** - ✅ **COMPLETED** - Replaced hardcoded values with named constants in `lib/configure-core.sh`: MIN_HOUR/MAX_HOUR (0-23), MIN_DISPLAY_TIME/MAX_DISPLAY_TIME (0-300), MIN_CHECK_INTERVAL/MAX_CHECK_INTERVAL (1-60), and centralized MINUTES_PER_DAY/MINUTES_PER_WEEK. Updated all validation functions in configure-input modules and config.sh to use constants. All tests passing (101 total tests verified). See [plan-code-quality-improvements.md](plan-code-quality-improvements.md)
 
 ## Completed Enhancements (No Remaining Work)
 
@@ -119,7 +118,7 @@ The following enhancements are fully implemented with no remaining work. They ar
 
 ---
 
-**Last Updated**: 2026-01-25 (Enhancement #15 marked as fully implemented - all automated tests passing)  
+**Last Updated**: 2026-01-26 (Code quality improvements completed - day name conversion and magic numbers extraction, all tests passing)  
 **Related Documents**: 
 - [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) - Detailed enhancement descriptions
 - [linux-warning-system-plan.md](linux-warning-system-plan.md) - Master implementation plan

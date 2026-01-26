@@ -43,15 +43,6 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 - ⬆️ **Always on top** - Popup windows automatically stay above other windows
 - ⏸️ **One-time pause feature** - Temporarily suppress warnings for 5 or 10 minutes once per day
 
-## Architecture
-
-The system uses a **modular architecture** for improved maintainability:
-- **Main script**: Streamlined 128-line entry point (down from 1667 lines)
-- **7 library modules**: Focused, testable components for specific functionality
-- **Clear dependencies**: Explicit module relationships and loading order
-
-This architecture makes the codebase easier to understand, modify, and extend. For technical details, see [dev-docs/completed-plans/plan-modular-architecture-sleep-warning.md](dev-docs/completed-plans/plan-modular-architecture-sleep-warning.md).
-
 ## Quick Start
 
 ### Prerequisites
@@ -325,10 +316,6 @@ Without these tools, popups will still appear but may not stay on top of other w
 - Check user lingering: `loginctl show-user $USER | grep Lingering`
 
 For detailed troubleshooting with diagnosis steps and decision trees, see [user-docs/USER_GUIDE.md](user-docs/USER_GUIDE.md#troubleshooting).
-
-## Development
-
-See `dev-docs/linux-warning-system-plan.md` for the master plan and links to the detailed phase checklists.
 
 ## License
 

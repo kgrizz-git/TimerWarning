@@ -414,7 +414,7 @@ get_min_display_time_config() {
             local time
             time=$(show_entry_dialog \
                 "Sleep Warning Configuration" \
-                "Minimum time popup must be visible before it can be closed:\n\nEnter time in seconds (0-300):\n(0 = disabled, 30 = default)" \
+                "Minimum time popup must be visible before it can be closed:\n\nEnter time in seconds (${MIN_DISPLAY_TIME}-${MAX_DISPLAY_TIME}):\n(${MIN_DISPLAY_TIME} = disabled, 30 = default)" \
                 "${default_time}")
             local exit_code=$?
             
@@ -429,10 +429,10 @@ get_min_display_time_config() {
             fi
             
             # Validate time
-            if ! [[ "${time}" =~ ^[0-9]+$ ]] || [ "${time}" -lt 0 ] || [ "${time}" -gt 300 ]; then
+            if ! [[ "${time}" =~ ^[0-9]+$ ]] || [ "${time}" -lt "${MIN_DISPLAY_TIME}" ] || [ "${time}" -gt "${MAX_DISPLAY_TIME}" ]; then
                 show_info_dialog \
                     "Invalid Time" \
-                    "Invalid time. Please enter a number between 0 and 300 seconds."
+                    "Invalid time. Please enter a number between ${MIN_DISPLAY_TIME} and ${MAX_DISPLAY_TIME} seconds."
                 continue
             fi
             
@@ -464,10 +464,10 @@ get_min_display_time_config() {
     else
         # Text mode
         while true; do
-            read -p "Minimum display time in seconds (0-300, 0=disabled) [${default_time}]: " time
+            read -p "Minimum display time in seconds (${MIN_DISPLAY_TIME}-${MAX_DISPLAY_TIME}, ${MIN_DISPLAY_TIME}=disabled) [${default_time}]: " time
             time=${time:-${default_time}}
             
-            if [[ "${time}" =~ ^[0-9]+$ ]] && [ "${time}" -ge 0 ] && [ "${time}" -le 300 ]; then
+            if [[ "${time}" =~ ^[0-9]+$ ]] && [ "${time}" -ge "${MIN_DISPLAY_TIME}" ] && [ "${time}" -le "${MAX_DISPLAY_TIME}" ]; then
                 # Validate timing configuration (Enhancement #9)
                 # Check against current CHECK_INTERVAL
                 local current_check_interval
@@ -493,7 +493,7 @@ get_min_display_time_config() {
                 echo "${time}"
                 return 0
             else
-                echo "Invalid time. Please enter a number between 0 and 300." >&2
+                echo "Invalid time. Please enter a number between ${MIN_DISPLAY_TIME} and ${MAX_DISPLAY_TIME}." >&2
             fi
         done
     fi
@@ -605,7 +605,7 @@ get_popup_auto_close_config() {
     if [ -f "${CONFIG_FILE}" ]; then
         local existing_time
         existing_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-        if [ -n "${existing_time}" ] && [[ "${existing_time}" =~ ^[0-9]+$ ]] && [ "${existing_time}" -ge 0 ] && [ "${existing_time}" -le 300 ]; then
+        if [ -n "${existing_time}" ] && [[ "${existing_time}" =~ ^[0-9]+$ ]] && [ "${existing_time}" -ge "${MIN_DISPLAY_TIME}" ] && [ "${existing_time}" -le "${MAX_DISPLAY_TIME}" ]; then
             min_display_time="${existing_time}"
         fi
     fi
