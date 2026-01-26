@@ -341,7 +341,36 @@ show_configuration() {
             display_size="medium (default)"
         fi
     else
-        if type get_popup_dimensions >/dev/null 2>&1; then
+        # Check if it's a custom size - if so, read the custom size value
+        if [ "${popup_size}" = "custom" ]; then
+            local custom_size
+            custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+            if [ -n "${custom_size}" ]; then
+                # Show custom size value (e.g., "95%x95%")
+                if type get_popup_dimensions >/dev/null 2>&1; then
+                    local dimensions
+                    dimensions=$(get_popup_dimensions "${popup_size}")
+                    local width height
+                    width=$(echo "${dimensions}" | cut -d' ' -f1)
+                    height=$(echo "${dimensions}" | cut -d' ' -f2)
+                    display_size="custom ${custom_size} (${width}x${height})"
+                else
+                    display_size="custom ${custom_size}"
+                fi
+            else
+                # Fallback if custom size not found
+                if type get_popup_dimensions >/dev/null 2>&1; then
+                    local dimensions
+                    dimensions=$(get_popup_dimensions "${popup_size}")
+                    local width height
+                    width=$(echo "${dimensions}" | cut -d' ' -f1)
+                    height=$(echo "${dimensions}" | cut -d' ' -f2)
+                    display_size="custom (${width}x${height})"
+                else
+                    display_size="custom"
+                fi
+            fi
+        elif type get_popup_dimensions >/dev/null 2>&1; then
             local dimensions
             dimensions=$(get_popup_dimensions "${popup_size}")
             local width height

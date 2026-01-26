@@ -75,7 +75,9 @@ get_popup_size_config() {
                     fi
                 elif [ ${custom_exit} -eq 0 ] && [ -n "${custom_result}" ]; then
                     # Custom size configured successfully
-                    echo "custom"
+                    # Return both "custom" and the dimensions, separated by | for parsing
+                    # This ensures the dimensions persist even if CUSTOM_POPUP_SIZE_CONFIG doesn't
+                    echo "custom|${custom_result}"
                     return 0
                 else
                     # Error in custom size configuration, re-prompt
@@ -117,7 +119,8 @@ get_popup_size_config() {
                         # User cancelled, re-prompt
                         continue
                     elif [ ${custom_exit} -eq 0 ] && [ -n "${custom_result}" ]; then
-                        echo "custom"
+                        # Return both "custom" and the dimensions, separated by | for parsing
+                        echo "custom|${custom_result}"
                         return 0
                     else
                         # Error, re-prompt

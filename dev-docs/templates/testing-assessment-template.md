@@ -203,6 +203,188 @@ This approach ensures:
   - **Config File Impact**: [Modifies actual config/Uses test config/No config used]
 ```
 
+#### 0.2: Config File Safety in Tests
+
+**Purpose**: Ensure that tests never modify the actual installed configuration file (`${HOME}/.config/sleep-warning/sleep-warning.conf`) without proper safeguards. This section provides guidelines and requirements for test safety.
+
+**CRITICAL REQUIREMENT**: Tests must never modify the actual config file without proper backup and restore mechanisms, or better yet, should use dummy/test config files whenever possible.
+
+**PRIMARY APPROACH**: When feasible, design and run tests using a "dummy" copy config file that mimics a real one. If modifying actual `.sh` scripts is required, make copies of those scripts and modify the copies instead. Do this with as many `.sh` files and dummy test files as needed to run tests without modifying the actual config file or script files.
+
+**Tasks**:
+- [ ] **Identify all tests that interact with config files**:
+  - [ ] List all tests that read, write, or modify configuration files
+  - [ ] For each test, determine if it uses the actual config file or a test/dummy config file
+  - [ ] Document which tests modify the actual config file (this should be minimal or zero)
+  - [ ] Identify tests that could be refactored to use dummy config files that mimic real ones
+
+- [ ] **Verify tests use dummy config files that mimic real ones**:
+  - [ ] Check if tests create dummy config files in test directories (e.g., `tests/test-configs/`)
+  - [ ] Verify dummy config files mimic the structure and format of real config files
+  - [ ] Verify tests use test-specific config file paths instead of actual config paths
+  - [ ] Check if tests require script modifications to use dummy config files
+  - [ ] Document tests that successfully use dummy config files
+  - [ ] Identify tests that should be refactored to use dummy config files
+
+- [ ] **Verify script copying and modification approach**:
+  - [ ] Identify tests that require modifications to actual `.sh` scripts
+  - [ ] Verify tests create copies of original scripts (e.g., `cp configure.sh tests/test-configure.sh`)
+  - [ ] Check that tests modify the copied scripts, not the original scripts
+  - [ ] Verify tests use as many copied `.sh` files and dummy test files as needed
+  - [ ] Document which scripts were copied and why
+  - [ ] Ensure copied scripts are modified to use dummy config file paths
+  - [ ] Verify that actual installed scripts are never modified during testing
+
+- [ ] **Track edits that should be applied to original scripts**:
+  - [ ] For each test that modifies copied scripts, identify what changes were made
+  - [ ] Document which edits to copied scripts should be applied to the actual original scripts
+  - [ ] Note when those edits should be applied (e.g., after testing, during next development cycle)
+  - [ ] **CRITICAL**: Do not make these edits at test time - only track and report them
+  - [ ] Create a list of recommended edits to original scripts based on test script modifications
+  - [ ] Report tracked edits in the assessment documentation
+
+- [ ] **Verify backup and restore mechanisms for tests that must modify actual config**:
+  - [ ] For tests that must modify the actual config file (last resort only), verify they:
+    - [ ] Create a backup of the config file before any modifications
+    - [ ] Use a trap mechanism (e.g., `trap cleanup EXIT`) to ensure restoration even if test is interrupted
+    - [ ] Restore the config file after test completion (both success and failure cases)
+    - [ ] Handle edge cases (config file doesn't exist, backup fails, restore fails)
+  - [ ] Document which tests modify actual config and their safety mechanisms
+  - [ ] Identify tests that modify actual config but lack proper backup/restore/trap mechanisms
+  - [ ] Recommend refactoring these tests to use dummy config files instead
+
+- [ ] **Document config file safety status**:
+  - [ ] Create a summary of all tests and their config file handling approach
+  - [ ] Mark tests that are safe (use dummy configs) vs risky (modify actual config)
+  - [ ] List tests that need improvements to be safer
+  - [ ] Document tracked edits that should be applied to original scripts (but not applied during testing)
+  - [ ] Provide recommendations for making tests safer
+
+**Best Practices for Test Config File Safety**:
+
+1. **Use Dummy Config Files That Mimic Real Ones** (PRIMARY APPROACH - RECOMMENDED):
+   - Create dummy config files in `tests/test-configs/` or similar test-specific directories
+   - **CRITICAL**: Dummy config files should mimic the structure and format of real config files
+   - Use dummy config files that accurately represent real-world configurations
+   - This approach completely isolates tests from the actual installed configuration
+   - Example: Create `tests/test-configs/test-sleep-warning.conf` that mimics `${HOME}/.config/sleep-warning/sleep-warning.conf`
+
+2. **Copy and Modify Scripts When Needed** (REQUIRED IF SCRIPTS MUST BE MODIFIED):
+   - **NEVER modify actual `.sh` scripts during testing**
+   - If a test requires script modifications (e.g., to use dummy config paths), create copies:
+     - Copy original script: `cp configure.sh tests/test-configure.sh`
+     - Copy as many `.sh` files as needed: `cp lib/config.sh tests/test-lib/test-config.sh`
+     - Modify the copied scripts to use dummy config file paths
+     - Test the modified copies, not the original scripts
+   - **CRITICAL**: Use as many copied `.sh` files and dummy test files as needed to avoid modifying actual files
+   - Document which scripts were copied and why
+   - **Track edits for later application**:
+     - Keep a record of what changes were made to copied scripts
+     - Document which edits should be applied to the actual original scripts
+     - Note when those edits should be applied (e.g., after testing phase, during next development cycle)
+     - **DO NOT apply these edits at test time** - only track and report them
+     - Report tracked edits in the assessment documentation
+
+3. **If Actual Config Must Be Modified** (LAST RESORT - AVOID IF POSSIBLE):
+   - **ONLY use this approach if using dummy config files is not feasible**
+   - **ALWAYS** create a backup before any modification
+   - **ALWAYS** use a trap to ensure restoration on exit/interrupt:
+     ```bash
+     CONFIG_BACKUP="${HOME}/.config/sleep-warning/sleep-warning.conf.backup.$(date +%Y%m%d_%H%M%S)"
+     
+     cleanup() {
+         if [ -f "$CONFIG_BACKUP" ]; then
+             mv "$CONFIG_BACKUP" "${HOME}/.config/sleep-warning/sleep-warning.conf"
+         fi
+     }
+     trap cleanup EXIT INT TERM
+     
+     # Backup before modification
+     cp "${HOME}/.config/sleep-warning/sleep-warning.conf" "$CONFIG_BACKUP"
+     ```
+   - **ALWAYS** restore the config file in both success and failure scenarios
+   - **ALWAYS** handle edge cases (file doesn't exist, backup fails, etc.)
+   - **ALWAYS** add clear warnings in test file headers and documentation
+   - **Consider refactoring**: If a test must modify actual config, consider if it can be refactored to use dummy config files with copied scripts
+
+**Documentation Format**:
+```
+### Config File Safety Assessment
+
+#### Tests Using Dummy Config Files (SAFE)
+- **test-example.sh**: Uses `tests/test-configs/test-config.conf`
+  - Approach: Creates dummy config file in test directory that mimics real config structure
+  - Dummy Config: `tests/test-configs/test-config.conf` (mimics `${HOME}/.config/sleep-warning/sleep-warning.conf`)
+  - Safety Level: SAFE - No risk to actual config
+  - Script Modifications: None needed
+
+- **test-configure.sh**: Uses modified copy of configure.sh with dummy config path
+  - Approach: Copies `configure.sh` to `tests/test-configure.sh` and modifies to use dummy config
+  - Copied Scripts: `tests/test-configure.sh` (copy of `configure.sh`)
+  - Dummy Config: `tests/test-configs/test-sleep-warning.conf` (mimics real config)
+  - Script Modifications: Modified copy uses `TEST_CONFIG_PATH` variable pointing to dummy config
+  - Safety Level: SAFE - No risk to actual config or scripts
+  - Tracked Edits for Original Scripts:
+    - [ ] Edit 1: Add `TEST_CONFIG_PATH` variable support to `configure.sh` (apply after testing phase)
+    - [ ] Edit 2: [Description of other edits that should be applied to original script]
+  - Edits Applied at Test Time: NO - Only tracked for later application
+
+#### Tests Modifying Actual Config File (REQUIRES SAFETY MECHANISMS)
+- **test-actual-config.sh**: Modifies `${HOME}/.config/sleep-warning/sleep-warning.conf`
+  - Backup: YES - Creates timestamped backup before modification
+  - Restore: YES - Restores config after test completion
+  - Trap: YES - Uses `trap cleanup EXIT INT TERM` to ensure restore on interrupt
+  - Safety Level: SAFE - Proper safeguards in place
+  - Warning in Header: YES - Test file has clear warning about modifying actual config
+  - Recommendation: Consider refactoring to use test config file if possible
+
+#### Tests Needing Safety Improvements (RISKY)
+- **test-unsafe.sh**: Modifies actual config without proper safeguards
+  - Issues:
+    - No backup before modification
+    - No trap mechanism
+    - Config may not be restored if test is interrupted
+  - Safety Level: RISKY - Could leave config in modified state
+  - Priority: CRITICAL - Must be fixed before running
+  - Recommendations:
+    1. Refactor to use test config file (preferred)
+    2. If refactoring not possible, add backup + restore + trap mechanism
+    3. Add warning in test file header
+
+#### Tracked Edits for Original Scripts (Not Applied at Test Time)
+- **Edits from test-configure.sh**:
+  - Edit 1: Add `TEST_CONFIG_PATH` variable support to `configure.sh`
+    - Reason: Allows configure.sh to work with test config files
+    - When to Apply: After testing phase, during next development cycle
+    - Status: Tracked, not applied
+  - Edit 2: [Additional edit description]
+    - Reason: [Why this edit is needed]
+    - When to Apply: [When it should be applied]
+    - Status: Tracked, not applied
+
+- **Edits from test-manage.sh**:
+  - [List edits from other tests...]
+
+**IMPORTANT**: These edits are tracked for reporting purposes only. They should NOT be applied to original scripts during test execution. Apply them separately after reviewing the assessment.
+
+#### Summary
+- Total Tests: [X]
+- Tests Using Dummy Configs: [X] (SAFE)
+- Tests Using Copied Scripts: [X] (SAFE)
+- Tests Modifying Actual Config with Safeguards: [X] (SAFE)
+- Tests Modifying Actual Config without Safeguards: [X] (RISKY - MUST FIX)
+- Tests Needing Refactoring: [List]
+- Total Tracked Edits for Original Scripts: [X] (not applied at test time)
+```
+
+**Critical Notes**:
+- **During restricted or blocked hours**: Tests that modify the actual config file should NOT be run. Use dummy config files or skip these tests during restricted hours.
+- **Test abort scenarios**: Traps must handle all exit scenarios (normal exit, interrupt, termination) to ensure config is always restored.
+- **Documentation**: All tests that modify actual config must have clear warnings in their headers and in test documentation.
+- **Script modifications**: When tests require script modifications, always copy scripts and modify the copies. Never modify actual `.sh` scripts during testing.
+- **Tracking edits**: If edits to copied scripts should be applied to original scripts, track them but DO NOT apply them at test time. Report tracked edits in the assessment documentation for later review and application.
+- **Dummy config files**: Dummy config files should mimic the structure and format of real config files to ensure realistic testing.
+
 ### Section 1: Test Requirements from Documentation
 
 #### 1.1: Extract Test Requirements from Phase 4 Testing Plan

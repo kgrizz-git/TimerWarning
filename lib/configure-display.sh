@@ -72,6 +72,9 @@ get_section_status() {
 #   $15 - pause_duration (e.g., "5" or "10") - Enhancement #21
 #   $16 - dialog_tool_status (e.g., " (auto)") - Enhancement #25
 #   $17 - config_lock_enabled (e.g., "true" or "false") - Enhancement #18
+#   $18 - popup_size_mode (optional, e.g., "fixed" or "display-based") - Enhancement #3
+#   $19 - popup_size_custom (optional, e.g., "95%x95%") - Enhancement #3
+#   $20 - popup_size_custom_absolute (optional, e.g., "2432x1368") - Enhancement #3
 show_main_menu() {
     local use_gui="$1"
     local check_interval="$2"
@@ -90,6 +93,9 @@ show_main_menu() {
     local pause_duration="${15}"
     local dialog_tool_status="${16}"
     local config_lock_enabled="${17}"
+    local popup_size_mode="${18:-}"  # Enhancement #3: Optional size mode
+    local popup_size_custom="${19:-}"  # Enhancement #3: Optional custom size
+    local popup_size_custom_absolute="${20:-}"  # Enhancement #3: Optional custom absolute size
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
@@ -101,8 +107,11 @@ show_main_menu() {
         local window_desc="Size: ${popup_size}"
         
         # Get size mode to determine if we should show percentages
+        # Use passed parameter if available, otherwise read from config file
         local size_mode="fixed"
-        if [ -f "${CONFIG_FILE}" ]; then
+        if [ -n "${popup_size_mode}" ]; then
+            size_mode="${popup_size_mode}"
+        elif [ -f "${CONFIG_FILE}" ]; then
             local existing_mode
             existing_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
             if [ "${existing_mode}" = "display-based" ]; then
@@ -120,9 +129,13 @@ show_main_menu() {
                 xlarge) window_desc="${window_desc} (75%×75%)" ;;
                 max) window_desc="${window_desc} (90%×90%)" ;;
                 custom)
-                    # Get custom size to show
+                    # Get custom size to show - use passed parameter if available, otherwise read from config file
                     local custom_size
-                    custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    if [ -n "${popup_size_custom}" ]; then
+                        custom_size="${popup_size_custom}"
+                    else
+                        custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    fi
                     if [ -n "${custom_size}" ]; then
                         window_desc="${window_desc} (${custom_size})"
                     else
@@ -148,9 +161,13 @@ show_main_menu() {
                 xlarge) window_desc="${window_desc} (1845×1080)" ;;
                 max) window_desc="${window_desc} (2214×1296)" ;;
                 custom)
-                    # Get custom absolute size to show
+                    # Get custom absolute size to show - use passed parameter if available, otherwise read from config file
                     local custom_absolute
-                    custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    if [ -n "${popup_size_custom_absolute}" ] && echo "${popup_size_custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                        custom_absolute="${popup_size_custom_absolute}"
+                    else
+                        custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    fi
                     if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
                         window_desc="${window_desc} (${custom_absolute})"
                     else
@@ -296,8 +313,11 @@ show_main_menu() {
         local window_desc="Size: ${popup_size}"
         
         # Get size mode to determine if we should show percentages
+        # Use passed parameter if available, otherwise read from config file
         local size_mode="fixed"
-        if [ -f "${CONFIG_FILE}" ]; then
+        if [ -n "${popup_size_mode}" ]; then
+            size_mode="${popup_size_mode}"
+        elif [ -f "${CONFIG_FILE}" ]; then
             local existing_mode
             existing_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
             if [ "${existing_mode}" = "display-based" ]; then
@@ -315,9 +335,13 @@ show_main_menu() {
                 xlarge) window_desc="${window_desc} (75%×75%)" ;;
                 max) window_desc="${window_desc} (90%×90%)" ;;
                 custom)
-                    # Get custom size to show
+                    # Get custom size to show - use passed parameter if available, otherwise read from config file
                     local custom_size
-                    custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    if [ -n "${popup_size_custom}" ]; then
+                        custom_size="${popup_size_custom}"
+                    else
+                        custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    fi
                     if [ -n "${custom_size}" ]; then
                         window_desc="${window_desc} (${custom_size})"
                     else
@@ -343,9 +367,13 @@ show_main_menu() {
                 xlarge) window_desc="${window_desc} (1845×1080)" ;;
                 max) window_desc="${window_desc} (2214×1296)" ;;
                 custom)
-                    # Get custom absolute size to show
+                    # Get custom absolute size to show - use passed parameter if available, otherwise read from config file
                     local custom_absolute
-                    custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    if [ -n "${popup_size_custom_absolute}" ] && echo "${popup_size_custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                        custom_absolute="${popup_size_custom_absolute}"
+                    else
+                        custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    fi
                     if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
                         window_desc="${window_desc} (${custom_absolute})"
                     else
@@ -796,13 +824,106 @@ show_summary() {
     local popup_immovable="$6"
     local popup_auto_close="$7"
     local configure_block_enabled="$8"
+    local popup_size_mode="${9:-}"  # Enhancement #3: Optional size mode
+    local popup_size_custom="${10:-}"  # Enhancement #3: Optional custom size
+    local popup_size_custom_absolute="${11:-}"  # Enhancement #3: Optional custom absolute size
     # Note: summary_lines must be accessed from global scope to preserve sparse array indices
     # Passing sparse arrays as parameters re-indexes them from 0, causing display bugs
     
     # Build summary with human-readable time periods
     local summary="Configuration Summary:\n\n"
     summary="${summary}Check Interval: Every ${check_interval} minute(s)\n"
-    summary="${summary}Popup Size: ${popup_size}\n"
+    
+    # Format popup size display - show dimensions for all sizes (matching menu display)
+    # Get size mode to determine format
+    local size_mode="fixed"
+    if [ -n "${popup_size_mode}" ]; then
+        size_mode="${popup_size_mode}"
+    elif [ -f "${CONFIG_FILE}" ]; then
+        local existing_mode
+        existing_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ "${existing_mode}" = "display-based" ]; then
+            size_mode="display-based"
+        fi
+    fi
+    
+    local popup_size_display="${popup_size}"
+    
+    # Show dimensions with percentage if in display-based mode
+    if [ "${size_mode}" = "display-based" ]; then
+        case "${popup_size}" in
+            xsmall) popup_size_display="${popup_size} (15%×15%)" ;;
+            small) popup_size_display="${popup_size} (20%×20%)" ;;
+            medium) popup_size_display="${popup_size} (30%×30%)" ;;
+            large) popup_size_display="${popup_size} (50%×50%)" ;;
+            xlarge) popup_size_display="${popup_size} (75%×75%)" ;;
+            max) popup_size_display="${popup_size} (90%×90%)" ;;
+            custom)
+                # Get custom size value
+                local custom_size=""
+                if [ -n "${popup_size_custom}" ]; then
+                    custom_size="${popup_size_custom}"
+                elif [ -f "${CONFIG_FILE}" ]; then
+                    custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                fi
+                if [ -n "${custom_size}" ]; then
+                    popup_size_display="custom (${custom_size})"
+                else
+                    popup_size_display="custom (50%×50%)"
+                fi
+                ;;
+            *)
+                # Custom pixel format or percentage format
+                if echo "${popup_size}" | grep -qE '^[0-9]+%x[0-9]+%$'; then
+                    popup_size_display="${popup_size}"
+                elif echo "${popup_size}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                    popup_size_display="${popup_size}px"
+                fi
+                ;;
+        esac
+    else
+        # Fixed pixel mode - show absolute dimensions
+        case "${popup_size}" in
+            xsmall) popup_size_display="${popup_size} (384×216)" ;;
+            small) popup_size_display="${popup_size} (400×250)" ;;
+            medium) popup_size_display="${popup_size} (800×500)" ;;
+            large) popup_size_display="${popup_size} (1230×720)" ;;
+            xlarge) popup_size_display="${popup_size} (1845×1080)" ;;
+            max) popup_size_display="${popup_size} (2214×1296)" ;;
+            custom)
+                # Get custom absolute size value
+                local custom_absolute=""
+                if [ -n "${popup_size_custom_absolute}" ]; then
+                    custom_absolute="${popup_size_custom_absolute}"
+                elif [ -f "${CONFIG_FILE}" ]; then
+                    custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                fi
+                if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                    popup_size_display="custom (${custom_absolute})"
+                else
+                    # Fallback to custom size if absolute not available
+                    local custom_size=""
+                    if [ -n "${popup_size_custom}" ]; then
+                        custom_size="${popup_size_custom}"
+                    elif [ -f "${CONFIG_FILE}" ]; then
+                        custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    fi
+                    if [ -n "${custom_size}" ]; then
+                        popup_size_display="custom (${custom_size})"
+                    else
+                        popup_size_display="custom (1280×720)"
+                    fi
+                fi
+                ;;
+            *)
+                # Custom pixel format
+                if echo "${popup_size}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                    popup_size_display="${popup_size}"
+                fi
+                ;;
+        esac
+    fi
+    summary="${summary}Popup Size: ${popup_size_display}\n"
     summary="${summary}Popup Position: ${popup_position}\n"
     if [ "${min_display_time}" -eq 0 ]; then
         summary="${summary}Minimum Display Time: Disabled\n"
@@ -952,7 +1073,97 @@ show_summary() {
         echo "=== Configuration Summary ==="
         echo ""
         echo "Check Interval: Every ${check_interval} minute(s)"
-        echo "Popup Size: ${popup_size}"
+        
+        # Format popup size display - show dimensions for all sizes (matching menu display)
+        # Get size mode to determine format
+        local size_mode="fixed"
+        if [ -n "${popup_size_mode}" ]; then
+            size_mode="${popup_size_mode}"
+        elif [ -f "${CONFIG_FILE}" ]; then
+            local existing_mode
+            existing_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+            if [ "${existing_mode}" = "display-based" ]; then
+                size_mode="display-based"
+            fi
+        fi
+        
+        local popup_size_display="${popup_size}"
+        
+        # Show dimensions with percentage if in display-based mode
+        if [ "${size_mode}" = "display-based" ]; then
+            case "${popup_size}" in
+                xsmall) popup_size_display="${popup_size} (15%×15%)" ;;
+                small) popup_size_display="${popup_size} (20%×20%)" ;;
+                medium) popup_size_display="${popup_size} (30%×30%)" ;;
+                large) popup_size_display="${popup_size} (50%×50%)" ;;
+                xlarge) popup_size_display="${popup_size} (75%×75%)" ;;
+                max) popup_size_display="${popup_size} (90%×90%)" ;;
+                custom)
+                    # Get custom size value
+                    local custom_size=""
+                    if [ -n "${popup_size_custom}" ]; then
+                        custom_size="${popup_size_custom}"
+                    elif [ -f "${CONFIG_FILE}" ]; then
+                        custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    fi
+                    if [ -n "${custom_size}" ]; then
+                        popup_size_display="custom (${custom_size})"
+                    else
+                        popup_size_display="custom (50%×50%)"
+                    fi
+                    ;;
+                *)
+                    # Custom pixel format or percentage format
+                    if echo "${popup_size}" | grep -qE '^[0-9]+%x[0-9]+%$'; then
+                        popup_size_display="${popup_size}"
+                    elif echo "${popup_size}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                        popup_size_display="${popup_size}px"
+                    fi
+                    ;;
+            esac
+        else
+            # Fixed pixel mode - show absolute dimensions
+            case "${popup_size}" in
+                xsmall) popup_size_display="${popup_size} (384×216)" ;;
+                small) popup_size_display="${popup_size} (400×250)" ;;
+                medium) popup_size_display="${popup_size} (800×500)" ;;
+                large) popup_size_display="${popup_size} (1230×720)" ;;
+                xlarge) popup_size_display="${popup_size} (1845×1080)" ;;
+                max) popup_size_display="${popup_size} (2214×1296)" ;;
+                custom)
+                    # Get custom absolute size value
+                    local custom_absolute=""
+                    if [ -n "${popup_size_custom_absolute}" ]; then
+                        custom_absolute="${popup_size_custom_absolute}"
+                    elif [ -f "${CONFIG_FILE}" ]; then
+                        custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    fi
+                    if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                        popup_size_display="custom (${custom_absolute})"
+                    else
+                        # Fallback to custom size if absolute not available
+                        local custom_size=""
+                        if [ -n "${popup_size_custom}" ]; then
+                            custom_size="${popup_size_custom}"
+                        elif [ -f "${CONFIG_FILE}" ]; then
+                            custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                        fi
+                        if [ -n "${custom_size}" ]; then
+                            popup_size_display="custom (${custom_size})"
+                        else
+                            popup_size_display="custom (1280×720)"
+                        fi
+                    fi
+                    ;;
+                *)
+                    # Custom pixel format
+                    if echo "${popup_size}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                        popup_size_display="${popup_size}"
+                    fi
+                    ;;
+            esac
+        fi
+        echo "Popup Size: ${popup_size_display}"
         echo "Popup Position: ${popup_position}"
         if [ "${min_display_time}" -eq 0 ]; then
             echo "Minimum Display Time: Disabled"

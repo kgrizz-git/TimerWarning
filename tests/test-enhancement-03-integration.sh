@@ -12,7 +12,10 @@
 # - Full flow from config to dimensions
 #
 # Safety:
-#   Uses dummy config files in test directory, does not touch real config.
+#   This test DOES NOT modify your real config file.
+#   It uses test config files in tests/test-configs/enhancement-03/output/
+#   The test backs up and restores CONFIG_FILE/CONFIG_DIR to ensure
+#   the real config is never touched.
 ###############################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -32,8 +35,21 @@ TESTS_RUN=0
 TESTS_PASSED=0
 TESTS_FAILED=0
 
+# Backup original config paths (to restore after tests)
+ORIGINAL_CONFIG_DIR=""
+ORIGINAL_CONFIG_FILE=""
+
 # Cleanup
 cleanup() {
+    # Restore original config paths if they were backed up
+    if [ -n "${ORIGINAL_CONFIG_DIR}" ]; then
+        CONFIG_DIR="${ORIGINAL_CONFIG_DIR}"
+    fi
+    if [ -n "${ORIGINAL_CONFIG_FILE}" ]; then
+        CONFIG_FILE="${ORIGINAL_CONFIG_FILE}"
+    fi
+    
+    # Clean up test output directory
     rm -rf "${TEST_OUTPUT_DIR}"
 }
 
@@ -44,11 +60,29 @@ setup() {
     mkdir -p "${TEST_CONFIG_DIR}"
     mkdir -p "${TEST_OUTPUT_DIR}"
     
+    # Backup original config paths before sourcing modules
+    # (config.sh will set these to real paths, so we save them first)
+    ORIGINAL_CONFIG_DIR="${CONFIG_DIR:-}"
+    ORIGINAL_CONFIG_FILE="${CONFIG_FILE:-}"
+    
+    # Set test config paths BEFORE sourcing modules
+    # This ensures modules use test paths from the start
+    CONFIG_DIR="${TEST_OUTPUT_DIR}"
+    CONFIG_FILE="${TEST_OUTPUT_DIR}/test.conf"
+    
+    # Create test config directory structure
+    mkdir -p "${CONFIG_DIR}"
+    
     # Source required modules
+    # Note: config.sh will override CONFIG_FILE, so we'll restore it after sourcing
     source "${LIB_DIR}/configure-core.sh" || exit 1
     source "${LIB_DIR}/configure-config.sh" || exit 1
     source "${LIB_DIR}/config.sh" || exit 1
     source "${LIB_DIR}/resolution-detection.sh" || exit 1
+    
+    # Restore test CONFIG_FILE after sourcing (config.sh sets it to real path)
+    CONFIG_DIR="${TEST_OUTPUT_DIR}"
+    CONFIG_FILE="${TEST_OUTPUT_DIR}/test.conf"
 }
 
 # Print test result
@@ -85,14 +119,16 @@ test_write_config_new_params() {
     print_section "write_config() with Enhancement #3 Parameters"
     
     local test_config="${TEST_OUTPUT_DIR}/test-write-config.conf"
+    # Use test-specific config file (override the default test config)
     CONFIG_FILE="${test_config}"
     
     # Initialize arrays
     declare -a config_lines=()
     
     # Test writing with display-based mode and custom size
+    # Note: write_config requires 15 positional parameters before config_lines array
     write_config \
-        "10" "custom" "center" "30" "true" "false" "difficult" "true" "5" "auto" "false" \
+        "10" "custom" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" \
         "display-based" "50%x50%" "1280x720" \
         "${config_lines[@]}"
     
@@ -121,9 +157,10 @@ test_write_config_new_params() {
     fi
     
     # Test with fixed mode and new sizes
+    # Note: write_config requires 15 positional parameters before config_lines array
     write_config \
-        "10" "xlarge" "center" "30" "true" "false" "difficult" "true" "5" "auto" "false" \
-        "fixed" "" "" \
+        "10" "xlarge" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" \
+        "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}"
     
     if grep -q "^POPUP_SIZE_MODE=fixed" "${test_config}"; then

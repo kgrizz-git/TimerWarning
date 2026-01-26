@@ -5,6 +5,7 @@ This document provides a concise overview of work remaining to be completed for 
 **Note**: This document focuses on work that remains to be done. Fully implemented enhancements (with no remaining work) are not listed here but can be found in [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). Enhancements marked as "Mostly Implemented" or "Partially Implemented" are listed here if they have remaining work (testing, documentation, etc.).
 
 ## Priority Items
+- [ ] **ADDED HERE: make 24/7 prevention and high restriction warnings apply to additional hours, also** - for uninstall.sh, config file locking, configuration.sh and manage.sh blocking (see also enhancement 22)
 - [ ] **ADDED HERE: reduce arithmetic questions from 10 to 5, allow up to 3 wrong answers total** - for uninstall.sh and for manual-uninstall-guide.sh
 - [ ] **ADDED HERE: improve configuration process for additional lock/uninstall hours** - be able to set all days at once, be able to set lock or uninstall schedule equal to the other one if it is configured (state what the schedule is when asking if the user wants to set one equal to the other)
 - [ ] **#16b: 12-Hour Format Time Input and GUI Spinbox Widgets** - Support 12-hour format with AM/PM and GUI spinbox widgets

@@ -151,7 +151,7 @@ main() {
     # This is a sparse array indexed 0-6 (Sunday-Saturday) with entries like:
     #   UNINSTALL_LOCK_HOURS_MONDAY=9-17
     declare -g -a uninstall_lock_hours_lines=()
-    declare -g check_interval popup_size popup_position min_display_time popup_immovable popup_auto_close configure_block_enabled uninstall_protection_mode pause_enabled pause_duration dialog_tool config_lock_enabled
+    declare -g check_interval popup_size popup_size_mode popup_size_custom popup_size_custom_absolute popup_position min_display_time popup_immovable popup_auto_close configure_block_enabled uninstall_protection_mode pause_enabled pause_duration dialog_tool config_lock_enabled
     
     # Load existing configuration
     # Function sets global variables and populates global arrays directly
@@ -224,7 +224,7 @@ main() {
         
         # Show main menu
         local menu_choice
-        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}" "${dialog_tool_status}" "${config_lock_enabled}")
+        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}" "${dialog_tool_status}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}")
         local menu_exit=$?
         
         if [ "${menu_exit}" -eq 2 ] || [ "${menu_choice}" = "CANCELLED" ]; then
@@ -270,30 +270,26 @@ main() {
                     # User already confirmed cancellation
                     exit 0
                 else
-                    popup_size="${new_size}"
-                    
-                    # If custom size was selected, get the custom size values
-                    if [ "${new_size}" = "custom" ]; then
-                        # Check if custom size was configured (stored in global variable)
-                        if [ -n "${CUSTOM_POPUP_SIZE_CONFIG:-}" ]; then
-                            popup_size_custom="${CUSTOM_POPUP_SIZE_CONFIG}"
-                            
-                            # If it's a percentage format, we need an absolute fallback
-                            if echo "${popup_size_custom}" | grep -qE '^[0-9]+%x[0-9]+%$'; then
-                                # Calculate absolute fallback from percentage (based on 2560×1440)
-                                local width_percent height_percent
-                                width_percent=$(echo "${popup_size_custom}" | cut -d'x' -f1 | tr -d '%')
-                                height_percent=$(echo "${popup_size_custom}" | cut -d'x' -f2 | tr -d '%')
-                                popup_size_custom_absolute="$((2560 * width_percent / 100))x$((1440 * height_percent / 100))"
-                            else
-                                # It's already a pixel format, use it as both custom and absolute
-                                popup_size_custom_absolute="${popup_size_custom}"
-                            fi
+                    # Check if the result contains custom dimensions (format: "custom|95%x95%")
+                    if echo "${new_size}" | grep -qE '^custom\|'; then
+                        # Extract the size type and custom dimensions
+                        popup_size="custom"
+                        popup_size_custom=$(echo "${new_size}" | cut -d'|' -f2)
+                        
+                        # If it's a percentage format, we need an absolute fallback
+                        if echo "${popup_size_custom}" | grep -qE '^[0-9]+%x[0-9]+%$'; then
+                            # Calculate absolute fallback from percentage (based on 2560×1440)
+                            local width_percent height_percent
+                            width_percent=$(echo "${popup_size_custom}" | cut -d'x' -f1 | tr -d '%')
+                            height_percent=$(echo "${popup_size_custom}" | cut -d'x' -f2 | tr -d '%')
+                            popup_size_custom_absolute="$((2560 * width_percent / 100))x$((1440 * height_percent / 100))"
                         else
-                            # No custom size configured, use defaults
-                            popup_size_custom="50%x50%"
-                            popup_size_custom_absolute="1280x720"
+                            # It's already a pixel format, use it as both custom and absolute
+                            popup_size_custom_absolute="${popup_size_custom}"
                         fi
+                    else
+                        # Regular size (not custom)
+                        popup_size="${new_size}"
                     fi
                 fi
                 
@@ -474,7 +470,7 @@ main() {
             13)
                 # Review and Save
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
-                if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${configure_block_enabled}"; then
+                if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${configure_block_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}"; then
                     # Validate restriction coverage before saving
                     local validation_result
                     validation_result=$(check_restriction_coverage "${config_lines[@]}")

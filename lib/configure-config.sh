@@ -565,7 +565,11 @@ write_config() {
     local user_comments
     user_comments=$(extract_user_comments "${CONFIG_FILE}")
     
-    # Write configuration file
+    # Create temporary file for atomic write
+    local temp_file
+    temp_file=$(mktemp "${CONFIG_FILE}.tmp.XXXXXX" 2>/dev/null || echo "${CONFIG_FILE}.tmp")
+    
+    # Write configuration file to temp file
     {
         # Standard header
         echo "# Sleep Warning Configuration"
@@ -763,11 +767,21 @@ write_config() {
                 fi
             done
         fi
-    } > "${CONFIG_FILE}"
+    } > "${temp_file}"
     
-    if [ $? -eq 0 ]; then
+    # Check if write to temp file succeeded
+    if [ $? -ne 0 ]; then
+        # Write failed, clean up temp file
+        rm -f "${temp_file}" 2>/dev/null
+        return 1
+    fi
+    
+    # Atomically replace config file with temp file
+    if mv "${temp_file}" "${CONFIG_FILE}" 2>/dev/null; then
         return 0
     else
+        # Move failed, clean up temp file
+        rm -f "${temp_file}" 2>/dev/null
         return 1
     fi
 }

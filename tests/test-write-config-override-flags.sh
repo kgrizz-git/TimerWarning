@@ -13,6 +13,12 @@
 # - Empty config_lines with override flags
 # - Edge cases that could cause false positives
 #
+# Safety:
+#   This test DOES NOT modify your real config file.
+#   It uses test config files in tests/test-configs/write-config-tests/
+#   The test backs up and restores CONFIG_FILE/CONFIG_DIR to ensure
+#   the real config is never touched.
+#
 # Usage: ./tests/test-write-config-override-flags.sh
 ###############################################################################
 
@@ -34,8 +40,21 @@ TESTS_RUN=0
 TESTS_PASSED=0
 TESTS_FAILED=0
 
+# Backup original config paths (to restore after tests)
+ORIGINAL_CONFIG_DIR=""
+ORIGINAL_CONFIG_FILE=""
+
 # Cleanup function
 cleanup() {
+    # Restore original config paths if they were backed up
+    if [ -n "${ORIGINAL_CONFIG_DIR}" ]; then
+        CONFIG_DIR="${ORIGINAL_CONFIG_DIR}"
+    fi
+    if [ -n "${ORIGINAL_CONFIG_FILE}" ]; then
+        CONFIG_FILE="${ORIGINAL_CONFIG_FILE}"
+    fi
+    
+    # Clean up test output directory
     rm -rf "${TEST_OUTPUT_DIR}"
 }
 
@@ -44,9 +63,27 @@ setup() {
     # Create test output directory
     mkdir -p "${TEST_OUTPUT_DIR}"
     
+    # Backup original config paths before sourcing modules
+    # (config.sh will set these to real paths, so we save them first)
+    ORIGINAL_CONFIG_DIR="${CONFIG_DIR:-}"
+    ORIGINAL_CONFIG_FILE="${CONFIG_FILE:-}"
+    
+    # Set test config paths BEFORE sourcing modules
+    # This ensures modules use test paths from the start
+    CONFIG_DIR="${TEST_OUTPUT_DIR}"
+    CONFIG_FILE="${TEST_OUTPUT_DIR}/test.conf"
+    
+    # Create test config directory structure
+    mkdir -p "${CONFIG_DIR}"
+    
     # Source required modules
+    # Note: config.sh will override CONFIG_FILE, so we'll restore it after sourcing
     source "${LIB_DIR}/configure-core.sh" || exit 1
     source "${LIB_DIR}/configure-config.sh" || exit 1
+    
+    # Restore test CONFIG_FILE after sourcing (config.sh sets it to real path)
+    CONFIG_DIR="${TEST_OUTPUT_DIR}"
+    CONFIG_FILE="${TEST_OUTPUT_DIR}/test.conf"
 }
 
 # Print test result
@@ -121,11 +158,12 @@ test_normal_with_override_flags() {
         "SATURDAY=1-5"
     )
     
-    # Set CONFIG_FILE to test location
+    # Use test-specific config file (override the default test config)
     CONFIG_FILE="${test_config}"
     
     # Call write_config with override flags
-    write_config "10" "medium" "center" "30" "true" "false" \
+    # Note: write_config requires 15 positional parameters before config_lines array
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}" "true" "true"
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then
@@ -151,7 +189,8 @@ test_normal_without_override_flags() {
     CONFIG_FILE="${test_config}"
     
     # Call write_config WITHOUT override flags (old style)
-    write_config "10" "medium" "center" "30" "true" "false" \
+    # Note: write_config requires 15 positional parameters before config_lines array
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}"
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then
@@ -178,7 +217,8 @@ test_sparse_config_lines() {
     CONFIG_FILE="${test_config}"
     
     # Call with override flags
-    write_config "10" "large" "center" "30" "true" "true" \
+    # Note: write_config requires 15 positional parameters before config_lines array
+    write_config "10" "large" "center" "30" "true" "true" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}" "true" "true"
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then
@@ -206,7 +246,8 @@ test_empty_config_lines_with_flags() {
     CONFIG_FILE="${test_config}"
     
     # Call with override flags but no config_lines
-    write_config "10" "medium" "center" "30" "true" "false" \
+    # Note: write_config requires 15 positional parameters before config_lines array
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}" "true" "true"
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then
@@ -294,7 +335,8 @@ test_mixed_override_flags() {
     # write_config requires 10 positional parameters: check_interval, popup_size, popup_position, 
     # min_display_time, popup_immovable, configure_block_enabled, uninstall_protection_mode,
     # pause_enabled, pause_duration, dialog_tool
-    write_config "10" "medium" "center" "30" "true" "false" "difficult" "true" "5" "auto" \
+    # Note: write_config requires 15 positional parameters before config_lines array
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}" "true" ""
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then
@@ -392,7 +434,8 @@ test_override_flags_empty_strings() {
     CONFIG_FILE="${test_config}"
     
     # Call with both override flags as empty strings (should not add comments)
-    write_config "10" "medium" "center" "30" "true" "false" \
+    # Note: write_config requires 15 positional parameters before config_lines array
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}" "" ""
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then

@@ -94,12 +94,16 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ## test-write-config-override-flags.sh
 
-**Last Run**: 2026-01-25 00:54 EST  
+**Last Run**: 2026-01-26 15:36 EST  
 **Status**: ✅ **PASS** (17/17 tests passed)  
 **Execution Time**: ~3 seconds  
 **Dependencies**: bash
 
-**Findings Summary**: Re-ran. All 17 tests pass successfully. Mixed override flags edge case remains correct.
+**Findings Summary**: Re-ran after atomic write fix. Initially 15/17 tests passed, 2 failed. Fixed test to pass all 15 required parameters to `write_config()`. All 17 tests now pass successfully.
+
+**Context**: Test was failing because `write_config()` function signature requires 15 positional parameters before the config_lines array, but test was only passing 7 parameters. After atomic write fix, test needed update to match current function signature.
+
+**Safety**: ✅ **VERIFIED** - Test uses dummy config files in `tests/test-configs/write-config-tests/`. Test backs up and restores `CONFIG_FILE`/`CONFIG_DIR` to ensure real config is never touched. Updated to set test config paths before sourcing modules and restore them after (config.sh overrides CONFIG_FILE).
 
 **Results**:
 - ✅ Normal case with override flags
@@ -112,7 +116,7 @@ When a test is run again, **update the date/time and findings** for that test en
 - ✅ All 7 days configured with override flags
 - ✅ Override flags as empty strings
 
-**Fix Applied**: Updated test to pass all 10 required parameters: `write_config "10" "medium" "center" "30" "true" "false" "difficult" "true" "5" "auto" "${config_lines[@]}" "true" ""`. Test now passes successfully.
+**Fix Applied**: Updated all `write_config()` calls in test to pass all 15 required parameters: `write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" "${config_lines[@]}" "true" "true"`. Test now passes successfully.
 
 ---
 
@@ -756,9 +760,10 @@ Based on the latest test execution results:
 7. **Configure.sh Comprehensive Tests**: ⚠️ **PARTIALLY TESTED** - Test runs but expect script needs updates for interactive prompts
 8. **Mode Detection (Enhancement #4)**: ✅ **FULLY TESTED** - All 15 tests passed
 9. **Manual Uninstall Guide (Enhancement #2a)**: ✅ **FULLY TESTED** - All 30 tests passed
-10. **Enhanced Window Size Options (Enhancement #3)**: ✅ **FULLY TESTED** - All 11 tests passed in test-enhancement-03-window-sizes.sh
+10. **Enhanced Window Size Options (Enhancement #3)**: ✅ **FULLY TESTED** - All 11 tests passed in test-enhancement-03-window-sizes.sh, all 22 tests passed in test-enhancement-03-integration.sh
 11. **System Sleep/Hibernate Detection and Popup Queue Management (Enhancement #9)**: ✅ **UNIT TESTS PASS** (24/24) - Automated unit tests complete, manual integration tests pending
 12. **Code Quality Improvements (Day Name Conversion & Magic Numbers)**: ✅ **FULLY TESTED** - All 32 tests passed in test-day-name-conversion.sh, plus 69 additional related tests verified
+13. **Atomic Write Fix (Safety Scan Fix)**: ✅ **FULLY TESTED** - All 7 tests passed in test-atomic-write.sh, all syntax and function loading tests passed
 
 ### Known Issues
 
@@ -766,6 +771,91 @@ Based on the latest test execution results:
    - **Priority**: MEDIUM
    - **Status**: 🔍 **INVESTIGATED** - Expect script needs adjustment for prompt matching
    - **Recommendation**: Update expect script (test-configure-comprehensive.exp) to better handle all interactive prompts, or consider alternative testing approach
+
+## test-atomic-write.sh (NEW)
+
+**Last Run**: 2026-01-26 15:36 EST  
+**Status**: ✅ **PASS** (7/7 tests passed)  
+**Execution Time**: ~2 seconds  
+**Dependencies**: bash
+
+**Findings Summary**: Created new test to verify atomic write fix for `write_config()` function. All 7 tests passed successfully. The atomic write pattern (temp file + rename) is working correctly.
+
+**Context**: This test was created to verify the fix for the non-atomic config file write issue identified in safety scan 2026-01-26-025039. The fix updates `write_config()` to use atomic write pattern matching other critical file operations.
+
+**Safety**: ✅ **VERIFIED** - Test uses dummy config files in `tests/test-configs/atomic-write-tests/`. Test backs up and restores `CONFIG_FILE`/`CONFIG_DIR` to ensure real config is never touched. Verified by checking modification time of real config file before/after test run - no changes detected.
+
+**Results**:
+- ✅ Config file created successfully
+- ✅ No temp files remain after write (atomic write completed)
+- ✅ CHECK_INTERVAL written correctly
+- ✅ POPUP_SIZE written correctly
+- ✅ SUNDAY restriction written correctly
+- ✅ Write correctly failed when directory read-only
+- ✅ Atomic write handles errors gracefully
+
+**Implementation Details**:
+- Uses `mktemp "${CONFIG_FILE}.tmp.XXXXXX"` to create temp file
+- Writes all content to temp file first
+- Atomically moves temp file to final location with `mv`
+- Proper error handling with temp file cleanup on failure
+- Matches pattern used in other atomic writes (pause-state.sh, sleep-detection.sh, etc.)
+
+---
+
+## test-enhancement-03-integration.sh (Re-run after atomic write fix)
+
+**Last Run**: 2026-01-26 15:36 EST  
+**Status**: ✅ **PASS** (22/22 tests passed)  
+**Execution Time**: ~5 seconds  
+**Dependencies**: bash
+
+**Findings Summary**: Re-ran after atomic write fix. Initially 20/22 tests passed, 2 failed. Fixed test to pass all 15 required parameters to `write_config()`. All 22 tests now pass successfully.
+
+**Context**: Test was failing because `write_config()` function signature requires 15 positional parameters before the config_lines array, but test was only passing 11 parameters. After atomic write fix, test needed update to match current function signature.
+
+**Safety**: ✅ **VERIFIED** - Test uses dummy config files in `tests/test-configs/enhancement-03/output/`. Test backs up and restores `CONFIG_FILE`/`CONFIG_DIR` to ensure real config is never touched. Updated to set test config paths before sourcing modules and restore them after (config.sh overrides CONFIG_FILE).
+
+**Failed Tests (Before Fix)**:
+- ✗ write_config() writes POPUP_SIZE_MODE
+- ✗ write_config() writes POPUP_SIZE_CUSTOM
+
+**Root Cause**: Test called `write_config()` with only 11 parameters instead of 15. Missing parameters were:
+- configure_block_enabled (7)
+- uninstall_protection_mode (8)
+- pause_enabled (9)
+- pause_duration (10)
+- dialog_tool (11)
+- config_lock_enabled (12)
+
+**Fix Applied**: Updated `write_config()` calls in test to pass all 15 required parameters. Test now passes successfully.
+
+**Results**:
+- ✅ write_config() with Enhancement #3 parameters
+- ✅ Reading config with new options
+- ✅ Display-based mode calculations
+- ✅ Custom size handling
+- ✅ Backward compatibility
+- ✅ All new sizes in both modes
+
+---
+
+## Syntax and Function Loading Tests (After atomic write fix)
+
+**Last Run**: 2026-01-26 15:36 EST  
+**Status**: ✅ **PASS**  
+**Execution Time**: <1 second  
+**Dependencies**: bash
+
+**Findings Summary**: Quick verification tests to ensure atomic write fix didn't break syntax or function loading.
+
+**Results**:
+- ✅ Bash syntax check passed (`bash -n lib/configure-config.sh`)
+- ✅ `write_config()` function loads correctly after sourcing modules
+
+**Conclusion**: Atomic write fix is syntactically correct and doesn't break function loading.
+
+---
 
 ### Recommendations
 
