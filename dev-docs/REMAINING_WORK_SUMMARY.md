@@ -6,6 +6,7 @@ This document provides a concise overview of work remaining to be completed for 
 
 ## Priority Items
 - [ ] **#27 Donation Links** - ✅ **Phase 1 Partially Implemented** - PayPal donation links added to README.md, GETTING_STARTED.md, and install.sh. **Remaining**: Testing and verification. **Phase 2**: GitHub Sponsors support planned (see [enhancements/enhancement-27-phase-2-github-sponsors.md](enhancements/enhancement-27-phase-2-github-sponsors.md)) - requires license first.
+- [ ] **#16b: 12-Hour Format Time Input and GUI Spinbox Widgets** - Support 12-hour format with AM/PM and GUI spinbox widgets
 - [ ] **#10: Audio Alerts** 
 - [ ] **Licensing** - License selection and application
 - [ ] **#13a: Single Executable Installer Script** - Self-extracting installer bundling all files

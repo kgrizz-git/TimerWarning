@@ -784,27 +784,6 @@ print_summary() {
     echo -e "  ${BLUE}https://www.paypal.com/donate/?business=FMVBCJ2CT7L7S&no_recurring=0&item_name=Making+software+I+hope+people+find+useful.+Thank+you+for+supporting+future+development.&currency_code=USD${NC}"
     echo "  (Donations are optional but greatly appreciated)"
     echo ""
-    
-    # Show detected mode information (Enhancement #4)
-    local service_config_file="${SCRIPT_DIR}/lib/service-config.sh"
-    local display_detection_file="${SCRIPT_DIR}/lib/display-detection.sh"
-    if [ -f "${service_config_file}" ] && [ -f "${display_detection_file}" ]; then
-        source "${display_detection_file}" 2>/dev/null
-        source "${service_config_file}" 2>/dev/null
-        if type detect_system_mode >/dev/null 2>&1 && type get_current_service_mode >/dev/null 2>&1; then
-            local detected_mode
-            detected_mode=$(detect_system_mode 2>/dev/null)
-            local configured_mode
-            configured_mode=$(get_current_service_mode 2>/dev/null)
-            if [ "${detected_mode}" != "unknown" ] && [ -n "${detected_mode}" ]; then
-                echo "System mode: ${detected_mode}"
-                if [ "${configured_mode}" != "none" ] && [ -n "${configured_mode}" ]; then
-                    echo "Service configured for: ${configured_mode} mode"
-                fi
-                echo ""
-            fi
-        fi
-    fi
 }
 
 # Main installation function

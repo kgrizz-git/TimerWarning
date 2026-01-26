@@ -70,10 +70,10 @@ This approach ensures:
 
 ## Important Notes
 
-- **THRESHOLD_WARN**: Currently set to **9660 minutes** (23 hours/day × 7 days) in `lib/configure-validation.sh`
-- **THRESHOLD_BLOCK**: Currently set to **10080 minutes** (24 hours/day × 7 days) in `lib/configure-validation.sh`
+- **THRESHOLD_WARN**: Currently set to **6720 minutes** (16 hours/day × 7 days) in `lib/configure-core.sh` (HOURS_PER_DAY_WARN=16)
+- **THRESHOLD_BLOCK**: Currently set to **10080 minutes** (24 hours/day × 7 days) in `lib/configure-core.sh` (HOURS_PER_DAY_BLOCK=24)
 - If these thresholds are changed in the future, update this document accordingly
-- **Window size limits**: Currently 200-2000 pixels width, 100-2000 pixels height (see `lib/config.sh`)
+- **Window size limits**: Currently minimum 384×216 pixels, maximum 95% of screen resolution (see `lib/config.sh`)
 
 ---
 
@@ -315,9 +315,9 @@ When documenting issues in the timestamped scan file, include:
 - [ ] **Verify**: Manual config file editing cannot create 24/7 restrictions (check if `sleep-warning.sh` validates on load)
 
 #### 1.2 Near-24/7 Restrictions (High Restriction Levels)
-- [ ] **Verify**: When restrictions exceed THRESHOLD_WARN (9660 minutes), users are warned but can still proceed
+- [ ] **Verify**: When restrictions exceed THRESHOLD_WARN (6720 minutes), users are warned but can still proceed
 - [ ] **Check**: Warning dialog clearly explains the high restriction level
-- [ ] **Test**: Configure exactly 9661 minutes (just above threshold) - should show warning
+- [ ] **Test**: Configure exactly 6721 minutes (just above threshold) - should show warning
 - [ ] **Test**: Configure exactly 10079 minutes (just below 24/7) - should show warning
 - [ ] **Verify**: Warning does not prevent configuration, only informs user
 
@@ -342,9 +342,9 @@ When documenting issues in the timestamped scan file, include:
 ### 2. Large/Full Screen Window Configuration
 
 #### 2.1 Window Size Above THRESHOLD_WARN
-- [ ] **Verify**: When restrictions exceed THRESHOLD_WARN (9660 minutes), large or full-screen windows cannot be configured
+- [ ] **Verify**: When restrictions exceed THRESHOLD_WARN (6720 minutes), large or full-screen windows cannot be configured
 - [ ] **Check**: Window size validation occurs regardless of restriction level
-- [ ] **Test**: Configure restrictions > 9660 minutes AND large window size (e.g., 2000×2000) - should be prevented or warned
+- [ ] **Test**: Configure restrictions > 6720 minutes AND large window size (e.g., 2000×2000) - should be prevented or warned
 - [ ] **Verify**: If THRESHOLD_WARN is changed, window size restrictions are re-evaluated accordingly
 - [ ] **Check**: Configuration wizard checks both restriction level AND window size together
 - [ ] **Test**: Attempt to manually edit config file to set large window size with high restrictions
