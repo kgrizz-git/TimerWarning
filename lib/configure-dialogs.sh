@@ -54,6 +54,37 @@ show_info_dialog() {
     esac
 }
 
+# Show error dialog
+show_error_dialog() {
+    local title="$1"
+    local text="$2"
+    local width="${3:-600}"
+    local height="${4:-300}"
+    
+    local tool
+    tool=$(get_dialog_tool)
+    
+    case "${tool}" in
+        yad)
+            # Use --fixed to enforce dimensions (prevents YAD from auto-resizing based on text)
+            yad --error --title="${title}" --text="${text}" \
+                --width="${width}" --height="${height}" \
+                --fixed \
+                --button="OK:0" 2>/dev/null
+            ;;
+        zenity)
+            zenity --error --title="${title}" --text="${text}" \
+                --width="${width}" 2>/dev/null
+            ;;
+        kdialog)
+            kdialog --title "${title}" --error "${text}" 2>/dev/null
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 # Show yes/no question dialog
 show_question_dialog() {
     local title="$1"

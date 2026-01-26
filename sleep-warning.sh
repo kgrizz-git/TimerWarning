@@ -34,6 +34,7 @@ LIB_DIR="${SCRIPT_DIR}/lib"
 source "${LIB_DIR}/config.sh" || exit 1
 source "${LIB_DIR}/logging.sh" || exit 1
 source "${LIB_DIR}/pause-state.sh" || exit 1
+source "${LIB_DIR}/sleep-detection.sh" || exit 1  # Enhancement #9: Sleep/hibernate detection
 source "${LIB_DIR}/configure-core.sh" || exit 1
 source "${LIB_DIR}/configure-validation.sh" || exit 1
 source "${LIB_DIR}/display-detection.sh" || exit 1
@@ -122,6 +123,15 @@ main() {
     # Check and clear expired pause state (Enhancement #21)
     # This should be done before checking restricted hours
     check_and_clear_expired_pause
+    
+    # Check if we should skip warning due to recent system resume (Enhancement #9)
+    # This should be done before checking restricted hours
+    if type should_skip_warning_after_resume >/dev/null 2>&1; then
+        if should_skip_warning_after_resume; then
+            # System recently resumed, skip warning during grace period
+            exit 0
+        fi
+    fi
     
     # Validate configuration safety before proceeding
     # This prevents 24/7 restrictions from manual config file editing

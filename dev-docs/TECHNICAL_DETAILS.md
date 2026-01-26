@@ -15,6 +15,7 @@ The Sleep Warning System uses a **modular architecture** for improved maintainab
   - `window-management.sh` - Window manipulation
   - `time-validation.sh` - Time range validation
   - `popup-display.sh` - Warning popup display
+  - `sleep-detection.sh` - Sleep/hibernate detection and popup queue management (Enhancement #9)
   - `uninstall-verification.sh` - Uninstall protection verification (Enhancement #26)
   - `service-config.sh` - Systemd service configuration for Desktop/Gaming Mode (Enhancement #4)
 

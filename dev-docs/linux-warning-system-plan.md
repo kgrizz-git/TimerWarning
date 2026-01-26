@@ -184,7 +184,7 @@ See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) for detailed descriptions a
 - [ ] **6. Escalating Warnings** - Progressively stronger warnings for continued usage - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#6-escalating-warnings)
 - [x] **7. Warning Event Logging** - File-based logging with window state information (Implemented) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#7-warning-event-logging)
 - [x] **8. Temporary Disable via Config** - Available via manage.sh; future: config toggle (Partially Implemented) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#8-temporary-disable-via-config)
-- [ ] **9. System Sleep/Hibernate Detection** - Skip warnings after system resume - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#9-system-sleephibernate-detection)
+- [x] **9. System Sleep/Hibernate Detection** - ✅ **Partially Implemented** - Core implementation complete, automated tests passing (24/24), manual testing pending - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#9-system-sleephibernate-detection)
 - [ ] **10. Audio Alerts** - Optional audio notifications alongside visual popup - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#10-audio-alerts)
 - [x] **11. Desktop Notification Fallback** - Non-modal notification when dialogs fail (Implemented) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#11-desktop-notification-fallback-moved)
 - [ ] **12. Wayland-Specific Window Management** - Wayland-native window control - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#12-wayland-specific-window-management)

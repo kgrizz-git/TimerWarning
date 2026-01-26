@@ -608,6 +608,80 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ---
 
+## test-enhancement-09.sh
+
+**Last Run**: 2026-01-25  
+**Status**: ✅ **PASS** (24/24 tests passed)  
+**Execution Time**: ~2 seconds  
+**Dependencies**: bash
+
+**Findings Summary**: Comprehensive test suite for Enhancement #9 (System Sleep/Hibernate Detection and Popup Queue Management). All 24 automated unit tests pass successfully. Tests cover configuration validation, PID file management, sleep detection functions, popup detection functions, and integration checks.
+
+**Test Coverage**:
+
+**Configuration Validation Tests (6 tests)**:
+- ✅ Valid configurations (boundary cases: 30s < 10min, 0s < 1min, 60s = 1min)
+- ✅ Invalid configurations detected (300s > 1min, 120s > 1min)
+- ✅ Error messages include both fix options (increase interval OR decrease min time)
+
+**PID File Management Tests (6 tests)**:
+- ✅ `save_popup_pid()` saves PID correctly (atomic operation: temp file + rename)
+- ✅ PID file contains correct PID after save
+- ✅ `cleanup_popup_pid()` removes PID file
+- ✅ `cleanup_popup_pid()` handles missing file gracefully
+- ✅ `cleanup_stale_pid()` removes stale PID files (non-existent processes)
+- ✅ `cleanup_stale_pid()` handles missing file gracefully
+
+**Sleep Detection Tests (6 tests)**:
+- ✅ `SLEEP_RESUME_GRACE_PERIOD` constant is 60 seconds (fixed, not configurable)
+- ✅ `POPUP_PID_FILE` constant is defined
+- ✅ `LAST_UPTIME_FILE` constant is defined
+- ✅ `check_system_resume()` function exists
+- ✅ `should_skip_warning_after_resume()` function exists
+- ✅ `update_uptime_tracking()` function exists
+
+**Popup Detection Tests (4 tests)**:
+- ✅ `is_popup_running()` function exists
+- ✅ `get_popup_age()` function exists
+- ✅ `close_existing_popups()` function exists
+- ✅ `is_popup_running()` returns empty when no popup is running
+
+**Integration Tests (2 tests)**:
+- ✅ `sleep-warning.sh` sources `sleep-detection.sh`
+- ✅ `sleep-warning.sh` calls `should_skip_warning_after_resume()`
+
+**Results**: All 24 automated unit tests pass successfully. Core functionality verified:
+- Configuration validation correctly detects timing conflicts and provides both fix options
+- PID file management functions work correctly (save, read, cleanup, stale detection)
+- All required functions exist and are properly integrated
+- Constants are defined correctly (grace period fixed at 60 seconds)
+- Integration with main script verified
+
+**Test Features**:
+- Non-destructive: Uses temporary test config directory (`${HOME}/.config/sleep-warning-test`) - does not touch real installed config
+- Comprehensive: Covers all unit-testable functions
+- Clear output: Provides colored pass/fail results with details
+- Can be run independently: `./tests/test-enhancement-09.sh`
+
+**Limitations**:
+- Tests verify function logic and syntax, but actual sleep/hibernate detection requires system sleep/hibernate (manual testing needed)
+- Popup detection with real popups requires GUI and actual popup spawning (manual testing needed)
+- Configuration validation in configure.sh wizard requires interactive testing (manual testing needed)
+- Edge cases like stale PID files, missing state files, and window title matching require manual testing
+
+**Related Enhancement**: Enhancement #9 - System Sleep/Hibernate Detection and Popup Queue Management
+
+**Test File Location**: `tests/test-enhancement-09.sh`
+
+**Manual Testing Still Required**:
+- ⏳ Actual system sleep/hibernate detection (requires system sleep/hibernate)
+- ⏳ Popup queue prevention with overlapping script runs (requires timer triggers)
+- ⏳ Popup queue prevention after hibernation (requires system hibernate)
+- ⏳ Configuration validation in configure.sh wizard (requires interactive testing)
+- ⏳ Edge cases (stale PID files, missing state files, window title matching on different platforms)
+
+---
+
 ## Overall Test Coverage Summary
 
 Based on the latest test execution results:
@@ -622,6 +696,7 @@ Based on the latest test execution results:
 8. **Mode Detection (Enhancement #4)**: ✅ **FULLY TESTED** - All 15 tests passed
 9. **Manual Uninstall Guide (Enhancement #2a)**: ✅ **FULLY TESTED** - All 30 tests passed
 10. **Enhanced Window Size Options (Enhancement #3)**: ✅ **FULLY TESTED** - All 11 tests passed in test-enhancement-03-window-sizes.sh
+11. **System Sleep/Hibernate Detection and Popup Queue Management (Enhancement #9)**: ✅ **UNIT TESTS PASS** (24/24) - Automated unit tests complete, manual integration tests pending
 
 ### Known Issues
 

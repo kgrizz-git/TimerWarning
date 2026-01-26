@@ -341,3 +341,59 @@ check_restriction_coverage() {
         echo "ok"
     fi
 }
+
+###############################################################################
+# Validate Popup Timing Configuration
+#
+# Purpose:
+#   Validates that POPUP_MIN_DISPLAY_TIME (in seconds) does not exceed
+#   CHECK_INTERVAL (in minutes) * 60. This prevents multiple popups from
+#   appearing simultaneously when the timer fires while a popup is still
+#   in its minimum display time period.
+#
+# Parameters:
+#   $1 - min_display_time - Minimum display time in seconds (0-300)
+#   $2 - check_interval - Check interval in minutes (1-60)
+#
+# Returns:
+#   0 if valid (no conflict), 1 if conflict detected (hard error)
+#
+# Error Message:
+#   If conflict detected, error message is returned via stdout with both
+#   fix options (increase interval OR decrease min time) presented equally.
+#
+# Usage:
+#   if ! validate_popup_timing_config "${min_time}" "${interval}"; then
+#       error_msg=$(validate_popup_timing_config "${min_time}" "${interval}" 2>&1)
+#       show_error_dialog "Configuration Error" "${error_msg}"
+#       return 1  # Block user from proceeding
+#   fi
+#
+# This is for Enhancement #9 (Popup Queue Prevention)
+###############################################################################
+validate_popup_timing_config() {
+    local min_display_time="$1"
+    local check_interval="$2"
+    
+    # Validate inputs
+    if [ -z "${min_display_time}" ] || ! [[ "${min_display_time}" =~ ^[0-9]+$ ]]; then
+        return 0  # Invalid input, let other validation catch it
+    fi
+    
+    if [ -z "${check_interval}" ] || ! [[ "${check_interval}" =~ ^[0-9]+$ ]]; then
+        return 0  # Invalid input, let other validation catch it
+    fi
+    
+    # Convert check interval to seconds
+    local check_interval_seconds
+    check_interval_seconds=$((check_interval * 60))
+    
+    # Check if min display time exceeds check interval
+    if [ "${min_display_time}" -gt "${check_interval_seconds}" ]; then
+        # Conflict detected - return error message
+        echo "Error: Minimum display time (${min_display_time} seconds) is greater than check interval (${check_interval} minutes = ${check_interval_seconds} seconds). This will cause multiple popups to appear simultaneously. Please adjust one of these values: either increase CHECK_INTERVAL or decrease POPUP_MIN_DISPLAY_TIME." >&2
+        return 1
+    fi
+    
+    return 0
+}

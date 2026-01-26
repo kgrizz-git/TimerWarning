@@ -8,7 +8,6 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **Code quality improvements** - see section below for more info on each. Make a plan before attempting.
     - [ ] **Extract day name conversion to shared function**  
     - [ ] **Extract magic numbers to constants** 
-- [ ] **#9: System Sleep/Hibernate Detection** 
 - [ ] **#10: Audio Alerts** 
 - [ ] **Donation Links** - PayPal setup, GitHub sponsors, Patreon integration
 - [ ] **Licensing** - License selection and application
@@ -42,7 +41,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#5: Configurable Warning Messages** - Customize warning text per day/time range
 - [ ] **#6: Escalating Warnings** - Progressively stronger warnings for continued usage
 - [-] ~~**#8: Temporary Disable via Config**~~ - **PARTIALLY IMPLEMENTED** - Available via `manage.sh`; future work: config file toggle and/or `configure.sh` integration. **Note**: May remove temporary disable option entirely to discourage impulsive disabling; users can modify restrictions via config or uninstall.
-- [ ] **#9: System Sleep/Hibernate Detection** - Skip warnings after system resume (prevents false warnings)
+- [ ] **#9: System Sleep/Hibernate Detection** - ✅ **MOSTLY Implemented** - Core implementation complete (sleep detection, popup queue prevention, configuration validation), automated unit tests passing (24/24), documentation complete. **Remaining**: Manual testing (sleep/hibernate scenarios, popup queue prevention with real popups)
 - [ ] **#10: Audio Alerts** - Optional audio notification alongside visual popup
 - [ ] **#12: Wayland-Specific Window Management** - Wayland-native window control (requires research)
 - [ ] **#13: Distribution-Specific Optimizations** - Optimizations for specific distributions
@@ -51,7 +50,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#16: Visual Day/Time Configuration Grid** - Phase 2: Interactive hour-by-hour grid editing with drag selection
 - [ ] **#16b: 12-Hour Format Time Input and GUI Spinbox Widgets** - Support 12-hour format with AM/PM and GUI spinbox widgets
 - [ ] **#17: Multi-Display Popup Support** - Display popups on all monitors simultaneously
-- [x] **#18: Config File Locking During Restricted Hours** - ✅ **FULLY IMPLEMENTED** - Core functionality complete (Phases 1-10): config file locking with Option A (dedicated config directory), integration with sleep-warning.sh, configure.sh, and uninstall.sh, migration support, self-healing mechanism, comprehensive testing (unit, integration, edge cases), and complete documentation (user, developer, code). All tests passing. *SOME TESTS REMAIN*
+- [ ] **#18: Config File Locking During Restricted Hours** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete (Phases 1-10): config file locking with Option A (dedicated config directory), integration with sleep-warning.sh, configure.sh, and uninstall.sh, migration support, self-healing mechanism, comprehensive testing (unit, integration, edge cases), and complete documentation (user, developer, code). All tests passing. **Remaining**: Some tests remain.
 - [ ] **#20: Additional Hours for Config Locking and configure.sh Blocking** - ✅ **Phase 1 Mostly Complete** - Lock hours for configure.sh and manage.sh blocking are implemented. **Remaining**: Add weekday/weekend together configuration options to match restricted hours flow (currently only per-day configuration available)
 - [ ] **#22: Prevent 24/7 Restriction Configuration** - ✅ **MOSTLY IMPLEMENTED** - Core validation logic implemented. **Remaining**: Comprehensive testing (edge cases, boundary conditions, overlapping ranges), integration testing with high restriction warnings. **Note**: Integration with Enhancement #18 (Config File Locking) is complete - config locking automatically disables when restrictions exceed 9660 minutes/week.
 - [ ] **#22a: Fix Validation Edge Cases in 24/7 Restriction Detection** - Address edge cases in validation logic (handles `start_hour == end_hour`, sparse array indices, IFS handling)

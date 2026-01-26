@@ -436,6 +436,28 @@ get_min_display_time_config() {
                 continue
             fi
             
+            # Validate timing configuration (Enhancement #9)
+            # Check against current CHECK_INTERVAL
+            local current_check_interval
+            if [ -f "${CONFIG_FILE}" ]; then
+                current_check_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+            fi
+            if [ -z "${current_check_interval}" ] || ! [[ "${current_check_interval}" =~ ^[0-9]+$ ]]; then
+                current_check_interval=10  # Default
+            fi
+            
+            if type validate_popup_timing_config >/dev/null 2>&1; then
+                local validation_error
+                validation_error=$(validate_popup_timing_config "${time}" "${current_check_interval}" 2>&1)
+                if [ $? -ne 0 ]; then
+                    # Hard error - block user from proceeding
+                    show_error_dialog \
+                        "Configuration Error" \
+                        "${validation_error}"
+                    continue  # Re-prompt
+                fi
+            fi
+            
             echo "${time}"
             return 0
         done
@@ -446,6 +468,28 @@ get_min_display_time_config() {
             time=${time:-${default_time}}
             
             if [[ "${time}" =~ ^[0-9]+$ ]] && [ "${time}" -ge 0 ] && [ "${time}" -le 300 ]; then
+                # Validate timing configuration (Enhancement #9)
+                # Check against current CHECK_INTERVAL
+                local current_check_interval
+                if [ -f "${CONFIG_FILE}" ]; then
+                    current_check_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                fi
+                if [ -z "${current_check_interval}" ] || ! [[ "${current_check_interval}" =~ ^[0-9]+$ ]]; then
+                    current_check_interval=10  # Default
+                fi
+                
+                if type validate_popup_timing_config >/dev/null 2>&1; then
+                    local validation_error
+                    validation_error=$(validate_popup_timing_config "${time}" "${current_check_interval}" 2>&1)
+                    if [ $? -ne 0 ]; then
+                        # Hard error - block user from proceeding
+                        echo "" >&2
+                        echo "ERROR: ${validation_error}" >&2
+                        echo "" >&2
+                        continue  # Re-prompt
+                    fi
+                fi
+                
                 echo "${time}"
                 return 0
             else

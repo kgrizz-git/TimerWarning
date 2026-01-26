@@ -21,7 +21,7 @@ These enhancements can be integrated into the existing bash script suite without
 ### 2a. Extend Dialog Tool Priority to Configuration Wizard (Implemented)
 - **Description**: Extend environment-aware dialog tool selection to `configure.sh` for consistency with `sleep-warning.sh` and better Wayland/KDE support
 - **Priority**: Medium (improves consistency and Wayland/KDE compatibility for configuration interface)
-- **Status**: ✅ **Fully implemented** - Main functionality implemented and working for configure.sh and all related scripts. Dialog tool priority system extended to `configure.sh`, all configure modules, `manage.sh`, `uninstall.sh`, and `manual-uninstall-guide.sh`. All GUI dialogs support yad/kdialog/zenity with unified priority (YAD → Zenity → KDialog). Visual Day/Time Configuration Grid uses same dialog tool selection. **Testing**: Automated tests completed for `manual-uninstall-guide.sh` (30/30 tests passed). Comprehensive testing across all dialog tools and environments still recommended but not blocking.
+- **Status**: ✅ **MOSTLY IMPLEMENTED** - Main functionality implemented and working for configure.sh and all related scripts. Dialog tool priority system extended to `configure.sh`, all configure modules, `manage.sh`, `uninstall.sh`, and `manual-uninstall-guide.sh`. All GUI dialogs support yad/kdialog/zenity with unified priority (YAD → Zenity → KDialog). Visual Day/Time Configuration Grid uses same dialog tool selection. **Testing**: Automated tests completed for `manual-uninstall-guide.sh` (30/30 tests passed). **Remaining**: Comprehensive testing across all dialog tools and environments still recommended.
 - **Details**: See [enhancements/enhancement-02a-extend-dialog-tool-priority-to-config-wizard.md](enhancements/enhancement-02a-extend-dialog-tool-priority-to-config-wizard.md)
 
 ### 3. Enhanced Window Size Options and Display-Based Sizing
@@ -62,10 +62,17 @@ These enhancements can be integrated into the existing bash script suite without
 - **Details**: See [enhancements/enhancement-08-temporary-disable-via-config.md](enhancements/enhancement-08-temporary-disable-via-config.md)
 
 ### 9. System Sleep/Hibernate Detection
-- **Description**: Skip warnings if system was recently resumed from sleep (user may have just woken up)
+- **Description**: Skip warnings if system was recently resumed from sleep (user may have just woken up). Also prevents popup accumulation and validates timing configuration.
 - **Priority**: High (prevents false warnings after system resume, improves user experience)
-- **Status**: Not implemented
+- **Status**: ✅ **Partially Implemented** - Core implementation complete (code), automated unit tests passing (24/24), manual integration tests pending
 - **Details**: See [enhancements/enhancement-09-system-sleep-hibernate-detection.md](enhancements/enhancement-09-system-sleep-hibernate-detection.md)
+- **Implementation Complete**:
+  - ✅ Sleep/hibernate detection (systemd-logind primary, uptime fallback)
+  - ✅ Popup queue prevention (PID file tracking, window title matching, process tree checking)
+  - ✅ Configuration validation (hard error blocks invalid timing configurations)
+- **Remaining Work**:
+  - ⏳ Manual testing (sleep/hibernate scenarios, popup queue prevention with real popups)
+  - ⏳ Documentation updates (user guide timing recommendations)
 
 ### 10. Audio Alerts
 - **Description**: Add optional audio notification (beep, sound file) alongside visual popup
@@ -140,7 +147,7 @@ These enhancements can be integrated into the existing bash script suite without
 ### 18. Config File Locking During Restricted Hours
 - **Description**: Prevent modification of the configuration file during restricted hours (and optionally during additional configurable hours) to prevent users from circumventing restrictions by changing settings
 - **Priority**: Medium (security/self-control feature, but may be too restrictive for some users)
-- **Status**: Not implemented
+- **Status**: ✅ **MOSTLY IMPLEMENTED** - Core functionality complete (Phases 1-10): config file locking with Option A (dedicated config directory), integration with sleep-warning.sh, configure.sh, and uninstall.sh, migration support, self-healing mechanism, comprehensive testing (unit, integration, edge cases), and complete documentation (user, developer, code). All tests passing. **Remaining**: Some tests remain.
 - **Details**: See [enhancements/enhancement-18-config-file-locking.md](enhancements/enhancement-18-config-file-locking.md)
 
 ### 19. Prevent configure.sh and manage.sh Execution During Restricted Hours (Phase 1 Implemented)
@@ -298,3 +305,7 @@ These approaches would require significant changes to the architecture or a comp
 - **Steam Overlay Integration** is the most promising solution for full Gaming Mode compatibility but requires the most development effort. See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#path-to-maximum-effectiveness) for detailed effectiveness analysis.
 - All enhancements should maintain backward compatibility with existing configurations
 - Testing should be performed for each enhancement, especially Gaming Mode compatibility. See [plan-phase-4-testing.md](plan-phase-4-testing.md#phase-4-testing-and-validation) for testing checklists.
+
+---
+
+**Last Updated**: 2026-01-26 00:41:12 (Enhancement #18 and #2a status updated to MOSTLY IMPLEMENTED)

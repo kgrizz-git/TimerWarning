@@ -1040,6 +1040,7 @@ The script automatically validates configuration values:
 - **POPUP_SIZE_MODE**: Must be `fixed` or `display-based` (default: `fixed`)
 - **POPUP_POSITION**: Must be one of the valid position names
 - **POPUP_MIN_DISPLAY_TIME**: Must be between 0 and 300
+- **Timing Configuration**: `POPUP_MIN_DISPLAY_TIME` (in seconds) must not exceed `CHECK_INTERVAL` (in minutes) × 60. If this conflict is detected, the configuration wizard will show an error and prevent saving until the conflict is resolved. You can either increase `CHECK_INTERVAL` or decrease `POPUP_MIN_DISPLAY_TIME` to fix the conflict.
 
 Invalid values will be ignored and default values will be used instead. The script will log warnings for invalid configuration values.
 

@@ -76,6 +76,18 @@ DEFAULT_CONFIG_LOCK_ENABLED=false
 # This file tracks when pause expires and when pause was last used (Enhancement #21)
 PAUSE_STATE_FILE="${CONFIG_DIR}/.pause_state"
 
+# Sleep resume grace period (in seconds) - fixed at 60 seconds (1 minute)
+# This is not configurable - fixed for consistency (Enhancement #9)
+SLEEP_RESUME_GRACE_PERIOD=60
+
+# Popup PID file location - stores PID of currently active popup
+# This file tracks the popup process to prevent multiple popups (Enhancement #9)
+POPUP_PID_FILE="${CONFIG_DIR}/.popup_pid"
+
+# Last uptime tracking file - stores last known system uptime
+# Used for detecting system resume via uptime comparison (Enhancement #9)
+LAST_UPTIME_FILE="${CONFIG_DIR}/.last_uptime"
+
 # Default restricted hours (used if config file missing or invalid)
 # Format: day_number=start_hour-end_hour
 # Day numbers: 0=Sunday, 1=Monday, ..., 6=Saturday
