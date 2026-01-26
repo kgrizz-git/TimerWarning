@@ -187,7 +187,8 @@ sleep-warning-manage
 - **Temporarily Disable Service** - Stop warnings (can be re-enabled)
 - **Re-enable Service** - Start warnings again
 - **View Service Logs** - View systemd journal logs
-- **Show File Locations** - Display where files are installed
+- **View Pause Status** - View pause feature status (enabled/disabled, current pause state, duration)
+- **Uninstall Information** - Display instructions on how to uninstall the system
 - **Help and Information** - Get help and usage information
 
 ### Direct Service Control

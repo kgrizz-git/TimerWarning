@@ -5,8 +5,8 @@ This document provides a concise overview of work remaining to be completed for 
 **Note**: This document focuses on work that remains to be done. Fully implemented enhancements (with no remaining work) are not listed here but can be found in [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). Enhancements marked as "Mostly Implemented" or "Partially Implemented" are listed here if they have remaining work (testing, documentation, etc.).
 
 ## Priority Items
+- [ ] **#27 Donation Links** - ✅ **Phase 1 Partially Implemented** - PayPal donation links added to README.md, GETTING_STARTED.md, and install.sh. **Remaining**: Testing and verification. **Phase 2**: GitHub Sponsors support planned (see [enhancements/enhancement-27-phase-2-github-sponsors.md](enhancements/enhancement-27-phase-2-github-sponsors.md)) - requires license first.
 - [ ] **#10: Audio Alerts** 
-- [ ] **#27 Donation Links** - PayPal setup, GitHub sponsors, Patreon integration
 - [ ] **Licensing** - License selection and application
 - [ ] **#13a: Single Executable Installer Script** - Self-extracting installer bundling all files
 - [ ] **#13b: Desktop GUI Application Wrapper** - Native desktop application (GTK/Qt/Electron)
@@ -28,7 +28,7 @@ This document provides a concise overview of work remaining to be completed for 
 ### Phase 5: Documentation and Maintenance
 - [ ] **Maintenance Documentation** - Contributing guidelines and development setup
 - [ ] **Licensing** - License selection and application
-- [ ] **Donation Links** - PayPal setup, GitHub sponsors, Patreon integration
+- [ ] **Donation Links** - ✅ **Phase 1 Partially Implemented** - PayPal links added. **Remaining**: Testing. **Phase 2**: GitHub Sponsors (see [enhancements/enhancement-27-phase-2-github-sponsors.md](enhancements/enhancement-27-phase-2-github-sponsors.md)) - requires license first.
 
 ## Complementary Enhancements
 
@@ -55,7 +55,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#24: Unified Dialog Tool Priority (YAD → Zenity → KDialog)** - ✅ **MOSTLY IMPLEMENTED** - Core implementation complete with abstraction layer. **Remaining**: Comprehensive testing across all dialog tools and environments (Wayland/X11/KDE), verify all dialog types work correctly with each tool, test positioning (center/top-left) with all tools
 - [ ] **#25: User-Selectable Dialog Tool** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: configuration option, wizard integration, status display, automated tests passing. **Remaining**: Manual testing (configuration wizard GUI/text mode, status display, popup fallback behavior, service restart persistence)
 - [x] **#26: Prevent uninstall.sh Execution During Restricted Hours** - ✅ **Phase 1 Mostly Implemented, Phase 2 Complete** - Phase 1: Core functionality complete (difficult uninstall verification), testing pending. Phase 2: Implementation complete, unit tests passing (15/15), uninstall lock hours integrated into configure.sh. **Remaining**: Phase 1 comprehensive testing (integration tests, edge cases), Phase 2 integration tests (uninstall.sh behavior, UI testing), verify manual uninstall guide script documentation
-- [ ] **#27: Donation Links** - PayPal setup, GitHub sponsors, Patreon integration - See [enhancements/enhancement-27-paypal-donation-links.md](enhancements/enhancement-27-paypal-donation-links.md)
+- [ ] **#27: Donation Links** - ✅ **Phase 1 Partially Implemented** - PayPal donation links added to README.md, GETTING_STARTED.md, and install.sh completion message. **Remaining**: Testing and verification (link testing, mobile compatibility). **Phase 2**: GitHub Sponsors support planned - see [enhancements/enhancement-27-phase-2-github-sponsors.md](enhancements/enhancement-27-phase-2-github-sponsors.md) (requires license first). See [enhancements/enhancement-27-paypal-donation-links.md](enhancements/enhancement-27-paypal-donation-links.md) for Phase 1 details.
 - [ ] **#28: SteamOS Newbie Installation Guide** - Provide comprehensive installation instructions and helpful error messages specifically for new SteamOS/Steam Deck users, including guidance on setting up sudo password (which is not set by default) and installing required packages like yad
 - [ ] **#29: kdialog Window Size Control** - Try using `--textbox` with `--geometry` for kdialog popups to enable size control, with fallback to `--sorry` if it doesn't work properly. If implemented, make sure kdialog popup is never over 95% of screen, similar to yad and zenity.
 
@@ -84,7 +84,7 @@ This document provides a concise overview of work remaining to be completed for 
 
 - [ ] **Maintenance Documentation** - Contributing guidelines, development setup, coding standards
 - [ ] **Licensing** - Select and apply appropriate license (MIT, GPL, etc.) - See [LICENSE_OPTIONS.md](info/LICENSE_OPTIONS.md) and [plan-phase-5-documentation.md](plan-phase-5-documentation.md#checklist-54-license-selection-and-implementation)
-- [ ] **Donation Integration** - Set up PayPal, GitHub Sponsors, Patreon and integrate into README/docs
+- [ ] **Donation Integration** - ✅ **Phase 1 Partially Implemented** - PayPal links integrated into README.md, GETTING_STARTED.md, and install.sh. **Remaining**: Testing. **Phase 2**: GitHub Sponsors planned (see [enhancements/enhancement-27-phase-2-github-sponsors.md](enhancements/enhancement-27-phase-2-github-sponsors.md)) - requires license first.
 
 ## Code Quality Improvements
 

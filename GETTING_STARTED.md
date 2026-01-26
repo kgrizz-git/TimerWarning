@@ -351,6 +351,14 @@ Now that you have the system installed and configured:
    - [user-docs/CONFIGURATION.md](user-docs/CONFIGURATION.md) - Complete configuration guide
    - [user-docs/USER_GUIDE.md](user-docs/USER_GUIDE.md) - Detailed user guide
 
+## Support Development
+
+If you find this software useful and would like to support future development, donations are greatly appreciated (but completely optional). Your support helps maintain and improve the project.
+
+[Donate via PayPal](https://www.paypal.com/donate/?business=FMVBCJ2CT7L7S&no_recurring=0&item_name=Making+software+I+hope+people+find+useful.+Thank+you+for+supporting+future+development.&currency_code=USD)
+
+Thank you for using Linux Sleep Warning System!
+
 ## Getting Help
 
 ### View Logs

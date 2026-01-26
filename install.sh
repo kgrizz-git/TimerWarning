@@ -779,6 +779,11 @@ print_summary() {
     echo ""
     echo "The timer is now active and will check for restricted hours every $(get_check_interval) minutes."
     echo ""
+    echo "Support Development:"
+    echo "  If you find this software useful, consider supporting future development:"
+    echo -e "  ${BLUE}https://www.paypal.com/donate/?business=FMVBCJ2CT7L7S&no_recurring=0&item_name=Making+software+I+hope+people+find+useful.+Thank+you+for+supporting+future+development.&currency_code=USD${NC}"
+    echo "  (Donations are optional but greatly appreciated)"
+    echo ""
     
     # Show detected mode information (Enhancement #4)
     local service_config_file="${SCRIPT_DIR}/lib/service-config.sh"

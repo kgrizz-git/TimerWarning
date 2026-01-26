@@ -43,6 +43,14 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 - ⬆️ **Always on top** - Popup windows automatically stay above other windows
 - ⏸️ **One-time pause feature** - Temporarily suppress warnings for 5 or 10 minutes once per day
 
+## Support Development
+
+If you find this software useful and would like to support future development, donations are greatly appreciated (but completely optional). Your support helps maintain and improve the project.
+
+[Donate via PayPal](https://www.paypal.com/donate/?business=FMVBCJ2CT7L7S&no_recurring=0&item_name=Making+software+I+hope+people+find+useful.+Thank+you+for+supporting+future+development.&currency_code=USD)
+
+Thank you for using Linux Sleep Warning System!
+
 ## Quick Start
 
 ### Prerequisites

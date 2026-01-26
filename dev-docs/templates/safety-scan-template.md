@@ -213,6 +213,32 @@ For each input point, analyze how the system handles:
   - Too many open file descriptors
   - Process limits reached
 
+- **Signal handling**: Consider:
+  - Scripts receiving SIGTERM/SIGINT during critical operations (config writes, uninstall)
+  - Orphaned processes if parent is killed
+  - Background processes that outlive their parent
+  - Process termination failures (SIGTERM/SIGKILL both fail)
+
+- **System state changes**: Consider:
+  - Timezone changes during execution
+  - System clock adjustments (forward/backward)
+  - Systemd service manager becoming unavailable
+  - Display server disconnection (X11/Wayland)
+  - Network filesystem (NFS) becoming unavailable
+  - Library files being replaced during execution
+
+- **Atomic operations**: Consider:
+  - Config file writes being interrupted (need temp file + rename)
+  - State file writes being interrupted (PID files, uptime files)
+  - Race conditions in file operations
+  - Partial file writes causing corruption
+
+- **Character encoding and special characters**: Consider:
+  - UTF-8 encoding in config files
+  - Unicode characters in config values
+  - Special shell characters (quotes, backslashes, newlines)
+  - Path traversal via special characters
+
 ### Testing Strategy
 
 For each checklist item, consider:
@@ -644,6 +670,116 @@ When documenting issues in the timestamped scan file, include:
 
 ---
 
+### 12. Signal Handling and Process Management
+
+#### 12.1 Signal Handling During Critical Operations
+- [ ] **Verify**: Scripts handle SIGTERM, SIGINT, and SIGHUP gracefully during critical operations
+- [ ] **Check**: Config file writes use atomic operations (temp file + rename) to prevent corruption if interrupted
+- [ ] **Test**: Send SIGTERM/SIGINT to scripts during config file write operations and verify no corruption
+- [ ] **Verify**: Uninstall script handles signals gracefully and doesn't leave partial uninstallation state
+- [ ] **Check**: Timer execution (`sleep-warning.sh`) handles signals without leaving orphaned processes
+- [ ] **Test**: Send signals to popup display processes and verify cleanup occurs properly
+- [ ] **Verify**: No critical operations are performed without signal handlers or atomic file operations
+
+#### 12.2 Orphaned Process Prevention
+- [ ] **Verify**: Background processes (popup timers, window management) check if parent process is still alive
+- [ ] **Check**: PID file cleanup occurs even if parent process is killed unexpectedly
+- [ ] **Test**: Kill parent process during popup display and verify child processes exit or clean up
+- [ ] **Verify**: Systemd service properly manages process lifecycle (no orphaned processes after service stop)
+- [ ] **Check**: Background helper processes (auto-close timers, window keep-on-top) exit when popup closes
+
+#### 12.3 Process Termination Safety
+- [ ] **Verify**: Popup termination (SIGTERM/SIGKILL) doesn't affect other system processes
+- [ ] **Check**: Process termination uses correct PID (not PID reuse vulnerabilities)
+- [ ] **Test**: Verify PID file validation prevents killing wrong processes if PID is reused
+- [ ] **Verify**: Process termination errors are handled gracefully (don't crash script if kill fails)
+
+---
+
+### 13. System State and Environment Safety
+
+#### 13.1 Timezone and Clock Changes
+- [ ] **Verify**: System handles timezone changes gracefully (restrictions adapt to new timezone)
+- [ ] **Check**: Clock adjustments (forward/backward) don't cause lock-out scenarios
+- [ ] **Test**: Change system timezone during restricted hours and verify behavior
+- [ ] **Verify**: System clock changes (manual or NTP) don't bypass time-based restrictions
+- [ ] **Check**: Time calculations use current system time (not cached values) to handle clock changes
+- [ ] **Test**: Set system clock backward during restricted hours and verify restrictions still apply
+
+#### 13.2 Systemd Service Manager Availability
+- [ ] **Verify**: Scripts handle case where systemd user service manager is not running
+- [ ] **Check**: Timer/service operations fail gracefully if systemd is unavailable
+- [ ] **Test**: Stop systemd user service manager and verify scripts handle errors appropriately
+- [ ] **Verify**: No scripts assume systemd is always available without checking
+- [ ] **Check**: Error messages clearly indicate when systemd is required but unavailable
+
+#### 13.3 Display Server Disconnection
+- [ ] **Verify**: Popup display handles X11/Wayland session disconnection gracefully
+- [ ] **Check**: Scripts don't hang if DISPLAY becomes invalid during execution
+- [ ] **Test**: Disconnect X11 session during popup display and verify script handles error
+- [ ] **Verify**: Window management operations fail gracefully if display server unavailable
+- [ ] **Check**: No infinite retries or hanging when display server is unavailable
+
+#### 13.4 Network Filesystem Issues
+- [ ] **Verify**: Scripts handle case where home directory is on NFS/network mount that becomes unavailable
+- [ ] **Check**: Config file operations fail gracefully if filesystem becomes read-only or unavailable
+- [ ] **Test**: Simulate network filesystem disconnection and verify error handling
+- [ ] **Verify**: No scripts hang waiting for network filesystem to become available
+- [ ] **Check**: Error messages indicate filesystem issues clearly
+
+#### 13.5 Environment Variable Safety
+- [ ] **Verify**: Scripts don't trust environment variables for security-sensitive operations
+- [ ] **Check**: PATH variable is not used for locating critical executables (use full paths or `command -v`)
+- [ ] **Test**: Set malicious PATH and verify scripts don't execute wrong binaries
+- [ ] **Verify**: HOME variable is validated before use (not used directly for file operations without validation)
+- [ ] **Check**: No environment variables are used to bypass security checks
+- [ ] **Test**: Set malicious environment variables and verify they don't affect script behavior
+
+---
+
+### 14. Atomic Operations and Data Integrity
+
+#### 14.1 Config File Write Atomicity
+- [ ] **Verify**: All config file writes use atomic operations (temp file + rename pattern)
+- [ ] **Check**: Config file writes don't leave partial/corrupted files if interrupted
+- [ ] **Test**: Interrupt config file write (kill process, power loss simulation) and verify no corruption
+- [ ] **Verify**: Backup operations use atomic writes to prevent backup corruption
+- [ ] **Check**: Snapshot file creation (for config locking) uses atomic operations
+
+#### 14.2 State File Atomicity
+- [ ] **Verify**: PID file writes use atomic operations (temp file + rename)
+- [ ] **Check**: Uptime state file writes are atomic to prevent corruption
+- [ ] **Test**: Interrupt state file writes and verify no corruption or inconsistent state
+- [ ] **Verify**: Lock marker file writes use atomic operations
+- [ ] **Check**: All state files use safe write patterns to prevent race conditions
+
+#### 14.3 Library File Replacement During Execution
+- [ ] **Verify**: Scripts handle case where library files are replaced during execution
+- [ ] **Check**: Library files are sourced once at startup (not re-sourced during execution)
+- [ ] **Test**: Replace library file while script is running and verify behavior
+- [ ] **Verify**: No code re-reads library files during execution (uses already-sourced functions)
+- [ ] **Check**: Library file replacement doesn't cause script to use inconsistent code versions
+
+---
+
+### 15. Unicode and Special Character Handling
+
+#### 15.1 Config File Encoding
+- [ ] **Verify**: Config file parsing handles UTF-8 encoding correctly
+- [ ] **Check**: Non-ASCII characters in config values don't break parsing
+- [ ] **Test**: Configure values with Unicode characters (emojis, accented characters, etc.)
+- [ ] **Verify**: Config file writes preserve UTF-8 encoding
+- [ ] **Check**: Error messages handle non-ASCII characters in config values
+
+#### 15.2 Special Character Injection
+- [ ] **Verify**: Config file parsing handles special shell characters safely (quotes, backslashes, newlines)
+- [ ] **Check**: Special characters in config values don't cause command injection
+- [ ] **Test**: Configure values with quotes, backslashes, newlines, and verify safe handling
+- [ ] **Verify**: File paths with special characters are handled safely
+- [ ] **Check**: Log messages with special characters don't break logging
+
+---
+
 ## Adding New Safety Checks
 
 If during a safety scan (in a timestamped scan file) you identify a new potential issue or vulnerability that is not covered in this master checklist, **add it to this master template** (safety-scan-template.md):
@@ -701,9 +837,14 @@ After completing a safety scan (in your timestamped scan file):
 
 ## Last Updated
 
-- **Date**: 2026-01-22
+- **Date**: 2026-01-26
 - **Version**: Current
 - **Changes**: 
   - Added Section 11 "File Safety and Unintended File Operations" to verify that scripts only affect intended files and never remove or modify files from the project directory or unrelated files outside installation locations
   - Added "General Security Practices Review" subsection to Analysis Methodology section
   - Added Section 4.5 "General Security Practices Review" checklist items for common security vulnerabilities and poor security practices
+  - Added Section 12 "Signal Handling and Process Management" to verify graceful signal handling, orphaned process prevention, and safe process termination
+  - Added Section 13 "System State and Environment Safety" to verify handling of timezone changes, systemd availability, display server disconnection, network filesystem issues, and environment variable safety
+  - Added Section 14 "Atomic Operations and Data Integrity" to verify atomic file writes for config files, state files, and handling of library file replacement during execution
+  - Added Section 15 "Unicode and Special Character Handling" to verify proper handling of UTF-8 encoding, Unicode characters, and special shell characters in config values
+  - Enhanced Analysis Methodology section with additional considerations for signal handling, system state changes, atomic operations, and character encoding

@@ -864,10 +864,10 @@ The `manage.sh` script provides a comprehensive management interface and help sy
 5. **Quick Actions**: Provides one-click disable/enable with confirmation
 6. **Configuration Access**: Quick launch of configuration wizard
 7. **Logs Viewer**: Displays recent service logs for troubleshooting
-8. **Uninstall Information**: Explains uninstall process
-9. **File Locations**: Shows where all files are installed
+8. **Pause Status**: Shows pause feature status (enabled/disabled, current pause state, duration)
+9. **Uninstall Information**: Explains uninstall process
 10. **Help and Information**: Provides overview and usage information
-11. **GUI and Text Modes**: Works with GUI (zenity) or text menu
+11. **GUI and Text Modes**: Works with GUI (zenity/yad/kdialog) or text menu
 
 **Usage:**
 ```bash
@@ -885,8 +885,9 @@ sleep-warning-manage
 - Temporarily disable service
 - Re-enable service
 - View service logs
-- Show file locations
-- Show help/information
+- View pause status
+- Uninstall information
+- Help and information
 - Exit
 
 ## Systemd Service Environment Detection (Enhancement #4)
