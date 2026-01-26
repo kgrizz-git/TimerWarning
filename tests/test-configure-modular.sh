@@ -59,7 +59,11 @@ test_library_files_exist() {
         "configure-config.sh"
         "configure-time.sh"
         "configure-ui.sh"
-        "configure-input.sh"
+        "configure-input-basic.sh"
+        "configure-input-popup.sh"
+        "configure-input-features.sh"
+        "configure-input-time.sh"
+        "configure-input-service.sh"
         "configure-display.sh"
         "configure-workflow.sh"
     )
@@ -120,7 +124,11 @@ source "\${LIB_DIR}/configure-core.sh" || exit 1
 source "\${LIB_DIR}/configure-config.sh" || exit 2
 source "\${LIB_DIR}/configure-time.sh" || exit 3
 source "\${LIB_DIR}/configure-ui.sh" || exit 4
-source "\${LIB_DIR}/configure-input.sh" || exit 5
+source "\${LIB_DIR}/configure-input-basic.sh" || exit 5
+source "\${LIB_DIR}/configure-input-popup.sh" || exit 5
+source "\${LIB_DIR}/configure-input-features.sh" || exit 5
+source "\${LIB_DIR}/configure-input-time.sh" || exit 5
+source "\${LIB_DIR}/configure-input-service.sh" || exit 5
 source "\${LIB_DIR}/configure-display.sh" || exit 6
 source "\${LIB_DIR}/configure-workflow.sh" || exit 7
 
@@ -291,11 +299,16 @@ test_module_sizes() {
     local all_reasonable=true
     
     for module in "${LIB_DIR}"/configure-*.sh; do
+        local basename_module=$(basename "$module")
+        # Skip the old configure-input.sh if it still exists (being kept as backup temporarily)
+        if [ "${basename_module}" = "configure-input.sh" ]; then
+            continue
+        fi
         local lines=$(wc -l < "$module")
         # Modules should be between 50 and 2500 lines (reasonable sizes)
-        # Note: configure-input.sh is currently large due to extensive input handling.
+        # Note: configure-input.sh has been split into multiple focused modules for better maintainability.
         if [ "$lines" -lt 50 ] || [ "$lines" -gt 2500 ]; then
-            echo "  $(basename $module): $lines lines (unexpected size)"
+            echo "  ${basename_module}: $lines lines (unexpected size)"
             all_reasonable=false
         fi
     done

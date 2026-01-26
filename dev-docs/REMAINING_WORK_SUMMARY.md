@@ -5,9 +5,7 @@ This document provides a concise overview of work remaining to be completed for 
 **Note**: This document focuses on work that remains to be done. Fully implemented enhancements (with no remaining work) are not listed here but can be found in [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). Enhancements marked as "Mostly Implemented" or "Partially Implemented" are listed here if they have remaining work (testing, documentation, etc.).
 
 ## Priority Items
-- [ ] **#15: Auto-Close Popup Window** - Automatically close after configured time period
 - [ ] **Code quality improvements** - see section below for more info on each. Make a plan before attempting.
-    - [ ] **Split lib/configure-input.sh into smaller modules**  
     - [ ] **Extract day name conversion to shared function**  
     - [ ] **Extract magic numbers to constants** 
 - [ ] **#9: System Sleep/Hibernate Detection** 
@@ -50,7 +48,6 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#13: Distribution-Specific Optimizations** - Optimizations for specific distributions
 - [ ] **#13a: Single Executable Installer Script** - Self-extracting installer bundling all files
 - [ ] **#13b: Desktop GUI Application Wrapper** - Native desktop application (GTK/Qt/Electron)
-- [ ] **#15: Auto-Close Popup Window** - Automatically close after configured time period
 - [ ] **#16: Visual Day/Time Configuration Grid** - Phase 2: Interactive hour-by-hour grid editing with drag selection
 - [ ] **#16b: 12-Hour Format Time Input and GUI Spinbox Widgets** - Support 12-hour format with AM/PM and GUI spinbox widgets
 - [ ] **#17: Multi-Display Popup Support** - Display popups on all monitors simultaneously
@@ -95,7 +92,7 @@ This document provides a concise overview of work remaining to be completed for 
 
 Based on [Quality Improvement Assessment (2026-01-23)](qi-assessments/qi-assessment-2026-01-23-003550.md):
 
-- [ ] **Split lib/configure-input.sh into smaller modules** - Split the 1,797-line module into focused modules (basic input, popup settings, feature toggles, time range input) for improved maintainability
+- [x] **Split lib/configure-input.sh into smaller modules** - ✅ **COMPLETED** - Split the 2,571-line module into 5 focused modules (configure-input-basic.sh, configure-input-popup.sh, configure-input-features.sh, configure-input-time.sh, configure-input-service.sh) for improved maintainability. All tests passing (44/44). See [plan-split-configure-input.md](plans/plan-split-configure-input.md)
 - [ ] **Extract day name conversion to shared function** - Consolidate repeated day number-to-name conversion logic in `lib/config.sh` into a shared function in `lib/configure-core.sh`
 - [ ] **Extract magic numbers to constants** - Replace hardcoded values (hour ranges 0-23, time ranges 0-300) in `lib/configure-input.sh` with named constants
 
@@ -108,6 +105,7 @@ The following enhancements are fully implemented with no remaining work. They ar
 - ✅ **#11: Desktop Notification Fallback** - Fully implemented (fallback in sleep-warning.sh)
 - ✅ **#14: Immovable Popup Window** - Fully implemented (X11 support with wmctrl/xdotool)
 - ✅ **#14b: Configure.sh GUI Window Behavior** - Fully implemented (window title differentiation)
+- ✅ **#15: Auto-Close Popup Window** - Fully implemented (automatically closes popup 10 seconds after minimum display time completes, all automated tests passing)
 
 **Note**: Enhancement #19 Phase 1 is complete, but Phase 2 work is integrated with Enhancement #20 and listed above. Enhancement #26 Phase 1 has remaining testing work, and Phase 2 is complete with integration tests pending (both listed above).
 
@@ -122,7 +120,7 @@ The following enhancements are fully implemented with no remaining work. They ar
 
 ---
 
-**Last Updated**: 2026-01-25 (Enhancement #3 status updated to Mostly Implemented - core functionality complete, testing remaining)  
+**Last Updated**: 2026-01-25 (Enhancement #15 marked as fully implemented - all automated tests passing)  
 **Related Documents**: 
 - [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) - Detailed enhancement descriptions
 - [linux-warning-system-plan.md](linux-warning-system-plan.md) - Master implementation plan

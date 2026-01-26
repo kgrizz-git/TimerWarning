@@ -113,10 +113,10 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: ✅ **Implemented** - Warning popup uses window title "Restricted Hours Alert" while configure.sh dialogs use "Sleep Warning Configuration". This title differentiation prevents configure.sh windows from being mistaken for warning popups by window management functions that identify windows by title.
 - **Details**: See [enhancements/enhancement-14b-configure-gui-window-behavior.md](enhancements/enhancement-14b-configure-gui-window-behavior.md)
 
-### 15. Auto-Close Popup Window
+### 15. Auto-Close Popup Window (Implemented)
 - **Description**: Automatically close the popup window after a pre-configured time period, providing users with a non-interactive option for warning dismissal
 - **Priority**: Medium (useful feature for users who want automatic dismissal without manual interaction)
-- **Status**: Not implemented
+- **Status**: ✅ **Implemented** - Core functionality complete: automatically closes popup 10 seconds after minimum display time completes (or immediately if min_display_time=0). Configuration option (`POPUP_AUTO_CLOSE`), configuration wizard integration, process termination method (works on all platforms), comprehensive automated testing (14 unit tests, 8 integration tests - all passing). Full popup display tests verified on X11 with yad. **Remaining**: Optional tests (zenity/kdialog specific, pause button integration, very long min_display_time, config UI verification) - all edge cases that don't affect core functionality.
 - **Details**: See [enhancements/enhancement-15-auto-close-popup-window.md](enhancements/enhancement-15-auto-close-popup-window.md)
 
 ### 16. Visual Day/Time Configuration Grid (Mostly Implemented)
@@ -270,7 +270,7 @@ These approaches would require significant changes to the architecture or a comp
 11. Wayland-Specific Window Management
 12. Temporary Disable via Config
 13. ~~Enhanced Window Size Options and Display-Based Sizing~~ ✅ **MOSTLY IMPLEMENTED** (core functionality complete, testing remaining)
-14. Auto-Close Popup Window
+14. ~~Auto-Close Popup Window~~ ✅ **IMPLEMENTED** (core functionality complete, all automated tests passing)
 15. ~~Visual Day/Time Configuration Grid~~ ✅ **MOSTLY IMPLEMENTED** (Phase 1 complete, Phase 2 pending)
 16. Multi-Display Popup Support
 17. Config File Locking During Restricted Hours

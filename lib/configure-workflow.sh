@@ -17,7 +17,7 @@
 # - configure-core.sh (for DAY_NAMES, DAY_VARS, has_dialog_tool)
 # - configure-dialogs.sh (for show_info_dialog)
 # - configure-ui.sh (for ask_weekday_together, ask_weekend_together, ask_what_to_edit)
-# - configure-input.sh (for get_day_hours)
+# - configure-input-time.sh (for get_day_hours)
 ###############################################################################
 
 configure_weekdays_section() {
