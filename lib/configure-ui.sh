@@ -377,7 +377,7 @@ show_24_7_error() {
     local title="ERROR: 24/7 Restrictions Detected"
     local message="🚨 ⚠️  CRITICAL ERROR  ⚠️  🚨
 
-You have configured restrictions for all 24 hours, 7 days a week.
+The combined total of restriction hours and additional lock hours covers all 24 hours, 7 days a week.
 
 This would effectively lock you out of your computer.
 
@@ -393,7 +393,7 @@ Configuration cannot be saved until you reduce the restriction level."
         echo "🚨 ⚠️  ERROR: 24/7 Restrictions Detected  ⚠️  🚨" >&2
         echo "========================================" >&2
         echo "" >&2
-        echo "You have configured restrictions for all 24 hours, 7 days a week." >&2
+        echo "The combined total of restriction hours and additional lock hours covers all 24 hours, 7 days a week." >&2
         echo "This would effectively lock you out of your computer." >&2
         echo "" >&2
         echo "Please modify your settings to leave at least some unrestricted time." >&2
@@ -412,13 +412,14 @@ show_high_restriction_warning() {
     local title="Warning: Very High Restriction Level"
     local message="⚠️  ⚠️  WARNING  ⚠️  ⚠️
 
-You have configured restrictions for more than 16 hours per day.
+The combined total of restriction hours and additional lock hours exceeds 16 hours per day.
 
 This leaves very little unrestricted time and may effectively lock you out.
 
 Safety measures will be applied:
 • Config locking features will be disabled
 • Popup size will be limited to small/medium
+• Additional lock hours will be cleared
 
 Do you want to save this configuration anyway?"
     
@@ -429,12 +430,13 @@ Do you want to save this configuration anyway?"
         echo "" >&2
         echo "⚠️  ⚠️  WARNING: Very High Restriction Level  ⚠️  ⚠️" >&2
         echo "" >&2
-        echo "You have configured restrictions for more than 16 hours per day." >&2
+        echo "The combined total of restriction hours and additional lock hours exceeds 16 hours per day." >&2
         echo "This leaves very little unrestricted time and may effectively lock you out." >&2
         echo "" >&2
         echo "Safety measures will be applied:" >&2
         echo "• Config locking features will be disabled" >&2
         echo "• Popup size will be limited to small/medium" >&2
+        echo "• Additional lock hours will be cleared" >&2
         echo "" >&2
         read -p "Save anyway? [y/N]: " answer
         case "${answer}" in

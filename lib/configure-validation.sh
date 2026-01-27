@@ -101,118 +101,47 @@ merge_overlapping_intervals() {
 }
 
 ###############################################################################
-# Check Total Restriction Coverage Across All Days
+# Process Hours Array to Intervals
 #
 # Purpose:
-#   Validates configuration to prevent users from accidentally configuring
-#   24/7 restrictions (all 24 hours, 7 days a week) which would effectively
-#   lock them out of their computer. Also detects high restriction levels
-#   (> HOURS_PER_DAY_WARN hours/day, default: 16 hours/day) and warns the user.
+#   Helper function to process any hours array (restriction hours, lock hours,
+#   or uninstall lock hours) and convert time ranges to minute-level intervals
+#   on the unified weekly timeline.
 #
-# Algorithm Overview:
-#   1. Parse all time ranges from config_lines array (7 days: Sunday-Saturday)
-#   2. Convert each range to minute-level intervals on unified weekly timeline
-#      - Normal ranges: [start_hour×60, end_hour×60) on same day
-#      - Overnight ranges: split into two segments spanning midnight
-#   3. Map all intervals to absolute minutes (0-10079) across entire week
-#   4. Merge overlapping/adjacent intervals (handles both within-day and cross-day overlaps)
-#   5. Calculate total restricted minutes from merged intervals
-#   6. Compare against thresholds to determine validation result
-#
-# Input:
-#   config_lines array: Array of 7 strings (indices 0-6: Sunday-Saturday)
-#   Format: "DAYVAR=RANGE" or "DAYVAR=" for skipped days
-#   Examples:
-#     - "SUNDAY=0-5"        → Sunday hours 0-4 (5 hours)
-#     - "MONDAY=0-5,22-23"  → Monday hours 0-4 and 22-23 (7 hours total)
-#     - "TUESDAY=23-6"      → Tuesday 23:00 → Wednesday 5:59 (overnight, 7 hours)
-#     - "WEDNESDAY="        → Wednesday skipped (0 hours)
+# Parameters:
+#   $1 - hours_array: Array of hour configuration lines
+#        Format: "DAYVAR=RANGE" or "CONFIG_LOCK_HOURS_DAYVAR=RANGE" or "UNINSTALL_LOCK_HOURS_DAYVAR=RANGE"
+#   $2 - intervals_ref: Name of array to append intervals to (pass by reference)
 #
 # Output:
-#   Returns one of three strings via stdout:
-#   - "ok"    : Valid configuration (<= 6720 minutes, <= 16 hours/day)
-#   - "warn"  : High restriction level (> 6720 minutes, > 16 hours/day, but < 10080)
-#   - "block" : 24/7 restrictions detected (>= 10080 minutes, all 24 hours × 7 days)
+#   Appends interval strings in format "START:END" to the intervals_ref array
 #
-# Usage:
-#   result=$(check_restriction_coverage "${config_lines[@]}")
-#   case "${result}" in
-#       "block") # Show error, prevent saving ;;
-#       "warn")  # Show warning, allow confirmation ;;
-#       "ok")    # Proceed normally ;;
-#   esac
+# Algorithm:
+#   - Extracts day index from line prefix (SUNDAY=0, MONDAY=1, etc.)
+#   - Parses time ranges (handles comma-separated and overnight ranges)
+#   - Converts to minute-level intervals on unified timeline
+#   - Handles overnight ranges by splitting into two segments
 #
-# Time Range Semantics:
-#   - Hour ranges are inclusive of start hour, exclusive of end hour
-#   - Example: "0-23" covers hours 0-22 (23 hours: 00:00-22:59)
-#   - Example: "0-5" covers hours 0-4 (5 hours: 00:00-04:59)
-#   - To cover all 24 hours, use combination like "0-12,12-0"
-#
-# Overnight Range Handling:
-#   - Overnight ranges identified when start_hour > end_hour (e.g., "23-6")
-#   - Split into two segments:
-#     Segment 1: [start_hour×60, 1440) on current day
-#     Segment 2: [0, end_hour×60) on next day
-#   - Handles wrap-around: Saturday overnight ranges wrap to Sunday
-#
-# Overlap Detection:
-#   - Within-day overlaps: Multiple ranges on same day (e.g., "0-10,9-23")
-#   - Cross-day overlaps: Overnight ranges overlap with next day's ranges
-#     Example: Monday "23-6" and Tuesday "0-5" overlap at hours 0-5
-#   - All overlaps are automatically merged to avoid double-counting
-#
-# Thresholds:
-#   Thresholds are defined globally in configure-core.sh:
-#   - THRESHOLD_BLOCK = HOURS_PER_DAY_BLOCK × 60 × 7 (default: 24 hours/day = 10080 minutes)
-#     → Configuration blocked if total >= THRESHOLD_BLOCK
-#   - THRESHOLD_WARN = HOURS_PER_DAY_WARN × 60 × 7 (default: 16 hours/day = 6720 minutes)
-#     → Warning shown if total > THRESHOLD_WARN but < THRESHOLD_BLOCK
-#   - Boundary cases:
-#     * Exactly THRESHOLD_WARN minutes: returns "ok" (no warning)
-#     * Exactly (THRESHOLD_BLOCK - 1) minutes: returns "warn" (high but not 24/7)
-#     * Exactly THRESHOLD_BLOCK minutes: returns "block" (24/7 detected)
-#   To change thresholds, modify HOURS_PER_DAY_WARN or HOURS_PER_DAY_BLOCK in configure-core.sh
-#
-# Performance:
-#   Time complexity: O(n log n) where n = total number of time ranges
-#   Space complexity: O(n) for interval arrays
-#   Runs once per configuration save (not continuously)
-#
-# Error Handling:
-#   - Invalid hour values (< 0 or > 23): skipped silently
-#   - Invalid range format: skipped silently (should be caught by format validation first)
-#   - Empty days: counted as 0 restricted minutes
-#   - No restrictions configured: returns "ok" immediately
-#
-# Related:
-#   - Enhancement #22: Prevent 24/7 Restriction Configuration
-#   - lib/time-validation.sh: Time range format validation
-#   - lib/configure-ui.sh: Error/warning dialogs (show_24_7_error, show_high_restriction_warning)
+# Example:
+#   process_hours_array "config_lines" "all_intervals"
+#   # Processes all entries in config_lines array and adds intervals to all_intervals
 ###############################################################################
-check_restriction_coverage() {
-    local config_lines=("$@")
-    local all_intervals=()
-    
-    # Constants for time calculations
-    # These constants define the time units used in the unified weekly timeline
-    # Use centralized readonly constants from configure-core.sh (MINUTES_PER_DAY, MINUTES_PER_WEEK)
-    
-    # Validation thresholds are defined globally in configure-core.sh:
-    # - THRESHOLD_BLOCK: 24/7 restrictions (calculated from HOURS_PER_DAY_BLOCK)
-    # - THRESHOLD_WARN: High restriction level (calculated from HOURS_PER_DAY_WARN)
-    # These are used directly from the global scope
+process_hours_array() {
+    local -n hours_array_ref="$1"  # Pass array by reference
+    local -n intervals_ref="$2"    # Pass intervals array by reference
     
     # Process each day (indices 0-6: Sunday-Saturday)
     for i in 0 1 2 3 4 5 6; do
-        local line="${config_lines[$i]}"
+        local line="${hours_array_ref[$i]}"
         
         # Skip empty entries (day not configured)
         if [ -z "${line}" ]; then
             continue
         fi
         
-        # Parse format: "DAYVAR=RANGE" (e.g., "SUNDAY=0-5" or "MONDAY=")
-        local range="${line#*=}"  # Extract everything after '='
+        # Parse format: "DAYVAR=RANGE" or "CONFIG_LOCK_HOURS_DAYVAR=RANGE" or "UNINSTALL_LOCK_HOURS_DAYVAR=RANGE"
+        # Extract everything after '=' (the range part)
+        local range="${line#*=}"
         
         # Skip if range is empty (day explicitly skipped)
         if [ -z "${range}" ]; then
@@ -269,22 +198,218 @@ check_restriction_coverage() {
                 # Segment 1: From start hour to end of current day
                 # Example: "23-6" on Monday → [1380, 1440) = Monday 23:00-23:59
                 local day_end=$((day_offset + MINUTES_PER_DAY))
-                all_intervals+=("$((day_offset + start_minute)):${day_end}")
+                intervals_ref+=("$((day_offset + start_minute)):${day_end}")
                 
                 # Segment 2: From start of next day to end hour
                 # Example: "23-6" on Monday → [0, 360) = Tuesday 00:00-05:59
                 # Handle wrap-around: Saturday (day 6) → Sunday (day 0)
                 local next_day=$(((i + 1) % 7))
                 local next_offset=$((next_day * MINUTES_PER_DAY))
-                all_intervals+=("${next_offset}:$((next_offset + end_minute))")
+                intervals_ref+=("${next_offset}:$((next_offset + end_minute))")
             else
                 # Normal range: start hour <= end hour (e.g., "0-5", "9-17")
                 # Single segment on current day: [start_minute, end_minute)
                 # Example: "0-5" on Monday → [1440, 1740) = Monday 00:00-04:59
-                all_intervals+=("$((day_offset + start_minute)):$((day_offset + end_minute))")
+                intervals_ref+=("$((day_offset + start_minute)):$((day_offset + end_minute))")
             fi
         done
     done
+}
+
+###############################################################################
+# Check Total Restriction Coverage Across All Days
+#
+# Purpose:
+#   Validates configuration to prevent users from accidentally configuring
+#   24/7 restrictions (all 24 hours, 7 days a week) which would effectively
+#   lock them out of their computer. Also detects high restriction levels
+#   (> HOURS_PER_DAY_WARN hours/day, default: 16 hours/day) and warns the user.
+#
+#   **EXTENDED**: Now validates the combined total of:
+#   - Restriction hours (main schedule for sleep warnings)
+#   - Config lock hours (additional hours for config locking and configure.sh blocking)
+#   - Uninstall lock hours (additional hours for difficult uninstall verification)
+#
+# Algorithm Overview:
+#   1. Parse arguments to separate three array types (restriction, lock, uninstall lock)
+#   2. Process each array type to convert time ranges to minute-level intervals
+#   3. Combine all intervals into unified weekly timeline (0-10079 minutes)
+#   4. Merge overlapping/adjacent intervals (handles overlaps within and across types)
+#   5. Calculate total restricted minutes from merged intervals
+#   6. Compare against thresholds to determine validation result
+#
+# Input:
+#   Variable number of arguments containing:
+#   - config_lines: Array of restriction hour lines (format: "DAYVAR=RANGE")
+#   - lock_hours_lines: Array of config lock hour lines (format: "CONFIG_LOCK_HOURS_DAYVAR=RANGE")
+#   - uninstall_lock_hours_lines: Array of uninstall lock hour lines (format: "UNINSTALL_LOCK_HOURS_DAYVAR=RANGE")
+#
+#   Arrays are detected by pattern matching:
+#   - Lines starting with "CONFIG_LOCK_HOURS_" → lock_hours_lines
+#   - Lines starting with "UNINSTALL_LOCK_HOURS_" → uninstall_lock_hours_lines
+#   - Lines matching "^(SUNDAY|MONDAY|...|SATURDAY)=" → config_lines
+#
+#   Examples:
+#     - "SUNDAY=0-5"        → Sunday restriction hours 0-4 (5 hours)
+#     - "CONFIG_LOCK_HOURS_MONDAY=9-17" → Monday lock hours 9-16 (8 hours)
+#     - "UNINSTALL_LOCK_HOURS_TUESDAY=23-6" → Tuesday uninstall lock hours 23:00-05:59 (7 hours)
+#
+# Output:
+#   Returns one of three strings via stdout:
+#   - "ok"    : Valid configuration (<= 6720 minutes, <= 16 hours/day)
+#   - "warn"  : High restriction level (> 6720 minutes, > 16 hours/day, but < 10080)
+#   - "block" : 24/7 restrictions detected (>= 10080 minutes, all 24 hours × 7 days)
+#
+# Usage:
+#   # Pass all three arrays (backward compatible if only config_lines passed)
+#   result=$(check_restriction_coverage "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}")
+#   case "${result}" in
+#       "block") # Show error, prevent saving ;;
+#       "warn")  # Show warning, allow confirmation ;;
+#       "ok")    # Proceed normally ;;
+#   esac
+#
+# Time Range Semantics:
+#   - Hour ranges are inclusive of start hour, exclusive of end hour
+#   - Example: "0-23" covers hours 0-22 (23 hours: 00:00-22:59)
+#   - Example: "0-5" covers hours 0-4 (5 hours: 00:00-04:59)
+#   - To cover all 24 hours, use combination like "0-12,12-0"
+#
+# Overnight Range Handling:
+#   - Overnight ranges identified when start_hour > end_hour (e.g., "23-6")
+#   - Split into two segments:
+#     Segment 1: [start_hour×60, 1440) on current day
+#     Segment 2: [0, end_hour×60) on next day
+#   - Handles wrap-around: Saturday overnight ranges wrap to Sunday
+#
+# Overlap Detection:
+#   - Within-day overlaps: Multiple ranges on same day (e.g., "0-10,9-23")
+#   - Cross-day overlaps: Overnight ranges overlap with next day's ranges
+#   - Cross-type overlaps: Different hour types overlap on same day
+#     Example: Restriction "0-8", Lock "7-15", Uninstall "10-18" all overlap
+#   - All overlaps are automatically merged to avoid double-counting
+#
+# Validation Scope:
+#   - Always validates additional hours regardless of feature enablement
+#   - This prevents dangerous configurations even if features are disabled
+#   - Safety check, not runtime check
+#
+# Thresholds:
+#   Thresholds are defined globally in configure-core.sh:
+#   - THRESHOLD_BLOCK = HOURS_PER_DAY_BLOCK × 60 × 7 (default: 24 hours/day = 10080 minutes)
+#     → Configuration blocked if total >= THRESHOLD_BLOCK
+#   - THRESHOLD_WARN = HOURS_PER_DAY_WARN × 60 × 7 (default: 16 hours/day = 6720 minutes)
+#     → Warning shown if total > THRESHOLD_WARN but < THRESHOLD_BLOCK
+#   - Boundary cases:
+#     * Exactly THRESHOLD_WARN minutes: returns "ok" (no warning)
+#     * Exactly (THRESHOLD_BLOCK - 1) minutes: returns "warn" (high but not 24/7)
+#     * Exactly THRESHOLD_BLOCK minutes: returns "block" (24/7 detected)
+#   To change thresholds, modify HOURS_PER_DAY_WARN or HOURS_PER_DAY_BLOCK in configure-core.sh
+#
+# Performance:
+#   Time complexity: O(n log n) where n = total number of time ranges across all types
+#   Space complexity: O(n) for interval arrays
+#   Runs once per configuration save (not continuously)
+#
+# Error Handling:
+#   - Invalid hour values (< 0 or > 23): skipped silently
+#   - Invalid range format: skipped silently (should be caught by format validation first)
+#   - Empty days: counted as 0 restricted minutes
+#   - No restrictions configured: returns "ok" immediately
+#   - Backward compatible: If only config_lines passed, works as before
+#
+# Related:
+#   - Enhancement #22: Prevent 24/7 Restriction Configuration
+#   - Enhancement #20: Additional Hours for Config Locking
+#   - Enhancement #26 Phase 2: Additional Uninstall Lock Hours
+#   - lib/time-validation.sh: Time range format validation
+#   - lib/configure-ui.sh: Error/warning dialogs (show_24_7_error, show_high_restriction_warning)
+###############################################################################
+check_restriction_coverage() {
+    local all_args=("$@")
+    local all_intervals=()
+    
+    # Parse arguments to separate three array types
+    # Pattern detection (same approach as write_config() uses):
+    # - CONFIG_LOCK_HOURS_ prefix → lock_hours_lines
+    # - UNINSTALL_LOCK_HOURS_ prefix → uninstall_lock_hours_lines
+    # - Day name patterns (SUNDAY=, MONDAY=, etc.) → config_lines
+    local config_lines=()
+    local lock_hours_lines=()
+    local uninstall_lock_hours_lines=()
+    
+    for arg in "${all_args[@]}"; do
+        if [[ "${arg}" =~ ^CONFIG_LOCK_HOURS_ ]]; then
+            # Lock hours line (e.g., "CONFIG_LOCK_HOURS_MONDAY=9-17")
+            # Extract day index from day name in the line
+            local day_name="${arg#CONFIG_LOCK_HOURS_}"
+            day_name="${day_name%%=*}"
+            local day_index
+            case "${day_name}" in
+                SUNDAY) day_index=0 ;;
+                MONDAY) day_index=1 ;;
+                TUESDAY) day_index=2 ;;
+                WEDNESDAY) day_index=3 ;;
+                THURSDAY) day_index=4 ;;
+                FRIDAY) day_index=5 ;;
+                SATURDAY) day_index=6 ;;
+                *) continue ;;  # Skip invalid day name
+            esac
+            lock_hours_lines[${day_index}]="${arg}"
+        elif [[ "${arg}" =~ ^UNINSTALL_LOCK_HOURS_ ]]; then
+            # Uninstall lock hours line (e.g., "UNINSTALL_LOCK_HOURS_MONDAY=9-17")
+            # Extract day index from day name in the line
+            local day_name="${arg#UNINSTALL_LOCK_HOURS_}"
+            day_name="${day_name%%=*}"
+            local day_index
+            case "${day_name}" in
+                SUNDAY) day_index=0 ;;
+                MONDAY) day_index=1 ;;
+                TUESDAY) day_index=2 ;;
+                WEDNESDAY) day_index=3 ;;
+                THURSDAY) day_index=4 ;;
+                FRIDAY) day_index=5 ;;
+                SATURDAY) day_index=6 ;;
+                *) continue ;;  # Skip invalid day name
+            esac
+            uninstall_lock_hours_lines[${day_index}]="${arg}"
+        elif [[ "${arg}" =~ ^(SUNDAY|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY)= ]]; then
+            # Restriction hours line (e.g., "MONDAY=0-5")
+            # Extract day index from day name
+            local day_name="${arg%%=*}"
+            local day_index
+            case "${day_name}" in
+                SUNDAY) day_index=0 ;;
+                MONDAY) day_index=1 ;;
+                TUESDAY) day_index=2 ;;
+                WEDNESDAY) day_index=3 ;;
+                THURSDAY) day_index=4 ;;
+                FRIDAY) day_index=5 ;;
+                SATURDAY) day_index=6 ;;
+                *) continue ;;  # Skip invalid day name
+            esac
+            config_lines[${day_index}]="${arg}"
+        fi
+    done
+    
+    # Process restriction hours (existing behavior - backward compatible)
+    process_hours_array "config_lines" "all_intervals"
+    
+    # Process lock hours (new - Enhancement #20)
+    process_hours_array "lock_hours_lines" "all_intervals"
+    
+    # Process uninstall lock hours (new - Enhancement #26 Phase 2)
+    process_hours_array "uninstall_lock_hours_lines" "all_intervals"
+    
+    # Constants for time calculations
+    # These constants define the time units used in the unified weekly timeline
+    # Use centralized readonly constants from configure-core.sh (MINUTES_PER_DAY, MINUTES_PER_WEEK)
+    
+    # Validation thresholds are defined globally in configure-core.sh:
+    # - THRESHOLD_BLOCK: 24/7 restrictions (calculated from HOURS_PER_DAY_BLOCK)
+    # - THRESHOLD_WARN: High restriction level (calculated from HOURS_PER_DAY_WARN)
+    # These are used directly from the global scope
+    
     
     # Handle case where no restrictions are configured
     if [ ${#all_intervals[@]} -eq 0 ]; then

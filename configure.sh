@@ -472,12 +472,19 @@ main() {
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
                 if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${configure_block_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}"; then
                     # Validate restriction coverage before saving
+                    # Pass all three arrays: restriction hours, lock hours, and uninstall lock hours
+                    # The validation function will combine all three types and check the total
                     local validation_result
-                    validation_result=$(check_restriction_coverage "${config_lines[@]}")
+                    validation_result=$(check_restriction_coverage \
+                        "${config_lines[@]}" \
+                        "${lock_hours_lines[@]}" \
+                        "${uninstall_lock_hours_lines[@]}")
                     
                     # Track whether safety overrides were applied (for config file comments)
                     local popup_size_overridden=""
                     local configure_block_overridden=""
+                    local lock_hours_cleared=""
+                    local uninstall_lock_hours_cleared=""
                     
                     case "${validation_result}" in
                         "block")
@@ -522,6 +529,26 @@ main() {
                                 # Note: Enhancement #22 integration - automatically disable if restrictions > 6720 minutes
                                 # This is a safety measure to prevent lockout scenarios
                             fi
+                            
+                            # Safety override 4: Clear additional lock hours completely (Enhancement #20)
+                            # This prevents accidental lockout when combined with restriction hours
+                            # Decision: Clear completely (set all to empty) - safest approach
+                            for i in 0 1 2 3 4 5 6; do
+                                if [ -n "${lock_hours_lines[$i]:-}" ]; then
+                                    lock_hours_lines[$i]=""
+                                    lock_hours_cleared="true"
+                                fi
+                            done
+                            
+                            # Safety override 5: Clear additional uninstall lock hours completely (Enhancement #26 Phase 2)
+                            # This prevents accidental lockout when combined with restriction hours
+                            # Decision: Clear completely (set all to empty) - safest approach
+                            for i in 0 1 2 3 4 5 6; do
+                                if [ -n "${uninstall_lock_hours_lines[$i]:-}" ]; then
+                                    uninstall_lock_hours_lines[$i]=""
+                                    uninstall_lock_hours_cleared="true"
+                                fi
+                            done
                             ;;
                         # "ok" - proceed normally with saving (no overrides)
                     esac
@@ -530,7 +557,8 @@ main() {
                     # Pass restriction config_lines, lock_hours_lines (Phase 2), and uninstall_lock_hours_lines (Enhancement #26 Phase 2),
                     # followed by optional safety override flags so write_config can add comments.
                     # Enhancement #3: Include popup_size_mode, popup_size_custom, and popup_size_custom_absolute
-                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${dialog_tool}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}"; then
+                    # Enhancement #22 extension: Include override flags for clearing additional hours
+                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${dialog_tool}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}" "${lock_hours_cleared}" "${uninstall_lock_hours_cleared}"; then
                         # Update timer file if it exists
                         if [ -f "${TIMER_FILE}" ]; then
                             if update_timer_file "${check_interval}"; then

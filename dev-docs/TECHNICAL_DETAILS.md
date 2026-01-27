@@ -405,9 +405,14 @@ The configuration wizard includes a critical safety feature that prevents users 
 
 ### Validation Algorithm
 
-The validation uses a **holistic time coverage analysis** that evaluates all 7 days together:
+The validation uses a **holistic time coverage analysis** that evaluates all 7 days together and includes **all three types of hours**:
 
-1. **Unified Timeline Mapping**: All time ranges are converted to a unified weekly timeline (minutes 0-10079)
+1. **Input Processing**: The validation function accepts three types of hour configurations:
+   - **Restriction hours** (`config_lines[]`): Main schedule for sleep warnings (format: "DAYVAR=RANGE")
+   - **Config lock hours** (`lock_hours_lines[]`): Additional hours for config locking and configure.sh blocking (format: "CONFIG_LOCK_HOURS_DAYVAR=RANGE")
+   - **Uninstall lock hours** (`uninstall_lock_hours_lines[]`): Additional hours for difficult uninstall verification (format: "UNINSTALL_LOCK_HOURS_DAYVAR=RANGE")
+
+2. **Unified Timeline Mapping**: All time ranges from all three types are converted to a unified weekly timeline (minutes 0-10079)
    - Day 0 (Sunday): minutes 0-1439
    - Day 1 (Monday): minutes 1440-2879
    - Day 2 (Tuesday): minutes 2880-4319
@@ -424,6 +429,7 @@ The validation uses a **holistic time coverage analysis** that evaluates all 7 d
 3. **Overlap Detection and Merging**: **Critical** - The system detects and merges overlapping intervals:
    - **Within-day overlaps**: Multiple ranges on the same day (e.g., "0-10,9-23" overlaps at hours 9-10)
    - **Cross-day overlaps**: Overnight ranges overlapping with next day's ranges (e.g., Monday "23-6" and Tuesday "0-5" overlap at hours 0-5)
+   - **Cross-type overlaps**: Different hour types overlapping on the same day (e.g., restriction "0-8", lock "7-15", uninstall "10-18" all overlap)
    - All overlapping intervals are merged to avoid double-counting restricted minutes
 
 4. **Total Calculation**: After merging, total restricted minutes are calculated from all merged intervals
@@ -454,12 +460,14 @@ The validation function (`check_restriction_coverage()` in `lib/configure-valida
 
 2. **"warn"** (High restriction level, > 6720 but < 10080 minutes):
    - Warning dialog shown: "Warning: Very High Restriction Level"
+   - Message clarifies that the combined total of restriction hours and additional lock hours exceeds 16 hours/day
    - User can confirm to save anyway or modify settings
    - **Automatic safety overrides applied** if user confirms:
      - Popup size restricted to "small" or "medium" only (if "large" or "fullscreen" was selected)
      - Config locking features automatically disabled (if implemented)
      - Configure.sh blocking automatically disabled (if implemented)
-   - Config file includes comments explaining why safety features are disabled
+     - **Additional lock hours cleared**: Config lock hours and uninstall lock hours arrays are cleared completely
+   - Config file includes comments explaining why safety features are disabled or cleared
 
 3. **"ok"** (Valid configuration, <= 6720 minutes):
    - Configuration proceeds normally

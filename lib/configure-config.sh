@@ -433,9 +433,11 @@ extract_user_comments() {
 #   $16+: config_lines array (7 day configurations: Sunday-Saturday)
 #   After config_lines: lock_hours_lines array (optional, Enhancement #19 Phase 2)
 #   After lock_hours_lines: uninstall_lock_hours_lines array (optional, Enhancement #26 Phase 2)
-#   Optional (if override flags present): 
-#     Second-to-last: popup_size_overridden ("true" if popup_size was restricted due to high restrictions)
-#     Last: configure_block_overridden ("true" if configure_block_enabled was disabled due to high restrictions)
+#   Optional (if override flags present, last 4 arguments): 
+#     Fourth-to-last: popup_size_overridden ("true" if popup_size was restricted due to high restrictions)
+#     Third-to-last: configure_block_overridden ("true" if configure_block_enabled was disabled due to high restrictions)
+#     Second-to-last: lock_hours_cleared ("true" if lock_hours_lines were cleared due to high restrictions)
+#     Last: uninstall_lock_hours_cleared ("true" if uninstall_lock_hours_lines were cleared due to high restrictions)
 # Note: lock_hours_lines is detected by checking for "CONFIG_LOCK_HOURS_" prefix in arguments
 # Note: uninstall_lock_hours_lines is detected by checking for "UNINSTALL_LOCK_HOURS_" prefix in arguments
 # Note: If pause settings are not provided (for backward compatibility), defaults will be used
@@ -464,6 +466,8 @@ write_config() {
     # Override flags are always "true" or empty string, and never contain "="
     local popup_size_overridden=""
     local configure_block_overridden=""
+    local lock_hours_cleared=""
+    local uninstall_lock_hours_cleared=""
     local config_lines=()
     local lock_hours_lines=()
     local uninstall_lock_hours_lines=()
@@ -488,8 +492,31 @@ write_config() {
         fi
     done
     
-    # Find where override flags start (last two arguments that are "true" or empty and don't contain "=")
-    if [ $arg_count -ge 2 ]; then
+    # Find where override flags start (last 2-4 arguments that are "true" or empty and don't contain "=")
+    # Check for 4 flags first (new format), then fall back to 2 flags (old format for backward compatibility)
+    if [ $arg_count -ge 4 ]; then
+        local fourth_to_last="${all_args[$((arg_count - 4))]}"
+        local third_to_last="${all_args[$((arg_count - 3))]}"
+        local second_to_last="${all_args[$((arg_count - 2))]}"
+        local last="${all_args[$((arg_count - 1))]}"
+        
+        if ([ -z "${fourth_to_last}" ] || [ "${fourth_to_last}" = "true" ]) && \
+           ([ -z "${third_to_last}" ] || [ "${third_to_last}" = "true" ]) && \
+           ([ -z "${second_to_last}" ] || [ "${second_to_last}" = "true" ]) && \
+           ([ -z "${last}" ] || [ "${last}" = "true" ]) && \
+           [[ ! "${fourth_to_last}" =~ = ]] && [[ ! "${third_to_last}" =~ = ]] && \
+           [[ ! "${second_to_last}" =~ = ]] && [[ ! "${last}" =~ = ]]; then
+            override_flags_start=$((arg_count - 4))
+        elif [ $arg_count -ge 2 ]; then
+            # Fall back to 2 flags (backward compatibility)
+            if ([ -z "${second_to_last}" ] || [ "${second_to_last}" = "true" ]) && \
+               ([ -z "${last}" ] || [ "${last}" = "true" ]) && \
+               [[ ! "${second_to_last}" =~ = ]] && [[ ! "${last}" =~ = ]]; then
+                override_flags_start=$((arg_count - 2))
+            fi
+        fi
+    elif [ $arg_count -ge 2 ]; then
+        # Only 2-3 arguments, check for 2 flags (backward compatibility)
         local second_to_last="${all_args[$((arg_count - 2))]}"
         local last="${all_args[$((arg_count - 1))]}"
         
@@ -513,8 +540,17 @@ write_config() {
             if [ ${override_flags_start} -ge 0 ] && [ ${override_flags_start} -gt ${uninstall_lock_hours_start} ]; then
                 # Override flags present after uninstall lock hours
                 uninstall_lock_hours_lines=("${all_args[@]:${uninstall_lock_hours_start}:$((override_flags_start - uninstall_lock_hours_start))}")
-                popup_size_overridden="${all_args[$((arg_count - 2))]}"
-                configure_block_overridden="${all_args[$((arg_count - 1))]}"
+                # Extract override flags (handle both 2-flag and 4-flag formats)
+                if [ $((arg_count - override_flags_start)) -eq 4 ]; then
+                    popup_size_overridden="${all_args[$((arg_count - 4))]}"
+                    configure_block_overridden="${all_args[$((arg_count - 3))]}"
+                    lock_hours_cleared="${all_args[$((arg_count - 2))]}"
+                    uninstall_lock_hours_cleared="${all_args[$((arg_count - 1))]}"
+                else
+                    # Backward compatibility: 2 flags
+                    popup_size_overridden="${all_args[$((arg_count - 2))]}"
+                    configure_block_overridden="${all_args[$((arg_count - 1))]}"
+                fi
             else
                 # No override flags, uninstall lock hours go to end
                 uninstall_lock_hours_lines=("${all_args[@]:${uninstall_lock_hours_start}}")
@@ -524,8 +560,17 @@ write_config() {
             if [ ${override_flags_start} -ge 0 ] && [ ${override_flags_start} -gt ${lock_hours_start} ]; then
                 # Override flags present after lock hours
                 lock_hours_lines=("${all_args[@]:${lock_hours_start}:$((override_flags_start - lock_hours_start))}")
-                popup_size_overridden="${all_args[$((arg_count - 2))]}"
-                configure_block_overridden="${all_args[$((arg_count - 1))]}"
+                # Extract override flags (handle both 2-flag and 4-flag formats)
+                if [ $((arg_count - override_flags_start)) -eq 4 ]; then
+                    popup_size_overridden="${all_args[$((arg_count - 4))]}"
+                    configure_block_overridden="${all_args[$((arg_count - 3))]}"
+                    lock_hours_cleared="${all_args[$((arg_count - 2))]}"
+                    uninstall_lock_hours_cleared="${all_args[$((arg_count - 1))]}"
+                else
+                    # Backward compatibility: 2 flags
+                    popup_size_overridden="${all_args[$((arg_count - 2))]}"
+                    configure_block_overridden="${all_args[$((arg_count - 1))]}"
+                fi
             else
                 # No override flags, lock hours go to end
                 lock_hours_lines=("${all_args[@]:${lock_hours_start}}")
@@ -535,11 +580,20 @@ write_config() {
         # Only uninstall lock hours, no lock hours
         config_lines=("${all_args[@]:0:${uninstall_lock_hours_start}}")
         
-        if [ ${override_flags_start} -ge 0 ] && [ ${override_flags_start} -gt ${uninstall_lock_hours_start} ]; then
-            # Override flags present after uninstall lock hours
-            uninstall_lock_hours_lines=("${all_args[@]:${uninstall_lock_hours_start}:$((override_flags_start - uninstall_lock_hours_start))}")
-            popup_size_overridden="${all_args[$((arg_count - 2))]}"
-            configure_block_overridden="${all_args[$((arg_count - 1))]}"
+            if [ ${override_flags_start} -ge 0 ] && [ ${override_flags_start} -gt ${uninstall_lock_hours_start} ]; then
+                # Override flags present after uninstall lock hours
+                uninstall_lock_hours_lines=("${all_args[@]:${uninstall_lock_hours_start}:$((override_flags_start - uninstall_lock_hours_start))}")
+                # Extract override flags (handle both 2-flag and 4-flag formats)
+                local flags_count=$((arg_count - override_flags_start))
+                if [ ${flags_count} -ge 4 ]; then
+                    popup_size_overridden="${all_args[$((arg_count - 4))]}"
+                    configure_block_overridden="${all_args[$((arg_count - 3))]}"
+                    lock_hours_cleared="${all_args[$((arg_count - 2))]}"
+                    uninstall_lock_hours_cleared="${all_args[$((arg_count - 1))]}"
+                else
+                    popup_size_overridden="${all_args[$((arg_count - 2))]}"
+                    configure_block_overridden="${all_args[$((arg_count - 1))]}"
+                fi
         else
             # No override flags, uninstall lock hours go to end
             uninstall_lock_hours_lines=("${all_args[@]:${uninstall_lock_hours_start}}")
@@ -549,8 +603,17 @@ write_config() {
         if [ ${override_flags_start} -ge 0 ]; then
             # Override flags present
             config_lines=("${all_args[@]:0:${override_flags_start}}")
-            popup_size_overridden="${all_args[$((arg_count - 2))]}"
-            configure_block_overridden="${all_args[$((arg_count - 1))]}"
+            # Extract override flags (handle both 2-flag and 4-flag formats)
+            local flags_count=$((arg_count - override_flags_start))
+            if [ ${flags_count} -ge 4 ]; then
+                popup_size_overridden="${all_args[$((arg_count - 4))]}"
+                configure_block_overridden="${all_args[$((arg_count - 3))]}"
+                lock_hours_cleared="${all_args[$((arg_count - 2))]}"
+                uninstall_lock_hours_cleared="${all_args[$((arg_count - 1))]}"
+            else
+                popup_size_overridden="${all_args[$((arg_count - 2))]}"
+                configure_block_overridden="${all_args[$((arg_count - 1))]}"
+            fi
         else
             # No override flags, all are config_lines
             config_lines=("${all_args[@]}")
@@ -727,6 +790,11 @@ write_config() {
             echo "# Leave a day empty or omit it to have no lock hours for that day"
             echo "# When CONFIGURE_BLOCK_ENABLED=true, scripts are blocked during restriction hours OR lock hours"
             echo "# This is Enhancement #19 Phase 2 (Additional Configurable Lock Hours)"
+            # Add comment if lock hours were cleared due to high restrictions
+            if [ "${lock_hours_cleared}" = "true" ]; then
+                echo "# CONFIG_LOCK_HOURS have been cleared because combined restrictions exceed 16 hours/day."
+                echo "# This prevents accidental lockout when user has very limited unrestricted time."
+            fi
             
             # Write lock hours lines in calendar order (Sun-Sat, indices 0-6)
             for day_index in 0 1 2 3 4 5 6; do
@@ -758,6 +826,11 @@ write_config() {
             echo "# When UNINSTALL_PROTECTION_MODE=difficult, difficult uninstall verification applies during restriction hours OR uninstall lock hours"
             echo "# This is Enhancement #26 Phase 2 (Additional Uninstall Lock Hours)"
             echo "# WARNING: Additional uninstall lock hours increase the risk of preventing legitimate uninstall needs"
+            # Add comment if uninstall lock hours were cleared due to high restrictions
+            if [ "${uninstall_lock_hours_cleared}" = "true" ]; then
+                echo "# UNINSTALL_LOCK_HOURS have been cleared because combined restrictions exceed 16 hours/day."
+                echo "# This prevents accidental lockout when user has very limited unrestricted time."
+            fi
             
             # Write uninstall lock hours lines in calendar order (Sun-Sat, indices 0-6)
             for day_index in 0 1 2 3 4 5 6; do

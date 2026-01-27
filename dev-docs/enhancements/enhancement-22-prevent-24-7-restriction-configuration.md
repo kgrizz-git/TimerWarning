@@ -279,9 +279,11 @@
 - **Related**: 
   - **Enhancement 18 (Config File Locking)**: This enhancement automatically disables config file locking if 24/7 restrictions are detected
   - **Enhancement 19 (Prevent configure.sh Execution)**: This enhancement automatically disables configure.sh blocking if 24/7 restrictions are detected
-  - **Enhancement 20 (Additional Hours for Config Locking)**: Should also be disabled if 24/7 restrictions are detected
+  - **Enhancement 20 (Additional Hours for Config Locking)**: **EXTENDED** - Validation now includes config lock hours in the combined total. When high restrictions detected, config lock hours are automatically cleared.
+  - **Enhancement 26 Phase 2 (Additional Uninstall Lock Hours)**: **EXTENDED** - Validation now includes uninstall lock hours in the combined total. When high restrictions detected, uninstall lock hours are automatically cleared.
   - **Enhancement 03 (Enhanced Window Size Options)**: This enhancement restricts popup window sizes to xsmall/small/medium only when restrictions > 6720 minutes. Custom sizes are allowed if they don't exceed medium size (30% × 30% or 768×432 for 2560×1440), otherwise they are clamped to medium.
   - **Safety Feature**: Complements other safety features by preventing the most dangerous configuration scenario
+  - **Extension (2026-01-26)**: Validation now includes the combined total of restriction hours, config lock hours, and uninstall lock hours. This prevents users from configuring dangerous combinations (e.g., 8 hours restriction + 16 hours lock = 24 hours total). See [plan-extend-24-7-prevention-to-additional-hours.md](../plans/plan-extend-24-7-prevention-to-additional-hours.md) for implementation details.
 
 ## Implementation Checklist
 

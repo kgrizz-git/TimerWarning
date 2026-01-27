@@ -98,9 +98,12 @@ Both ranges cover Tuesday midnight to 4:59 AM. This is harmless (only one warnin
 The configuration wizard includes a critical safety feature that prevents you from accidentally configuring restrictions for all 24 hours, 7 days a week, which would effectively lock you out of your computer.
 
 **How It Works**:
-- When you save your configuration, the system automatically checks the total restriction coverage across all 7 days
-- If you configure restrictions for **all 24 hours, 7 days a week** (10080 minutes total), the configuration will be **blocked** and you'll see an error message
-- If you configure restrictions for **more than 16 hours per day** (> 6720 minutes total), you'll see a **warning** and can choose to save anyway or modify your settings
+- When you save your configuration, the system automatically checks the **combined total** of:
+  - **Restriction hours** (main schedule for sleep warnings)
+  - **Config lock hours** (additional hours for config locking and configure.sh blocking)
+  - **Uninstall lock hours** (additional hours for difficult uninstall verification)
+- If the combined total covers **all 24 hours, 7 days a week** (10080 minutes total), the configuration will be **blocked** and you'll see an error message
+- If the combined total exceeds **more than 16 hours per day** (> 6720 minutes total), you'll see a **warning** and can choose to save anyway or modify your settings
 
 **Why This Matters**:
 - Configuring 24/7 restrictions would leave no unrestricted time to modify settings or use your computer
@@ -141,12 +144,16 @@ SATURDAY=0-16       # 16 hours
 ```
 
 **Automatic Safety Overrides** (when high restrictions are detected):
-If you configure restrictions for more than 16 hours per day and choose to save anyway, the system automatically applies safety measures:
+If the combined total of restriction hours and additional lock hours exceeds 16 hours per day and you choose to save anyway, the system automatically applies safety measures:
 - **Popup size restriction**: Popup size is limited to "xsmall", "small", or "medium" only (prevents overly intrusive popups when you have very limited unrestricted time)
 - **Config locking disabled**: Config file locking features are automatically disabled (prevents locking yourself out during very limited unrestricted time)
-- **Transparency**: The config file includes comments explaining why these safety features are disabled
+- **Additional lock hours cleared**: Config lock hours and uninstall lock hours are automatically cleared (prevents accidental lockout when combined with restriction hours)
+- **Transparency**: The config file includes comments explaining why these safety features are disabled or cleared
 
-**Note**: The validation correctly handles overlapping ranges (both within the same day and across day boundaries) to accurately calculate total restricted time. For example, if you have Monday "23-6" and Tuesday "0-5", the overlap at hours 0-5 is correctly detected and counted only once.
+**Important Notes**:
+- The validation correctly handles overlapping ranges (both within the same day and across day boundaries) to accurately calculate total restricted time. For example, if you have Monday "23-6" and Tuesday "0-5", the overlap at hours 0-5 is correctly detected and counted only once.
+- The validation includes **all three types of hours** (restriction hours, config lock hours, and uninstall lock hours) in the combined total, even if the features that use them are disabled. This prevents dangerous configurations that could lock you out if you later enable those features.
+- If you configure restriction hours (8 hours/day) + config lock hours (16 hours/day), the total is 24 hours/day and will be blocked, even if `CONFIGURE_BLOCK_ENABLED=false`.
 
 **Combining Multiple and Overnight Ranges**:
 You can combine multiple ranges, including overnight ranges:
