@@ -27,7 +27,7 @@
 # Note: This script now requires verification before showing instructions:
 # 1. Initial confirmation that user wants to know how to uninstall
 # 2. Confirmation phrase: "I confirm that I really want to know how to uninstall"
-# 3. 10 arithmetic questions
+# 3. 5 arithmetic questions
 ###############################################################################
 
 # Script configuration
@@ -225,9 +225,9 @@ ask_manual_uninstall_arithmetic_questions() {
         return 0
     fi
     
-    # Users get a total of 5 wrong answers across all questions
-    local total_questions=10
-    local max_wrong_answers=5
+    # Users get a total of 3 wrong answers across all questions
+    local total_questions=5
+    local max_wrong_answers=3
     local wrong_answers_count=0
     local question_num=1
     
@@ -353,8 +353,8 @@ verify_before_showing_instructions() {
     initial_msg="This guide will show you how to manually uninstall the Sleep Warning System.\n\n"
     initial_msg="${initial_msg}To proceed, you will need to:\n"
     initial_msg="${initial_msg}1. Type a confirmation phrase\n"
-    initial_msg="${initial_msg}2. Answer 10 arithmetic questions correctly\n"
-    initial_msg="${initial_msg}   (You are allowed 5 wrong answers total across all questions)\n\n"
+    initial_msg="${initial_msg}2. Answer 5 arithmetic questions correctly\n"
+    initial_msg="${initial_msg}   (You are allowed 3 wrong answers total across all questions)\n\n"
     initial_msg="${initial_msg}Are you sure you want to know how to uninstall?"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
@@ -402,7 +402,7 @@ verify_before_showing_instructions() {
         fi
     fi
     
-    # Step 2: Arithmetic questions (10 questions)
+    # Step 2: Arithmetic questions (5 questions)
     if ! ask_manual_uninstall_arithmetic_questions "${use_gui}"; then
         local exit_code=$?
         if [ ${exit_code} -eq 2 ]; then

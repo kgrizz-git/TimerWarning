@@ -78,12 +78,12 @@ test_check "Confirmation phrase matches requirement" \
 test_check "Initial confirmation dialog is implemented" \
     "grep -q 'Are you sure you want to know how to uninstall' ../manual-uninstall-guide.sh"
 
-# Test 7: Arithmetic questions are implemented (10 questions, 5 wrong answers allowed)
-test_check "Arithmetic questions use 10 questions" \
-    "grep -q 'total_questions=10' ../manual-uninstall-guide.sh"
+# Test 7: Arithmetic questions are implemented (5 questions, 3 wrong answers allowed)
+test_check "Arithmetic questions use 5 questions" \
+    "grep -q 'total_questions=5' ../manual-uninstall-guide.sh"
 
-test_check "Arithmetic questions allow 5 wrong answers total" \
-    "grep -q 'max_wrong_answers=5' ../manual-uninstall-guide.sh"
+test_check "Arithmetic questions allow 3 wrong answers total" \
+    "grep -q 'max_wrong_answers=3' ../manual-uninstall-guide.sh"
 
 test_check "Wrong answers count is tracked" \
     "grep -q 'wrong_answers_count' ../manual-uninstall-guide.sh"

@@ -5,8 +5,6 @@ This document provides a concise overview of work remaining to be completed for 
 **Note**: This document focuses on work that remains to be done. Fully implemented enhancements (with no remaining work) are not listed here but can be found in [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). Enhancements marked as "Mostly Implemented" or "Partially Implemented" are listed here if they have remaining work (testing, documentation, etc.).
 
 ## Priority Items
-- [x] **ADDED HERE: make 24/7 prevention and high restriction warnings apply to additional hours, also** - ✅ **COMPLETED** - Validation now includes combined total of restriction hours, config lock hours, and uninstall lock hours. Safety overrides clear additional hours when high restrictions detected. See [plan-extend-24-7-prevention-to-additional-hours.md](plans/plan-extend-24-7-prevention-to-additional-hours.md). **Remaining**: Testing (Phase 5)
-- [ ] **ADDED HERE: reduce arithmetic questions from 10 to 5, allow up to 3 wrong answers total** - for uninstall.sh and for manual-uninstall-guide.sh
 - [ ] **ADDED HERE: improve configuration process for additional lock/uninstall hours** - be able to set all days at once, be able to set lock or uninstall schedule equal to the other one if it is configured (state what the schedule is when asking if the user wants to set one equal to the other)
 - [ ] **#16b: 12-Hour Format Time Input and GUI Spinbox Widgets** - Support 12-hour format with AM/PM and GUI spinbox widgets
 - [ ] **#10: Audio Alerts** 
@@ -62,6 +60,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#27: Donation Links** - ✅ **Phase 1 Partially Implemented** - PayPal donation links added to README.md, GETTING_STARTED.md, and install.sh completion message. **Remaining**: Testing and verification (link testing, mobile compatibility). **Phase 2**: GitHub Sponsors support planned - see [enhancements/enhancement-27-phase-2-github-sponsors.md](enhancements/enhancement-27-phase-2-github-sponsors.md) (requires license first). See [enhancements/enhancement-27-paypal-donation-links.md](enhancements/enhancement-27-paypal-donation-links.md) for Phase 1 details.
 - [ ] **#28: SteamOS Newbie Installation Guide** - Provide comprehensive installation instructions and helpful error messages specifically for new SteamOS/Steam Deck users, including guidance on setting up sudo password (which is not set by default) and installing required packages like yad
 - [ ] **#29: kdialog Window Size Control** - Try using `--textbox` with `--geometry` for kdialog popups to enable size control, with fallback to `--sorry` if it doesn't work properly. If implemented, make sure kdialog popup is never over 95% of screen, similar to yad and zenity.
+- [ ] **ADDED HERE: make 24/7 prevention and high restriction warnings apply to additional hours, also** - ✅ **COMPLETED** - Validation now includes combined total of restriction hours, config lock hours, and uninstall lock hours. Safety overrides clear additional hours when high restrictions detected. See [plan-extend-24-7-prevention-to-additional-hours.md](plans/plan-extend-24-7-prevention-to-additional-hours.md). **Remaining**: Testing (Phase 5)
 
 ## Alternative Approaches
 
@@ -101,6 +100,8 @@ Based on [Quality Improvement Assessment (2026-01-23)](qi-assessments/qi-assessm
 ## Completed Enhancements (No Remaining Work)
 
 The following enhancements are fully implemented with no remaining work. They are listed here for reference but are not tracked in the remaining work sections above:
+
+- [x] **ADDED HERE (no enhancement md file): reduce arithmetic questions from 10 to 5, allow up to 3 wrong answers total** - for uninstall.sh and for manual-uninstall-guide.sh ✅ **COMPLETED** - Updated both `lib/uninstall-verification.sh` and `manual-uninstall-guide.sh` to use 5 questions with 3 wrong answers allowed. All user-facing messages and comments updated. Tests updated and passing (30/30).
 
 - ✅ **#2: Dialog Tool Priority System** - Fully implemented (superseded by Enhancement #24)
 - ✅ **#7: Warning Event Logging** - Fully implemented (file-based logging with rotation)

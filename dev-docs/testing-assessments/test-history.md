@@ -477,12 +477,12 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ## test-manual-uninstall-guide.sh
 
-**Last Run**: 2026-01-23  
+**Last Run**: 2026-01-26  
 **Status**: ✅ **PASS** (30/30 tests passed)  
 **Execution Time**: ~2 seconds  
 **Dependencies**: bash
 
-**Findings Summary**: All 30 tests passed successfully. Manual uninstall guide script (Enhancement #26) is working correctly. Dialog tool abstraction integration verified. No issues identified.
+**Findings Summary**: All 30 tests passed successfully. Manual uninstall guide script (Enhancement #26) is working correctly. Dialog tool abstraction integration verified. Arithmetic questions reduced from 10 to 5, wrong answers allowed reduced from 5 to 3. No issues identified.
 
 **Test Coverage**:
 
@@ -505,7 +505,7 @@ When a test is run again, **update the date/time and findings** for that test en
 **Verification Logic Tests (3 tests)**:
 - ✅ Confirmation phrase matches requirement
 - ✅ Initial confirmation dialog is implemented
-- ✅ Arithmetic questions use 10 questions with 5 wrong answers allowed
+- ✅ Arithmetic questions use 5 questions with 3 wrong answers allowed
 
 **Display Function Tests (4 tests)**:
 - ✅ GUI step-by-step display function exists
@@ -555,6 +555,13 @@ When a test is run again, **update the date/time and findings** for that test en
 - Replaced direct yad/zenity/kdialog calls with dialog abstraction function
 - Added 4 new tests to verify dialog abstraction integration
 - All tests pass successfully
+
+**Change Summary (2026-01-26)**:
+- Reduced arithmetic questions from 10 to 5 in both `manual-uninstall-guide.sh` and `lib/uninstall-verification.sh`
+- Reduced maximum wrong answers allowed from 5 to 3 in both scripts
+- Updated all user-facing messages and comments to reflect new values (5 questions, 3 wrong answers)
+- Updated test assertions to verify new values (`total_questions=5`, `max_wrong_answers=3`)
+- All 30 tests pass successfully with updated values
 
 ---
 
@@ -764,6 +771,7 @@ Based on the latest test execution results:
 11. **System Sleep/Hibernate Detection and Popup Queue Management (Enhancement #9)**: ✅ **UNIT TESTS PASS** (24/24) - Automated unit tests complete, manual integration tests pending
 12. **Code Quality Improvements (Day Name Conversion & Magic Numbers)**: ✅ **FULLY TESTED** - All 32 tests passed in test-day-name-conversion.sh, plus 69 additional related tests verified
 13. **Atomic Write Fix (Safety Scan Fix)**: ✅ **FULLY TESTED** - All 7 tests passed in test-atomic-write.sh, all syntax and function loading tests passed
+14. **Extended 24/7 Prevention with Additional Hours (Enhancement #22 extension)**: ✅ **FULLY TESTED** - All 27 tests passed in test-24-7-prevention-additional-hours.sh
 
 ### Known Issues
 
@@ -854,6 +862,90 @@ Based on the latest test execution results:
 - ✅ `write_config()` function loads correctly after sourcing modules
 
 **Conclusion**: Atomic write fix is syntactically correct and doesn't break function loading.
+
+---
+
+## test-24-7-prevention-additional-hours.sh
+
+**Last Run**: 2026-01-26  
+**Status**: ✅ **PASS** (27/27 tests passed)  
+**Execution Time**: ~2 seconds  
+**Dependencies**: bash, configure-core.sh, configure-validation.sh
+
+**Findings Summary**: Comprehensive test suite for extended 24/7 prevention validation that includes additional hours (config lock hours and uninstall lock hours) in the combined total calculation. All 27 tests passed successfully. Tests cover restriction hours only (backward compatibility), combinations with lock hours and uninstall lock hours, overlapping ranges, overnight ranges, edge cases, and boundary conditions.
+
+**Context**: This test was created as part of the plan to extend 24/7 prevention and high restriction warnings to additional hours (Enhancement #22 extension). The validation function `check_restriction_coverage()` was extended to accept and process all three types of hours (restriction hours, config lock hours, and uninstall lock hours) and calculate combined coverage.
+
+**Safety**: ✅ **VERIFIED** - Test only validates function logic and does not modify any config files. Uses temporary test data and validates the `check_restriction_coverage()` function behavior.
+
+**Test Coverage**:
+
+**Backward Compatibility Tests (3 tests)**:
+- ✅ Restriction hours only - valid (8 hours/day)
+- ✅ Restriction hours only - high restriction (18 hours/day)
+- ✅ Restriction hours only - 24/7 (blocked)
+
+**Restriction + Lock Hours Tests (3 tests)**:
+- ✅ Restriction (8h) + Lock (8h) = 16h/day (valid)
+- ✅ Restriction (8h) + Lock (10h) = 18h/day (warn)
+- ✅ Restriction (8h) + Lock (16h) = 24h/day (blocked)
+
+**Restriction + Uninstall Lock Hours Tests (3 tests)**:
+- ✅ Restriction (8h) + Uninstall Lock (8h) = 16h/day (valid)
+- ✅ Restriction (8h) + Uninstall Lock (10h) = 18h/day (warn)
+- ✅ Restriction (8h) + Uninstall Lock (16h) = 24h/day (blocked)
+
+**All Three Types Together Tests (2 tests)**:
+- ✅ Restriction (6h) + Lock (6h) + Uninstall (6h) = 18h/day (warn)
+- ✅ Restriction (8h) + Lock (8h) + Uninstall (8h) = 24h/day (blocked)
+
+**Overlapping Ranges Tests (3 tests)**:
+- ✅ Overlapping: Restriction (0-8) + Lock (7-15) = merged to 0-15 (15h/day, valid)
+- ✅ Overlapping: Restriction (0-8) + Lock (7-15) + Uninstall (10-18) = merged to 0-18 (18h/day, warn)
+- ✅ Overlapping all days: Restriction (0-8) + Lock (7-15) + Uninstall (10-18) = 18h/day (warn)
+
+**Overnight Ranges Tests (2 tests)**:
+- ✅ Overnight: Restriction (23-6) + Lock (22-5) = merged correctly (valid)
+- ✅ Overnight: Restriction (23-6) + Lock (6-14) + Uninstall (14-22) = 18h/day (warn)
+
+**Edge Cases - Empty Arrays Tests (3 tests)**:
+- ✅ Empty restriction hours (no config_lines)
+- ✅ Empty lock hours (only restriction hours)
+- ✅ Empty uninstall lock hours (only restriction + lock)
+
+**Edge Cases - Sparse Arrays Tests (3 tests)**:
+- ✅ Sparse: Only some days have restrictions
+- ✅ Sparse: Only some days have lock hours
+- ✅ Sparse: Mixed days across types
+
+**Boundary Conditions Tests (4 tests)**:
+- ✅ Exactly 6720 minutes (16h/day) - should be ok
+- ✅ Exactly 6721 minutes (just over 16h/day) - should warn
+- ✅ Exactly 10079 minutes (just under 24/7) - should warn
+- ✅ Exactly 10080 minutes (24/7) - should block
+
+**Complex Overlapping Scenarios Tests (1 test)**:
+- ✅ Complex: Multiple overlaps within and across types
+
+**Results**: All 27 tests pass successfully. Extended 24/7 prevention validation correctly:
+- Validates combined coverage across all three hour types (restriction + config lock + uninstall lock)
+- Merges overlapping ranges correctly across types (no double-counting)
+- Handles overnight ranges correctly across types
+- Maintains backward compatibility (works with restriction hours only)
+- Correctly applies thresholds (6720 minutes for warn, 10080 minutes for block)
+- Handles edge cases (empty arrays, sparse arrays, boundary conditions)
+
+**Test Features**:
+- Non-destructive: Only tests validation function logic, does not modify config files
+- Comprehensive: Covers all test scenarios from the implementation plan
+- Clear output: Provides colored pass/fail results with details
+- Can be run independently: `./tests/test-24-7-prevention-additional-hours.sh`
+
+**Related Enhancement**: Enhancement #22 - Prevent 24/7 Restriction Configuration (extended to include additional hours)
+
+**Related Plan**: [Plan: Extend 24/7 Prevention and High Restriction Warnings to Additional Hours](../plans/plan-extend-24-7-prevention-to-additional-hours.md)
+
+**Test File Location**: `tests/test-24-7-prevention-additional-hours.sh`
 
 ---
 

@@ -6,7 +6,7 @@
 # This module provides functions for difficult uninstall verification during
 # restricted hours. It implements a two-step verification process:
 # 1. Confirmation phrase verification
-# 2. Arithmetic questions (10 questions in word form)
+# 2. Arithmetic questions (5 questions in word form)
 #
 # Functions:
 # - get_confirmation_phrase()              - Get the exact confirmation phrase
@@ -369,8 +369,8 @@ verify_uninstall_during_restrictions() {
     explanation="Uninstall during restricted hours requires verification.\n\n"
     explanation="${explanation}You will need to:\n"
     explanation="${explanation}1. Type a confirmation phrase\n"
-    explanation="${explanation}2. Answer 10 arithmetic questions correctly\n"
-    explanation="${explanation}   (You are allowed 5 wrong answers total across all questions)\n\n"
+    explanation="${explanation}2. Answer 5 arithmetic questions correctly\n"
+    explanation="${explanation}   (You are allowed 3 wrong answers total across all questions)\n\n"
     explanation="${explanation}This process requires significant effort and cognitive engagement,\n"
     explanation="${explanation}allowing legitimate uninstalls while deterring impulsive ones."
     
@@ -419,10 +419,10 @@ verify_uninstall_during_restrictions() {
         fi
     fi
     
-    # Step 2: Arithmetic questions (10 questions)
-    # Users get a total of 5 wrong answers across all questions
-    local total_questions=10
-    local max_wrong_answers=5
+    # Step 2: Arithmetic questions (5 questions)
+    # Users get a total of 3 wrong answers across all questions
+    local total_questions=5
+    local max_wrong_answers=3
     local wrong_answers_count=0
     local question_num=1
     
