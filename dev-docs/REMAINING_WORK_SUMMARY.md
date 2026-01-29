@@ -5,6 +5,7 @@ This document provides a concise overview of work remaining to be completed for 
 **Note**: This document focuses on work that remains to be done. Fully implemented enhancements (with no remaining work) are not listed here but can be found in [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). Enhancements marked as "Mostly Implemented" or "Partially Implemented" are listed here if they have remaining work (testing, documentation, etc.).
 
 ## Priority Items
+- [ ] **#16c: Multiple Time Range Entry in GUI** - Allow adding/editing multiple comma-separated time ranges per day in configure.sh GUI (text mode already supports it). See [enhancement-16c-multiple-range-entry-gui.md](enhancements/enhancement-16c-multiple-range-entry-gui.md).
 - [ ] **ADDED HERE: improve configuration process for additional lock/uninstall hours** - be able to set all days at once, be able to set lock or uninstall schedule equal to the other one if it is configured (state what the schedule is when asking if the user wants to set one equal to the other)
 - [ ] **#30: Separate Timer Check Interval from Popup Display Frequency** - Hardcode timer to check every 5 minutes, add user-configurable popup display frequency to solve minute precision timing issues
 - [ ] **ADDED HERE: Additional hours should not apply on days with no restrictions** - Additional lock hours and uninstall lock hours should not apply on days when there are no restricted times configured. User-configurable option to allow such locking (disabled by default). Warn users when entering additional hours on days with no restrictions. See [plan-additional-hours-no-restrictions.md](plans/plan-additional-hours-no-restrictions.md)
@@ -17,6 +18,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **ADDED HERE: test in Desktop Mode without external display** - run all tests on Steam Deck in Desktop mode without an external display connected
 - [ ] **#29: kdialog Window Size Control** - Try using `--textbox` with `--geometry` for kdialog popups to enable size control, with fallback to `--sorry` if it doesn't work properly
 - [ ] **#27 Donation Links** - ✅ **Phase 1 Partially Implemented** - PayPal donation links added to README.md, GETTING_STARTED.md, and install.sh. **Remaining**: Testing and verification. **Phase 2**: GitHub Sponsors support planned (see [enhancements/enhancement-27-phase-2-github-sponsors.md](enhancements/enhancement-27-phase-2-github-sponsors.md)) - requires license first.
+- [ ] **ADDED HERE: check end lock hours display, calculation** - eg, when trying to run configure.sh
 
 ## Master Plan Phases
 

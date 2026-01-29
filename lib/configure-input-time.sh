@@ -129,43 +129,190 @@ get_day_hours() {
     local use_gui="$3"
     local allow_back="$4"
     local allow_cancel="$5"
+    local existing_ranges="${6:-}"  # Optional: existing ranges for editing (Phase 2)
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
-        # GUI mode
-        while true; do
-            local range_input
-            range_input=$(show_time_selection_dialog "Sleep Warning Configuration - ${day_name}" "" "")
-            local exit_code=$?
+        # GUI mode - support multiple ranges (Enhancement #16c Phase 1 & 2)
+        
+        # Phase 2: If editing existing day with ranges, use manage ranges dialog
+        if [ -n "${existing_ranges}" ]; then
+            local managed_ranges
+            managed_ranges=$(manage_ranges_dialog "${day_name}" "${existing_ranges}")
+            local manage_exit=$?
             
-            if [ ${exit_code} -ne 0 ] || [ -z "${range_input}" ]; then
+            if [ ${manage_exit} -eq 0 ]; then
+                # User completed management (may be empty string if all ranges removed)
+                echo "${managed_ranges}"
+                return 0
+            else
+                # User cancelled - return empty to indicate cancellation
+                # Check if we should show skip/back/cancel menu
                 local menu_options=("Skip this day")
                 [ "${allow_back}" = "true" ] && menu_options+=("Go back to previous day")
                 [ "${allow_cancel}" = "true" ] && menu_options+=("Cancel configuration")
                 menu_options+=("Continue configuring")
                 
                 local choice
-                choice=$(show_list_dialog "What would you like to do?" "You cancelled or left ${day_name} empty. What would you like to do?" 500 300 "${menu_options[@]}")
+                choice=$(show_list_dialog "What would you like to do?" "You cancelled editing ${day_name}. What would you like to do?" 500 300 "${menu_options[@]}")
                 
                 case "${choice}" in
                     "Skip this day")
                         if confirm_skip_day "${day_name}" "${use_gui}"; then echo "skip"; return 0; fi
-                        continue ;;
+                        # Continue to Phase 1 loop
+                        ;;
                     "Go back to previous day") echo "back"; return 2 ;;
                     "Cancel configuration")
                         if confirm_cancel "${use_gui}"; then echo "CANCELLED"; return 2; fi
-                        continue ;;
-                    *) continue ;;
+                        # Continue to Phase 1 loop
+                        ;;
+                    *) 
+                        # Continue to Phase 1 loop
+                        ;;
                 esac
             fi
+        fi
+        
+        # Phase 1: "Add another?" loop for new days or fallback
+        local collected_ranges=()  # Array to store normalized ranges
+        
+        # Outer loop: collect multiple ranges
+        while true; do
+            # Inner loop: get and confirm a single range
+            local range_input=""
+            local range_confirmed=false
             
-            local normalized
-            normalized=$(normalize_time_range "${range_input}")
-            local preview
-            preview=$(format_ranges_human "${normalized}" "${day_name}")
+            while [ "${range_confirmed}" = "false" ]; do
+                range_input=$(show_time_selection_dialog "Sleep Warning Configuration - ${day_name}" "" "")
+                local exit_code=$?
+                
+                if [ ${exit_code} -ne 0 ] || [ -z "${range_input}" ]; then
+                    # User cancelled or left empty
+                    if [ ${#collected_ranges[@]} -eq 0 ]; then
+                        # No ranges collected yet - show skip/back/cancel menu
+                        local menu_options=("Skip this day")
+                        [ "${allow_back}" = "true" ] && menu_options+=("Go back to previous day")
+                        [ "${allow_cancel}" = "true" ] && menu_options+=("Cancel configuration")
+                        menu_options+=("Continue configuring")
+                        
+                        local choice
+                        choice=$(show_list_dialog "What would you like to do?" "You cancelled or left ${day_name} empty. What would you like to do?" 500 300 "${menu_options[@]}")
+                        
+                        case "${choice}" in
+                            "Skip this day")
+                                if confirm_skip_day "${day_name}" "${use_gui}"; then echo "skip"; return 0; fi
+                                continue ;;
+                            "Go back to previous day") echo "back"; return 2 ;;
+                            "Cancel configuration")
+                                if confirm_cancel "${use_gui}"; then echo "CANCELLED"; return 2; fi
+                                continue ;;
+                            *) continue ;;
+                        esac
+                    else
+                        # Already have at least one range - cancel means done adding ranges
+                        # Return collected ranges immediately
+                        local result=""
+                        local first=true
+                        for r in "${collected_ranges[@]}"; do
+                            if [ "${first}" = "true" ]; then
+                                result="${r}"
+                                first=false
+                            else
+                                result="${result},${r}"
+                            fi
+                        done
+                        echo "${result}"
+                        return 0
+                    fi
+                else
+                    # User entered a range - validate, normalize and confirm
+                    # Validate the input range first
+                    if ! validate_time_range "${range_input}"; then
+                        show_error_dialog "Invalid Time Range" "The time range format is invalid. Please enter a valid range (e.g., 11:30pm-5:30am or 23:30-05:30)."
+                        continue
+                    fi
+                    
+                    local normalized
+                    normalized=$(normalize_time_range "${range_input}")
+                    
+                    # Validate normalized range as well (double-check)
+                    if ! validate_time_range "${normalized}"; then
+                        show_error_dialog "Invalid Time Range" "The time range could not be normalized. Please try again."
+                        continue
+                    fi
+                    
+                    # Build preview showing all ranges collected so far plus this new one
+                    local preview_ranges="${normalized}"
+                    if [ ${#collected_ranges[@]} -gt 0 ]; then
+                        # Join existing ranges with comma
+                        local existing_ranges=""
+                        local first=true
+                        for r in "${collected_ranges[@]}"; do
+                            if [ "${first}" = "true" ]; then
+                                existing_ranges="${r}"
+                                first=false
+                            else
+                                existing_ranges="${existing_ranges},${r}"
+                            fi
+                        done
+                        preview_ranges="${existing_ranges},${normalized}"
+                    fi
+                    
+                    local preview
+                    preview=$(format_ranges_human "${preview_ranges}" "${day_name}")
+                    
+                    local confirm_text
+                    if [ ${#collected_ranges[@]} -eq 0 ]; then
+                        confirm_text="You selected: ${range_input}\n\nThis means:\n${preview}\n\nIs this correct?"
+                    else
+                        confirm_text="You selected: ${range_input}\n\nAll time ranges for ${day_name}:\n${preview}\n\nIs this correct?"
+                    fi
+                    
+                    if show_question_dialog "Confirm Time Range" "${confirm_text}" "Yes" "No, Edit" 600 350; then
+                        # Range confirmed - add to collection
+                        collected_ranges+=("${normalized}")
+                        range_confirmed=true
+                    fi
+                    # If not confirmed, loop back to get new input
+                fi
+            done
             
-            if show_question_dialog "Confirm Time Range" "You selected: ${range_input}\n\nThis means:\n${preview}\n\nIs this correct?" "Yes" "No, Edit" 600 350; then
-                echo "${normalized}"
-                return 0
+            # After confirming a range, ask if user wants to add another
+            if [ ${#collected_ranges[@]} -gt 0 ]; then
+                local add_another_text
+                if [ ${#collected_ranges[@]} -eq 1 ]; then
+                    add_another_text="Add another time range for ${day_name}?"
+                else
+                    local current_preview
+                    local current_ranges=""
+                    local first=true
+                    for r in "${collected_ranges[@]}"; do
+                        if [ "${first}" = "true" ]; then
+                            current_ranges="${r}"
+                            first=false
+                        else
+                            current_ranges="${current_ranges},${r}"
+                        fi
+                    done
+                    current_preview=$(format_ranges_human "${current_ranges}" "${day_name}")
+                    add_another_text="Current ranges for ${day_name}:\n${current_preview}\n\nAdd another time range?"
+                fi
+                
+                if ! show_question_dialog "Add Another Range?" "${add_another_text}" "Yes, Add Another" "No, Done" 600 350; then
+                    # User chose "No, Done" - join all ranges and return
+                    local result=""
+                    local first=true
+                    for r in "${collected_ranges[@]}"; do
+                        if [ "${first}" = "true" ]; then
+                            result="${r}"
+                            first=false
+                        else
+                            result="${result},${r}"
+                        fi
+                    done
+                    echo "${result}"
+                    return 0
+                fi
+                # User chose "Yes, Add Another" - continue outer loop to collect next range
             fi
         done
     else

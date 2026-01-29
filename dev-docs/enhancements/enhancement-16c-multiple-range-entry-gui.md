@@ -3,7 +3,7 @@
 - **Description**: Allow users to configure multiple comma-separated time ranges per day **in GUI mode** (e.g., 12am–5am and 11pm–5am next day). Text mode and config storage already support multiple ranges; this enhancement extends the configure wizard GUI so users can add, edit, and remove multiple ranges per day without switching to text mode or editing the config file.
 - **Files Affected**: `lib/configure-dialogs.sh`, `lib/configure-input-time.sh`; optionally `lib/configure-ui.sh` or new helpers for list management
 - **Priority**: Medium (improves usability for users who need multiple ranges per day and prefer the GUI)
-- **Status**: Not implemented
+- **Status**: Phase 1 & 2 implemented (Add another range? loop + Manage ranges dialog)
 - **Depends on**: Enhancement #16b (12-hour format and GUI time widgets) — multiple-range GUI should reuse or extend the same single-range time widgets.
 
 ## Current Behavior
@@ -90,22 +90,22 @@
 
 ### Phase 1 – “Add another range?” Loop (Minimal)
 
-- [ ] **Extend GUI time selection loop**
-  - [ ] Add a new helper (or extend `get_day_hours()` logic) that:
-    - [ ] Calls `show_time_selection_dialog()` once to collect the first range.
-    - [ ] Normalizes and validates the range using existing time helpers.
-    - [ ] Stores the normalized range in an internal list (e.g. bash array or comma-separated string).
-  - [ ] After the first successful range:
+- [x] **Extend GUI time selection loop**
+  - [x] Add a new helper (or extend `get_day_hours()` logic) that:
+    - [x] Calls `show_time_selection_dialog()` once to collect the first range.
+    - [x] Normalizes and validates the range using existing time helpers.
+    - [x] Stores the normalized range in an internal list (e.g. bash array or comma-separated string).
+  - [x] After the first successful range:
     - [ ] Show a confirmation dialog “Add another time range for this day?” with Yes/No (tool-agnostic wrapper in `lib/configure-dialogs.sh` if possible).
-    - [ ] On Yes: loop to call `show_time_selection_dialog()` again, normalize/validate, and append to the internal list.
-    - [ ] On No: stop collecting and proceed.
+    - [x] On Yes: loop to call `show_time_selection_dialog()` again, normalize/validate, and append to the internal list.
+    - [x] On No: stop collecting and proceed.
     - [ ] On Cancel/Close: define clear behavior (e.g. discard changes and return empty / previous value) and make it consistent with existing flows.
-- [ ] **Return correct output format**
-  - [ ] Join all collected normalized ranges into `HH:MM-HH:MM,HH:MM-HH:MM,...`.
-  - [ ] Ensure this string is returned to `get_day_hours()` exactly as existing text-mode multi-range strings are.
-- [ ] **Wire Phase 1 into all GUI call sites**
-  - [ ] Update the weekday/weekend flows to use the new multi-range-capable helper instead of single-range only.
-  - [ ] Update flows for additional config lock hours and uninstall lock hours to use the same helper.
+- [x] **Return correct output format**
+  - [x] Join all collected normalized ranges into `HH:MM-HH:MM,HH:MM-HH:MM,...`.
+  - [x] Ensure this string is returned to `get_day_hours()` exactly as existing text-mode multi-range strings are.
+- [x] **Wire Phase 1 into all GUI call sites**
+  - [x] Update the weekday/weekend flows to use the new multi-range-capable helper instead of single-range only.
+  - [x] Update flows for additional config lock hours and uninstall lock hours to use the same helper.
   - [ ] Ensure that any “edit this day” action in the grid calls through the same multi-range path.
 - [ ] **Minimal pre-fill behavior (if included in Phase 1)**
   - [ ] When a day already has at least one range, pre-fill the first `show_time_selection_dialog()` with the first existing range (relying on 16b behavior).
@@ -114,35 +114,35 @@
 ### Phase 2 – “Manage Ranges” List
 
 - [ ] **Introduce a “Manage ranges for <day>” dialog**
-  - [ ] Add a tool-agnostic helper in `lib/configure-dialogs.sh` for a list dialog with:
-    - [ ] A list of current ranges (formatted with `format_ranges_human()`).
-    - [ ] Buttons: Add, Edit, Remove, Done, and Cancel.
-  - [ ] Implement the common logic that:
-    - [ ] Converts the current comma-separated ranges into an internal list.
-    - [ ] Loops until the user chooses Done or Cancel.
-- [ ] **Implement Add / Edit / Remove behavior**
-  - [ ] **Add**:
-    - [ ] Call `show_time_selection_dialog()` with empty initial values.
+  - [x] Add a tool-agnostic helper in `lib/configure-dialogs.sh` for a list dialog with:
+    - [x] A list of current ranges (formatted with `format_ranges_human()`).
+    - [x] Buttons: Add, Edit, Remove, Done, and Cancel.
+  - [x] Implement the common logic that:
+    - [x] Converts the current comma-separated ranges into an internal list.
+    - [x] Loops until the user chooses Done or Cancel.
+- [x] **Implement Add / Edit / Remove behavior**
+  - [x] **Add**:
+    - [x] Call `show_time_selection_dialog()` with empty initial values.
     - [ ] Normalize and validate the entered range.
-    - [ ] Append it to the internal list and refresh the display text using `format_ranges_human()`.
-  - [ ] **Edit**:
-    - [ ] When a range is selected in the list, call `show_time_selection_dialog()` pre-filled with that range (reusing 16b widgets).
+    - [x] Append it to the internal list and refresh the display text using `format_ranges_human()`.
+  - [x] **Edit**:
+    - [x] When a range is selected in the list, call `show_time_selection_dialog()` pre-filled with that range (reusing 16b widgets).
     - [ ] Normalize and validate the edited range.
-    - [ ] Replace the original entry in the list and refresh the display.
-  - [ ] **Remove**:
+    - [x] Replace the original entry in the list and refresh the display.
+  - [x] **Remove**:
     - [ ] Remove the selected range from the list (with an optional “Are you sure?” confirm dialog).
     - [ ] Refresh the list display; handle the empty-list case cleanly.
-- [ ] **Finalize and return values**
-  - [ ] On Done:
-    - [ ] Sort or normalize order only if consistent with existing behavior (otherwise preserve user order).
-    - [ ] Join internal list into the canonical comma-separated string and return it.
-  - [ ] On Cancel:
-    - [ ] Define whether to return the original unmodified value or an empty string, consistent with current cancel semantics.
-- [ ] **Integrate “Manage ranges” into GUI flows**
-  - [ ] Replace / wrap the Phase 1 loop in a function that:
-    - [ ] For new days with no ranges, either goes straight to the “Manage ranges” dialog or calls Add once, then shows the list.
-    - [ ] For existing days, always opens the “Manage ranges for <day>” dialog with full pre-fill from the current value.
-  - [ ] Ensure all relevant GUI entry points (grid, weekday/weekend, additional hours) now use the “Manage ranges” list rather than only the Yes/No loop.
+- [x] **Finalize and return values**
+  - [x] On Done:
+    - [x] Sort or normalize order only if consistent with existing behavior (otherwise preserve user order).
+    - [x] Join internal list into the canonical comma-separated string and return it.
+  - [x] On Cancel:
+    - [x] Define whether to return the original unmodified value or an empty string, consistent with current cancel semantics.
+- [x] **Integrate “Manage ranges” into GUI flows**
+  - [x] Replace / wrap the Phase 1 loop in a function that:
+    - [x] For new days with no ranges, either goes straight to the “Manage ranges” dialog or calls Add once, then shows the list.
+    - [x] For existing days, always opens the “Manage ranges for <day>” dialog with full pre-fill from the current value.
+  - [x] Ensure all relevant GUI entry points (grid, weekday/weekend, additional hours) now use the “Manage ranges” list rather than only the Yes/No loop.
 
 ### Phase 3 – Tool-Specific Polish and UX Consistency
 

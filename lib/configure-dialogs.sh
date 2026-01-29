@@ -85,7 +85,52 @@ show_error_dialog() {
     esac
 }
 
+# Parse normalized time (HH:MM) to 12-hour format components
+# Returns: hour minute ampm (e.g., "11 30 PM")
+parse_normalized_time_to_12h() {
+    local normalized_time="$1"  # Format: HH:MM (24-hour)
+    
+    if [ -z "${normalized_time}" ]; then
+        echo "11 00 PM"
+        return 0
+    fi
+    
+    local hour minute
+    if [[ "${normalized_time}" =~ : ]]; then
+        hour=$(echo "${normalized_time}" | cut -d':' -f1)
+        minute=$(echo "${normalized_time}" | cut -d':' -f2)
+    else
+        hour="${normalized_time}"
+        minute=0
+    fi
+    
+    # Remove leading zeros for hour comparison
+    hour=$((10#${hour}))
+    minute=$((10#${minute}))
+    
+    # Convert to 12-hour format
+    local h12="${hour}"
+    local ampm="AM"
+    
+    if [ "${hour}" -ge 12 ]; then
+        ampm="PM"
+        if [ "${hour}" -gt 12 ]; then
+            h12=$((hour - 12))
+        fi
+    fi
+    
+    if [ "${h12}" -eq 0 ]; then
+        h12=12
+    fi
+    
+    printf "%d %02d %s" "${h12}" "${minute}" "${ampm}"
+}
+
 # Show time selection dialog with spinboxes/comboboxes
+# Parameters:
+#   $1: title
+#   $2: start_time (optional, format: HH:MM or empty for defaults)
+#   $3: end_time (optional, format: HH:MM or empty for defaults)
 # Returns normalized time range string (HH:MM-HH:MM)
 show_time_selection_dialog() {
     local title="$1"
@@ -115,22 +160,43 @@ show_time_selection_dialog() {
 # YAD implementation of time selection dialog
 show_time_selection_dialog_yad() {
     local title="$1"
+    local start_time="${2:-}"
+    local end_time="${3:-}"
     
-    # Default values for spinboxes
-    local sh=11 sm=00 sap="PM"
-    local eh=5 em=00 eap="AM"
+    # Parse pre-filled values or use defaults
+    local start_data end_data
+    if [ -n "${start_time}" ]; then
+        start_data=$(parse_normalized_time_to_12h "${start_time}")
+    else
+        start_data="11 00 PM"
+    fi
+    
+    if [ -n "${end_time}" ]; then
+        end_data=$(parse_normalized_time_to_12h "${end_time}")
+    else
+        end_data="5 00 AM"
+    fi
+    
+    # Extract components
+    local sh sm sap eh em eap
+    sh=$(echo "${start_data}" | cut -d' ' -f1)
+    sm=$(echo "${start_data}" | cut -d' ' -f2)
+    sap=$(echo "${start_data}" | cut -d' ' -f3)
+    eh=$(echo "${end_data}" | cut -d' ' -f1)
+    em=$(echo "${end_data}" | cut -d' ' -f2)
+    eap=$(echo "${end_data}" | cut -d' ' -f3)
     
     local output
     output=$(yad --form --title="${title}" \
         --separator="|" \
         --field="Start Time:":LBL "" \
         --field="Hour:NUM" "${sh}!1..12!1!0" \
-        --field="Minute:CB" "^00!30" \
-        --field="AM/PM:CB" "^AM!PM" \
+        --field="Minute:CB" "^${sm}!00!30" \
+        --field="AM/PM:CB" "^${sap}!AM!PM" \
         --field="End Time:":LBL "" \
         --field="Hour:NUM" "${eh}!1..12!1!0" \
-        --field="Minute:CB" "^00!30" \
-        --field="AM/PM:CB" "^AM!PM" \
+        --field="Minute:CB" "^${em}!00!30" \
+        --field="AM/PM:CB" "^${eap}!AM!PM" \
         2>/dev/null)
     
     if [ $? -ne 0 ] || [ -z "${output}" ]; then
@@ -154,16 +220,41 @@ show_time_selection_dialog_yad() {
 # Zenity implementation of time selection dialog
 show_time_selection_dialog_zenity() {
     local title="$1"
+    local start_time="${2:-}"
+    local end_time="${3:-}"
+    
+    # Parse pre-filled values or use defaults
+    local start_data end_data
+    if [ -n "${start_time}" ]; then
+        start_data=$(parse_normalized_time_to_12h "${start_time}")
+    else
+        start_data="11 00 PM"
+    fi
+    
+    if [ -n "${end_time}" ]; then
+        end_data=$(parse_normalized_time_to_12h "${end_time}")
+    else
+        end_data="5 00 AM"
+    fi
+    
+    # Extract components
+    local sh sm sap eh em eap
+    sh=$(echo "${start_data}" | cut -d' ' -f1)
+    sm=$(echo "${start_data}" | cut -d' ' -f2)
+    sap=$(echo "${start_data}" | cut -d' ' -f3)
+    eh=$(echo "${end_data}" | cut -d' ' -f1)
+    em=$(echo "${end_data}" | cut -d' ' -f2)
+    eap=$(echo "${end_data}" | cut -d' ' -f3)
     
     local output
     output=$(zenity --forms --title="${title}" \
         --text="Configure time range:" \
-        --add-entry="Start Hour (1-12)" \
-        --add-combo="Start Minute" --combo-values="00|30" \
-        --add-combo="Start AM/PM" --combo-values="AM|PM" \
-        --add-entry="End Hour (1-12)" \
-        --add-combo="End Minute" --combo-values="00|30" \
-        --add-combo="End AM/PM" --combo-values="AM|PM" \
+        --add-entry="Start Hour (1-12)" --entry-text="${sh}" \
+        --add-combo="Start Minute" --combo-values="00|30" --set "${sm}" \
+        --add-combo="Start AM/PM" --combo-values="AM|PM" --set "${sap}" \
+        --add-entry="End Hour (1-12)" --entry-text="${eh}" \
+        --add-combo="End Minute" --combo-values="00|30" --set "${em}" \
+        --add-combo="End AM/PM" --combo-values="AM|PM" --set "${eap}" \
         2>/dev/null)
     
     if [ $? -ne 0 ] || [ -z "${output}" ]; then
@@ -192,16 +283,39 @@ show_time_selection_dialog_zenity() {
 # KDialog implementation of time selection dialog
 show_time_selection_dialog_kdialog() {
     local title="$1"
+    local start_time="${2:-}"
+    local end_time="${3:-}"
     
+    # Parse pre-filled values or use defaults
+    local start_data end_data
+    if [ -n "${start_time}" ]; then
+        start_data=$(parse_normalized_time_to_12h "${start_time}")
+    else
+        start_data="11 00 PM"
+    fi
+    
+    if [ -n "${end_time}" ]; then
+        end_data=$(parse_normalized_time_to_12h "${end_time}")
+    else
+        end_data="5 00 AM"
+    fi
+    
+    # Extract components
     local sh sm sap eh em eap
+    sh=$(echo "${start_data}" | cut -d' ' -f1)
+    sm=$(echo "${start_data}" | cut -d' ' -f2)
+    sap=$(echo "${start_data}" | cut -d' ' -f3)
+    eh=$(echo "${end_data}" | cut -d' ' -f1)
+    em=$(echo "${end_data}" | cut -d' ' -f2)
+    eap=$(echo "${end_data}" | cut -d' ' -f3)
     
-    sh=$(kdialog --title "${title}" --combobox "Start Hour:" "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" --default "11") || return 1
-    sm=$(kdialog --title "${title}" --combobox "Start Minute:" "00" "30" --default "00") || return 1
-    sap=$(kdialog --title "${title}" --combobox "Start AM/PM:" "AM" "PM" --default "PM") || return 1
+    sh=$(kdialog --title "${title}" --combobox "Start Hour:" "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" --default "${sh}") || return 1
+    sm=$(kdialog --title "${title}" --combobox "Start Minute:" "00" "30" --default "${sm}") || return 1
+    sap=$(kdialog --title "${title}" --combobox "Start AM/PM:" "AM" "PM" --default "${sap}") || return 1
     
-    eh=$(kdialog --title "${title}" --combobox "End Hour:" "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" --default "5") || return 1
-    em=$(kdialog --title "${title}" --combobox "End Minute:" "00" "30" --default "00") || return 1
-    eap=$(kdialog --title "${title}" --combobox "End AM/PM:" "AM" "PM" --default "AM") || return 1
+    eh=$(kdialog --title "${title}" --combobox "End Hour:" "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" --default "${eh}") || return 1
+    em=$(kdialog --title "${title}" --combobox "End Minute:" "00" "30" --default "${em}") || return 1
+    eap=$(kdialog --title "${title}" --combobox "End AM/PM:" "AM" "PM" --default "${eap}") || return 1
     
     echo "${sh}:${sm}${sap}-${eh}:${em}${eap}"
     return 0
@@ -637,4 +751,235 @@ show_multi_column_list_dialog() {
             return 1
             ;;
     esac
+}
+
+# Manage multiple time ranges for a day (Phase 2 - Enhancement #16c)
+# Parameters:
+#   $1: day_name (e.g., "Monday")
+#   $2: existing_ranges (comma-separated normalized ranges, e.g., "00:00-05:00,23:00-05:00" or empty)
+# Returns: comma-separated normalized ranges string, or empty string on cancel
+manage_ranges_dialog() {
+    local day_name="$1"
+    local existing_ranges="${2:-}"
+    
+    # Parse existing ranges into array
+    local ranges_array=()
+    if [ -n "${existing_ranges}" ]; then
+        local old_ifs="${IFS}"
+        IFS=','
+        for range in ${existing_ranges}; do
+            range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [ -n "${range}" ]; then
+                ranges_array+=("${range}")
+            fi
+        done
+        IFS="${old_ifs}"
+    fi
+    
+    # Main loop: show list and handle actions
+    while true; do
+        # Build list items for display
+        local list_items=()
+        local i=0
+        for range in "${ranges_array[@]}"; do
+            local formatted
+            formatted=$(format_range_human "${range}" "${day_name}")
+            list_items+=("Range $((i + 1))" "${formatted}")
+            i=$((i + 1))
+        done
+        
+        # Build dialog text
+        local dialog_text="Time ranges for ${day_name}:"
+        if [ ${#ranges_array[@]} -eq 0 ]; then
+            dialog_text="${dialog_text}\n\nNo ranges configured yet."
+        fi
+        
+        # Show action selection dialog
+        local actions=("Add range" "Edit range" "Remove range" "Done" "Cancel")
+        local action
+        action=$(show_list_dialog "Manage Time Ranges - ${day_name}" "${dialog_text}" 600 400 "${actions[@]}")
+        local action_exit=$?
+        
+        if [ ${action_exit} -ne 0 ] || [ -z "${action}" ]; then
+            # User cancelled - return empty to indicate cancellation
+            return 1
+        fi
+        
+        case "${action}" in
+            "Add range")
+                # Add a new range
+                local new_range_input
+                new_range_input=$(show_time_selection_dialog "Add Time Range - ${day_name}" "" "")
+                local add_exit=$?
+                
+                if [ ${add_exit} -eq 0 ] && [ -n "${new_range_input}" ]; then
+                    # Validate and normalize
+                    if ! validate_time_range "${new_range_input}"; then
+                        show_error_dialog "Invalid Time Range" "The time range format is invalid. Please enter a valid range (e.g., 11:30pm-5:30am or 23:30-05:30)."
+                        continue
+                    fi
+                    
+                    local normalized
+                    normalized=$(normalize_time_range "${new_range_input}")
+                    
+                    if ! validate_time_range "${normalized}"; then
+                        show_error_dialog "Invalid Time Range" "The time range could not be normalized. Please try again."
+                        continue
+                    fi
+                    
+                    # Add to array
+                    ranges_array+=("${normalized}")
+                fi
+                ;;
+                
+            "Edit range")
+                if [ ${#ranges_array[@]} -eq 0 ]; then
+                    show_info_dialog "No Ranges" "There are no ranges to edit. Please add a range first."
+                    continue
+                fi
+                
+                # Show range selection dialog
+                local range_items=()
+                local idx=0
+                for range in "${ranges_array[@]}"; do
+                    local formatted
+                    formatted=$(format_range_human "${range}" "${day_name}")
+                    range_items+=("Range $((idx + 1))" "${formatted}")
+                    idx=$((idx + 1))
+                done
+                
+                local selected_range_label
+                selected_range_label=$(show_multi_column_list_dialog \
+                    "Select Range to Edit - ${day_name}" \
+                    "Select a range to edit:" \
+                    500 300 \
+                    1 \
+                    "Range" "Time Range" \
+                    "${range_items[@]}")
+                
+                if [ -z "${selected_range_label}" ]; then
+                    continue
+                fi
+                
+                # Extract index from "Range N"
+                local range_idx
+                range_idx=$(echo "${selected_range_label}" | sed 's/Range //')
+                range_idx=$((range_idx - 1))
+                
+                if [ ${range_idx} -ge 0 ] && [ ${range_idx} -lt ${#ranges_array[@]} ]; then
+                    local range_to_edit="${ranges_array[${range_idx}]}"
+                    
+                    # Parse range to extract start and end times
+                    local start_part end_part
+                    start_part=$(echo "${range_to_edit}" | cut -d'-' -f1)
+                    end_part=$(echo "${range_to_edit}" | cut -d'-' -f2)
+                    
+                    # Edit the range
+                    local edited_range_input
+                    edited_range_input=$(show_time_selection_dialog "Edit Time Range - ${day_name}" "${start_part}" "${end_part}")
+                    local edit_exit=$?
+                    
+                    if [ ${edit_exit} -eq 0 ] && [ -n "${edited_range_input}" ]; then
+                        # Validate and normalize
+                        if ! validate_time_range "${edited_range_input}"; then
+                            show_error_dialog "Invalid Time Range" "The time range format is invalid. Please enter a valid range."
+                            continue
+                        fi
+                        
+                        local normalized
+                        normalized=$(normalize_time_range "${edited_range_input}")
+                        
+                        if ! validate_time_range "${normalized}"; then
+                            show_error_dialog "Invalid Time Range" "The time range could not be normalized. Please try again."
+                            continue
+                        fi
+                        
+                        # Replace in array
+                        ranges_array[${range_idx}]="${normalized}"
+                    fi
+                fi
+                ;;
+                
+            "Remove range")
+                if [ ${#ranges_array[@]} -eq 0 ]; then
+                    show_info_dialog "No Ranges" "There are no ranges to remove."
+                    continue
+                fi
+                
+                # Show range selection dialog
+                local range_items=()
+                local idx=0
+                for range in "${ranges_array[@]}"; do
+                    local formatted
+                    formatted=$(format_range_human "${range}" "${day_name}")
+                    range_items+=("Range $((idx + 1))" "${formatted}")
+                    idx=$((idx + 1))
+                done
+                
+                local selected_range_label
+                selected_range_label=$(show_multi_column_list_dialog \
+                    "Select Range to Remove - ${day_name}" \
+                    "Select a range to remove:" \
+                    500 300 \
+                    1 \
+                    "Range" "Time Range" \
+                    "${range_items[@]}")
+                
+                if [ -z "${selected_range_label}" ]; then
+                    continue
+                fi
+                
+                # Extract index from "Range N"
+                local range_idx
+                range_idx=$(echo "${selected_range_label}" | sed 's/Range //')
+                range_idx=$((range_idx - 1))
+                
+                if [ ${range_idx} -ge 0 ] && [ ${range_idx} -lt ${#ranges_array[@]} ]; then
+                    local range_to_remove="${ranges_array[${range_idx}]}"
+                    local formatted_remove
+                    formatted_remove=$(format_range_human "${range_to_remove}" "${day_name}")
+                    
+                    # Confirm removal
+                    if show_question_dialog "Confirm Removal" "Remove this range?\n\n${formatted_remove}" "Yes, Remove" "Cancel" 500 200; then
+                        # Remove from array (create new array without this element)
+                        local new_array=()
+                        local i=0
+                        for r in "${ranges_array[@]}"; do
+                            if [ ${i} -ne ${range_idx} ]; then
+                                new_array+=("${r}")
+                            fi
+                            i=$((i + 1))
+                        done
+                        ranges_array=("${new_array[@]}")
+                    fi
+                fi
+                ;;
+                
+            "Done")
+                # Join ranges and return
+                if [ ${#ranges_array[@]} -eq 0 ]; then
+                    echo ""
+                    return 0
+                fi
+                
+                local result=""
+                local first=true
+                for r in "${ranges_array[@]}"; do
+                    if [ "${first}" = "true" ]; then
+                        result="${r}"
+                        first=false
+                    else
+                        result="${result},${r}"
+                    fi
+                done
+                echo "${result}"
+                return 0
+                ;;
+                
+            "Cancel")
+                # Return empty to indicate cancellation
+                return 1
+                ;;
+        esac
+    done
 }

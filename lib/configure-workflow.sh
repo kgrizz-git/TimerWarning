@@ -319,8 +319,14 @@ configure_day_from_grid() {
                     done
                 fi
             else
-                # Edit single weekday
-                range=$(get_day_hours "${day_name}" "${day_index}" "${use_gui}" "false" "true")
+                # Edit single weekday - pass existing range if available (Phase 2)
+                local existing_range=""
+                if [ -n "${config_lines_ref[${day_index}]+set}" ]; then
+                    # Extract value from config line (format: DAY_VAR=value)
+                    local config_line="${config_lines_ref[${day_index}]}"
+                    existing_range=$(echo "${config_line}" | cut -d'=' -f2-)
+                fi
+                range=$(get_day_hours "${day_name}" "${day_index}" "${use_gui}" "false" "true" "${existing_range}")
                 exit_code=$?
                 
                 if [ "${range}" = "CANCELLED" ]; then
@@ -357,8 +363,14 @@ configure_day_from_grid() {
                     summary_lines_ref[0]="${DAY_NAMES[0]}: (no restrictions)"
                 fi
             else
-                # Edit single weekend day
-                range=$(get_day_hours "${day_name}" "${day_index}" "${use_gui}" "false" "true")
+                # Edit single weekend day - pass existing range if available (Phase 2)
+                local existing_range=""
+                if [ -n "${config_lines_ref[${day_index}]+set}" ]; then
+                    # Extract value from config line (format: DAY_VAR=value)
+                    local config_line="${config_lines_ref[${day_index}]}"
+                    existing_range=$(echo "${config_line}" | cut -d'=' -f2-)
+                fi
+                range=$(get_day_hours "${day_name}" "${day_index}" "${use_gui}" "false" "true" "${existing_range}")
                 exit_code=$?
                 
                 if [ "${range}" = "CANCELLED" ]; then
