@@ -2,7 +2,7 @@
 - **Description**: Add support for 12-hour format time entry (e.g., "11pm-5am", "11:30pm-5:30am") with minute precision in addition to 24-hour format, and provide GUI spinbox widgets for easier time selection with AM/PM toggle
 - **Files Affected**: `lib/configure-input.sh`, `lib/configure-time.sh`, `lib/config.sh`, `lib/time-validation.sh`, `sleep-warning.conf` (format change to support minutes)
 - **Priority**: Medium (improves usability, especially for users more familiar with 12-hour format and needing precise timing)
-- **Status**: Not implemented
+- **Status**: MOSTLY implemented
 - **Current Implementation**:
   - Time ranges entered in 24-hour format only: `DAY=START_HOUR-END_HOUR` (e.g., `SUNDAY=23-5`)
   - Text-based input via `get_day_hours()` function
@@ -119,6 +119,7 @@
       - Hour-only: `11pm-5am` for simple top-of-the-hour restrictions
     - **Display Preference**: Show times in user's preferred format in summaries, status, and grid views with minutes when specified
     - **Format Detection**: Automatically detect format from input (no need to specify format)
+    - **Timer Interval Consideration**: When using minute precision, users should be aware that the timer checks at fixed intervals. For example, with `CHECK_INTERVAL=60`, the timer only checks at :00 of each hour, so restrictions starting at 9:15 will trigger at 10:00 (next check). The system will warn users if they configure minute precision with a large `CHECK_INTERVAL` and suggest shorter intervals (1, 5, or 15 minutes) for timely warnings.
   - **Backward Compatibility with Minute Support**:
     - Existing hour-only configurations (`DAY=23-5`) continue to work, treated as `23:00-5:00`
     - New minute-precision input (`DAY=23:30-5:30`) stored with minutes
@@ -151,31 +152,190 @@
     - Example comparison: `if [[ $current_time -ge 2330 || $current_time -lt 0530 ]]; then`
   - **Display Format**: Consider adding user preference for display format (12-hour vs 24-hour) in summaries
   - **Performance**: Minute-level time comparisons have negligible performance impact
-- **Implementation Checklist with Minute Precision**:
-  - [ ] Create `parse_time_input()` function to detect and parse both 12-hour and 24-hour formats with optional minutes
-  - [ ] Add format conversion functions (`12hour_to_24hour()`, `24hour_to_12hour()`) with minute support
-  - [ ] Add minute parsing and validation (0-59 range, default to :00 if not specified)
-  - [ ] Update `get_day_hours()` to accept both formats with minutes in text mode
-  - [ ] Create GUI spinbox dialog function for time selection with hour and minute widgets (yad preferred, zenity fallback)
-  - [ ] Integrate hour and minute spinbox widgets into `get_day_hours()` GUI mode
-  - [ ] Update config file read/write to support `DAY=HH:MM-HH:MM` format
-  - [ ] Update `lib/time-validation.sh` time comparison logic to handle minute precision:
-    - [ ] Parse minute values from config file time ranges
-    - [ ] Update time comparison to use `HHMM` format (e.g., `2330` for 11:30 PM)
-    - [ ] Test overnight ranges with minute precision
-  - [ ] Add `TIME_DISPLAY_FORMAT` config option for user preference (12hour|24hour)
-  - [ ] Update `format_ranges_human()` to respect display format preference and show minutes
-  - [ ] Update status.sh and grid display to show times in preferred format with minutes
-  - [ ] Test format parsing with various input formats (with and without minutes):
-    - [ ] Test `23:30-5:30` (24-hour with minutes)
-    - [ ] Test `11:30pm-5:30am` (12-hour with minutes)
-    - [ ] Test `23-5` (hour-only, should default to :00)
-    - [ ] Test `11pm-5am` (hour-only 12-hour, should default to :00)
-  - [ ] Test overnight range handling in 12-hour format with minutes
-  - [ ] Test GUI spinbox widgets (hour and minute) in yad, zenity, and kdialog
-  - [ ] Verify backward compatibility with existing hour-only format configs (`DAY=23-5`)
-  - [ ] Test edge cases: `12:00am`, `12:30pm`, `0:00`, `23:59`
-  - [ ] Validate minute-level warning triggering (ensure warnings trigger at exact minute, not just hour)
+  - **Timer Interval Limitations with Minute Precision**:
+    - **Problem**: The systemd timer uses `OnCalendar=*:0/N` format, which triggers at fixed intervals starting from minute 0 (e.g., `CHECK_INTERVAL=60` triggers at :00 of each hour: 9:00, 10:00, 11:00, etc.)
+    - **Note**: This limitation is addressed by [Enhancement 30: Separate Timer Check Interval from Popup Display Frequency](enhancement-30-separate-timer-check-interval-from-popup-display-frequency.md), which hardcodes the timer to check every 5 minutes while allowing users to configure popup display frequency separately.
+    - **Impact**: If restrictions start at a non-zero minute (e.g., 9:15), the popup will NOT appear at the exact start time. Instead, it will appear at the next timer trigger (e.g., 10:00 if `CHECK_INTERVAL=60`)
+    - **Example**: With `CHECK_INTERVAL=60` and restrictions starting at 9:15:
+      - Timer triggers at 9:00 → script checks → 9:00 < 9:15 → no popup
+      - Timer triggers at 10:00 → script checks → 10:00 >= 9:15 → popup appears
+      - **Result**: Popup appears at 10:00, not 9:15 (45 minutes late)
+    - **Solutions**:
+      - **Option 1: Recommend Shorter Intervals** (Recommended):
+        - When minute precision is used, recommend `CHECK_INTERVAL` values that align with common minute boundaries:
+          - `CHECK_INTERVAL=15` → triggers at :00, :15, :30, :45 → popup appears at 9:15 if restrictions start at 9:15
+          - `CHECK_INTERVAL=5` → triggers at :00, :05, :10, :15, :20, etc. → popup appears at 9:15
+          - `CHECK_INTERVAL=1` → triggers every minute → popup appears at exact time
+        - Add validation/warning in configure.sh: If user sets minute precision (e.g., `9:15`) with `CHECK_INTERVAL=60`, show warning: "Warning: With CHECK_INTERVAL=60, restrictions starting at 9:15 will trigger at 10:00 (next timer check). Consider using CHECK_INTERVAL=15 or less for minute-precision restrictions."
+      - **Option 2: Auto-Adjust CHECK_INTERVAL**:
+        - When minute precision is detected, automatically suggest/adjust `CHECK_INTERVAL` to a value that ensures timely triggering (e.g., if restrictions use :15 or :45, recommend `CHECK_INTERVAL=15`)
+        - Could be a warning dialog: "You've configured minute precision. For timely warnings, we recommend CHECK_INTERVAL=15 or less. Would you like to update CHECK_INTERVAL?"
+      - **Option 3: Systemd OnCalendar with Specific Times** (Complex, not recommended):
+        - Use systemd's `OnCalendar` with specific times (e.g., `OnCalendar=*-*-* 09:15:00,10:15:00,11:15:00`) to trigger at exact restriction start times
+        - **Limitations**: 
+          - Requires parsing all restriction start times from config
+          - Complex to handle multiple days, multiple ranges, overnight ranges
+          - Would need to regenerate timer file whenever restrictions change
+          - Systemd timer file would become very complex with many time entries
+        - **Not Recommended**: Too complex, error-prone, and doesn't scale well
+      - **Option 4: Hybrid Approach** (Future enhancement):
+        - Use shorter default interval (e.g., 15 minutes) when minute precision is detected
+        - Allow users to override, but warn about potential delays
+        - Could add a "precision mode" that automatically uses `CHECK_INTERVAL=1` or `CHECK_INTERVAL=5` when minute precision is used
+    - **Recommended Implementation**:
+      - Add validation in `configure.sh` or `lib/configure-validation.sh`:
+        - When saving config with minute precision, check if `CHECK_INTERVAL` is compatible
+        - If `CHECK_INTERVAL` is large (e.g., > 15) and minute precision is used, show warning dialog
+        - Suggest appropriate `CHECK_INTERVAL` values (1, 5, 15) based on minute values used
+      - Add documentation/warning in user-facing messages:
+        - Status display: Show warning if minute precision is used with incompatible `CHECK_INTERVAL`
+        - Configuration wizard: Show informational message about timer interval when minute precision is selected
+      - **User Warning Example**: "Note: With CHECK_INTERVAL=60, restrictions starting at non-zero minutes (e.g., 9:15) will trigger at the next hour boundary (e.g., 10:00). For exact timing, use CHECK_INTERVAL=15 or less."
+---
+
+## Detailed Implementation Plan
+
+**Status**: Ready for implementation - All decisions have been made (see `enhancement-16b-decisions-needed.md`)
+
+**Implementation Approach**: Hybrid approach with minute precision
+- **GUI Mode**: Spinbox widgets (yad preferred, zenity fallback, kdialog sequential dialogs)
+- **Text Mode**: Accept both 12-hour and 24-hour format text input with optional minutes
+- **Internal Storage**: Store in normalized 24-hour format with minutes (`HH:MM-HH:MM`)
+- **Display**: Show times in user's preferred format (12-hour default, configurable) with minutes
+
+**Key Decisions**:
+- Minute selection: Combobox with 00 and 30 options (fixed, not configurable)
+- Display format: Default 12-hour, but config file remains 24-hour for backward compatibility
+- Function naming: Create new `is_restricted_time()` with minute precision, keep `is_restricted_hour()` as wrapper
+- Config format: Parse in `parse_config()`, normalize to `HH:MM-HH:MM`, write in normalized format always
+- Migration: Automatic migration on first run/install, with runtime backward compatibility
+
+**Implementation Phases**:
+1. Core Parsing and Conversion Functions
+2. Time Comparison and Current Time Functions
+3. Config File Parsing and Normalization
+4. Display Format Preference
+5. GUI Widget Implementation
+6. Status and Display Updates
+7. Validation and Warnings
+8. Testing
+9. Documentation
+10. Final Integration and Cleanup
+
+---
+
+### Phase 1: Core Parsing and Conversion Functions
+- [x] **Create Time Parsing Functions**
+- [x] **Create Format Conversion Functions**
+- [x] **Create Validation Functions**
+
+### Phase 2: Time Comparison and Current Time Functions
+- [x] **Create Current Time Functions**
+- [x] **Update Time Comparison Functions**
+
+### Phase 3: Config File Parsing and Normalization
+- [x] **Update Config Parsing**
+- [x] **Update Config Writing**
+- [x] **Create Migration Logic**
+
+### Phase 4: Display Format Preference
+- [x] **Add Display Format Config Option**
+- [x] **Update Display Functions**
+
+### Phase 5: GUI Widget Implementation
+- [x] **Create GUI Time Selection Function**
+- [x] **Update `get_day_hours()` Function**
+
+### Phase 6: Status and Display Updates
+- [x] **Update `status.sh`**
+- [x] **Update Grid Display**
+
+### Phase 7: Validation and Warnings
+- [x] **Timer Interval Validation**
+- [x] **Integrate validation into config save**
+- [x] **Add informational message in configuration wizard**
+
+### Phase 8: Testing
+
+#### 8.1 Unit Tests
+- [x] **Create test file `tests/test-16b-core.sh`**:
+  - [x] Test `normalize_time_input()` with various formats
+  - [x] Test `detect_time_format()` with 12-hour and 24-hour inputs
+  - [x] Test `parse_time_input()` (implemented via `parse_single_time` and `parse_time_range`)
+  - [x] Test `12hour_to_24hour()` with all edge cases
+  - [x] Test `24hour_to_12hour()` with all edge cases
+  - [x] Test `convert_time_range_to_24hour()` with various inputs
+  - [x] Test `normalize_time_range()` with various inputs
+  - [x] Test `validate_time_range()` with valid and invalid formats
+  - [x] Test `is_time_in_single_range()` with minute precision
+  - [x] Test `is_restricted_time()` with minute precision
+  - [x] Test overnight ranges with minute precision
+  - [x] Test backward compatibility of `is_restricted_hour()`
+  - [x] Test `format_range_human()` with minutes and display preference
+
+#### 8.2 Integration Tests
+- [x] **Create test file `tests/test-16b-core.sh` (includes integration checks)**:
+  - [x] Test `parse_config()` with `HH-HH` format (backward compatibility)
+  - [x] Test `parse_config()` with `HH:MM-HH:MM` format
+  - [x] Test config migration function (`migrate_config_to_minute_format`)
+  - [x] Test config write with normalized format
+- [ ] **Create test file `tests/test-gui-time-selection.sh`**:
+  - [ ] Test yad time selection dialog (if yad available)
+  - [ ] Test zenity time selection dialog (if zenity available)
+  - [ ] Test kdialog time selection dialog (if kdialog available)
+  - [ ] Test pre-filling with existing values
+  - [ ] Test overnight range indication
+
+#### 8.3 Manual Testing Checklist
+- [ ] **GUI Testing**:
+  - [ ] Test yad spinbox widgets (hour, minute, AM/PM)
+  - [ ] Test zenity form fields (entry and combobox)
+  - [ ] Test kdialog sequential combobox dialogs
+  - [ ] Test pre-filling when editing existing range
+  - [ ] Test overnight range visual indicator
+  - [ ] Test error handling and validation
+- [ ] **Text Mode Testing**:
+  - [ ] Test 12-hour format input (`11pm-5am`)
+  - [ ] Test 24-hour format input (`23-5`)
+  - [ ] Test minute precision input (`11:30pm-5:30am`)
+  - [ ] Test various format variations
+  - [ ] Test error messages for invalid input
+- [ ] **Display Format Testing**:
+  - [ ] Test 12-hour display format preference
+  - [ ] Test 24-hour display format preference
+  - [ ] Test default (12-hour) when not set
+  - [ ] Test status.sh output with both formats
+  - [ ] Test grid display with both formats
+- [ ] **Backward Compatibility Testing**:
+  - [ ] Test existing config files with `HH-HH` format
+  - [ ] Test automatic migration on first run
+  - [ ] Test runtime backward compatibility (treat `HH-HH` as `HH:00-HH:00`)
+  - [ ] Test that existing function calls still work
+
+### Phase 9: Documentation
+- [x] **Update `user-docs/CONFIGURATION.md`**
+- [x] **Update `user-docs/USER_GUIDE.md`**
+- [x] **Update `dev-docs/TECHNICAL_DETAILS.md`**
+
+### Phase 10: Final Integration and Cleanup
+
+#### 10.1 Code Review and Refactoring
+- [x] Review all new functions for consistency
+- [x] Ensure error handling is comprehensive
+- [x] Check for code duplication
+- [x] Verify backward compatibility maintained
+- [x] Update function documentation/comments
+
+#### 10.2 Release Preparation
+- [ ] Update version number
+- [ ] Create release notes documenting:
+  - [ ] 12-hour format support
+  - [ ] Minute precision
+  - [ ] Display format preference
+  - [ ] Config format migration
+  - [ ] Timer interval considerations
+- [ ] Test full installation from scratch
+- [ ] Test upgrade from previous version
 - **Minute Precision Benefits**:
   - **Fine-Grained Control**: Users can set precise bedtimes (e.g., "No gaming after 11:30 PM")
   - **Flexibility**: Accommodates schedules that don't align with hour boundaries

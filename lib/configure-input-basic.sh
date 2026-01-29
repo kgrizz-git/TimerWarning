@@ -21,21 +21,9 @@ get_hour_zenity() {
     local default="$2"
     
     local hour
-    hour=$(show_entry_dialog \
-        "Sleep Warning Configuration" \
-        "${prompt}" \
-        "${default}")
+    hour=$(show_time_selection_dialog "Sleep Warning Configuration" "" "")
     
     if [ -z "${hour}" ]; then
-        echo ""
-        return 1
-    fi
-    
-    # Validate hour
-    if ! [[ "${hour}" =~ ^[0-9]+$ ]] || [ "${hour}" -lt "${MIN_HOUR}" ] || [ "${hour}" -gt "${MAX_HOUR}" ]; then
-        show_info_dialog \
-            "Invalid Hour" \
-            "Invalid hour. Please enter a number between ${MIN_HOUR} and ${MAX_HOUR}."
         echo ""
         return 1
     fi
@@ -50,14 +38,24 @@ get_hour_text() {
     local default="$2"
     
     while true; do
-        read -p "${prompt} [${default}]: " hour
-        hour=${hour:-${default}}
+        read -p "${prompt} [${default}]: " input
+        input=${input:-${default}}
         
-        if [[ "${hour}" =~ ^[0-9]+$ ]] && [ "${hour}" -ge "${MIN_HOUR}" ] && [ "${hour}" -le "${MAX_HOUR}" ]; then
-            echo "${hour}"
+        if [ -z "${input}" ]; then
+            echo ""
+            return 1
+        fi
+        
+        local normalized
+        if normalized=$(convert_time_range_to_24hour "${input}"); then
+            echo "${normalized}"
+            return 0
+        elif [[ "${input}" =~ ^[0-9]+$ ]] && [ "${input}" -ge "${MIN_HOUR}" ] && [ "${input}" -le "${MAX_HOUR}" ]; then
+            # Legacy hour-only input
+            printf "%02d:00" "${input}"
             return 0
         else
-            echo "Invalid hour. Please enter a number between ${MIN_HOUR} and ${MAX_HOUR}." >&2
+            echo "Invalid time format. Please enter 12h (e.g., 11pm) or 24h (e.g., 23:00) format." >&2
         fi
     done
 }

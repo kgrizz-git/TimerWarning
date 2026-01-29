@@ -14,7 +14,13 @@
 #
 # Dependencies:
 # - configure-core.sh (for DAY_NAMES, format_hour_12h)
+# - time-parsing.sh (for format conversions)
 ###############################################################################
+
+# Source time-parsing.sh if available
+if [ -f "$(dirname "${BASH_SOURCE[0]}")/time-parsing.sh" ]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/time-parsing.sh"
+fi
 
 # Format a single range to human-readable format
 format_range_human() {
@@ -22,21 +28,62 @@ format_range_human() {
     local day_name="$2"
     
     # Handle empty or invalid ranges (e.g., skipped days)
-    if [ -z "${range}" ] || [ "${range}" = "(no restrictions)" ] || ! echo "${range}" | grep -qE '^[0-9]+-[0-9]+$'; then
+    if [ -z "${range}" ] || [ "${range}" = "(no restrictions)" ]; then
         echo "(no restrictions)"
         return 0
     fi
     
-    local start_hour end_hour
-    start_hour=$(echo "${range}" | cut -d'-' -f1)
-    end_hour=$(echo "${range}" | cut -d'-' -f2)
+    # Normalize range to HH:MM-HH:MM if normalization helpers are available.
+    # This allows format_range_human to accept legacy HH-HH as well as new
+    # 12‑hour inputs like "11pm-5am" that may still exist in older configs.
+    if type normalize_time_range >/dev/null 2>&1; then
+        local norm
+        norm=$(normalize_time_range "${range}")
+        if [ -n "${norm}" ]; then
+            # normalize_time_range always returns one or more comma-separated
+            # ranges; format_range_human only handles a single range, so use
+            # the first one if multiple are present.
+            range="${norm%%,*}"
+        fi
+    fi
     
-    local start_12h end_12h
-    start_12h=$(format_hour_12h "${start_hour}")
-    end_12h=$(format_hour_12h "${end_hour}")
+    # Extract start and end times (handles HH:MM-HH:MM and HH-HH)
+    local start_str end_str
+    start_str=$(echo "${range}" | cut -d'-' -f1)
+    end_str=$(echo "${range}" | cut -d'-' -f2)
+    
+    local start_h start_m end_h end_m
+    if [[ "${start_str}" =~ : ]]; then
+        start_h=$(echo "${start_str}" | cut -d':' -f1)
+        start_m=$(echo "${start_str}" | cut -d':' -f2)
+    else
+        start_h="${start_str}"
+        start_m=0
+    fi
+    
+    if [[ "${end_str}" =~ : ]]; then
+        end_h=$(echo "${end_str}" | cut -d':' -f1)
+        end_m=$(echo "${end_str}" | cut -d':' -f2)
+    else
+        end_h="${end_str}"
+        end_m=0
+    fi
+    
+    # Get display format preference
+    local display_format
+    display_format=$(get_time_display_format)
+    
+    local start_display end_display
+    if [ "${display_format}" = "24hour" ]; then
+        start_display=$(printf "%02d:%02d" "${start_h}" "${start_m}")
+        end_display=$(printf "%02d:%02d" "${end_h}" "${end_m}")
+    else
+        start_display=$(24hour_to_12hour "${start_h}" "${start_m}")
+        end_display=$(24hour_to_12hour "${end_h}" "${end_m}")
+    fi
     
     # Handle overnight ranges
-    if [ "${start_hour}" -gt "${end_hour}" ]; then
+    if [ "${start_h}" -gt "${end_h}" ] || ([ "${start_h}" -eq "${end_h}" ] && [ "${start_m}" -gt "${end_m}" ]); then
         # Get next day name
         local next_day
         case "${day_name}" in
@@ -49,9 +96,9 @@ format_range_human() {
             Saturday) next_day="Sunday" ;;
             *) next_day="next day" ;;
         esac
-        echo "${start_12h} → ${end_12h} (${next_day})"
+        echo "${start_display} → ${end_display} (${next_day})"
     else
-        echo "${start_12h} → ${end_12h}"
+        echo "${start_display} → ${end_display}"
     fi
 }
 
@@ -104,18 +151,43 @@ detect_overlaps() {
     local IFS=','
     for range1 in ${day1_ranges}; do
         range1=$(echo "${range1}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        local start1_raw end1_raw
+        start1_raw=$(echo "${range1}" | cut -d'-' -f1)
+        end1_raw=$(echo "${range1}" | cut -d'-' -f2)
+        
+        # Support both HH and HH:MM by converting to integer hours for comparison
         local start1 end1
-        start1=$(echo "${range1}" | cut -d'-' -f1)
-        end1=$(echo "${range1}" | cut -d'-' -f2)
+        if [[ "${start1_raw}" =~ : ]]; then
+            start1=$(echo "${start1_raw}" | cut -d':' -f1)
+        else
+            start1="${start1_raw}"
+        fi
+        if [[ "${end1_raw}" =~ : ]]; then
+            end1=$(echo "${end1_raw}" | cut -d':' -f1)
+        else
+            end1="${end1_raw}"
+        fi
         
         # If day1 has overnight range (start > end)
         if [ "${start1}" -gt "${end1}" ]; then
             # Check if day2 has early morning range that overlaps
             for range2 in ${day2_ranges}; do
                 range2=$(echo "${range2}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start2_raw end2_raw
+                start2_raw=$(echo "${range2}" | cut -d'-' -f1)
+                end2_raw=$(echo "${range2}" | cut -d'-' -f2)
+                
                 local start2 end2
-                start2=$(echo "${range2}" | cut -d'-' -f1)
-                end2=$(echo "${range2}" | cut -d'-' -f2)
+                if [[ "${start2_raw}" =~ : ]]; then
+                    start2=$(echo "${start2_raw}" | cut -d':' -f1)
+                else
+                    start2="${start2_raw}"
+                fi
+                if [[ "${end2_raw}" =~ : ]]; then
+                    end2=$(echo "${end2_raw}" | cut -d':' -f1)
+                else
+                    end2="${end2_raw}"
+                fi
                 
                 # Check if day2's range overlaps with day1's overnight end
                 # day1 overnight: start1 to end1 (e.g., 23-6 means 23:00 to 05:59)
@@ -153,7 +225,8 @@ get_inherited_restrictions() {
     
     local prev_line="${summary_ref[${prev_day_index}]}"
     local prev_range
-    prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    # Extract range after the first colon; keep any further colons in HH:MM segments
+    prev_range=$(echo "${prev_line}" | cut -d':' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     
     # Check if previous day is skipped or has no restrictions
     if [ "${prev_range}" = "(no restrictions)" ] || [ -z "${prev_range}" ]; then
@@ -165,15 +238,42 @@ get_inherited_restrictions() {
     local inherited_ranges=()
     for range in ${prev_range}; do
         range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        local start_hour end_hour
-        start_hour=$(echo "${range}" | cut -d'-' -f1)
-        end_hour=$(echo "${range}" | cut -d'-' -f2)
+        
+        # Support both HH-HH and HH:MM-HH:MM by converting to HHMM integers
+        local start_part end_part
+        start_part=$(echo "${range}" | cut -d'-' -f1)
+        end_part=$(echo "${range}" | cut -d'-' -f2)
+        
+        local start_hour start_minute end_hour end_minute
+        if [[ "${start_part}" =~ : ]]; then
+            start_hour=$(echo "${start_part}" | cut -d':' -f1)
+            start_minute=$(echo "${start_part}" | cut -d':' -f2)
+        else
+            start_hour="${start_part}"
+            start_minute=0
+        fi
+        if [[ "${end_part}" =~ : ]]; then
+            end_hour=$(echo "${end_part}" | cut -d':' -f1)
+            end_minute=$(echo "${end_part}" | cut -d':' -f2)
+        else
+            end_hour="${end_part}"
+            end_minute=0
+        fi
+        
+        local start_time end_time
+        start_time=$(printf "%02d%02d" "${start_hour}" "${start_minute}")
+        end_time=$(printf "%02d%02d" "${end_hour}" "${end_minute}")
         
         # If this is an overnight range (start > end), it extends into current day
-        if [ "${start_hour}" -gt "${end_hour}" ]; then
+        if [ "${start_time}" -gt "${end_time}" ]; then
             # Format the inherited portion: 0-end_hour on current day
-            local inherited_start="0"
-            local inherited_end="${end_hour}"
+            local inherited_start="0:00"
+            local inherited_end
+            if [[ "${range}" =~ : ]]; then
+                inherited_end=$(echo "${range}" | cut -d'-' -f2)
+            else
+                inherited_end=$(printf "%02d:00" "${end_hour}")
+            fi
             local inherited_range="${inherited_start}-${inherited_end}"
             inherited_ranges+=("${inherited_range}")
         fi
@@ -184,12 +284,9 @@ get_inherited_restrictions() {
         local current_day_name="${DAY_NAMES[${day_index}]}"
         local formatted_ranges=()
         for inherited_range in "${inherited_ranges[@]}"; do
-            local inherited_end
-            inherited_end=$(echo "${inherited_range}" | cut -d'-' -f2)
-            local start_12h end_12h
-            start_12h=$(format_hour_12h "0")
-            end_12h=$(format_hour_12h "${inherited_end}")
-            formatted_ranges+=("${start_12h} → ${end_12h}")
+            local formatted
+            formatted=$(format_range_human "${inherited_range}" "${current_day_name}")
+            formatted_ranges+=("${formatted}")
         done
         
         # Join multiple inherited ranges with " AND "

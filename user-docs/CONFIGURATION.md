@@ -39,25 +39,33 @@ The configuration file uses a simple key-value format with comments. Lines start
 
 ### Restricted Hours
 
-**Format**: `DAY=START_HOUR-END_HOUR`
+**Format**: `DAY=START_TIME-END_TIME`
 
 **Days**: `SUNDAY`, `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY`
 
-**Hours**: 24-hour format (0-23)
-- `0` = Midnight (12:00 AM)
-- `12` = Noon (12:00 PM)
-- `23` = 11:00 PM
+**Time Formats**:
+- **12-hour format** (e.g., `11:30pm-5:30am`): User-friendly format with AM/PM.
+- **24-hour format** (e.g., `23:30-05:30`): Standard 24-hour time.
+- **Minute precision**: Both formats support minutes (e.g., `:30`, `:15`).
+- **Legacy format**: Hour-only 24-hour format (`23-5`) is still supported and automatically migrated to `23:00-05:00`.
 
 **Examples**:
 ```
-SUNDAY=1-5        # Sunday: 1:00 AM to 4:59 AM
-MONDAY=0-5        # Monday: Midnight (00:00) to 4:59 AM
-TUESDAY=0-5       # Tuesday: Midnight to 4:59 AM
-WEDNESDAY=0-5     # Wednesday: Midnight to 4:59 AM
-THURSDAY=0-5      # Thursday: Midnight to 4:59 AM
-FRIDAY=0-5        # Friday: Midnight to 4:59 AM
-SATURDAY=1-5      # Saturday: 1:00 AM to 4:59 AM
+SUNDAY=1:00-5:00     # Sunday: 1:00 AM to 5:00 AM
+MONDAY=11:30pm-5:30am # Monday: 11:30 PM to 5:30 AM (overnight)
+TUESDAY=0:00-5:00    # Tuesday: Midnight to 5:00 AM
 ```
+
+**Display Format Preference**:
+You can choose your preferred time display format (12-hour or 24-hour) using the `TIME_DISPLAY_FORMAT` option.
+- `TIME_DISPLAY_FORMAT=12hour` (Default)
+- `TIME_DISPLAY_FORMAT=24hour`
+
+**Timer Interval Considerations**:
+When using minute precision (e.g., 11:30 PM), the system's `CHECK_INTERVAL` becomes important.
+- If `CHECK_INTERVAL` is large (e.g., 60 minutes), a restriction starting at 11:30 PM might not trigger until 12:00 AM (the next timer check).
+- For exact timing with minute-level restrictions, we recommend setting `CHECK_INTERVAL` to 15 or less.
+- The configuration wizard and status check will warn you if your interval is too large for your configured minute precision.
 
 **Multiple Ranges per Day**:
 You can specify multiple time ranges for a single day by separating them with commas:

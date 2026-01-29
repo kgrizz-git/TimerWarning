@@ -520,3 +520,51 @@ validate_popup_timing_config() {
     
     return 0
 }
+
+###############################################################################
+# Check Minute Precision Compatibility with Timer Interval
+#
+# Purpose:
+#   Checks if minute-precision restrictions (e.g., 11:30 PM) are compatible
+#   with the current CHECK_INTERVAL. If CHECK_INTERVAL is too large (e.g., 60),
+#   restrictions starting at non-zero minutes may not trigger on time.
+#
+# Parameters:
+#   $1 - check_interval - Check interval in minutes (1-60)
+#   $2... - config_lines - All restriction hour lines
+#
+# Returns:
+#   0 if compatible (no warning), 1 if warning recommended
+#
+# Warning Message:
+#   If warning recommended, message is returned via stdout.
+###############################################################################
+check_minute_precision_compatibility() {
+    local check_interval="$1"
+    shift
+    local config_lines=("$@")
+    
+    # If check interval is 15 or less, it's generally fine
+    if [ "${check_interval}" -le 15 ]; then
+        return 0
+    fi
+    
+    # Check if any restriction uses non-zero minutes
+    local has_minute_precision=false
+    for line in "${config_lines[@]}"; do
+        local range="${line#*=}"
+        if [[ "${range}" =~ :[1-5][0-9] ]]; then
+            # Found non-zero minutes (e.g., :30, :15)
+            # Note: :00 is not considered minute precision for this check
+            has_minute_precision=true
+            break
+        fi
+    done
+    
+    if [ "${has_minute_precision}" = "true" ]; then
+        echo "Warning: You have configured restrictions with minute precision (e.g., 11:30 PM), but your check interval is set to ${check_interval} minutes. This means warnings may be delayed by up to ${check_interval} minutes. For exact timing, we recommend setting CHECK_INTERVAL to 15 or less."
+        return 1
+    fi
+    
+    return 0
+}

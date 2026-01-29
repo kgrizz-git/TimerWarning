@@ -150,11 +150,9 @@ main() {
     local current_day
     current_day=$(date +%w)
     
-    # Get current hour (0-23)
-    local current_hour
-    current_hour=$(date +%H)
-    # Remove leading zero if present
-    current_hour=$((10#${current_hour}))
+    # Get current time in HHMM format (Enhancement 16b)
+    local current_time_hhmm
+    current_time_hhmm=$(get_current_time)
     
     # Parse configuration for current day
     # If 24/7 restrictions were detected, use defaults instead of config file
@@ -173,11 +171,11 @@ main() {
         restricted_range=$(parse_config "${current_day}")
     fi
     
-    # Check if current hour is within restricted range for current day
+    # Check if current time is within restricted range for current day
     local is_restricted=false
     local matched_range="${restricted_range}"
     
-    if is_restricted_hour "${current_hour}" "${restricted_range}"; then
+    if is_restricted_time "${current_time_hhmm}" "${restricted_range}"; then
         is_restricted=true
     elif [ -z "${restricted_range}" ]; then
         # Current day is empty/skipped (no restrictions for this day)
@@ -211,21 +209,28 @@ main() {
             local IFS=','
             for range in ${prev_day_range}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                # Normalize range to HHMM format for comparison
+                local start_time end_time
+                local start_part="${range%%-*}"
+                local end_part="${range##*-}"
+                
+                if [[ "${start_part}" =~ : ]]; then
+                    start_time=$(echo "${start_part}" | tr -d ':')
+                else
+                    start_time=$(printf "%02d00" "${start_part}")
+                fi
+                
+                if [[ "${end_part}" =~ : ]]; then
+                    end_time=$(echo "${end_part}" | tr -d ':')
+                else
+                    end_time=$(printf "%02d00" "${end_part}")
+                fi
                 
                 # Check if this is an overnight range (start > end) that extends into current day
-                if [ "${start_hour}" -gt "${end_hour}" ]; then
-                    # Overnight range: check if current hour falls within the end portion (before end_hour)
-                    # Example: prev_day has 23-5, current hour is 2, then 2 < 5, so it's restricted
-                    # Example: prev_day has 23-5, current hour is 23, then 23 >= 23, but wait...
-                    # Actually, for overnight range 23-5 on previous day:
-                    # - Previous day 23:00-23:59 is restricted (part of previous day)
-                    # - Current day 00:00-04:59 is restricted (extends into current day)
-                    # - Current day 05:00+ is NOT restricted
-                    # So we only check: current_hour < end_hour
-                    if [ "${current_hour}" -lt "${end_hour}" ]; then
+                if [ "${start_time}" -gt "${end_time}" ]; then
+                    # Overnight range: check if current time falls within the end portion (before end_time)
+                    if [ "${current_time_hhmm}" -lt "${end_time}" ]; then
                         is_restricted=true
                         matched_range="${range} (from previous day)"
                         break
@@ -242,11 +247,11 @@ main() {
         if is_pause_active; then
             # Pause is active, skip showing warning popup
             log_message "info" "Pause active, skipping warning popup (restrictions still apply)"
-            log_to_file "INFO" "Pause active, skipping warning popup - Day: ${current_day}, Hour: ${current_hour}, Range: ${matched_range}"
+            log_to_file "INFO" "Pause active, skipping warning popup - Day: ${current_day}, Time: ${current_time_hhmm}, Range: ${matched_range}"
             exit 0
         fi
         
-        log_message "info" "Restricted hour detected: Day ${current_day}, Hour ${current_hour}, Range ${matched_range}"
+        log_message "info" "Restricted time detected: Day ${current_day}, Time ${current_time_hhmm}, Range ${matched_range}"
         
         # Get display environment info for logging
         local env_type display_id
@@ -260,7 +265,7 @@ main() {
         fi
         
         # Log warning trigger with full context
-        log_to_file "WARNING" "Restricted hour detected - Day: ${current_day}, Hour: ${current_hour}, Range: ${matched_range}, Display: ${env_type}, Display ID: ${display_id}, System Mode: ${system_mode}"
+        log_to_file "WARNING" "Restricted time detected - Day: ${current_day}, Time: ${current_time_hhmm}, Range: ${matched_range}, Display: ${env_type}, Display ID: ${display_id}, System Mode: ${system_mode}"
         
         show_warning
     else

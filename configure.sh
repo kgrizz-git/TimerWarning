@@ -471,6 +471,17 @@ main() {
                 # Review and Save
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
                 if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${configure_block_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}"; then
+                    # Validate minute precision compatibility with timer interval
+                    if type check_minute_precision_compatibility >/dev/null 2>&1; then
+                        local compatibility_warning
+                        compatibility_warning=$(check_minute_precision_compatibility "${check_interval}" "${config_lines[@]}")
+                        if [ $? -ne 0 ]; then
+                            if ! show_question_dialog "Timer Interval Warning" "${compatibility_warning}\n\nDo you want to proceed anyway?" "Yes, Save" "No, Edit Interval" 600 350; then
+                                continue  # Return to menu
+                            fi
+                        fi
+                    fi
+                    
                     # Validate restriction coverage before saving
                     # Pass all three arrays: restriction hours, lock hours, and uninstall lock hours
                     # The validation function will combine all three types and check the total

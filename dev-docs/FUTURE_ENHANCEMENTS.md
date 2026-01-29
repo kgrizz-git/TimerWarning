@@ -132,11 +132,17 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: ✅ **Mostly Implemented** - Phase 1 is complete: visual summary grid showing all days with time ranges in human-readable format, click-to-edit access for any day, visual indicators (✗) for restricted days, automatic grid refresh after edits. Phase 2 (interactive hour-by-hour grid editing with drag selection) is not yet implemented.
 - **Details**: See [enhancements/enhancement-16-visual-day-time-configuration-grid.md](enhancements/enhancement-16-visual-day-time-configuration-grid.md)
 
-### 16b. 12-Hour Format Time Input and GUI Spinbox Widgets
+### 16b. 12-Hour Format Time Input and GUI Spinbox Widgets (Implemented)
 - **Description**: Add support for 12-hour format time entry (e.g., "11pm-5am") in addition to 24-hour format, and provide GUI spinbox widgets for easier time selection with AM/PM toggle
 - **Priority**: Medium (improves usability, especially for users more familiar with 12-hour format)
-- **Status**: Not implemented
+- **Status**: ✅ **Implemented** - Full support for 12-hour format (e.g., `11:30pm`) and minute precision implemented across all components. Specialized GUI widgets created for YAD (spinboxes), Zenity (forms), and KDialog (sequential comboboxes). Automatic config migration and display format preference added. All time checks now operate at minute-level precision (`HHMM`).
 - **Details**: See [enhancements/enhancement-16b-12-hour-format-time-input.md](enhancements/enhancement-16b-12-hour-format-time-input.md)
+
+### 16c. Multiple Time Range Entry in GUI
+- **Description**: Allow users to add and edit multiple comma-separated time ranges per day in the configure.sh GUI (e.g., 12am–5am and 11pm–5am next day). Text mode and config storage already support multiple ranges; this enhancement extends the GUI so users can manage multiple ranges without switching to text mode.
+- **Priority**: Medium (improves usability for users who need multiple ranges per day and prefer the GUI)
+- **Status**: Not implemented
+- **Details**: See [enhancements/enhancement-16c-multiple-range-entry-gui.md](enhancements/enhancement-16c-multiple-range-entry-gui.md). Depends on Enhancement #16b (12-hour format and GUI time widgets).
 
 ### 17. Multi-Display Popup Support
 - **Description**: Display warning popups on all available displays/monitors simultaneously, ensuring warnings are visible regardless of which screen the user is actively viewing
@@ -223,6 +229,12 @@ These enhancements can be integrated into the existing bash script suite without
 - **Status**: Not implemented
 - **Details**: See [enhancements/enhancement-29-kdialog-window-size-control.md](enhancements/enhancement-29-kdialog-window-size-control.md)
 
+### 30. Separate Timer Check Interval from Popup Display Frequency
+- **Description**: Separate the systemd timer check interval (hardcoded to ~5 minutes) from a user-configurable popup display frequency. The timer runs every 5 minutes to check for restricted hours, but popups are only displayed based on the user's configured display frequency (e.g., every 30 minutes, every hour). This solves the minute precision timing issue where restrictions starting at non-zero minutes (e.g., 9:15) are not detected until the next hour boundary when using long CHECK_INTERVAL values.
+- **Priority**: Medium-High (improves minute precision support and user experience)
+- **Status**: Not implemented
+- **Details**: See [enhancements/enhancement-30-separate-timer-check-interval-from-popup-display-frequency.md](enhancements/enhancement-30-separate-timer-check-interval-from-popup-display-frequency.md)
+
 ## Alternative Approaches (Require Different Implementation)
 
 These approaches would require significant changes to the architecture or a completely different implementation strategy:
@@ -292,6 +304,7 @@ These approaches would require significant changes to the architecture or a comp
 20. ~~Prevent uninstall.sh During Restricted Hours~~ ✅ **PHASE 1 MOSTLY IMPLEMENTED** (difficult uninstall mode complete, testing pending)
 21. ~~One-Time Pause Feature (5 or 10 minutes, available from popup)~~ ✅ **MOSTLY IMPLEMENTED** (core functionality complete, manual testing pending)
 22. Display Restricted Times/Days in Popup
+23. ~~12-Hour Format Time Input and GUI Spinbox Widgets~~ ✅ **IMPLEMENTED**
 
 **Low Priority (Nice-to-Have Enhancements)**:
 14. Configurable Warning Messages
@@ -314,4 +327,4 @@ These approaches would require significant changes to the architecture or a comp
 
 ---
 
-**Last Updated**: 2026-01-26 00:41:12 (Enhancement #18 and #2a status updated to MOSTLY IMPLEMENTED)
+**Last Updated**: 2026-01-26 (Added Enhancement #16c: Multiple Time Range Entry in GUI)

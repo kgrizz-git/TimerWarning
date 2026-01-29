@@ -14,6 +14,7 @@ The Sleep Warning System uses a **modular architecture** for improved maintainab
   - `desktop-environment.sh` - Desktop/dialog tool detection
   - `window-management.sh` - Window manipulation
   - `time-validation.sh` - Time range validation
+- `lib/time-parsing.sh` - Time format parsing and conversion (Enhancement 16b)
   - `popup-display.sh` - Warning popup display
   - `sleep-detection.sh` - Sleep/hibernate detection and popup queue management (Enhancement #9)
   - `uninstall-verification.sh` - Uninstall protection verification (Enhancement #26)
@@ -60,34 +61,31 @@ The configuration file uses a simple day-based format that is easy to edit:
 **Day-based format (implemented)**
 ```
 # Sleep Warning Configuration
-# Format: DAY=START_HOUR-END_HOUR
-# Hours are in 24-hour format (0-23)
+# Format: DAY=START_TIME-END_TIME
+# Supports 12h (11:30pm) and 24h (23:30) formats
 # Multiple ranges can be specified per day (comma-separated)
 
-SUNDAY=1-5
-MONDAY=0-5
-TUESDAY=0-5
-WEDNESDAY=0-5
-THURSDAY=0-5
-FRIDAY=0-5
-SATURDAY=1-5
+SUNDAY=1:00am-5:00am
+MONDAY=0:00-5:00
 ```
 
 The script:
 - Reads configuration from `~/.config/sleep-warning/config/sleep-warning.conf` (Enhancement #18)
 - Falls back to defaults if file doesn't exist
-- Validates hour ranges (0-23, start < end for normal ranges, start > end for overnight ranges)
+- Validates time ranges (0-23:59, handles both formats)
 - Supports comments (lines starting with #)
-- Supports multiple time ranges per day (comma-separated, e.g., `0-5,22-23`)
-- Supports overnight ranges that span midnight (e.g., `23-6` means 11 PM to 5:59 AM)
+- Supports multiple time ranges per day (comma-separated, e.g., `0-5,11pm-12am`)
+- Supports overnight ranges that span midnight (e.g., `23:30-6:30` means 11:30 PM to 6:29 AM)
+- Automatically migrates legacy `HH-HH` format to `HH:MM-HH:MM`
 
 For complete configuration documentation including all options (CHECK_INTERVAL, POPUP_SIZE, POPUP_POSITION, POPUP_MIN_DISPLAY_TIME, POPUP_IMMOVABLE, POPUP_AUTO_CLOSE), see [user-docs/CONFIGURATION.md](../user-docs/CONFIGURATION.md).
 
 ## Time Checking Logic
 - Use `date +%w` for day of week (0=Sunday, 6=Saturday)
-- Use `date +%H` for hour (00-23)
+- Use `get_current_time()` to get time in HHMM format (0000-2359)
 - Read restricted hours from configuration file for current day
-- Check if current hour falls within configured restricted range(s)
+- Check if current time falls within configured restricted range(s) using `is_restricted_time()`
+- Handles minute-level precision and 12h/24h format normalization
 
 ## Display Access
 

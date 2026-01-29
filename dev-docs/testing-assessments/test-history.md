@@ -754,6 +754,39 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ---
 
+---
+
+## Test Execution History
+
+### test-16b-core.sh (NEW)
+
+**Last Run**: 2026-01-26 17:15 EST  
+**Status**: ✅ **PASS** (Multiple core logic checks)  
+**Execution Time**: ~16 seconds  
+**Dependencies**: bash, lib/time-parsing.sh, lib/time-validation.sh, lib/config.sh, lib/configure-time.sh
+
+**Findings Summary**: Created new test to verify core parsing, conversion, and comparison logic for Enhancement 16b. All tests passed successfully. The system correctly handles 12h/24h conversion, minute-precision normalization, and time-range comparison.
+
+**Test Coverage**:
+- ✅ **Normalization**: Verified `normalize_time_input()` handles spaces and case-insensitivity (e.g., "11 PM" -> "11pm").
+- ✅ **Detection**: Verified `detect_time_format()` correctly identifies 12h vs 24h formats.
+- ✅ **Conversion**: 
+  - Verified `12hour_to_24hour()` handles AM/PM, midnight (12am -> 00:00), and noon (12pm -> 12:00).
+  - Verified `24hour_to_12hour()` handles all hours correctly (00:00 -> 12:00am, 13:00 -> 1:00pm).
+- ✅ **Range Normalization**: Verified `normalize_time_range()` converts various inputs (`11pm-5am`, `23-5`) to normalized 24h format with minutes (`23:00-05:00`).
+- ✅ **Validation**: Verified `validate_time_range()` correctly identifies valid and invalid time strings.
+- ✅ **Comparison**: Verified `is_time_in_single_range()` correctly evaluates if a time (HHMM) is within a range, including overnight ranges.
+- ✅ **Human Formatting**: Verified `format_range_human()` respects display preferences and correctly formats ranges with minutes.
+
+**Results**:
+- ✅ `11:30pm-5:30am` converts to `23:30-05:30`
+- ✅ `23-5` (legacy) converts to `23:00-05:00`
+- ✅ `23:30` is correctly identified as being in range `23:00-05:00`
+- ✅ `04:30` is correctly identified as being in range `23:00-05:00`
+- ✅ `06:00` is correctly identified as being OUTSIDE range `23:00-05:00`
+
+---
+
 ## Overall Test Coverage Summary
 
 Based on the latest test execution results:

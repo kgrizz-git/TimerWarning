@@ -85,6 +85,128 @@ show_error_dialog() {
     esac
 }
 
+# Show time selection dialog with spinboxes/comboboxes
+# Returns normalized time range string (HH:MM-HH:MM)
+show_time_selection_dialog() {
+    local title="$1"
+    local start_time="$2"
+    local end_time="$3"
+    
+    local tool
+    tool=$(get_dialog_tool)
+    
+    case "${tool}" in
+        yad)
+            show_time_selection_dialog_yad "${title}" "${start_time}" "${end_time}"
+            ;;
+        zenity)
+            show_time_selection_dialog_zenity "${title}" "${start_time}" "${end_time}"
+            ;;
+        kdialog)
+            show_time_selection_dialog_kdialog "${title}" "${start_time}" "${end_time}"
+            ;;
+        *)
+            # Fallback to entry dialog if no advanced tool
+            show_entry_dialog "${title}" "Enter time range (e.g., 11:30pm-5:30am):" "${start_time}-${end_time}"
+            ;;
+    esac
+}
+
+# YAD implementation of time selection dialog
+show_time_selection_dialog_yad() {
+    local title="$1"
+    
+    # Default values for spinboxes
+    local sh=11 sm=00 sap="PM"
+    local eh=5 em=00 eap="AM"
+    
+    local output
+    output=$(yad --form --title="${title}" \
+        --separator="|" \
+        --field="Start Time:":LBL "" \
+        --field="Hour:NUM" "${sh}!1..12!1!0" \
+        --field="Minute:CB" "^00!30" \
+        --field="AM/PM:CB" "^AM!PM" \
+        --field="End Time:":LBL "" \
+        --field="Hour:NUM" "${eh}!1..12!1!0" \
+        --field="Minute:CB" "^00!30" \
+        --field="AM/PM:CB" "^AM!PM" \
+        2>/dev/null)
+    
+    if [ $? -ne 0 ] || [ -z "${output}" ]; then
+        return 1
+    fi
+    
+    # Parse output: |sh|sm|sap||eh|em|eap|
+    # Note: LBL fields also produce a separator
+    local start_h start_m start_ap end_h end_m end_ap
+    start_h=$(echo "${output}" | cut -d'|' -f2)
+    start_m=$(echo "${output}" | cut -d'|' -f3)
+    start_ap=$(echo "${output}" | cut -d'|' -f4)
+    end_h=$(echo "${output}" | cut -d'|' -f6)
+    end_m=$(echo "${output}" | cut -d'|' -f7)
+    end_ap=$(echo "${output}" | cut -d'|' -f8)
+    
+    echo "${start_h}:${start_m}${start_ap}-${end_h}:${end_m}${end_ap}"
+    return 0
+}
+
+# Zenity implementation of time selection dialog
+show_time_selection_dialog_zenity() {
+    local title="$1"
+    
+    local output
+    output=$(zenity --forms --title="${title}" \
+        --text="Configure time range:" \
+        --add-entry="Start Hour (1-12)" \
+        --add-combo="Start Minute" --combo-values="00|30" \
+        --add-combo="Start AM/PM" --combo-values="AM|PM" \
+        --add-entry="End Hour (1-12)" \
+        --add-combo="End Minute" --combo-values="00|30" \
+        --add-combo="End AM/PM" --combo-values="AM|PM" \
+        2>/dev/null)
+    
+    if [ $? -ne 0 ] || [ -z "${output}" ]; then
+        return 1
+    fi
+    
+    local start_h start_m start_ap end_h end_m end_ap
+    start_h=$(echo "${output}" | cut -d'|' -f1)
+    start_m=$(echo "${output}" | cut -d'|' -f2)
+    start_ap=$(echo "${output}" | cut -d'|' -f3)
+    end_h=$(echo "${output}" | cut -d'|' -f4)
+    end_m=$(echo "${output}" | cut -d'|' -f5)
+    end_ap=$(echo "${output}" | cut -d'|' -f6)
+    
+    # Basic validation for zenity text entries
+    if ! [[ "${start_h}" =~ ^[0-9]+$ ]] || [ "${start_h}" -lt 1 ] || [ "${start_h}" -gt 12 ] || \
+       ! [[ "${end_h}" =~ ^[0-9]+$ ]] || [ "${end_h}" -lt 1 ] || [ "${end_h}" -gt 12 ]; then
+        show_error_dialog "Invalid Input" "Hours must be between 1 and 12."
+        return 1
+    fi
+    
+    echo "${start_h}:${start_m}${start_ap}-${end_h}:${end_m}${end_ap}"
+    return 0
+}
+
+# KDialog implementation of time selection dialog
+show_time_selection_dialog_kdialog() {
+    local title="$1"
+    
+    local sh sm sap eh em eap
+    
+    sh=$(kdialog --title "${title}" --combobox "Start Hour:" "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" --default "11") || return 1
+    sm=$(kdialog --title "${title}" --combobox "Start Minute:" "00" "30" --default "00") || return 1
+    sap=$(kdialog --title "${title}" --combobox "Start AM/PM:" "AM" "PM" --default "PM") || return 1
+    
+    eh=$(kdialog --title "${title}" --combobox "End Hour:" "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" --default "5") || return 1
+    em=$(kdialog --title "${title}" --combobox "End Minute:" "00" "30" --default "00") || return 1
+    eap=$(kdialog --title "${title}" --combobox "End AM/PM:" "AM" "PM" --default "AM") || return 1
+    
+    echo "${sh}:${sm}${sap}-${eh}:${em}${eap}"
+    return 0
+}
+
 # Show yes/no question dialog
 show_question_dialog() {
     local title="$1"

@@ -122,18 +122,40 @@ print_status() {
     printf "  %-30s ${color}%s${COLOR_RESET}\n" "${label}:" "${value}"
 }
 
-# Format hour to 12-hour format with AM/PM
+# Format a 24-hour time string "HH[:MM]" to 12-hour format with AM/PM
 format_hour_12h() {
-    local hour="$1"
-    if [ "${hour}" -eq 0 ]; then
-        echo "12:00 AM"
-    elif [ "${hour}" -eq 12 ]; then
-        echo "12:00 PM"
-    elif [ "${hour}" -lt 12 ]; then
-        printf "%d:00 AM" "${hour}"
+    local time_str="$1"
+    local hour minute
+
+    if [[ "${time_str}" == *:* ]]; then
+        hour="${time_str%%:*}"
+        minute="${time_str##*:}"
     else
-        printf "%d:00 PM" "$((hour - 12))"
+        hour="${time_str}"
+        minute="0"
     fi
+
+    # Basic numeric validation
+    if ! [[ "${hour}" =~ ^[0-9]+$ ]] || ! [[ "${minute}" =~ ^[0-9]+$ ]]; then
+        echo "${time_str}"
+        return 0
+    fi
+
+    local display_hour="${hour}"
+    local ampm="AM"
+
+    if [ "${hour}" -ge 12 ]; then
+        ampm="PM"
+        if [ "${hour}" -gt 12 ]; then
+            display_hour=$((hour - 12))
+        fi
+    fi
+
+    if [ "${display_hour}" -eq 0 ]; then
+        display_hour=12
+    fi
+
+    printf "%d:%02d %s" "${display_hour}" "${minute}" "${ampm}"
 }
 
 # Format a single range to human-readable format
@@ -141,16 +163,56 @@ format_range_human() {
     local range="$1"
     local day_name="$2"
     
-    local start_hour end_hour
-    start_hour=$(echo "${range}" | cut -d'-' -f1)
-    end_hour=$(echo "${range}" | cut -d'-' -f2)
+    local start_raw end_raw
+    start_raw=$(echo "${range}" | cut -d'-' -f1)
+    end_raw=$(echo "${range}" | cut -d'-' -f2)
     
     local start_12h end_12h
-    start_12h=$(format_hour_12h "${start_hour}")
-    end_12h=$(format_hour_12h "${end_hour}")
+    start_12h=$(format_hour_12h "${start_raw}")
+    end_12h=$(format_hour_12h "${end_raw}")
+
+    # Determine if this is an overnight range using HHMM-style comparison
+    local overnight="false"
+
+    # Parse start time
+    local shour smin
+    if [[ "${start_raw}" == *:* ]]; then
+        shour="${start_raw%%:*}"
+        smin="${start_raw##*:}"
+    else
+        shour="${start_raw}"
+        smin="0"
+    fi
+
+    # Parse end time
+    local ehour emin
+    if [[ "${end_raw}" == *:* ]]; then
+        ehour="${end_raw%%:*}"
+        emin="${end_raw##*:}"
+    else
+        ehour="${end_raw}"
+        emin="0"
+    fi
+
+    if [[ "${shour}" =~ ^[0-9]+$ ]] && [[ "${smin}" =~ ^[0-9]+$ ]] && \
+       [[ "${ehour}" =~ ^[0-9]+$ ]] && [[ "${emin}" =~ ^[0-9]+$ ]]; then
+        local shour_p ehour_p smin_p emin_p
+        printf -v shour_p "%02d" "${shour}"
+        printf -v ehour_p "%02d" "${ehour}"
+        printf -v smin_p  "%02d" "${smin}"
+        printf -v emin_p  "%02d" "${emin}"
+
+        local start_total end_total
+        start_total=$((10#${shour_p}${smin_p}))
+        end_total=$((10#${ehour_p}${emin_p}))
+
+        if [ "${start_total}" -gt "${end_total}" ]; then
+            overnight="true"
+        fi
+    fi
     
     # Handle overnight ranges
-    if [ "${start_hour}" -gt "${end_hour}" ]; then
+    if [ "${overnight}" = "true" ]; then
         echo "${start_12h} → ${end_12h} (overnight)"
     else
         echo "${start_12h} → ${end_12h}"
@@ -660,6 +722,28 @@ show_configuration() {
         echo ""
         echo -e "${COLOR_YELLOW}  → Use 'sleep-warning-configure' Uninstall Lock Hours menu to set optional uninstall lock hours${COLOR_RESET}"
         echo -e "${COLOR_YELLOW}  → Note: Uninstall lock hours only take effect when Uninstall Protection is set to 'difficult'${COLOR_RESET}"
+    fi
+    
+    # Check minute precision compatibility (Enhancement 16b)
+    if type check_minute_precision_compatibility >/dev/null 2>&1; then
+        local check_interval
+        check_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        if [ -n "${check_interval}" ]; then
+            local config_lines=()
+            for day_var in SUNDAY MONDAY TUESDAY WEDNESDAY THURSDAY FRIDAY SATURDAY; do
+                local line
+                line=$(grep -E "^[[:space:]]*${day_var}=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+                [ -n "${line}" ] && config_lines+=("${line}")
+            done
+            
+            local compatibility_warning
+            compatibility_warning=$(check_minute_precision_compatibility "${check_interval}" "${config_lines[@]}")
+            if [ $? -ne 0 ]; then
+                echo ""
+                echo -e "  ${COLOR_YELLOW}⚠️  TIMER INTERVAL WARNING:${COLOR_RESET}"
+                echo -e "  ${COLOR_YELLOW}${compatibility_warning}${COLOR_RESET}"
+            fi
+        fi
     fi
 }
 

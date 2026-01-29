@@ -637,25 +637,43 @@ show_config_locked_error() {
     fi
     
     # Check if we're in restriction hours or lock hours
+    # Get current time in HHMM format (Enhancement 16b)
+    local current_time_hhmm
+    current_time_hhmm=$(get_current_time)
+    
     local in_restriction=false
     local in_lock_hours=false
     
     # Check restriction hours (current day and previous day overnight)
-    if type is_restricted_hour >/dev/null 2>&1; then
-        if is_restricted_hour "${current_hour}" "${restricted_range}"; then
+    if type is_restricted_time >/dev/null 2>&1; then
+        if is_restricted_time "${current_time_hhmm}" "${restricted_range}"; then
             in_restriction=true
         elif [ -n "${prev_day_range}" ]; then
             # Check previous day's overnight ranges
             local IFS=','
             for range in ${prev_day_range}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
                 
-                if [ "${start_hour}" -gt "${end_hour}" ]; then
-                    # Overnight range: check if current hour falls within the end portion
-                    if [ "${current_hour}" -lt "${end_hour}" ]; then
+                # Normalize range to HHMM format for comparison
+                local start_time end_time
+                local start_part="${range%%-*}"
+                local end_part="${range##*-}"
+                
+                if [[ "${start_part}" =~ : ]]; then
+                    start_time=$(echo "${start_part}" | tr -d ':')
+                else
+                    start_time=$(printf "%02d00" "${start_part}")
+                fi
+                
+                if [[ "${end_part}" =~ : ]]; then
+                    end_time=$(echo "${end_part}" | tr -d ':')
+                else
+                    end_time=$(printf "%02d00" "${end_part}")
+                fi
+                
+                if [ "${start_time}" -gt "${end_time}" ]; then
+                    # Overnight range: check if current time falls within the end portion
+                    if [ "${current_time_hhmm}" -lt "${end_time}" ]; then
                         in_restriction=true
                         break
                     fi
@@ -666,21 +684,35 @@ show_config_locked_error() {
     fi
     
     # Check lock hours (current day and previous day overnight) - Phase 2
-    if type is_lock_hour >/dev/null 2>&1; then
-        if [ -n "${lock_hours_range}" ] && is_lock_hour "${current_hour}" "${lock_hours_range}"; then
+    if type is_restricted_time >/dev/null 2>&1; then
+        if [ -n "${lock_hours_range}" ] && is_restricted_time "${current_time_hhmm}" "${lock_hours_range}"; then
             in_lock_hours=true
         elif [ -n "${prev_day_lock_hours}" ]; then
             # Check previous day's overnight lock hours
             local IFS=','
             for range in ${prev_day_lock_hours}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
                 
-                if [ "${start_hour}" -gt "${end_hour}" ]; then
-                    # Overnight range: check if current hour falls within the end portion
-                    if [ "${current_hour}" -lt "${end_hour}" ]; then
+                # Normalize range to HHMM format for comparison
+                local start_time end_time
+                local start_part="${range%%-*}"
+                local end_part="${range##*-}"
+                
+                if [[ "${start_part}" =~ : ]]; then
+                    start_time=$(echo "${start_part}" | tr -d ':')
+                else
+                    start_time=$(printf "%02d00" "${start_part}")
+                fi
+                
+                if [[ "${end_part}" =~ : ]]; then
+                    end_time=$(echo "${end_part}" | tr -d ':')
+                else
+                    end_time=$(printf "%02d00" "${end_part}")
+                fi
+                
+                if [ "${start_time}" -gt "${end_time}" ]; then
+                    # Overnight range: check if current time falls within the end portion
+                    if [ "${current_time_hhmm}" -lt "${end_time}" ]; then
                         in_lock_hours=true
                         break
                     fi

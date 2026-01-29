@@ -532,7 +532,8 @@ show_visual_grid() {
                     # Day has configuration (may be restricted or explicitly skipped)
                     local line="${summary_lines_ref[${day_index}]}"
                     local range
-                    range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    # Use -f2- to preserve HH:MM-HH:MM after the first colon
+                    range=$(echo "${line}" | cut -d':' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                     
                     if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
                         # No explicit restrictions - check for inherited overnight restrictions
@@ -721,7 +722,8 @@ show_visual_grid() {
                     # Day has configuration
                     local line="${summary_lines_ref[${day_index}]}"
                     local range
-                    range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    # Use -f2- to preserve HH:MM-HH:MM after the first colon
+                    range=$(echo "${line}" | cut -d':' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                     
                     if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
                         # No explicit restrictions - check for inherited overnight restrictions
@@ -1000,9 +1002,9 @@ show_summary() {
         if [ -n "${summary_lines[${day_index}]}" ]; then
             # Day has restrictions configured (or explicitly skipped)
             local line="${summary_lines[${day_index}]}"
-            # Extract day name and range
+            # Extract range after the first colon; keep any further colons in HH:MM
             local range
-            range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            range=$(echo "${line}" | cut -d':' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             
             # Check if this is a skipped day (no restrictions)
             if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
@@ -1026,7 +1028,8 @@ show_summary() {
                     local prev_line="${summary_lines[${prev_day_index}]}"
                     local prev_day_name prev_range
                     prev_day_name=$(echo "${prev_line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                    prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    # Use -f2- to preserve full HH:MM-HH:MM range after first colon
+                    prev_range=$(echo "${prev_line}" | cut -d':' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                     
                     # Only check overlaps if previous day is not skipped
                     if [ "${prev_range}" != "(no restrictions)" ] && [ -n "${prev_range}" ]; then
@@ -1193,9 +1196,9 @@ show_summary() {
             if [ -n "${summary_lines[${day_index}]}" ]; then
                 # Day has restrictions configured (or explicitly skipped)
                 local line="${summary_lines[${day_index}]}"
-                # Extract range
+                # Extract range after the first colon; keep any further colons in HH:MM
                 local range
-                range=$(echo "${line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                range=$(echo "${line}" | cut -d':' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                 
                 # Check if this is a skipped day (no restrictions)
                 if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
@@ -1219,7 +1222,8 @@ show_summary() {
                         local prev_line="${summary_lines[${prev_day_index}]}"
                         local prev_day_name prev_range
                         prev_day_name=$(echo "${prev_line}" | cut -d':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                        prev_range=$(echo "${prev_line}" | cut -d':' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                        # Use -f2- to preserve full HH:MM-HH:MM range after first colon
+                        prev_range=$(echo "${prev_line}" | cut -d':' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                         
                         # Only check overlaps if previous day is not skipped
                         if [ "${prev_range}" != "(no restrictions)" ] && [ -n "${prev_range}" ]; then

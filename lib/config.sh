@@ -867,6 +867,75 @@ get_config_lock_enabled() {
     fi
 }
 
+# Get current setting from config file
+get_time_display_format() {
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "12hour"
+        return 0
+    fi
+    
+    local format
+    format=$(grep -E "^[[:space:]]*TIME_DISPLAY_FORMAT[[:space:]]*=" "${CONFIG_FILE}" | cut -d'=' -f2 | tr -d '[:space:]')
+    
+    if [ "${format}" = "24hour" ]; then
+        echo "24hour"
+    else
+        echo "12hour"
+    fi
+    return 0
+}
+
+# Set current setting in config file
+set_time_display_format() {
+    local format="$1"
+    if [ "${format}" != "12hour" ] && [ "${format}" != "24hour" ]; then
+        return 1
+    fi
+    
+    if grep -q "^[[:space:]]*TIME_DISPLAY_FORMAT[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null; then
+        sed -i "s|^[[:space:]]*TIME_DISPLAY_FORMAT[[:space:]]*=.*|TIME_DISPLAY_FORMAT=${format}|" "${CONFIG_FILE}"
+    else
+        echo "TIME_DISPLAY_FORMAT=${format}" >> "${CONFIG_FILE}"
+    fi
+    return 0
+}
+
+# Migrate config to minute format (HH-HH to HH:00-HH:00)
+migrate_config_to_minute_format() {
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        return 0
+    fi
+    
+    local temp_file
+    temp_file=$(mktemp)
+    local migrated=false
+    
+    while IFS= read -r line || [ -n "${line}" ]; do
+        if [[ "${line}" =~ ^[A-Z]+=[0-9]+-[0-9]+(,[0-9]+-[0-9]+)*$ ]] || \
+           [[ "${line}" =~ ^CONFIG_LOCK_HOURS_[A-Z]+=[0-9]+-[0-9]+(,[0-9]+-[0-9]+)*$ ]] || \
+           [[ "${line}" =~ ^UNINSTALL_LOCK_HOURS_[A-Z]+=[0-9]+-[0-9]+(,[0-9]+-[0-9]+)*$ ]]; then
+            
+            local key="${line%%=*}"
+            local val="${line#*=}"
+            
+            if [[ ! "${val}" =~ : ]]; then
+                local normalized
+                normalized=$(normalize_time_range "${val}")
+                echo "${key}=${normalized}" >> "${temp_file}"
+                migrated=true
+                continue
+            fi
+        fi
+        echo "${line}" >> "${temp_file}"
+    done < "${CONFIG_FILE}"
+    
+    if [ "${migrated}" = "true" ]; then
+        cp "${temp_file}" "${CONFIG_FILE}"
+    fi
+    rm -f "${temp_file}"
+    return 0
+}
+
 # Parse configuration file
 parse_config() {
     local day_num="$1"
@@ -914,6 +983,10 @@ parse_config() {
     config_line=$(echo "${day_line_exists}" | sed 's/^[[:space:]]*//' | cut -d'=' -f2- | tr -d '[:space:]')
     
     if [ -n "${config_line}" ]; then
+        # Normalize to HH:MM-HH:MM internally
+        if type normalize_time_range >/dev/null 2>&1; then
+            config_line=$(normalize_time_range "${config_line}")
+        fi
         # Has a value, use it
         echo "${config_line}"
         return 0
@@ -987,6 +1060,10 @@ parse_lock_hours() {
     lock_config=$(echo "${lock_line_exists}" | sed 's/^[[:space:]]*//' | cut -d'=' -f2- | tr -d '[:space:]')
     
     if [ -n "${lock_config}" ]; then
+        # Normalize to HH:MM-HH:MM internally
+        if type normalize_time_range >/dev/null 2>&1; then
+            lock_config=$(normalize_time_range "${lock_config}")
+        fi
         # Has a value - validate format before returning
         # Source time-validation.sh if available for validation
         if type validate_hour_range >/dev/null 2>&1; then
@@ -1097,6 +1174,10 @@ parse_uninstall_lock_hours() {
     uninstall_lock_config=$(echo "${uninstall_lock_line_exists}" | sed 's/^[[:space:]]*//' | cut -d'=' -f2- | tr -d '[:space:]')
     
     if [ -n "${uninstall_lock_config}" ]; then
+        # Normalize to HH:MM-HH:MM internally
+        if type normalize_time_range >/dev/null 2>&1; then
+            uninstall_lock_config=$(normalize_time_range "${uninstall_lock_config}")
+        fi
         # Has a value - validate format before returning
         # Source time-validation.sh if available for validation
         if type validate_hour_range >/dev/null 2>&1; then

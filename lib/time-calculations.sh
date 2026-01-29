@@ -46,22 +46,39 @@
 calculate_range_duration() {
     local range="$1"
     
-    # Trim whitespace (defensive programming, though validation should prevent spaces)
+    # Trim whitespace
     range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     
-    local start_hour end_hour
-    start_hour=$(echo "${range}" | cut -d'-' -f1)
-    end_hour=$(echo "${range}" | cut -d'-' -f2)
+    local start_part end_part
+    start_part=$(echo "${range}" | cut -d'-' -f1)
+    end_part=$(echo "${range}" | cut -d'-' -f2)
+    
+    local start_m end_m
+    
+    # Convert to minutes
+    if [[ "${start_part}" =~ : ]]; then
+        local h=$(echo "${start_part}" | cut -d':' -f1)
+        local m=$(echo "${start_part}" | cut -d':' -f2)
+        start_m=$((h * 60 + m))
+    else
+        start_m=$((start_part * 60))
+    fi
+    
+    if [[ "${end_part}" =~ : ]]; then
+        local h=$(echo "${end_part}" | cut -d':' -f1)
+        local m=$(echo "${end_part}" | cut -d':' -f2)
+        end_m=$((h * 60 + m))
+    else
+        end_m=$((end_part * 60))
+    fi
     
     # Handle overnight ranges (start > end, spans midnight)
-    # Example: 23-6 means 11 PM to 5:59 AM = (24-23) + 6 = 7 hours
-    if [ "${start_hour}" -gt "${end_hour}" ]; then
-        # Overnight: (24 - start) + end
-        echo $((24 - start_hour + end_hour))
+    if [ "${start_m}" -gt "${end_m}" ]; then
+        # Overnight: (1440 - start) + end
+        echo $(((1440 - start_m + end_m) / 60))
     else
         # Normal range: end - start
-        # Example: 0-5 means midnight to 4:59 AM = 5 hours
-        echo $((end_hour - start_hour))
+        echo $(((end_m - start_m) / 60))
     fi
 }
 
@@ -138,88 +155,92 @@ calculate_total_day_duration() {
     
     local intervals=()
     
+    # Helper to parse time to minutes
+    parse_to_min() {
+        local val="$1"
+        if [[ "${val}" =~ : ]]; then
+            local h=$(echo "${val}" | cut -d':' -f1)
+            local m=$(echo "${val}" | cut -d':' -f2)
+            echo $((h * 60 + m))
+        else
+            echo $((val * 60))
+        fi
+    }
+    
     # Collect intervals from current day's ranges
-    # For overnight ranges (e.g., 21-5), only count the portion on the current day
-    # (21-24 = 3 hours), not the full span (21-5 = 8 hours)
     if [ -n "${current_day_ranges}" ]; then
         local IFS=','
         for range in ${current_day_ranges}; do
             range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             if [ -n "${range}" ]; then
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                local start_part end_part
+                start_part=$(echo "${range}" | cut -d'-' -f1)
+                end_part=$(echo "${range}" | cut -d'-' -f2)
                 
-                # Check if this is an overnight range (start > end)
-                if [ "${start_hour}" -gt "${end_hour}" ]; then
-                    # Overnight range: only count the portion on the current day
-                    # Example: 21-5 means 21-24 (3 hours) on current day, 0-5 (5 hours) on next day
-                    # Format: "start:end" where range is [start, end) - inclusive start, exclusive end
-                    intervals+=("${start_hour}:24")
+                local start_m end_m
+                start_m=$(parse_to_min "${start_part}")
+                end_m=$(parse_to_min "${end_part}")
+                
+                if [ "${start_m}" -gt "${end_m}" ]; then
+                    # Overnight range: only count portion on current day
+                    intervals+=("${start_m}:1440")
                 else
-                    # Normal range: count the full duration
-                    # Format: "start:end" where range is [start, end) - inclusive start, exclusive end
-                    # Example: "0-5" means hours 0-4, so interval is "0:5"
-                    intervals+=("${start_hour}:${end_hour}")
+                    # Normal range
+                    intervals+=("${start_m}:${end_m}")
                 fi
             fi
         done
     fi
     
-    # Collect intervals from previous day's overnight ranges that extend into current day
-    # Calculate previous day index (handle wrap-around: Sunday (0) -> Saturday (6))
+    # Collect intervals from previous day's overnight ranges
     local prev_day_index
     if [ "${day_index}" -eq 0 ]; then
-        prev_day_index=6  # Sunday -> Saturday
+        prev_day_index=6
     else
         prev_day_index=$((day_index - 1))
     fi
     
-    # Get previous day's ranges from config file (if available)
-    # Note: This checks the saved config, not in-memory changes during configuration
     local prev_day_ranges=""
     if type parse_config >/dev/null 2>&1; then
         prev_day_ranges=$(parse_config "${prev_day_index}" 2>/dev/null || echo "")
     fi
     
-    # Check if previous day has overnight ranges that extend into current day
     if [ -n "${prev_day_ranges}" ]; then
         local IFS=','
         for range in ${prev_day_ranges}; do
             range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             if [ -n "${range}" ]; then
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                local start_part end_part
+                start_part=$(echo "${range}" | cut -d'-' -f1)
+                end_part=$(echo "${range}" | cut -d'-' -f2)
                 
-                # Check if this is an overnight range (start > end) that extends into current day
-                if [ "${start_hour}" -gt "${end_hour}" ]; then
+                local start_m end_m
+                start_m=$(parse_to_min "${start_part}")
+                end_m=$(parse_to_min "${end_part}")
+                
+                if [ "${start_m}" -gt "${end_m}" ]; then
                     # Overnight range from previous day extends into current day
-                    # The portion that affects current day is from 0 to end_hour
-                    # Example: Previous day "23-5" means current day 0-4 is affected (5 hours)
-                    # Format: "start:end" where range is [start, end) - inclusive start, exclusive end
-                    intervals+=("0:${end_hour}")
+                    intervals+=("0:${end_m}")
                 fi
             fi
         done
     fi
     
-    # Merge overlapping intervals to avoid double-counting
+    # Merge overlapping intervals
     local merged_intervals
-    merged_intervals=$(merge_hour_intervals "${intervals[@]}")
+    merged_intervals=$(merge_overlapping_intervals "${intervals[@]}")
     
-    # Calculate total duration from merged intervals
-    local total_duration=0
+    # Calculate total duration in minutes
+    local total_min=0
     while IFS= read -r interval; do
         [ -z "${interval}" ] && continue
-        
         local start="${interval%%:*}"
         local end="${interval##*:}"
-        local length=$((end - start))
-        total_duration=$((total_duration + length))
+        total_min=$((total_min + end - start))
     done <<< "${merged_intervals}"
     
-    echo "${total_duration}"
+    # Return duration in hours (rounded up)
+    echo $(((total_min + 59) / 60))
 }
 
 ###############################################################################

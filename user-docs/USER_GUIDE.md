@@ -131,14 +131,14 @@ POPUP_IMMOVABLE=true
 # Automatically closes popup 10 seconds after minimum display time completes
 POPUP_AUTO_CLOSE=true
 
-# Restricted hours (24-hour format: START-END)
-SUNDAY=1-5
-MONDAY=0-5
-TUESDAY=0-5
-WEDNESDAY=0-5
-THURSDAY=0-5
-FRIDAY=0-5
-SATURDAY=1-5
+# Restricted hours (12h or 24h format: START-END)
+SUNDAY=1:00am-5:00am
+MONDAY=0:00-5:00
+TUESDAY=0:00-5:00
+WEDNESDAY=0:00-5:00
+THURSDAY=0:00-5:00
+FRIDAY=0:00-5:00
+SATURDAY=1:00am-5:00am
 ```
 
 **See [CONFIGURATION.md](CONFIGURATION.md) for complete configuration documentation.**
@@ -147,18 +147,18 @@ SATURDAY=1-5
 
 **Single Range:**
 ```
-MONDAY=0-5        # Midnight to 4:59 AM
-TUESDAY=22-23     # 10:00 PM to 11:59 PM
+MONDAY=11:30pm-5:30am # 11:30 PM to 5:30 AM (overnight)
+TUESDAY=22:00-23:30    # 10:00 PM to 11:30 PM
 ```
 
 **Multiple Ranges (comma-separated):**
 ```
-MONDAY=0-5,22-23  # Midnight to 4:59 AM AND 10 PM to 11:59 PM
+MONDAY=0:00-5:00,22:00-23:00  # Midnight to 5:00 AM AND 10 PM to 11 PM
 ```
 
 **Overnight Ranges (spans midnight):**
 ```
-MONDAY=23-6       # Monday 11:00 PM → Tuesday 5:59 AM
+MONDAY=11:00pm-6:00am       # Monday 11:00 PM → Tuesday 6:00 AM
 ```
 
 **No Restrictions:**
@@ -286,7 +286,7 @@ journalctl --user -u sleep-warning.service
 
 **Example Log Entries:**
 ```
-[2024-01-15 02:30:15] [WARNING] Restricted hour detected - Day: 1, Hour: 2, Range: 0-5, Display: x11, Display ID: :0
+[2024-01-15 02:30:15] [WARNING] Restricted time detected - Day: 1, Time: 0230, Range: 00:00-05:00, Display: x11, Display ID: :0
 [2024-01-15 02:30:15] [INFO] Display environment: x11, Display ID: :0, Window state: fullscreen, Window title: Game Window
 [2024-01-15 02:30:15] [INFO] Using dialog tool: zenity
 [2024-01-15 02:30:15] [INFO] Popup displayed successfully (PID: 12345), Dialog tool: zenity, Size: medium, Position: center, Min display time: 30s

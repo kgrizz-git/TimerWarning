@@ -47,19 +47,17 @@ is_config_lock_active() {
     local current_day
     current_day=$(date +%w)
     
-    # Get current hour (0-23)
-    local current_hour
-    current_hour=$(date +%H)
-    # Remove leading zero if present
-    current_hour=$((10#${current_hour}))
+    # Get current time in HHMM format (Enhancement 16b)
+    local current_time_hhmm
+    current_time_hhmm=$(get_current_time)
     
     # Parse restriction hours for current day
     local restricted_range
     restricted_range=$(parse_config "${current_day}")
     
-    # Check if current hour is within restricted range for current day
-    if is_restricted_hour "${current_hour}" "${restricted_range}"; then
-        # Current hour is restricted - lock should be active
+    # Check if current time is within restricted range for current day
+    if is_restricted_time "${current_time_hhmm}" "${restricted_range}"; then
+        # Current time is restricted - lock should be active
         return 0
     fi
     
@@ -69,10 +67,10 @@ is_config_lock_active() {
         lock_hours_range=$(parse_lock_hours "${current_day}")
     fi
     
-    # Check if current hour is within lock hours for current day
+    # Check if current time is within lock hours for current day
     if [ -n "${lock_hours_range}" ] && type is_lock_hour >/dev/null 2>&1; then
-        if is_lock_hour "${current_hour}" "${lock_hours_range}"; then
-            # Current hour is in lock hours - lock should be active
+        if is_restricted_time "${current_time_hhmm}" "${lock_hours_range}"; then
+            # Current time is in lock hours - lock should be active
             return 0
         fi
     fi
@@ -101,15 +99,29 @@ is_config_lock_active() {
             local IFS=','
             for range in ${prev_day_range}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                # Normalize range to HHMM format for comparison
+                local start_time end_time
+                local start_part="${range%%-*}"
+                local end_part="${range##*-}"
+                
+                if [[ "${start_part}" =~ : ]]; then
+                    start_time=$(echo "${start_part}" | tr -d ':')
+                else
+                    start_time=$(printf "%02d00" "${start_part}")
+                fi
+                
+                if [[ "${end_part}" =~ : ]]; then
+                    end_time=$(echo "${end_part}" | tr -d ':')
+                else
+                    end_time=$(printf "%02d00" "${end_part}")
+                fi
                 
                 # Check if this is an overnight range (start > end) that extends into current day
-                if [ "${start_hour}" -gt "${end_hour}" ]; then
-                    # Overnight range: check if current hour falls within the end portion (before end_hour)
-                    if [ "${current_hour}" -lt "${end_hour}" ]; then
-                        # Current hour is within overnight range from previous day - lock should be active
+                if [ "${start_time}" -gt "${end_time}" ]; then
+                    # Overnight range: check if current time falls within the end portion (before end_time)
+                    if [ "${current_time_hhmm}" -lt "${end_time}" ]; then
+                        # Current time is within overnight range from previous day - lock should be active
                         return 0
                     fi
                 fi
@@ -129,15 +141,29 @@ is_config_lock_active() {
             local IFS=','
             for range in ${prev_day_lock_hours}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                
+                # Normalize range to HHMM format for comparison
+                local start_time end_time
+                local start_part="${range%%-*}"
+                local end_part="${range##*-}"
+                
+                if [[ "${start_part}" =~ : ]]; then
+                    start_time=$(echo "${start_part}" | tr -d ':')
+                else
+                    start_time=$(printf "%02d00" "${start_part}")
+                fi
+                
+                if [[ "${end_part}" =~ : ]]; then
+                    end_time=$(echo "${end_part}" | tr -d ':')
+                else
+                    end_time=$(printf "%02d00" "${end_part}")
+                fi
                 
                 # Check if this is an overnight range (start > end) that extends into current day
-                if [ "${start_hour}" -gt "${end_hour}" ]; then
-                    # Overnight range: check if current hour falls within the end portion (before end_hour)
-                    if [ "${current_hour}" -lt "${end_hour}" ]; then
-                        # Current hour is within overnight lock hours from previous day - lock should be active
+                if [ "${start_time}" -gt "${end_time}" ]; then
+                    # Overnight range: check if current time falls within the end portion (before end_hour)
+                    if [ "${current_time_hhmm}" -lt "${end_time}" ]; then
+                        # Current time is within overnight lock hours from previous day - lock should be active
                         return 0
                     fi
                 fi

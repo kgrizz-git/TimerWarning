@@ -874,6 +874,23 @@ main() {
     # Install files
     install_files
     
+    # Migrate configuration to new format (Enhancement 16b)
+    if [ -f "${CONFIG_DIR}/config/sleep-warning.conf" ]; then
+        print_info "Checking configuration format..."
+        # Source config.sh and time-parsing.sh to get migration function
+        # Note: We use the ones in the project directory during install
+        if [ -f "${SCRIPT_DIR}/lib/config.sh" ] && [ -f "${SCRIPT_DIR}/lib/time-parsing.sh" ]; then
+            # Override CONFIG_FILE for migration
+            export CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"
+            source "${SCRIPT_DIR}/lib/time-parsing.sh"
+            source "${SCRIPT_DIR}/lib/config.sh"
+            if type migrate_config_to_minute_format >/dev/null 2>&1; then
+                migrate_config_to_minute_format || true
+                print_success "Configuration migrated to minute-precision format"
+            fi
+        fi
+    fi
+    
     # Reload systemd
     reload_systemd
     
