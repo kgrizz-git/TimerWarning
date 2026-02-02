@@ -96,9 +96,9 @@ format_range_human() {
             Saturday) next_day="Sunday" ;;
             *) next_day="next day" ;;
         esac
-        echo "${start_display} → ${end_display} (${next_day})"
+        echo "${start_display} -> ${end_display} (${next_day})"
     else
-        echo "${start_display} → ${end_display}"
+        echo "${start_display} -> ${end_display}"
     fi
 }
 

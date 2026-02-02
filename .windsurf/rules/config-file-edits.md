@@ -1,0 +1,7 @@
+---
+trigger: always_on
+description: 
+globs:
+---
+
+Before running tests or bash commands that would edit my installed config file, check if it is during restricted or blocked hours, and if so, do not run them. Similarly, do not edit, remove, or overwrite the installed config file during restricted or blocked hours. As an alternative, when feasible you can design and run tests using a "dummy" copy config file that mimics a real one. If that would require modifying any of our actual .sh scripts, make copies of those and modify them instead. Do this with as many sh files and dummy test files as needed to run the tests without modifying the actual config file or script sh files. If editing test script files is required for tests to pass, keep track of when those edits should be applied to the actual original scripts. Do not make those edits at test time but do report them.

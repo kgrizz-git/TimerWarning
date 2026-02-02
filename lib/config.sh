@@ -18,9 +18,13 @@
 SCRIPT_NAME="sleep-warning"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
 # Config file is now in a dedicated subdirectory for locking support (Enhancement #18)
+# Prefer new path; if it does not exist but legacy path does, use legacy (e.g. timer run before migration)
 CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"
+if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_DIR}/sleep-warning.conf" ]; then
+    CONFIG_FILE="${CONFIG_DIR}/sleep-warning.conf"
+fi
 LOG_FILE="${CONFIG_DIR}/warnings.log"
-MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10 MB max log size
+MAX_LOG_SIZE=$((512* 1024))  # 512 KB max log size
 
 # Default check interval (in minutes) - used if config file missing or invalid
 DEFAULT_CHECK_INTERVAL=10
@@ -101,7 +105,9 @@ declare -A DEFAULT_HOURS=(
     [6]="1-5"  # Saturday: 1:00 AM to 4:59 AM
 )
 
-# Get check interval from configuration file
+# Get check interval from configuration file (no args; read-only).
+# Note: configure-input-time.sh defines get_check_interval(use_gui) for the config wizard;
+# when that file is sourced after this one (e.g. in configure.sh), that definition shadows this.
 get_check_interval() {
     # Check if config file exists
     if [ ! -f "${CONFIG_FILE}" ]; then
@@ -941,25 +947,18 @@ parse_config() {
     local day_num="$1"
     local day_name
     
-    # Convert day number to day name
-    # Use shared function if available (from configure-core.sh), otherwise fallback to case statement
-    if type day_num_to_name_upper >/dev/null 2>&1; then
-        if ! day_name=$(day_num_to_name_upper "${day_num}" 2>/dev/null); then
-            return 1
-        fi
-    else
-        # Fallback if configure-core.sh not sourced
-        case "${day_num}" in
-            0) day_name="SUNDAY" ;;
-            1) day_name="MONDAY" ;;
-            2) day_name="TUESDAY" ;;
-            3) day_name="WEDNESDAY" ;;
-            4) day_name="THURSDAY" ;;
-            5) day_name="FRIDAY" ;;
-            6) day_name="SATURDAY" ;;
-            *) return 1 ;;
-        esac
-    fi
+    # Convert day number to day name using simple case statement
+    # Don't rely on configure-core.sh functions (they require initialization via ensure_day_vars)
+    case "${day_num}" in
+        0) day_name="SUNDAY" ;;
+        1) day_name="MONDAY" ;;
+        2) day_name="TUESDAY" ;;
+        3) day_name="WEDNESDAY" ;;
+        4) day_name="THURSDAY" ;;
+        5) day_name="FRIDAY" ;;
+        6) day_name="SATURDAY" ;;
+        *) return 1 ;;
+    esac
     
     # Check if config file exists
     if [ ! -f "${CONFIG_FILE}" ]; then
@@ -969,8 +968,9 @@ parse_config() {
     fi
     
     # Check if day line exists in config file (even if empty)
+    # Use last matching line so duplicate entries (e.g. empty then full) use the full value
     local day_line_exists
-    day_line_exists=$(grep -E "^[[:space:]]*${day_name}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+    day_line_exists=$(grep -E "^[[:space:]]*${day_name}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | tail -n1)
     
     if [ -z "${day_line_exists}" ]; then
         # Day line doesn't exist in config file = not configured yet, use default
@@ -985,7 +985,9 @@ parse_config() {
     if [ -n "${config_line}" ]; then
         # Normalize to HH:MM-HH:MM internally
         if type normalize_time_range >/dev/null 2>&1; then
-            config_line=$(normalize_time_range "${config_line}")
+            local normalized
+            normalized=$(normalize_time_range "${config_line}")
+            config_line="${normalized}"
         fi
         # Has a value, use it
         echo "${config_line}"
@@ -1018,25 +1020,18 @@ parse_lock_hours() {
     local day_num="$1"
     local day_name
     
-    # Convert day number to day name
-    # Use shared function if available (from configure-core.sh), otherwise fallback to case statement
-    if type day_num_to_name_upper >/dev/null 2>&1; then
-        if ! day_name=$(day_num_to_name_upper "${day_num}" 2>/dev/null); then
-            return 1
-        fi
-    else
-        # Fallback if configure-core.sh not sourced
-        case "${day_num}" in
-            0) day_name="SUNDAY" ;;
-            1) day_name="MONDAY" ;;
-            2) day_name="TUESDAY" ;;
-            3) day_name="WEDNESDAY" ;;
-            4) day_name="THURSDAY" ;;
-            5) day_name="FRIDAY" ;;
-            6) day_name="SATURDAY" ;;
-            *) return 1 ;;
-        esac
-    fi
+    # Convert day number to day name using simple case statement
+    # Don't rely on configure-core.sh functions (they require initialization via ensure_day_vars)
+    case "${day_num}" in
+        0) day_name="SUNDAY" ;;
+        1) day_name="MONDAY" ;;
+        2) day_name="TUESDAY" ;;
+        3) day_name="WEDNESDAY" ;;
+        4) day_name="THURSDAY" ;;
+        5) day_name="FRIDAY" ;;
+        6) day_name="SATURDAY" ;;
+        *) return 1 ;;
+    esac
     
     # Check if config file exists
     if [ ! -f "${CONFIG_FILE}" ]; then
@@ -1047,7 +1042,7 @@ parse_lock_hours() {
     
     # Check if lock hours line exists in config file (even if empty)
     local lock_line_exists
-    lock_line_exists=$(grep -E "^[[:space:]]*CONFIG_LOCK_HOURS_${day_name}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+    lock_line_exists=$(grep -E "^[[:space:]]*CONFIG_LOCK_HOURS_${day_name}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | tail -n1)
     
     if [ -z "${lock_line_exists}" ]; then
         # Lock hours line doesn't exist = not configured, no lock hours
@@ -1132,25 +1127,18 @@ parse_uninstall_lock_hours() {
         esac
     fi
     
-    # Convert day number to day name
-    # Use shared function if available (from configure-core.sh), otherwise fallback to case statement
-    if type day_num_to_name_upper >/dev/null 2>&1; then
-        if ! day_name=$(day_num_to_name_upper "${day_num}" 2>/dev/null); then
-            return 1
-        fi
-    else
-        # Fallback if configure-core.sh not sourced
-        case "${day_num}" in
-            0) day_name="SUNDAY" ;;
-            1) day_name="MONDAY" ;;
-            2) day_name="TUESDAY" ;;
-            3) day_name="WEDNESDAY" ;;
-            4) day_name="THURSDAY" ;;
-            5) day_name="FRIDAY" ;;
-            6) day_name="SATURDAY" ;;
-            *) return 1 ;;
-        esac
-    fi
+    # Convert day number to day name using simple case statement
+    # Don't rely on configure-core.sh functions (they require initialization via ensure_day_vars)
+    case "${day_num}" in
+        0) day_name="SUNDAY" ;;
+        1) day_name="MONDAY" ;;
+        2) day_name="TUESDAY" ;;
+        3) day_name="WEDNESDAY" ;;
+        4) day_name="THURSDAY" ;;
+        5) day_name="FRIDAY" ;;
+        6) day_name="SATURDAY" ;;
+        *) return 1 ;;
+    esac
     
     # Check if config file exists
     if [ ! -f "${CONFIG_FILE}" ]; then
@@ -1161,7 +1149,7 @@ parse_uninstall_lock_hours() {
     
     # Check if uninstall lock hours line exists in config file (even if empty)
     local uninstall_lock_line_exists
-    uninstall_lock_line_exists=$(grep -E "^[[:space:]]*UNINSTALL_LOCK_HOURS_${day_name}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+    uninstall_lock_line_exists=$(grep -E "^[[:space:]]*UNINSTALL_LOCK_HOURS_${day_name}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | tail -n1)
     
     if [ -z "${uninstall_lock_line_exists}" ]; then
         # Uninstall lock hours line doesn't exist = not configured, no uninstall lock hours

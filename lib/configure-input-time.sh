@@ -8,7 +8,9 @@
 #
 # Functions:
 # - get_day_hours() - Get time ranges for a day (complex with navigation)
-# - get_check_interval() - Get check interval
+# - get_check_interval(use_gui) - Get check interval via GUI/text prompt (config wizard only).
+#   Note: Same name as config.sh's get_check_interval() (no args); this definition shadows
+#   that one when this file is sourced after config.sh (e.g. in configure.sh).
 #
 # Dependencies:
 # - configure-core.sh (for has_dialog_tool, CONFIG_FILE)

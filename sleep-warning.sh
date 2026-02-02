@@ -26,25 +26,46 @@
 # - Exits silently during non-restricted hours or if GUI unavailable
 ###############################################################################
 
-# Determine script directory
+# Determine script directory and library search paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/lib"
+SCRIPT_LIB_DIR="${SCRIPT_DIR}/lib"
+INSTALLED_LIB_DIR="${HOME}/.local/lib/sleep-warning"
+
+# Load shared library loader helper
+LIB_HELPER_PATH=""
+for candidate in \
+    "${INSTALLED_LIB_DIR}/library-loader.sh" \
+    "${SCRIPT_LIB_DIR}/library-loader.sh"; do
+    if [ -z "${LIB_HELPER_PATH}" ] && [ -f "${candidate}" ]; then
+        LIB_HELPER_PATH="${candidate}"
+    fi
+done
+
+if [ -z "${LIB_HELPER_PATH}" ]; then
+    echo "Error: library loader helper not found. Please reinstall the Sleep Warning System." >&2
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${LIB_HELPER_PATH}"
+init_library_paths "${INSTALLED_LIB_DIR}" "${SCRIPT_LIB_DIR}"
 
 # Source library modules in dependency order
-source "${LIB_DIR}/config.sh" || exit 1
-source "${LIB_DIR}/logging.sh" || exit 1
-source "${LIB_DIR}/pause-state.sh" || exit 1
-source "${LIB_DIR}/sleep-detection.sh" || exit 1  # Enhancement #9: Sleep/hibernate detection
-source "${LIB_DIR}/configure-core.sh" || exit 1
-source "${LIB_DIR}/configure-validation.sh" || exit 1
-source "${LIB_DIR}/display-detection.sh" || exit 1
-source "${LIB_DIR}/desktop-environment.sh" || exit 1
-source "${LIB_DIR}/window-management.sh" || exit 1
-source "${LIB_DIR}/time-validation.sh" || exit 1
-source "${LIB_DIR}/time-calculations.sh" || exit 1
-source "${LIB_DIR}/config-locking.sh" || exit 1  # Enhancement #18: Config file locking
-source "${LIB_DIR}/resolution-detection.sh" || exit 1  # Enhancement #3: Display resolution detection
-source "${LIB_DIR}/popup-display.sh" || exit 1
+source_required_lib "config.sh" || exit 1
+source_required_lib "logging.sh" || exit 1
+source_required_lib "pause-state.sh" || exit 1
+source_required_lib "sleep-detection.sh" || exit 1  # Enhancement #9: Sleep/hibernate detection
+source_required_lib "configure-core.sh" || exit 1
+source_required_lib "configure-validation.sh" || exit 1
+source_required_lib "display-detection.sh" || exit 1
+source_required_lib "desktop-environment.sh" || exit 1
+source_required_lib "window-management.sh" || exit 1
+source_required_lib "time-validation.sh" || exit 1
+source_required_lib "time-parsing.sh" || exit 1  # normalize_time_range for parse_config (12h config format)
+source_required_lib "time-calculations.sh" || exit 1
+source_required_lib "config-locking.sh" || exit 1  # Enhancement #18: Config file locking
+source_required_lib "resolution-detection.sh" || exit 1  # Enhancement #3: Display resolution detection
+source_required_lib "popup-display.sh" || exit 1
 
 # Validate configuration file to prevent 24/7 restrictions
 # This function checks if manual config file editing created 24/7 restrictions

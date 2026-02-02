@@ -181,7 +181,7 @@ get_custom_popup_size_config() {
             local format_result
             format_result=$(show_list_dialog \
                 "Sleep Warning Configuration - Custom Size Format" \
-                "Select format for custom size:\n\nCurrent mode: ${size_mode}\n\n• Percentage: Use percentage of screen (e.g., 50%x50%)\n• Pixel: Use absolute pixel dimensions (e.g., 1280x720)" \
+                "Select format for custom size:\n\nCurrent mode: ${size_mode}\n\n- Percentage: Use percentage of screen (e.g., 50%x50%)\n- Pixel: Use absolute pixel dimensions (e.g., 1280x720)" \
                 600 \
                 350 \
                 "Percentage (e.g., 50%x50%)" "Pixel (e.g., 1280x720)")
@@ -708,7 +708,7 @@ get_popup_size_mode_config() {
             local mode_result
             mode_result=$(show_list_dialog \
                 "Sleep Warning Configuration - Size Mode" \
-                "Select window size calculation mode:\n\nCurrent: ${default_mode}\n\n• fixed: Use absolute pixel sizes (backward compatible)\n• display-based: Calculate sizes as percentage of screen resolution\n\nNote: display-based mode adapts to different screen sizes automatically." \
+                "Select window size calculation mode:\n\nCurrent: ${default_mode}\n\n- fixed: Use absolute pixel sizes (backward compatible)\n- display-based: Calculate sizes as percentage of screen resolution\n\nNote: display-based mode adapts to different screen sizes automatically." \
                 600 \
                 350 \
                 "fixed (Absolute Pixels)" "display-based (Percentage of Screen)")

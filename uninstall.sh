@@ -34,56 +34,48 @@ CONFIG_DIR="${HOME}/.config/sleep-warning"
 # Enhancement #18: Config file is now in subdirectory (but we handle both old and new locations)
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 
-# Determine script directory and library path
+# Determine script directory and library search paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_LIB_DIR="${SCRIPT_DIR}/lib"
+INSTALLED_LIB_DIR="${LIB_DIR}"
 
-# Determine which library directory to use for sourcing (project dir if available, otherwise installed location)
-# IMPORTANT: Never change LIB_DIR itself - it must always point to the installed location for deletion
-SOURCE_LIB_DIR="${LIB_DIR}"
-if [ -d "${SCRIPT_LIB_DIR}" ]; then
-    # Running from project directory - use project lib for sourcing
-    SOURCE_LIB_DIR="${SCRIPT_LIB_DIR}"
+# Load shared library loader helper
+LIB_HELPER_PATH=""
+for candidate in \
+    "${INSTALLED_LIB_DIR}/library-loader.sh" \
+    "${SCRIPT_LIB_DIR}/library-loader.sh"; do
+    if [ -z "${LIB_HELPER_PATH}" ] && [ -f "${candidate}" ]; then
+        LIB_HELPER_PATH="${candidate}"
+    fi
+done
+
+if [ -z "${LIB_HELPER_PATH}" ]; then
+    echo "Error: library loader helper not found. Please reinstall the Sleep Warning System." >&2
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${LIB_HELPER_PATH}"
+init_library_paths "${INSTALLED_LIB_DIR}" "${SCRIPT_LIB_DIR}"
+
+SOURCE_LIB_DIR="$(detect_library_dir 2>/dev/null)"
+if [ -z "${SOURCE_LIB_DIR}" ]; then
+    SOURCE_LIB_DIR="${INSTALLED_LIB_DIR}"
 fi
 
 # Source library modules if available (for uninstall protection check)
 # These are sourced with error suppression to allow uninstall even if some modules are missing
-if [ -f "${SOURCE_LIB_DIR}/config.sh" ]; then
-    source "${SOURCE_LIB_DIR}/config.sh" 2>/dev/null || true
-fi
-
-if [ -f "${SOURCE_LIB_DIR}/logging.sh" ]; then
-    source "${SOURCE_LIB_DIR}/logging.sh" 2>/dev/null || true
-fi
-
-if [ -f "${SOURCE_LIB_DIR}/time-validation.sh" ]; then
-    source "${SOURCE_LIB_DIR}/time-validation.sh" 2>/dev/null || true
-fi
+source_optional_lib "config.sh" || true
+source_optional_lib "logging.sh" || true
+source_optional_lib "time-validation.sh" || true
 
 # Source display detection and desktop environment for dialog tool selection
-if [ -f "${SOURCE_LIB_DIR}/display-detection.sh" ]; then
-    source "${SOURCE_LIB_DIR}/display-detection.sh" 2>/dev/null || true
-fi
-
-if [ -f "${SOURCE_LIB_DIR}/desktop-environment.sh" ]; then
-    source "${SOURCE_LIB_DIR}/desktop-environment.sh" 2>/dev/null || true
-fi
-
-if [ -f "${SOURCE_LIB_DIR}/configure-core.sh" ]; then
-    source "${SOURCE_LIB_DIR}/configure-core.sh" 2>/dev/null || true
-fi
-
-if [ -f "${SOURCE_LIB_DIR}/configure-dialogs.sh" ]; then
-    source "${SOURCE_LIB_DIR}/configure-dialogs.sh" 2>/dev/null || true
-fi
-
-if [ -f "${SOURCE_LIB_DIR}/configure-ui.sh" ]; then
-    source "${SOURCE_LIB_DIR}/configure-ui.sh" 2>/dev/null || true
-fi
-
-if [ -f "${SOURCE_LIB_DIR}/uninstall-verification.sh" ]; then
-    source "${SOURCE_LIB_DIR}/uninstall-verification.sh" 2>/dev/null || true
-fi
+source_optional_lib "display-detection.sh" || true
+source_optional_lib "desktop-environment.sh" || true
+source_optional_lib "configure-core.sh" || true
+source_optional_lib "configure-dialogs.sh" || true
+source_optional_lib "configure-ui.sh" || true
+source_optional_lib "uninstall-verification.sh" || true
 
 # Enable exit on error after library sourcing (for backward compatibility, libraries may not exist)
 set -e

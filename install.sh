@@ -621,14 +621,14 @@ install_files() {
         exit 1
     fi
     
-    # Copy main script and update library paths to use installed location
-    sed "s|LIB_DIR=\"\${SCRIPT_DIR}/lib\"|LIB_DIR=\"${LIB_DIR}\"|" "$SCRIPT_DIR/sleep-warning.sh" > "$INSTALL_DIR/sleep-warning.sh"
+    # Copy main script (library paths resolved at runtime via library-loader and INSTALLED_LIB_DIR)
+    cp "$SCRIPT_DIR/sleep-warning.sh" "$INSTALL_DIR/sleep-warning.sh"
     chmod +x "$INSTALL_DIR/sleep-warning.sh"
     print_success "Main script installed"
     
-    # Copy configure script and update library paths to use installed location
+    # Copy configure script (library paths resolved at runtime via library-loader and INSTALLED_LIB_DIR)
     if [ -f "$SCRIPT_DIR/configure.sh" ]; then
-        sed "s|LIB_DIR=\"\${SCRIPT_DIR}/lib\"|LIB_DIR=\"${LIB_DIR}\"|" "$SCRIPT_DIR/configure.sh" > "$INSTALL_DIR/sleep-warning-configure"
+        cp "$SCRIPT_DIR/configure.sh" "$INSTALL_DIR/sleep-warning-configure"
         chmod +x "$INSTALL_DIR/sleep-warning-configure"
         print_success "Configuration wizard installed"
     fi

@@ -1,0 +1,9 @@
+---
+trigger: model_decision
+description: Running tests and configuration
+globs:
+---
+
+# Overview
+
+When running tests on this project, make sure any configurations you set for restricted times, frequencies, and minimum popup times are restriced to no more than 6 hours per day, no more frequent than every 5 minutes, and no longer than 60 seconds. Document tests run in dev-docs/testing-assessments/test-history.md following the format there. Write comments in test scripts indicating their purpose and when they were last updated.

@@ -53,6 +53,19 @@ SERVICE_NAME="sleep-warning"
 declare -a DAY_NAMES=("Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday")
 declare -a DAY_VARS=("SUNDAY" "MONDAY" "TUESDAY" "WEDNESDAY" "THURSDAY" "FRIDAY" "SATURDAY")
 
+# Ensure DAY_NAMES/DAY_VARS are initialized in case a caller clears them unexpectedly.
+ensure_day_names() {
+    if [ ${#DAY_NAMES[@]} -eq 0 ]; then
+        DAY_NAMES=("Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday")
+    fi
+}
+
+ensure_day_vars() {
+    if [ ${#DAY_VARS[@]} -eq 0 ]; then
+        DAY_VARS=("SUNDAY" "MONDAY" "TUESDAY" "WEDNESDAY" "THURSDAY" "FRIDAY" "SATURDAY")
+    fi
+}
+
 # Restriction validation thresholds (Enhancement #22)
 # These define when to warn or block configuration based on total restricted minutes per week
 # Calculated as: hours_per_day × 60 minutes × 7 days

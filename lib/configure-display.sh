@@ -34,7 +34,7 @@ get_section_status() {
     done
     
     if [ "${has_weekdays}" = "true" ]; then
-        weekdays_status="✓"
+        weekdays_status="(configured)"
     fi
     
     # Check weekends (indices 0, 6: Sunday, Saturday)
@@ -47,7 +47,7 @@ get_section_status() {
     done
     
     if [ "${has_weekends}" = "true" ]; then
-        weekends_status="✓"
+        weekends_status="(configured)"
     fi
     
     echo "${weekdays_status}|${weekends_status}"
@@ -122,12 +122,12 @@ show_main_menu() {
         # Show dimensions with percentage if in display-based mode
         if [ "${size_mode}" = "display-based" ]; then
             case "${popup_size}" in
-                xsmall) window_desc="${window_desc} (15%×15%)" ;;
-                small) window_desc="${window_desc} (20%×20%)" ;;
-                medium) window_desc="${window_desc} (30%×30%)" ;;
-                large) window_desc="${window_desc} (50%×50%)" ;;
-                xlarge) window_desc="${window_desc} (75%×75%)" ;;
-                max) window_desc="${window_desc} (90%×90%)" ;;
+                xsmall) window_desc="${window_desc} (15%x15%)" ;;
+                small) window_desc="${window_desc} (20%x20%)" ;;
+                medium) window_desc="${window_desc} (30%x30%)" ;;
+                large) window_desc="${window_desc} (50%x50%)" ;;
+                xlarge) window_desc="${window_desc} (75%x75%)" ;;
+                max) window_desc="${window_desc} (90%x90%)" ;;
                 custom)
                     # Get custom size to show - use passed parameter if available, otherwise read from config file
                     local custom_size
@@ -139,7 +139,7 @@ show_main_menu() {
                     if [ -n "${custom_size}" ]; then
                         window_desc="${window_desc} (${custom_size})"
                     else
-                        window_desc="${window_desc} (50%×50%)"
+                        window_desc="${window_desc} (50%x50%)"
                     fi
                     ;;
                 *)
@@ -154,12 +154,12 @@ show_main_menu() {
         else
             # Fixed pixel mode - show absolute dimensions
             case "${popup_size}" in
-                xsmall) window_desc="${window_desc} (384×216)" ;;
-                small) window_desc="${window_desc} (400×250)" ;;
-                medium) window_desc="${window_desc} (800×500)" ;;
-                large) window_desc="${window_desc} (1230×720)" ;;
-                xlarge) window_desc="${window_desc} (1845×1080)" ;;
-                max) window_desc="${window_desc} (2214×1296)" ;;
+                xsmall) window_desc="${window_desc} (384x216)" ;;
+                small) window_desc="${window_desc} (400x250)" ;;
+                medium) window_desc="${window_desc} (800x500)" ;;
+                large) window_desc="${window_desc} (1230x720)" ;;
+                xlarge) window_desc="${window_desc} (1845x1080)" ;;
+                max) window_desc="${window_desc} (2214x1296)" ;;
                 custom)
                     # Get custom absolute size to show - use passed parameter if available, otherwise read from config file
                     local custom_absolute
@@ -171,7 +171,7 @@ show_main_menu() {
                     if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
                         window_desc="${window_desc} (${custom_absolute})"
                     else
-                        window_desc="${window_desc} (1280×720)"
+                        window_desc="${window_desc} (1280x720)"
                     fi
                     ;;
                 *)
@@ -511,6 +511,10 @@ show_visual_grid() {
     local -n summary_lines_ref="$3"  # Pass by reference
     local -n lock_hours_lines_ref="$4"  # Pass by reference (Enhancement #19 Phase 2 - lock hours)
     local -n uninstall_lock_hours_lines_ref="$5"  # Pass by reference (Enhancement #26 Phase 2 - uninstall lock hours)
+
+    if [ -n "${DEBUG_CONFIG_WRITE:-}" ]; then
+        echo "DEBUG: show_visual_grid DAY_NAMES=${DAY_NAMES[*]}" >&2
+    fi
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
@@ -521,6 +525,10 @@ show_visual_grid() {
             local restricted_hours_list=()
             local lock_hours_list=()
             local uninstall_lock_hours_list=()
+
+            if [ -n "${DEBUG_CONFIG_WRITE:-}" ]; then
+                echo "DEBUG: show_visual_grid local day_names(before)=${day_names[*]}" >&2
+            fi
             
             for day_index in 0 1 2 3 4 5 6; do
                 local day_name="${DAY_NAMES[${day_index}]}"
@@ -603,6 +611,10 @@ show_visual_grid() {
                 lock_hours_list+=("${lock_hours}")
                 uninstall_lock_hours_list+=("${uninstall_lock_hours}")
             done
+
+            if [ -n "${DEBUG_CONFIG_WRITE:-}" ]; then
+                echo "DEBUG: show_visual_grid local day_names(after)=${day_names[*]}" >&2
+            fi
             
             # Add "Back to Menu" option
             # Note: Use plain text for display (YAD interprets << as Pango markup)
@@ -831,6 +843,10 @@ show_summary() {
     local popup_size_custom_absolute="${11:-}"  # Enhancement #3: Optional custom absolute size
     # Note: summary_lines must be accessed from global scope to preserve sparse array indices
     # Passing sparse arrays as parameters re-indexes them from 0, causing display bugs
+
+    if [ -n "${DEBUG_CONFIG_WRITE:-}" ]; then
+        echo "DEBUG: show_summary DAY_NAMES=${DAY_NAMES[*]}" >&2
+    fi
     
     # Build summary with human-readable time periods
     local summary="Configuration Summary:\n\n"
@@ -854,12 +870,12 @@ show_summary() {
     # Show dimensions with percentage if in display-based mode
     if [ "${size_mode}" = "display-based" ]; then
         case "${popup_size}" in
-            xsmall) popup_size_display="${popup_size} (15%×15%)" ;;
-            small) popup_size_display="${popup_size} (20%×20%)" ;;
-            medium) popup_size_display="${popup_size} (30%×30%)" ;;
-            large) popup_size_display="${popup_size} (50%×50%)" ;;
-            xlarge) popup_size_display="${popup_size} (75%×75%)" ;;
-            max) popup_size_display="${popup_size} (90%×90%)" ;;
+            xsmall) popup_size_display="${popup_size} (15%x15%)" ;;
+            small) popup_size_display="${popup_size} (20%x20%)" ;;
+            medium) popup_size_display="${popup_size} (30%x30%)" ;;
+            large) popup_size_display="${popup_size} (50%x50%)" ;;
+            xlarge) popup_size_display="${popup_size} (75%x75%)" ;;
+            max) popup_size_display="${popup_size} (90%x90%)" ;;
             custom)
                 # Get custom size value
                 local custom_size=""
@@ -871,7 +887,7 @@ show_summary() {
                 if [ -n "${custom_size}" ]; then
                     popup_size_display="custom (${custom_size})"
                 else
-                    popup_size_display="custom (50%×50%)"
+                    popup_size_display="custom (50%x50%)"
                 fi
                 ;;
             *)
@@ -886,12 +902,12 @@ show_summary() {
     else
         # Fixed pixel mode - show absolute dimensions
         case "${popup_size}" in
-            xsmall) popup_size_display="${popup_size} (384×216)" ;;
-            small) popup_size_display="${popup_size} (400×250)" ;;
-            medium) popup_size_display="${popup_size} (800×500)" ;;
-            large) popup_size_display="${popup_size} (1230×720)" ;;
-            xlarge) popup_size_display="${popup_size} (1845×1080)" ;;
-            max) popup_size_display="${popup_size} (2214×1296)" ;;
+            xsmall) popup_size_display="${popup_size} (384x216)" ;;
+            small) popup_size_display="${popup_size} (400x250)" ;;
+            medium) popup_size_display="${popup_size} (800x500)" ;;
+            large) popup_size_display="${popup_size} (1230x720)" ;;
+            xlarge) popup_size_display="${popup_size} (1845x1080)" ;;
+            max) popup_size_display="${popup_size} (2214x1296)" ;;
             custom)
                 # Get custom absolute size value
                 local custom_absolute=""
@@ -913,7 +929,7 @@ show_summary() {
                     if [ -n "${custom_size}" ]; then
                         popup_size_display="custom (${custom_size})"
                     else
-                        popup_size_display="custom (1280×720)"
+                        popup_size_display="custom (1280x720)"
                     fi
                 fi
                 ;;
@@ -977,17 +993,17 @@ show_summary() {
                     if [ -n "${ranges}" ]; then
                         local formatted
                         formatted=$(format_ranges_human "${ranges}" "${day_name}")
-                        summary="${summary}• ${day_name}: ${formatted}\n"
+                        summary="${summary}- ${day_name}: ${formatted}\n"
                     else
-                        summary="${summary}• ${day_name}: No lock hours\n"
+                        summary="${summary}- ${day_name}: No lock hours\n"
                     fi
                 fi
             done
         else
-            summary="${summary}• None configured\n"
+            summary="${summary}- None configured\n"
         fi
     else
-        summary="${summary}• None configured\n"
+        summary="${summary}- None configured\n"
     fi
     
     summary="${summary}\nRestricted Hours:\n"
@@ -1008,12 +1024,12 @@ show_summary() {
             
             # Check if this is a skipped day (no restrictions)
             if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
-                summary="${summary}• ${day_name}: No restrictions\n"
+                summary="${summary}- ${day_name}: No restrictions\n"
             else
                 # Format to human-readable
                 local formatted
                 formatted=$(format_ranges_human "${range}" "${day_name}")
-                summary="${summary}• ${day_name}: ${formatted}\n"
+                summary="${summary}- ${day_name}: ${formatted}\n"
                 
                 # Check for overlaps with previous calendar day
                 local prev_day_index
@@ -1047,15 +1063,15 @@ show_summary() {
             fi
         else
             # Day has no restrictions configured
-            summary="${summary}• ${day_name}: No restrictions\n"
+            summary="${summary}- ${day_name}: No restrictions\n"
         fi
     done
     
     # Add overlap warnings if any
     if [ ${#overlap_warnings[@]} -gt 0 ]; then
-        summary="${summary}\n⚠️  OVERLAP WARNING:\n"
+        summary="${summary}\nWARNING: OVERLAP DETECTED:\n"
         for warning in "${overlap_warnings[@]}"; do
-            summary="${summary}• ${warning}\n"
+            summary="${summary}- ${warning}\n"
         done
         summary="${summary}\n(Overlaps are harmless - only one warning shown)\n"
     fi
@@ -1095,12 +1111,12 @@ show_summary() {
         # Show dimensions with percentage if in display-based mode
         if [ "${size_mode}" = "display-based" ]; then
             case "${popup_size}" in
-                xsmall) popup_size_display="${popup_size} (15%×15%)" ;;
-                small) popup_size_display="${popup_size} (20%×20%)" ;;
-                medium) popup_size_display="${popup_size} (30%×30%)" ;;
-                large) popup_size_display="${popup_size} (50%×50%)" ;;
-                xlarge) popup_size_display="${popup_size} (75%×75%)" ;;
-                max) popup_size_display="${popup_size} (90%×90%)" ;;
+                xsmall) popup_size_display="${popup_size} (15%x15%)" ;;
+                small) popup_size_display="${popup_size} (20%x20%)" ;;
+                medium) popup_size_display="${popup_size} (30%x30%)" ;;
+                large) popup_size_display="${popup_size} (50%x50%)" ;;
+                xlarge) popup_size_display="${popup_size} (75%x75%)" ;;
+                max) popup_size_display="${popup_size} (90%x90%)" ;;
                 custom)
                     # Get custom size value
                     local custom_size=""
@@ -1112,7 +1128,7 @@ show_summary() {
                     if [ -n "${custom_size}" ]; then
                         popup_size_display="custom (${custom_size})"
                     else
-                        popup_size_display="custom (50%×50%)"
+                        popup_size_display="custom (50%x50%)"
                     fi
                     ;;
                 *)
@@ -1127,12 +1143,12 @@ show_summary() {
         else
             # Fixed pixel mode - show absolute dimensions
             case "${popup_size}" in
-                xsmall) popup_size_display="${popup_size} (384×216)" ;;
-                small) popup_size_display="${popup_size} (400×250)" ;;
-                medium) popup_size_display="${popup_size} (800×500)" ;;
-                large) popup_size_display="${popup_size} (1230×720)" ;;
-                xlarge) popup_size_display="${popup_size} (1845×1080)" ;;
-                max) popup_size_display="${popup_size} (2214×1296)" ;;
+                xsmall) popup_size_display="${popup_size} (384x216)" ;;
+                small) popup_size_display="${popup_size} (400x250)" ;;
+                medium) popup_size_display="${popup_size} (800x500)" ;;
+                large) popup_size_display="${popup_size} (1230x720)" ;;
+                xlarge) popup_size_display="${popup_size} (1845x1080)" ;;
+                max) popup_size_display="${popup_size} (2214x1296)" ;;
                 custom)
                     # Get custom absolute size value
                     local custom_absolute=""
@@ -1154,7 +1170,7 @@ show_summary() {
                         if [ -n "${custom_size}" ]; then
                             popup_size_display="custom (${custom_size})"
                         else
-                            popup_size_display="custom (1280×720)"
+                            popup_size_display="custom (1280x720)"
                         fi
                     fi
                     ;;
@@ -1202,12 +1218,12 @@ show_summary() {
                 
                 # Check if this is a skipped day (no restrictions)
                 if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
-                    echo "  • ${day_name}: No restrictions"
+                    echo "  - ${day_name}: No restrictions"
                 else
                     # Format to human-readable
                     local formatted
                     formatted=$(format_ranges_human "${range}" "${day_name}")
-                    echo "  • ${day_name}: ${formatted}"
+                    echo "  - ${day_name}: ${formatted}"
                     
                     # Check for overlaps with previous calendar day
                     local prev_day_index
@@ -1241,16 +1257,16 @@ show_summary() {
                 fi
             else
                 # Day has no restrictions configured
-                echo "  • ${day_name}: No restrictions"
+                echo "  - ${day_name}: No restrictions"
             fi
         done
         
         # Show overlap warnings if any
         if [ ${#text_overlap_warnings[@]} -gt 0 ]; then
             echo ""
-            echo "⚠️  OVERLAP WARNING:"
+            echo "WARNING: OVERLAP DETECTED:"
             for warning in "${text_overlap_warnings[@]}"; do
-                echo "  • ${warning}"
+                echo "  - ${warning}"
             done
             echo "  (Overlaps are harmless - only one warning shown)"
         fi

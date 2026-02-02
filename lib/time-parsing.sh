@@ -152,15 +152,49 @@ parse_time_range() {
 }
 
 # Convert any range to 24h format HH:MM-HH:MM
+# When input has no am/pm (e.g. "12:00-12:30"), it is 24h: 12 = noon, 0 = midnight.
+# Do not pass 24h values through 12hour_to_24hour or 12:00 becomes 00:00.
 convert_time_range_to_24hour() {
     local input="$1"
+    local norm_input
+    norm_input=$(normalize_time_input "${input}")
+    local format
+    format=$(detect_time_format "${norm_input}")
+    
+    if [ "${format}" = "24hour" ]; then
+        # Already 24h (no am/pm): parse and format as HH:MM-HH:MM
+        local start_str="${norm_input%%-*}"
+        local end_str="${norm_input##*-}"
+        local start_h start_m end_h end_m
+        if [[ "${start_str}" =~ : ]]; then
+            start_h=$(echo "${start_str}" | cut -d':' -f1)
+            start_m=$(echo "${start_str}" | cut -d':' -f2)
+        else
+            start_h="${start_str}"
+            start_m=0
+        fi
+        if [[ "${end_str}" =~ : ]]; then
+            end_h=$(echo "${end_str}" | cut -d':' -f1)
+            end_m=$(echo "${end_str}" | cut -d':' -f2)
+        else
+            end_h="${end_str}"
+            end_m=0
+        fi
+        # Ensure numeric and in range (basic)
+        if ! [[ "${start_h}" =~ ^[0-9]+$ ]] || ! [[ "${start_m}" =~ ^[0-9]+$ ]] ||
+           ! [[ "${end_h}" =~ ^[0-9]+$ ]] || ! [[ "${end_m}" =~ ^[0-9]+$ ]]; then
+            return 1
+        fi
+        printf "%02d:%02d-%02d:%02d" "${start_h}" "${start_m}" "${end_h}" "${end_m}"
+        return 0
+    fi
+    
+    # 12-hour format: parse and convert via 12hour_to_24hour
     local range_data
     if ! range_data=$(parse_time_range "${input}"); then
         return 1
     fi
     
-    # Use array to avoid read -r issues with multiple variables
-    # Ensure space-splitting regardless of global IFS
     local old_ifs="${IFS}"
     IFS=' '
     local data_arr=(${range_data})

@@ -20,6 +20,32 @@
 # - configure-input-time.sh (for get_day_hours)
 ###############################################################################
 
+prompt_continue_day_flow() {
+    local use_gui="$1"
+    local next_label="$2"
+    local section_label="$3"
+
+    local prompt_text="Next up: ${next_label}. Continue configuring ${section_label}?"
+
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_question_dialog \
+            "Continue Configuration?" \
+            "${prompt_text}" \
+            "Yes, Continue" \
+            "Return to Menu" \
+            600 \
+            250
+        return $?
+    else
+        local answer
+        read -p "${prompt_text} [Y/n]: " answer
+        case "${answer}" in
+            [Nn]*) return 1 ;;
+            *) return 0 ;;
+        esac
+    fi
+}
+
 configure_weekdays_section() {
     local use_gui="$1"
     local -n config_lines_ref="$2"  # Pass by reference
@@ -34,28 +60,25 @@ configure_weekdays_section() {
         
         if [ "${weekday_range}" = "CANCELLED" ]; then
             return 2  # Cancelled
-        elif [ "${weekday_range}" != "skip" ]; then
-            # Apply to all weekdays (indices 1-5: Monday-Friday)
-            for i in 1 2 3 4 5; do
-                config_lines_ref[${i}]="${DAY_VARS[${i}]}=${weekday_range}"
-                summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${weekday_range}"
-            done
-        else
-            # Explicitly skipped - mark all weekdays as skipped (no restrictions)
-            for i in 1 2 3 4 5; do
-                config_lines_ref[${i}]="${DAY_VARS[${i}]}="
-                summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: (no restrictions)"
-            done
         fi
+
+        # Apply to all weekdays (indices 1-5: Monday-Friday)
+        for i in 1 2 3 4 5; do
+            local day_var="${DAY_VARS[${i}]}"
+            if [ "${weekday_range}" != "skip" ]; then
+                config_lines_ref[${i}]="${day_var}=${weekday_range}"
+                summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${weekday_range}"
+            else
+                config_lines_ref[${i}]="${day_var}="
+                summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: (no restrictions)"
+            fi
+        done
         return 0
     else
         # Configure each weekday separately
         local i=1  # Start with Monday
         while [ "${i}" -le 5 ]; do  # Monday through Friday
-            local allow_back="false"
-            if [ "${i}" -gt 1 ]; then
-                allow_back="true"  # Allow back from Tuesday onwards
-            fi
+            local allow_back="true"  # Allow user to return to menu from any day
             
             local range
             range=$(get_day_hours "${DAY_NAMES[${i}]}" "${i}" "${use_gui}" "${allow_back}" "true")
@@ -75,15 +98,20 @@ configure_weekdays_section() {
                     return 0
                 fi
                 # Continue loop to re-prompt previous day
-            elif [ "${range}" != "skip" ]; then
-                config_lines_ref[${i}]="${DAY_VARS[${i}]}=${range}"
-                summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${range}"
-                i=$((i + 1))  # Move to next day
             else
-                # Explicitly skipped - mark as skipped (no restrictions)
-                config_lines_ref[${i}]="${DAY_VARS[${i}]}="
-                summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: (no restrictions)"
-                i=$((i + 1))  # Skip this day, move to next
+                local day_var="${DAY_VARS[${i}]}"
+                if [ "${range}" != "skip" ]; then
+                    config_lines_ref[${i}]="${day_var}=${range}"
+                    summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${range}"
+                else
+                    # Explicitly skipped - mark as skipped (no restrictions)
+                    config_lines_ref[${i}]="${day_var}="
+                    summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: (no restrictions)"
+                fi
+                i=$((i + 1))  # Move to next day
+                if [ "${i}" -le 5 ] && ! prompt_continue_day_flow "${use_gui}" "${DAY_NAMES[${i}]}" "weekdays"; then
+                    return 0
+                fi
             fi
         done
         return 0
@@ -208,10 +236,7 @@ configure_weekends_section() {
         # Configure Saturday and Sunday separately
         local weekend_day=6  # Start with Saturday
         while true; do
-            local allow_back="false"
-            if [ "${weekend_day}" -eq 0 ]; then
-                allow_back="true"  # Allow back from Sunday to Saturday
-            fi
+            local allow_back="true"
             
             local range
             range=$(get_day_hours "${DAY_NAMES[${weekend_day}]}" "${weekend_day}" "${use_gui}" "${allow_back}" "true")
@@ -231,20 +256,22 @@ configure_weekends_section() {
                     return 0
                 fi
                 # Continue loop to re-prompt previous day
-            elif [ "${range}" != "skip" ]; then
-                config_lines_ref[${weekend_day}]="${DAY_VARS[${weekend_day}]}=${range}"
-                summary_lines_ref[${weekend_day}]="${DAY_NAMES[${weekend_day}]}: ${range}"
-                if [ "${weekend_day}" -eq 6 ]; then
-                    weekend_day=0  # Move to Sunday
-                else
-                    break  # Done with both weekend days
-                fi
             else
-                # Explicitly skipped - mark as skipped (no restrictions)
-                config_lines_ref[${weekend_day}]="${DAY_VARS[${weekend_day}]}="
-                summary_lines_ref[${weekend_day}]="${DAY_NAMES[${weekend_day}]}: (no restrictions)"
+                local day_var="${DAY_VARS[${weekend_day}]}"
+                if [ "${range}" != "skip" ]; then
+                    config_lines_ref[${weekend_day}]="${day_var}=${range}"
+                    summary_lines_ref[${weekend_day}]="${DAY_NAMES[${weekend_day}]}: ${range}"
+                else
+                    # Explicitly skipped - mark as skipped (no restrictions)
+                    config_lines_ref[${weekend_day}]="${day_var}="
+                    summary_lines_ref[${weekend_day}]="${DAY_NAMES[${weekend_day}]}: (no restrictions)"
+                fi
+
                 if [ "${weekend_day}" -eq 6 ]; then
-                    weekend_day=0  # Skip Saturday, move to Sunday
+                    if ! prompt_continue_day_flow "${use_gui}" "${DAY_NAMES[0]}" "weekend days"; then
+                        return 0
+                    fi
+                    weekend_day=0  # Move to/skip to Sunday
                 else
                     break  # Done with both weekend days
                 fi
@@ -305,23 +332,22 @@ configure_day_from_grid() {
                 
                 if [ "${range}" = "CANCELLED" ]; then
                     return 2
-                elif [ "${range}" != "skip" ]; then
-                    # Apply to all weekdays (indices 1-5)
-                    for i in 1 2 3 4 5; do
-                        config_lines_ref[${i}]="${DAY_VARS[${i}]}=${range}"
-                        summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${range}"
-                    done
-                else
-                    # Explicitly skipped - mark all weekdays as skipped
-                    for i in 1 2 3 4 5; do
-                        config_lines_ref[${i}]="${DAY_VARS[${i}]}="
-                        summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: (no restrictions)"
-                    done
                 fi
+
+                for i in 1 2 3 4 5; do
+                    local day_var="${DAY_VARS[${i}]}"
+                    if [ "${range}" != "skip" ]; then
+                        config_lines_ref[${i}]="${day_var}=${range}"
+                        summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${range}"
+                    else
+                        config_lines_ref[${i}]="${day_var}="
+                        summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: (no restrictions)"
+                    fi
+                done
             else
                 # Edit single weekday - pass existing range if available (Phase 2)
                 local existing_range=""
-                if [ -n "${config_lines_ref[${day_index}]+set}" ]; then
+                if [ -n "${config_lines_ref[${day_index}]}" ]; then
                     # Extract value from config line (format: DAY_VAR=value)
                     local config_line="${config_lines_ref[${day_index}]}"
                     existing_range=$(echo "${config_line}" | cut -d'=' -f2-)
@@ -331,12 +357,15 @@ configure_day_from_grid() {
                 
                 if [ "${range}" = "CANCELLED" ]; then
                     return 2
-                elif [ "${range}" != "skip" ]; then
-                    config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}=${range}"
+                fi
+
+                local day_var="${DAY_VARS[${day_index}]}"
+                if [ "${range}" != "skip" ]; then
+                    config_lines_ref[${day_index}]="${day_var}=${range}"
                     summary_lines_ref[${day_index}]="${day_name}: ${range}"
                 else
                     # Explicitly skipped
-                    config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}="
+                    config_lines_ref[${day_index}]="${day_var}="
                     summary_lines_ref[${day_index}]="${day_name}: (no restrictions)"
                 fi
             fi
@@ -349,19 +378,19 @@ configure_day_from_grid() {
                 
                 if [ "${range}" = "CANCELLED" ]; then
                     return 2
-                elif [ "${range}" != "skip" ]; then
-                    # Apply to both weekend days
-                    config_lines_ref[6]="${DAY_VARS[6]}=${range}"
-                    summary_lines_ref[6]="${DAY_NAMES[6]}: ${range}"
-                    config_lines_ref[0]="${DAY_VARS[0]}=${range}"
-                    summary_lines_ref[0]="${DAY_NAMES[0]}: ${range}"
-                else
-                    # Explicitly skipped - mark both weekend days as skipped
-                    config_lines_ref[6]="${DAY_VARS[6]}="
-                    summary_lines_ref[6]="${DAY_NAMES[6]}: (no restrictions)"
-                    config_lines_ref[0]="${DAY_VARS[0]}="
-                    summary_lines_ref[0]="${DAY_NAMES[0]}: (no restrictions)"
                 fi
+
+                for i in 6 0; do
+                    local day_var="${DAY_VARS[${i}]}"
+                    if [ "${range}" != "skip" ]; then
+                        config_lines_ref[${i}]="${day_var}=${range}"
+                        summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${range}"
+                    else
+                        # Explicitly skipped
+                        config_lines_ref[${i}]="${day_var}="
+                        summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: (no restrictions)"
+                    fi
+                done
             else
                 # Edit single weekend day - pass existing range if available (Phase 2)
                 local existing_range=""
@@ -375,12 +404,15 @@ configure_day_from_grid() {
                 
                 if [ "${range}" = "CANCELLED" ]; then
                     return 2
-                elif [ "${range}" != "skip" ]; then
-                    config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}=${range}"
+                fi
+
+                local day_var="${DAY_VARS[${day_index}]}"
+                if [ "${range}" != "skip" ]; then
+                    config_lines_ref[${day_index}]="${day_var}=${range}"
                     summary_lines_ref[${day_index}]="${day_name}: ${range}"
                 else
                     # Explicitly skipped
-                    config_lines_ref[${day_index}]="${DAY_VARS[${day_index}]}="
+                    config_lines_ref[${day_index}]="${day_var}="
                     summary_lines_ref[${day_index}]="${day_name}: (no restrictions)"
                 fi
             fi

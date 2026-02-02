@@ -994,6 +994,9 @@ This warning will appear ${interval_text} while you continue using your computer
                                                 2>/dev/null
                                             
                                             # Return early (bypass minimum display time)
+                                            if [ -n "${popup_pid}" ]; then
+                                                cleanup_popup_pid "${popup_pid}"
+                                            fi
                                             return 0
                                         fi
                                     fi
@@ -1022,6 +1025,9 @@ This warning will appear ${interval_text} while you continue using your computer
                                         2>/dev/null
                                     
                                     # Return early (bypass minimum display time)
+                                    if [ -n "${popup_pid}" ]; then
+                                        cleanup_popup_pid "${popup_pid}"
+                                    fi
                                     return 0
                                 fi
                             fi
@@ -1049,6 +1055,9 @@ This warning will appear ${interval_text} while you continue using your computer
                                                 2>/dev/null
                                             
                                             # Return early (bypass minimum display time)
+                                            if [ -n "${popup_pid}" ]; then
+                                                cleanup_popup_pid "${popup_pid}"
+                                            fi
                                             return 0
                                         fi
                                     fi
@@ -1152,6 +1161,9 @@ This warning will appear ${interval_text} while you continue using your computer
                                             --timeout=30 \
                                             2>/dev/null
                                         
+                                        if [ -n "${popup_pid}" ]; then
+                                            cleanup_popup_pid "${popup_pid}"
+                                        fi
                                         return 0
                                     fi
                                 fi
@@ -1177,6 +1189,9 @@ This warning will appear ${interval_text} while you continue using your computer
                                     --timeout=30 \
                                     2>/dev/null
                                 
+                                if [ -n "${popup_pid}" ]; then
+                                    cleanup_popup_pid "${popup_pid}"
+                                fi
                                 return 0
                             fi
                         fi
@@ -1203,6 +1218,9 @@ This warning will appear ${interval_text} while you continue using your computer
                                         kdialog --passivepopup "Warning popups paused until ${pause_end_time}" 30 \
                                             2>/dev/null
                                         
+                                        if [ -n "${popup_pid}" ]; then
+                                            cleanup_popup_pid "${popup_pid}"
+                                        fi
                                         return 0
                                     fi
                                 fi
@@ -1279,6 +1297,9 @@ This warning will appear ${interval_text} while you continue using your computer
                                                 --timeout=30 \
                                                 2>/dev/null
                                             
+                                            if [ -n "${popup_pid}" ]; then
+                                                cleanup_popup_pid "${popup_pid}"
+                                            fi
                                             return 0
                                         fi
                                     fi
@@ -1304,6 +1325,9 @@ This warning will appear ${interval_text} while you continue using your computer
                                         --timeout=30 \
                                         2>/dev/null
                                     
+                                    if [ -n "${popup_pid}" ]; then
+                                        cleanup_popup_pid "${popup_pid}"
+                                    fi
                                     return 0
                                 fi
                             fi
@@ -1330,6 +1354,9 @@ This warning will appear ${interval_text} while you continue using your computer
                                             kdialog --passivepopup "Warning popups paused until ${pause_end_time}" 30 \
                                                 2>/dev/null
                                             
+                                            if [ -n "${popup_pid}" ]; then
+                                                cleanup_popup_pid "${popup_pid}"
+                                            fi
                                             return 0
                                         fi
                                     fi

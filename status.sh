@@ -32,26 +32,34 @@ SERVICE_NAME="sleep-warning"
 
 # Get script directory for sourcing libraries
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_LIB_DIR="${SCRIPT_DIR}/lib"
+INSTALLED_LIB_DIR="${HOME}/.local/lib/sleep-warning"
+
+# Load shared library loader helper
+LIB_HELPER_PATH=""
+for candidate in \
+    "${INSTALLED_LIB_DIR}/library-loader.sh" \
+    "${SCRIPT_LIB_DIR}/library-loader.sh"; do
+    if [ -z "${LIB_HELPER_PATH}" ] && [ -f "${candidate}" ]; then
+        LIB_HELPER_PATH="${candidate}"
+    fi
+done
+
+if [ -z "${LIB_HELPER_PATH}" ]; then
+    echo "Error: library loader helper not found. Please reinstall the Sleep Warning System." >&2
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${LIB_HELPER_PATH}"
+init_library_paths "${INSTALLED_LIB_DIR}" "${SCRIPT_LIB_DIR}"
 
 # Source configuration library if available (for get_popup_dimensions function)
-if [ -f "${SCRIPT_DIR}/lib/config.sh" ]; then
-    source "${SCRIPT_DIR}/lib/config.sh"
+if source_optional_lib "config.sh"; then
     # Source resolution detection for Enhancement #3 (needed by get_popup_dimensions)
-    if [ -f "${SCRIPT_DIR}/lib/resolution-detection.sh" ]; then
-        source "${SCRIPT_DIR}/lib/resolution-detection.sh"
-    fi
+    source_optional_lib "resolution-detection.sh" || true
     # Override CONFIG_FILE with fallback logic if lib/config.sh was sourced
     # (lib/config.sh defines CONFIG_FILE, but we want fallback support)
-    if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_FILE_OLD}" ]; then
-        CONFIG_FILE="${CONFIG_FILE_OLD}"
-    fi
-elif [ -f "/usr/local/bin/sleep-warning-lib/config.sh" ]; then
-    source "/usr/local/bin/sleep-warning-lib/config.sh"
-    # Source resolution detection for Enhancement #3 (needed by get_popup_dimensions)
-    if [ -f "/usr/local/bin/sleep-warning-lib/resolution-detection.sh" ]; then
-        source "/usr/local/bin/sleep-warning-lib/resolution-detection.sh"
-    fi
-    # Override CONFIG_FILE with fallback logic if lib/config.sh was sourced
     if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_FILE_OLD}" ]; then
         CONFIG_FILE="${CONFIG_FILE_OLD}"
     fi
@@ -62,19 +70,11 @@ else
     fi
 fi
 
-    # Source desktop environment library if available (for dialog tool detection)
-    if [ -f "${SCRIPT_DIR}/lib/desktop-environment.sh" ]; then
-        source "${SCRIPT_DIR}/lib/desktop-environment.sh"
-    elif [ -f "/usr/local/bin/sleep-warning-lib/desktop-environment.sh" ]; then
-        source "/usr/local/bin/sleep-warning-lib/desktop-environment.sh"
-    fi
-    
-    # Source pause state library if available (for pause status display - Enhancement #21)
-    if [ -f "${SCRIPT_DIR}/lib/pause-state.sh" ]; then
-        source "${SCRIPT_DIR}/lib/pause-state.sh"
-    elif [ -f "/usr/local/bin/sleep-warning-lib/pause-state.sh" ]; then
-        source "/usr/local/bin/sleep-warning-lib/pause-state.sh"
-    fi
+# Source desktop environment library if available (for dialog tool detection)
+source_optional_lib "desktop-environment.sh" || true
+
+# Source pause state library if available (for pause status display - Enhancement #21)
+source_optional_lib "pause-state.sh" || true
 
 # ANSI color codes
 COLOR_RESET="\033[0m"

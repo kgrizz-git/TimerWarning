@@ -26,34 +26,96 @@
 # - Updates ~/.config/sleep-warning/config/sleep-warning.conf with user selections (Enhancement #18)
 ###############################################################################
 
-# Determine script directory
+# Determine script directory and library search paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/lib"
+SCRIPT_LIB_DIR="${SCRIPT_DIR}/lib"
+INSTALLED_LIB_DIR="${HOME}/.local/lib/sleep-warning"
+
+# Source shared library loader helper
+LIB_HELPER_PATH=""
+for candidate in \
+    "${INSTALLED_LIB_DIR}/library-loader.sh" \
+    "${SCRIPT_LIB_DIR}/library-loader.sh"; do
+    if [ -z "${LIB_HELPER_PATH}" ] && [ -f "${candidate}" ]; then
+        LIB_HELPER_PATH="${candidate}"
+    fi
+done
+
+if [ -z "${LIB_HELPER_PATH}" ]; then
+    echo "Error: library loader helper not found. Please reinstall the Sleep Warning System." >&2
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${LIB_HELPER_PATH}"
+init_library_paths "${INSTALLED_LIB_DIR}" "${SCRIPT_LIB_DIR}"
+
+LIB_DIR="$(detect_library_dir 2>/dev/null)"
+if [ -z "${LIB_DIR}" ]; then
+    LIB_DIR="${SCRIPT_LIB_DIR}"
+fi
 
 # Source library modules in dependency order
-source "${LIB_DIR}/configure-core.sh" || exit 1
-source "${LIB_DIR}/config.sh" || exit 1
-source "${LIB_DIR}/logging.sh" || exit 1
-source "${LIB_DIR}/time-validation.sh" || exit 1
-source "${LIB_DIR}/config-locking.sh" || exit 1  # Enhancement #18: Config file locking
-source "${LIB_DIR}/display-detection.sh" || exit 1
-source "${LIB_DIR}/desktop-environment.sh" || exit 1
-source "${LIB_DIR}/configure-dialogs.sh" || exit 1
-source "${LIB_DIR}/configure-config.sh" || exit 1
-source "${LIB_DIR}/configure-validation.sh" || exit 1
-source "${LIB_DIR}/configure-time.sh" || exit 1
-source "${LIB_DIR}/time-calculations.sh" || exit 1
-source "${LIB_DIR}/configure-ui.sh" || exit 1
-source "${LIB_DIR}/configure-input-basic.sh" || exit 1
-source "${LIB_DIR}/configure-input-popup.sh" || exit 1
-source "${LIB_DIR}/configure-input-features.sh" || exit 1
-source "${LIB_DIR}/configure-input-time.sh" || exit 1
-source "${LIB_DIR}/configure-input-service.sh" || exit 1
-source "${LIB_DIR}/configure-display.sh" || exit 1
-source "${LIB_DIR}/configure-workflow.sh" || exit 1
+source_required_lib "configure-core.sh" || exit 1
+if type ensure_day_vars >/dev/null 2>&1; then
+    ensure_day_vars
+fi
+if type ensure_day_names >/dev/null 2>&1; then
+    ensure_day_names
+fi
+source_required_lib "config.sh" || exit 1
+source_required_lib "logging.sh" || exit 1
+source_required_lib "time-validation.sh" || exit 1
+source_required_lib "config-locking.sh" || exit 1  # Enhancement #18: Config file locking
+source_required_lib "display-detection.sh" || exit 1
+source_required_lib "desktop-environment.sh" || exit 1
+source_required_lib "configure-dialogs.sh" || exit 1
+source_required_lib "configure-config.sh" || exit 1
+source_required_lib "configure-validation.sh" || exit 1
+source_required_lib "configure-time.sh" || exit 1
+source_required_lib "time-calculations.sh" || exit 1
+source_required_lib "configure-ui.sh" || exit 1
+source_required_lib "configure-input-basic.sh" || exit 1
+source_required_lib "configure-input-popup.sh" || exit 1
+source_required_lib "configure-input-features.sh" || exit 1
+source_required_lib "configure-input-time.sh" || exit 1
+source_required_lib "configure-input-service.sh" || exit 1
+source_required_lib "configure-display.sh" || exit 1
+source_required_lib "configure-workflow.sh" || exit 1
+
+# Ensure we have a UTF-8 locale so GUI dialogs (yad/zenity) can render
+# extended characters reliably. Without this, yad aborts when parsing
+# strings containing symbols like the multiplication sign.
+ensure_utf8_locale() {
+    # If locale command is missing, there's nothing we can do
+    if ! command -v locale >/dev/null 2>&1; then
+        return
+    fi
+
+    local current_charmap
+    current_charmap=$(locale charmap 2>/dev/null || echo "")
+    if printf '%s' "${current_charmap}" | grep -qi 'UTF-8'; then
+        return
+    fi
+
+    local candidate
+    local candidates=("C.UTF-8" "en_US.UTF-8" "en_US.utf8")
+    for candidate in "${candidates[@]}"; do
+        if LC_ALL="${candidate}" locale charmap >/dev/null 2>&1; then
+            export LC_ALL="${candidate}"
+            export LANG="${candidate}"
+            export LC_CTYPE="${candidate}"
+            return
+        fi
+    done
+
+    echo "WARNING: UTF-8 locale not available; GUI text may be limited." >&2
+}
 
 # Main function
 main() {
+    ensure_utf8_locale
+
     local use_gui="false"
     local force_text=false
     local force_gui=false
@@ -243,7 +305,7 @@ main() {
                 local new_interval
                 new_interval=$(get_check_interval "${use_gui}")
                 if [ "${new_interval}" = "CANCELLED" ]; then
-                    # User already confirmed cancellation in get_check_interval
+                    # User already confirmed cancellation in get_check_interval (configure-input-time.sh)
                     exit 0
                 else
                     check_interval="${new_interval}"
@@ -569,6 +631,13 @@ main() {
                     # followed by optional safety override flags so write_config can add comments.
                     # Enhancement #3: Include popup_size_mode, popup_size_custom, and popup_size_custom_absolute
                     # Enhancement #22 extension: Include override flags for clearing additional hours
+                    if [ -n "${DEBUG_CONFIG_WRITE:-}" ]; then
+                        echo "DEBUG: LIB_DIR=${LIB_DIR}" >&2
+                        echo "DEBUG: config_lines=${config_lines[*]}" >&2
+                        echo "DEBUG: lock_hours_lines=${lock_hours_lines[*]}" >&2
+                        echo "DEBUG: uninstall_lock_hours_lines=${uninstall_lock_hours_lines[*]}" >&2
+                    fi
+
                     if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${dialog_tool}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}" "${lock_hours_cleared}" "${uninstall_lock_hours_cleared}"; then
                         # Update timer file if it exists
                         if [ -f "${TIMER_FILE}" ]; then

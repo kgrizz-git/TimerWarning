@@ -17,16 +17,33 @@
 #   sleep-warning-manage (after installation)
 ###############################################################################
 
-# Determine script directory and library path
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Determine script directory and library search paths
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
 SCRIPT_LIB_DIR="${SCRIPT_DIR}/lib"
 INSTALLED_LIB_DIR="${HOME}/.local/lib/sleep-warning"
 
-# Determine which library directory to use for sourcing (project dir if available, otherwise installed location)
-SOURCE_LIB_DIR="${INSTALLED_LIB_DIR}"
-if [ -d "${SCRIPT_LIB_DIR}" ]; then
-    # Running from project directory - use project lib for sourcing
-    SOURCE_LIB_DIR="${SCRIPT_LIB_DIR}"
+# Load shared library loader helper
+LIB_HELPER_PATH=""
+for candidate in \
+    "${INSTALLED_LIB_DIR}/library-loader.sh" \
+    "${SCRIPT_LIB_DIR}/library-loader.sh"; do
+    if [ -z "${LIB_HELPER_PATH}" ] && [ -f "${candidate}" ]; then
+        LIB_HELPER_PATH="${candidate}"
+    fi
+done
+
+if [ -z "${LIB_HELPER_PATH}" ]; then
+    echo "Error: library loader helper not found. Please reinstall the Sleep Warning System." >&2
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${LIB_HELPER_PATH}"
+init_library_paths "${INSTALLED_LIB_DIR}" "${SCRIPT_LIB_DIR}"
+
+SOURCE_LIB_DIR="$(detect_library_dir 2>/dev/null)"
+if [ -z "${SOURCE_LIB_DIR}" ]; then
+    SOURCE_LIB_DIR="${INSTALLED_LIB_DIR}"
 fi
 
 SCRIPT_NAME="sleep-warning-manage"
@@ -43,23 +60,23 @@ SERVICE_FILE="${SYSTEMD_USER_DIR}/${SERVICE_NAME}.service"
 TIMER_FILE="${SYSTEMD_USER_DIR}/${TIMER_NAME}"
 
 # Source required library modules for time check
-source "${SOURCE_LIB_DIR}/config.sh" 2>/dev/null || true
+source_required_lib "config.sh" || exit 1
 # Override CONFIG_FILE with fallback logic after sourcing config.sh
 # (config.sh defines CONFIG_FILE, but we want fallback support during transition)
 if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_FILE_OLD}" ]; then
     CONFIG_FILE="${CONFIG_FILE_OLD}"
 fi
-source "${SOURCE_LIB_DIR}/logging.sh" 2>/dev/null || true
-source "${SOURCE_LIB_DIR}/pause-state.sh" 2>/dev/null || true
-source "${SOURCE_LIB_DIR}/time-validation.sh" 2>/dev/null || true
+source_required_lib "logging.sh" || exit 1
+source_optional_lib "pause-state.sh" || true
+source_required_lib "time-validation.sh" || exit 1
 # Source display detection and desktop environment for dialog tool selection
-source "${SOURCE_LIB_DIR}/display-detection.sh" 2>/dev/null || true
-source "${SOURCE_LIB_DIR}/desktop-environment.sh" 2>/dev/null || true
+source_required_lib "display-detection.sh" || exit 1
+source_required_lib "desktop-environment.sh" || exit 1
 # Source configure modules for error message display
-source "${SOURCE_LIB_DIR}/configure-core.sh" 2>/dev/null || true
-source "${SOURCE_LIB_DIR}/configure-time.sh" 2>/dev/null || true
-source "${SOURCE_LIB_DIR}/configure-ui.sh" 2>/dev/null || true
-source "${SOURCE_LIB_DIR}/configure-dialogs.sh" 2>/dev/null || true
+source_required_lib "configure-core.sh" || exit 1
+source_required_lib "configure-time.sh" || exit 1
+source_required_lib "configure-ui.sh" || exit 1
+source_required_lib "configure-dialogs.sh" || exit 1
 
 # Check if any dialog tool is available (uses get_dialog_tool which respects user preference)
 # This replaces the old has_zenity() function to support all dialog tools
