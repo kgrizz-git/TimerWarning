@@ -309,21 +309,43 @@ install_dependencies() {
 # Function to check if already installed
 check_existing_installation() {
     local installed=false
+    local existing_files=()
     
-    if [ -f "$INSTALL_DIR/sleep-warning.sh" ] || \
-       [ -f "$SYSTEMD_USER_DIR/sleep-warning.service" ] || \
-       [ -f "$SYSTEMD_USER_DIR/sleep-warning.timer" ]; then
+    if [ -f "$INSTALL_DIR/sleep-warning.sh" ]; then
         installed=true
+        existing_files+=("$INSTALL_DIR/sleep-warning.sh")
+    fi
+
+    if [ -f "$SYSTEMD_USER_DIR/sleep-warning.service" ]; then
+        installed=true
+        existing_files+=("$SYSTEMD_USER_DIR/sleep-warning.service")
+    fi
+
+    if [ -f "$SYSTEMD_USER_DIR/sleep-warning.timer" ]; then
+        installed=true
+        existing_files+=("$SYSTEMD_USER_DIR/sleep-warning.timer")
     fi
     
     if [ "$installed" = true ] && [ "$FORCE_INSTALL" = false ]; then
         print_warning "Sleep Warning System appears to be already installed"
+        if [ ${#existing_files[@]} -gt 0 ]; then
+            echo "The following existing files were detected:"
+            for file in "${existing_files[@]}"; do
+                echo "  - $file"
+            done
+        fi
         echo "Use --force to reinstall over existing installation"
         exit 1
     fi
     
     if [ "$installed" = true ] && [ "$FORCE_INSTALL" = true ]; then
         print_warning "Force reinstalling over existing installation"
+        if [ ${#existing_files[@]} -gt 0 ]; then
+            echo "Existing files that will be overwritten or reused:"
+            for file in "${existing_files[@]}"; do
+                echo "  - $file"
+            done
+        fi
     fi
 }
 

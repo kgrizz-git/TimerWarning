@@ -268,6 +268,24 @@ remove_scripts() {
         print_success "Management script removed"
         removed=true
     fi
+
+    if [ -f "$INSTALL_DIR/sleep-warning-status" ]; then
+        rm -f "$INSTALL_DIR/sleep-warning-status"
+        print_success "Status script removed"
+        removed=true
+    fi
+
+    if [ -f "$INSTALL_DIR/sleep-warning-uninstall" ]; then
+        rm -f "$INSTALL_DIR/sleep-warning-uninstall"
+        print_success "Uninstall helper script removed"
+        removed=true
+    fi
+
+    if [ -f "$INSTALL_DIR/manual-uninstall-guide" ]; then
+        rm -f "$INSTALL_DIR/manual-uninstall-guide"
+        print_success "Manual uninstall guide script removed"
+        removed=true
+    fi
     
     # Remove library directory and modules
     if [ -d "$LIB_DIR" ]; then
@@ -281,11 +299,55 @@ remove_scripts() {
     fi
 }
 
+# Function to remove ancillary log/state files (warnings.log, pause state, last uptime, popup PID)
+remove_ancillary_files() {
+    print_info "Removing ancillary log/state files..."
+
+    local removed=false
+
+    # Use configured paths when available, fall back to defaults under CONFIG_DIR
+    local log_file="${LOG_FILE:-${CONFIG_DIR}/warnings.log}"
+    local pause_file="${PAUSE_STATE_FILE:-${CONFIG_DIR}/.pause_state}"
+    local uptime_file="${LAST_UPTIME_FILE:-${CONFIG_DIR}/.last_uptime}"
+    local popup_pid_file="${POPUP_PID_FILE:-${CONFIG_DIR}/.popup_pid}"
+
+    if [ -f "${log_file}" ]; then
+        rm -f "${log_file}"
+        print_success "Log file removed: ${log_file}"
+        removed=true
+    fi
+
+    if [ -f "${pause_file}" ]; then
+        rm -f "${pause_file}"
+        print_success "Pause state file removed: ${pause_file}"
+        removed=true
+    fi
+
+    if [ -f "${uptime_file}" ]; then
+        rm -f "${uptime_file}"
+        print_success "Last uptime file removed: ${uptime_file}"
+        removed=true
+    fi
+
+    if [ -f "${popup_pid_file}" ]; then
+        rm -f "${popup_pid_file}"
+        print_success "Popup PID file removed: ${popup_pid_file}"
+        removed=true
+    fi
+
+    if [ "${removed}" = false ]; then
+        print_info "No ancillary log/state files found to remove"
+    fi
+}
+
 # Function to remove configuration file
 remove_config() {
     # Enhancement #18: Config file is now in subdirectory
     local config_file="${CONFIG_DIR}/config/sleep-warning.conf"
     local old_config_file="${CONFIG_DIR}/sleep-warning.conf"
+
+    # Always remove ancillary log/state files during uninstall
+    remove_ancillary_files
     
     if [ "$REMOVE_CONFIG" = true ]; then
         # Remove new location
@@ -364,7 +426,10 @@ verify_removal() {
     
     if [ -f "$INSTALL_DIR/sleep-warning.sh" ] || \
        [ -f "$INSTALL_DIR/sleep-warning-configure" ] || \
-       [ -f "$INSTALL_DIR/sleep-warning-manage" ]; then
+       [ -f "$INSTALL_DIR/sleep-warning-manage" ] || \
+       [ -f "$INSTALL_DIR/sleep-warning-status" ] || \
+       [ -f "$INSTALL_DIR/sleep-warning-uninstall" ] || \
+       [ -f "$INSTALL_DIR/manual-uninstall-guide" ]; then
         still_installed=true
         print_warning "Some scripts are still present"
     fi
