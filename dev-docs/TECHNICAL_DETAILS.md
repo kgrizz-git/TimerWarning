@@ -176,6 +176,15 @@ Users can manually override the automatic priority system by setting `DIALOG_TOO
 3. **Countdown Display**:
    - Shows remaining seconds in popup message
    - Updates dynamically if popup is reopened
+   - **Timing Accuracy**: Uses wall-clock time tracking (Unix timestamps) instead of sleep iterations to prevent drift accumulation
+     - Records start timestamp when countdown begins
+     - Calculates elapsed time from actual wall-clock time each iteration
+     - Prevents timing drift that could occur if `sleep 1` takes longer than 1 second due to system load
+     - Ensures accurate countdown completion even under high system load
+   - **Update Frequency**:
+     - For `POPUP_MIN_DISPLAY_TIME ≤ 30 seconds`: Updates every 10 seconds
+     - For `POPUP_MIN_DISPLAY_TIME > 30 seconds`: Updates at 75%, 50%, 25%, and 0% remaining
+   - **Threshold Tracking**: Uses threshold crossing detection (not exact matches) to handle wall-clock time updates correctly
 
 4. **Graceful Fallback**:
    - If window manager tools unavailable, still shows countdown message

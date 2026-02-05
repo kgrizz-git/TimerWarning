@@ -88,6 +88,11 @@ SLEEP_RESUME_GRACE_PERIOD=60
 # This file tracks the popup process to prevent multiple popups (Enhancement #9)
 POPUP_PID_FILE="${CONFIG_DIR}/.popup_pid"
 
+# Popup start timestamp file - stores original timestamp when popup was first shown
+# This tracks the original popup start time even when popup is respawned for countdown updates
+# Used for accurate age calculation in popup queue prevention (Enhancement #9)
+POPUP_START_TIME_FILE="${CONFIG_DIR}/.popup_start_time"
+
 # Last uptime tracking file - stores last known system uptime
 # Used for detecting system resume via uptime comparison (Enhancement #9)
 LAST_UPTIME_FILE="${CONFIG_DIR}/.last_uptime"

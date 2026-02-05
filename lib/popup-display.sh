@@ -946,13 +946,29 @@ This warning will appear ${interval_text} while you continue using your computer
         fi
         
         # Wait for minimum display time, showing countdown
+        # Use actual wall-clock time instead of sleep iterations to avoid drift
+        # Record start timestamp to calculate actual elapsed time accurately
+        local start_timestamp
+        start_timestamp=$(date +%s)
         local elapsed=0
         local remaining=${min_display_time}
+        local last_redraw_elapsed=0
+        local last_remaining=${min_display_time}
         
         while [ "${elapsed}" -lt "${min_display_time}" ]; do
             sleep 1
-            elapsed=$((elapsed + 1))
+            # Calculate actual elapsed time based on wall-clock, not loop iterations
+            # This prevents drift accumulation if sleep takes longer than 1 second
+            local current_timestamp
+            current_timestamp=$(date +%s)
+            elapsed=$((current_timestamp - start_timestamp))
             remaining=$((min_display_time - elapsed))
+            
+            # Safety check: if elapsed exceeds min_display_time, break immediately
+            if [ "${elapsed}" -ge "${min_display_time}" ]; then
+                remaining=0
+                break
+            fi
             
             # Check if popup is still running
             if ! kill -0 "${popup_pid}" 2>/dev/null; then
@@ -1075,23 +1091,34 @@ This warning will appear ${interval_text} while you continue using your computer
                 
                 if [ "${min_display_time}" -le 30 ]; then
                     # For min_display_time ≤ 30: redraw every 10 seconds and at 0
-                    if [ $((elapsed % 10)) -eq 0 ] && [ "${elapsed}" -gt 0 ]; then
+                    # Track last redraw time to avoid multiple redraws at same threshold
+                    if [ $((elapsed - last_redraw_elapsed)) -ge 10 ] && [ "${elapsed}" -gt 0 ]; then
                         should_redraw=true
-                    elif [ "${remaining}" -eq 0 ]; then
+                        last_redraw_elapsed=${elapsed}
+                    elif [ "${remaining}" -le 0 ]; then
                         # Redraw at zero (final redraw before loop exits)
                         should_redraw=true
                     fi
                 else
                     # For min_display_time > 30: redraw at 75%, 50%, 25%, and 0 time remaining
+                    # Check if we have crossed a threshold since last check (using wall-clock time)
                     local threshold_75=$((min_display_time * 75 / 100))
                     local threshold_50=$((min_display_time * 50 / 100))
                     local threshold_25=$((min_display_time * 25 / 100))
                     
-                    if [ "${remaining}" -eq "${threshold_75}" ] || \
-                       [ "${remaining}" -eq "${threshold_50}" ] || \
-                       [ "${remaining}" -eq "${threshold_25}" ] || \
-                       [ "${remaining}" -eq 0 ]; then
+                    # Check if we crossed a threshold (remaining decreased past threshold)
+                    if [ "${remaining}" -le "${threshold_75}" ] && [ "${last_remaining}" -gt "${threshold_75}" ]; then
                         should_redraw=true
+                        last_remaining=${remaining}
+                    elif [ "${remaining}" -le "${threshold_50}" ] && [ "${last_remaining}" -gt "${threshold_50}" ]; then
+                        should_redraw=true
+                        last_remaining=${remaining}
+                    elif [ "${remaining}" -le "${threshold_25}" ] && [ "${last_remaining}" -gt "${threshold_25}" ]; then
+                        should_redraw=true
+                        last_remaining=${remaining}
+                    elif [ "${remaining}" -le 0 ] && [ "${last_remaining}" -gt 0 ]; then
+                        should_redraw=true
+                        last_remaining=${remaining}
                     fi
                 fi
                 
