@@ -274,8 +274,10 @@ build_weekly_restricted_intervals() {
     local all_intervals=()
     
     # Constants for time calculations (use centralized constants if available)
-    local MINUTES_PER_HOUR="${MINUTES_PER_HOUR:-60}"
-    local MINUTES_PER_DAY="${MINUTES_PER_DAY:-1440}"
+    # Note: MINUTES_PER_HOUR / MINUTES_PER_DAY may be readonly globals (from configure-core.sh),
+    # so do not attempt to assign to those names locally.
+    local minutes_per_hour="${MINUTES_PER_HOUR:-60}"
+    local minutes_per_day="${MINUTES_PER_DAY:-1440}"
     
     # Process each day (indices 0-6: Sunday-Saturday)
     local i
@@ -290,7 +292,7 @@ build_weekly_restricted_intervals() {
         fi
         
         # Calculate day offset in minutes for unified weekly timeline
-        local day_offset=$((i * MINUTES_PER_DAY))
+        local day_offset=$((i * minutes_per_day))
         
         # Parse comma-separated ranges (e.g., "0-5,22-23")
         local IFS=','
@@ -322,21 +324,21 @@ build_weekly_restricted_intervals() {
             fi
             
             # Convert hours to minutes
-            local start_minute=$((start_hour * MINUTES_PER_HOUR))
-            local end_minute=$((end_hour * MINUTES_PER_HOUR))
+            local start_minute=$((start_hour * minutes_per_hour))
+            local end_minute=$((end_hour * minutes_per_hour))
             
             if [ "${start_hour}" -gt "${end_hour}" ]; then
                 # Overnight range detected: start hour > end hour (e.g., "23-6")
                 # Split into two segments that span midnight
                 
                 # Segment 1: From start hour to end of current day
-                local day_end=$((day_offset + MINUTES_PER_DAY))
+                local day_end=$((day_offset + minutes_per_day))
                 all_intervals+=("$((day_offset + start_minute)):${day_end}")
                 
                 # Segment 2: From start of next day to end hour
                 # Handle wrap-around: Saturday (day 6) -> Sunday (day 0)
                 local next_day=$(((i + 1) % 7))
-                local next_offset=$((next_day * MINUTES_PER_DAY))
+                local next_offset=$((next_day * minutes_per_day))
                 all_intervals+=("${next_offset}:$((next_offset + end_minute))")
             else
                 # Normal range: start hour <= end hour (e.g., "0-5", "9-17")
@@ -380,9 +382,9 @@ get_current_minute_offset() {
     current_minute=$((10#${current_minute}))
     
     # Calculate minute offset from start of week
-    local MINUTES_PER_DAY=1440
-    local MINUTES_PER_HOUR=60
-    local offset=$((current_day * MINUTES_PER_DAY + current_hour * MINUTES_PER_HOUR + current_minute))
+    local minutes_per_day=1440
+    local minutes_per_hour=60
+    local offset=$((current_day * minutes_per_day + current_hour * minutes_per_hour + current_minute))
     
     echo "${offset}"
 }
@@ -444,19 +446,20 @@ format_minute_offset_to_time() {
     local current_minute_offset=$2
     
     # Use constants from configure-core.sh if available, otherwise use local fallback values
-    local MINUTES_PER_DAY="${MINUTES_PER_DAY:-1440}"
-    local MINUTES_PER_HOUR="${MINUTES_PER_HOUR:-60}"
-    local MINUTES_PER_WEEK="${MINUTES_PER_WEEK:-10080}"
+    # Note: MINUTES_PER_* may be readonly globals (from configure-core.sh).
+    local minutes_per_day="${MINUTES_PER_DAY:-1440}"
+    local minutes_per_hour="${MINUTES_PER_HOUR:-60}"
+    local minutes_per_week="${MINUTES_PER_WEEK:-10080}"
     
     # Calculate day, hour, and minute from offset
-    local day=$((minute_offset / MINUTES_PER_DAY))
-    local hour=$(((minute_offset % MINUTES_PER_DAY) / MINUTES_PER_HOUR))
-    local minute=$((minute_offset % MINUTES_PER_HOUR))
+    local day=$((minute_offset / minutes_per_day))
+    local hour=$(((minute_offset % minutes_per_day) / minutes_per_hour))
+    local minute=$((minute_offset % minutes_per_hour))
     
     # Calculate current day, hour, minute
-    local current_day=$((current_minute_offset / MINUTES_PER_DAY))
-    local current_hour=$(((current_minute_offset % MINUTES_PER_DAY) / MINUTES_PER_HOUR))
-    local current_minute=$((current_minute_offset % MINUTES_PER_HOUR))
+    local current_day=$((current_minute_offset / minutes_per_day))
+    local current_hour=$(((current_minute_offset % minutes_per_day) / minutes_per_hour))
+    local current_minute=$((current_minute_offset % minutes_per_hour))
     
     # Day names
     local day_names=("Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday")
@@ -493,7 +496,7 @@ format_minute_offset_to_time() {
         diff_minutes=$((minute_offset - current_minute_offset))
     else
         # Wrap around to next week
-        diff_minutes=$((MINUTES_PER_WEEK - current_minute_offset + minute_offset))
+        diff_minutes=$((minutes_per_week - current_minute_offset + minute_offset))
     fi
     
     # Format based on time difference
@@ -562,14 +565,15 @@ get_next_unrestricted_time() {
     
     # Search forward from current time to find first unrestricted minute
     # Optimize by jumping to end of restricted intervals instead of checking minute by minute
-    local MINUTES_PER_WEEK="${MINUTES_PER_WEEK:-10080}"
+    # Note: MINUTES_PER_WEEK may be a readonly global (from configure-core.sh).
+    local minutes_per_week="${MINUTES_PER_WEEK:-10080}"
     local search_minute="${current_minute}"
     local start_minute="${current_minute}"
     local found=false
     
     # Search up to one full week ahead
     local search_count=0
-    while [ ${search_count} -lt ${MINUTES_PER_WEEK} ]; do
+    while [ ${search_count} -lt ${minutes_per_week} ]; do
         # Check if this minute is restricted
         if ! is_minute_restricted "${search_minute}" "${merged_intervals}"; then
             # Found unrestricted time
@@ -578,7 +582,7 @@ get_next_unrestricted_time() {
         fi
         
         # Find the end of the current restricted interval to jump ahead
-        local interval_end="${MINUTES_PER_WEEK}"  # Default: end of week
+        local interval_end="${minutes_per_week}"  # Default: end of week
         while IFS= read -r interval; do
             [ -z "${interval}" ] && continue
             
@@ -596,14 +600,14 @@ get_next_unrestricted_time() {
         done <<< "${merged_intervals}"
         
         # Jump to the end of the current restricted interval
-        if [ "${interval_end}" -lt "${MINUTES_PER_WEEK}" ]; then
+        if [ "${interval_end}" -lt "${minutes_per_week}" ]; then
             # Normal case: end is in current week
             local jump_distance=$((interval_end - search_minute))
             search_minute="${interval_end}"
             search_count=$((search_count + jump_distance))
         else
             # Shouldn't happen if we found an interval, but fallback: move to next minute
-            search_minute=$(((search_minute + 1) % MINUTES_PER_WEEK))
+            search_minute=$(((search_minute + 1) % minutes_per_week))
             search_count=$((search_count + 1))
         fi
         

@@ -105,8 +105,8 @@ MULTIPLE RANGES:
   Format: START-END,START-END
   Example: 0-5,22-23
   Meaning: Two separate periods:
-    • Midnight to 4:59 AM
-    • 10:00 PM to 11:59 PM
+    - Midnight to 4:59 AM
+    - 10:00 PM to 11:59 PM
 
 OVERNIGHT RANGES (spans midnight):
   Format: START-END (where START > END)
@@ -116,26 +116,26 @@ OVERNIGHT RANGES (spans midnight):
 
 OVERLAPPING RANGES:
   If you set Monday 23-5 and Tuesday 0-5:
-  • Both cover Tuesday midnight to 4:59 AM
-  • Only one warning will be shown (not duplicated)
-  • This is harmless but redundant
+  - Both cover Tuesday midnight to 4:59 AM
+  - Only one warning will be shown (not duplicated)
+  - This is harmless but redundant
 
 SAFETY FEATURE - 24/7 Restriction Prevention:
-  • The system prevents configuring restrictions for all 24 hours, 7 days a week
-  • If you configure 24/7 restrictions, you'll see an error and cannot save
-  • If you configure > 16 hours/day, you'll see a warning and can choose to save anyway
-  • Safety features (popup size limits, config locking disabled) are automatically applied for high restriction levels
+  - The system prevents configuring restrictions for all 24 hours, 7 days a week
+  - If you configure 24/7 restrictions, you'll see an error and cannot save
+  - If you configure > 16 hours/day, you'll see a warning and can choose to save anyway
+  - Safety features (popup size limits, config locking disabled) are automatically applied for high restriction levels
 
 NAVIGATION:
-  • Cancel: Exit without saving (available at any time)
-  • Back: Return to previous day's configuration
-  • Skip: Skip current day (no restrictions for that day)
+  - Cancel: Exit without saving (available at any time)
+  - Back: Return to previous day's configuration
+  - Skip: Skip current day (no restrictions for that day)
 
 EXAMPLES:
-  • '0-5' = Midnight to 4:59 AM
-  • '22-23' = 10:00 PM to 11:59 PM  
-  • '23-6' = 11:00 PM to 5:59 AM (overnight)
-  • '0-5,22-23' = Midnight-4:59 AM AND 10 PM-11:59 PM"
+  - '0-5' = Midnight to 4:59 AM
+  - '22-23' = 10:00 PM to 11:59 PM  
+  - '23-6' = 11:00 PM to 5:59 AM (overnight)
+  - '0-5,22-23' = Midnight-4:59 AM AND 10 PM-11:59 PM"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # Use show_info_dialog for consistent appearance with other dialogs
@@ -163,14 +163,14 @@ This wizard will help you set up restricted hours for each day of the week.
 During these hours, you will receive warning popups if you use your computer.
 
 NAVIGATION:
-• You can cancel at any time (changes won't be saved)
-• You can go back to previous days to edit
-• You can skip days to have no restrictions
+- You can cancel at any time (changes won't be saved)
+- You can go back to previous days to edit
+- You can skip days to have no restrictions
 
 TIME RANGE FORMATS:
-• Single: '0-5' = Midnight to 4:59 AM
-• Multiple: '0-5,22-23' = Two periods (midnight-4:59 AM AND 10 PM-11:59 PM)
-• Overnight: '23-6' = 11 PM to 5:59 AM (spans midnight to next day)
+- Single: '0-5' = Midnight to 4:59 AM
+- Multiple: '0-5,22-23' = Two periods (midnight-4:59 AM AND 10 PM-11:59 PM)
+- Overnight: '23-6' = 11 PM to 5:59 AM (spans midnight to next day)
 
 IMPORTANT - Overnight Ranges:
 If you enter '23-6' on Monday, it means:
@@ -186,10 +186,10 @@ lock you out). If you configure very high restriction levels (> 16 hours/day),
 you'll see a warning and safety features will be automatically applied.
 
 Examples:
-• '0-5' = Midnight to 4:59 AM (same day)
-• '22-23' = 10:00 PM to 11:59 PM (same day)
-• '23-6' = 11:00 PM to 5:59 AM (overnight, spans to next day)
-• '0-5,22-23' = Midnight-4:59 AM AND 10 PM-11:59 PM
+- '0-5' = Midnight to 4:59 AM (same day)
+- '22-23' = 10:00 PM to 11:59 PM (same day)
+- '23-6' = 11:00 PM to 5:59 AM (overnight, spans to next day)
+- '0-5,22-23' = Midnight-4:59 AM AND 10 PM-11:59 PM
 
 Let's get started!"
     
@@ -417,9 +417,9 @@ The combined total of restriction hours and additional lock hours exceeds 16 hou
 This leaves very little unrestricted time and may effectively lock you out.
 
 Safety measures will be applied:
-• Config locking features will be disabled
-• Popup size will be limited to small/medium
-• Additional lock hours will be cleared
+- Config locking features will be disabled
+- Popup size will be limited to small/medium
+- Additional lock hours will be cleared
 
 Do you want to save this configuration anyway?"
     
@@ -434,9 +434,9 @@ Do you want to save this configuration anyway?"
         echo "This leaves very little unrestricted time and may effectively lock you out." >&2
         echo "" >&2
         echo "Safety measures will be applied:" >&2
-        echo "• Config locking features will be disabled" >&2
-        echo "• Popup size will be limited to small/medium" >&2
-        echo "• Additional lock hours will be cleared" >&2
+        echo "- Config locking features will be disabled" >&2
+        echo "- Popup size will be limited to small/medium" >&2
+        echo "- Additional lock hours will be cleared" >&2
         echo "" >&2
         read -p "Save anyway? [y/N]: " answer
         case "${answer}" in

@@ -59,7 +59,7 @@ Instead of searching by title, track the window ID when popup is created:
    - Prefer primary display
 
 2. **Change popup window title** (Important - prevents config window interference) ✅
-   - Changed from "Sleep Warning" to "Restricted Hours Alert"
+   - Changed from "Sleep Warning" to "ALERT: Restricted time window"
    - Updated all references in popup-display.sh
    - Updated test scripts
 
@@ -73,7 +73,7 @@ Instead of searching by title, track the window ID when popup is created:
 ### Changes Made
 
 1. **lib/popup-display.sh**:
-   - Changed window title from "Sleep Warning" to "Restricted Hours Alert"
+   - Changed window title from "Sleep Warning" to "ALERT: Restricted time window"
    - Updated all dialog tool invocations (zenity, yad, kdialog)
    - Updated all window management function calls
    - Updated notify-send fallback

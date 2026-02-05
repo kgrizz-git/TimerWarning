@@ -35,9 +35,9 @@
 - Popup window: "Sleep Warning"
 - Window matching used substring search → matched both windows
 
-**Solution**: Changed popup window title to **"Restricted Hours Alert"**
+**Solution**: Changed popup window title to **"ALERT: Restricted time window"**
 - No substring overlap with configuration window
-- Clear, descriptive, ASCII-only (no UTF-8 compatibility concerns)
+- Clear, descriptive, ASCII-only
 
 **Files Modified**: `lib/popup-display.sh`, `tests/test-popup.sh`
 

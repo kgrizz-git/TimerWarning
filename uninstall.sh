@@ -453,10 +453,10 @@ print_summary() {
     echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
     echo ""
     echo "Removed:"
-    echo "  • Scripts from $INSTALL_DIR"
-    echo "  • Systemd service and timer files"
+    echo "  - Scripts from $INSTALL_DIR"
+    echo "  - Systemd service and timer files"
     if [ "$REMOVE_CONFIG" = true ] || [ -f "$CONFIG_DIR/sleep-warning.conf" ]; then
-        echo "  • Configuration file"
+        echo "  - Configuration file"
     fi
     echo ""
     echo "The Sleep Warning System has been completely removed from your system."

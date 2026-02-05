@@ -28,9 +28,9 @@ else
 fi
 ```
 
-**Search for any running dialog with our title** (yad/zenity/kdialog "Restricted Hours Alert"):
+**Search for any running dialog with our title** (yad/zenity/kdialog "ALERT: Restricted time window"):
 ```bash
-pgrep -af "yad.*Restricted|zenity.*Restricted|kdialog.*Restricted" || echo "No matching dialog processes"
+pgrep -af "yad.*ALERT: Restricted time window|zenity.*ALERT: Restricted time window|kdialog.*ALERT: Restricted time window" || echo "No matching dialog processes"
 ```
 
 **Optional: remove a stale PID file** (only if you’re sure no popup is visible):

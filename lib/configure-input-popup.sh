@@ -12,7 +12,7 @@
 # - get_min_display_time_config()  - Get minimum display time
 # - get_popup_immovable_config()   - Get immovable setting
 # - get_popup_auto_close_config() - Get auto-close setting (Enhancement #15)
-# - get_popup_size_mode_config()  - Get popup size mode (display-based vs fixed)
+# - get_popup_size_mode_config()  - Get popup size mode (percentage-based / display-based vs fixed)
 # - get_popup_position_config()   - Get popup position
 #
 # Dependencies:
@@ -26,6 +26,7 @@
 # This is for Enhancement #3 (Enhanced Window Size Options)
 get_popup_size_config() {
     local use_gui="$1"
+    local size_mode_override="$2"
     local default_size="medium"
     
     # Try to get existing size from config
@@ -39,14 +40,52 @@ get_popup_size_config() {
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
+        # Determine current size mode so we can show percentage mappings
+        # when the user is using display-based (percentage-based) sizing.
+        local size_mode="fixed"
+        if [ -n "${size_mode_override}" ]; then
+            size_mode="${size_mode_override}"
+        elif [ -f "${CONFIG_FILE}" ]; then
+            local existing_mode
+            existing_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+            if [ "${existing_mode}" = "display-based" ]; then
+                size_mode="display-based"
+            fi
+        fi
+
+        # Build option labels; when in percentage-based (display-based) mode,
+        # include the percentages directly in the list items so users can see
+        # mappings at a glance in the wizard.
+        local xsmall_label="xsmall"
+        local small_label="small"
+        local medium_label="medium"
+        local large_label="large"
+        local xlarge_label="xlarge"
+        local max_label="max"
+
+        if [ "${size_mode}" = "display-based" ]; then
+            # These mappings must remain consistent with Enhancement #3,
+            # CONFIGURATION.md, and get_popup_dimensions().
+            # Use ASCII 'x' between width/height to avoid any dialog
+            # tool / locale issues with the unicode multiplication sign.
+            xsmall_label="xsmall (15%x15%)"
+            small_label="small (20%x20%)"
+            medium_label="medium (30%x30%)"
+            large_label="large (50%x50%)"
+            xlarge_label="xlarge (75%x75%)"
+            max_label="max (90%x90%)"
+        fi
+
         while true; do
+            local prompt_text="Select popup size (current: ${default_size}):"
+
             local size_result
             size_result=$(show_list_dialog \
                 "Sleep Warning Configuration" \
-                "Select popup size (current: ${default_size}):" \
+                "${prompt_text}" \
                 500 \
                 400 \
-                "xsmall" "small" "medium" "large" "xlarge" "max" "custom")
+                "${xsmall_label}" "${small_label}" "${medium_label}" "${large_label}" "${xlarge_label}" "${max_label}" "custom")
             local exit_code=$?
             
             # User cancelled
@@ -59,6 +98,16 @@ get_popup_size_config() {
                 fi
             fi
             
+            # Normalize selection back to canonical size keys
+            case "${size_result}" in
+                xsmall* ) size_result="xsmall" ;;
+                small*  ) size_result="small" ;;
+                medium* ) size_result="medium" ;;
+                large*  ) size_result="large" ;;
+                xlarge* ) size_result="xlarge" ;;
+                max*    ) size_result="max" ;;
+            esac
+
             # If "custom" selected, get custom size configuration
             if [ "${size_result}" = "custom" ]; then
                 local custom_result
@@ -93,12 +142,12 @@ get_popup_size_config() {
         # Text mode
         echo "" >&2
         echo "Popup Size Options:" >&2
-        echo "  1) xsmall (15%×15% or 384×216)" >&2
-        echo "  2) small (20%×20% or 400×250)" >&2
-        echo "  3) medium (30%×30% or 800×500)" >&2
-        echo "  4) large (50%×50% or 1230×720)" >&2
-        echo "  5) xlarge (75%×75% or 1845×1080)" >&2
-        echo "  6) max (90%×90% or 2214×1296)" >&2
+        echo "  1) xsmall (15%x15% or 384x216)" >&2
+        echo "  2) small (20%x20% or 400x250)" >&2
+        echo "  3) medium (30%x30% or 800x500)" >&2
+        echo "  4) large (50%x50% or 1230x720)" >&2
+        echo "  5) xlarge (75%x75% or 1845x1080)" >&2
+        echo "  6) max (90%x90% or 2214x1296)" >&2
         echo "  7) custom (user-configurable)" >&2
         echo "" >&2
         while true; do
@@ -262,7 +311,7 @@ get_custom_popup_size_config() {
                 if [ "${width}" -lt 384 ] || [ "${height}" -lt 216 ]; then
                     show_info_dialog \
                         "Invalid Size" \
-                        "Minimum size is 384×216 pixels (matches xsmall size)."
+                        "Minimum size is 384x216 pixels (matches xsmall size)."
                     continue
                 fi
                 
@@ -283,7 +332,7 @@ get_custom_popup_size_config() {
                     if [ "${width}" -gt "${max_width}" ] || [ "${height}" -gt "${max_height}" ]; then
                         show_info_dialog \
                             "Invalid Size" \
-                            "Size exceeds 95% of screen resolution (${screen_width}×${screen_height}).\n\nMaximum is 95% of screen to ensure buttons remain visible."
+                            "Size exceeds 95% of screen resolution (${screen_width}x${screen_height}).\n\nMaximum is 95% of screen to ensure buttons remain visible."
                         continue
                     fi
                 fi
@@ -363,7 +412,7 @@ get_custom_popup_size_config() {
                     
                     # Validate minimum
                     if [ "${width}" -lt 384 ] || [ "${height}" -lt 216 ]; then
-                        echo "Minimum size is 384×216 pixels (matches xsmall size)." >&2
+                        echo "Minimum size is 384x216 pixels (matches xsmall size)." >&2
                         continue
                     fi
                     
@@ -378,10 +427,10 @@ get_custom_popup_size_config() {
                         screen_width=$(echo "${resolution}" | cut -d' ' -f1)
                         screen_height=$(echo "${resolution}" | cut -d' ' -f2)
                         
-                        if [ "${width}" -gt "${screen_width}" ] || [ "${height}" -gt "${screen_height}" ]; then
-                            echo "Size exceeds 95% of screen resolution (${screen_width}×${screen_height}). Maximum is 95% of screen to ensure buttons remain visible." >&2
-                            continue
-                        fi
+                    if [ "${width}" -gt "${screen_width}" ] || [ "${height}" -gt "${screen_height}" ]; then
+                        echo "Size exceeds 95% of screen resolution (${screen_width}x${screen_height}). Maximum is 95% of screen to ensure buttons remain visible." >&2
+                        continue
+                    fi
                     fi
                     
                     # Store in global variable and return the dimensions
@@ -708,7 +757,7 @@ get_popup_size_mode_config() {
             local mode_result
             mode_result=$(show_list_dialog \
                 "Sleep Warning Configuration - Size Mode" \
-                "Select window size calculation mode:\n\nCurrent: ${default_mode}\n\n- fixed: Use absolute pixel sizes (backward compatible)\n- display-based: Calculate sizes as percentage of screen resolution\n\nNote: display-based mode adapts to different screen sizes automatically." \
+                "Select window size calculation mode:\n\nCurrent: ${default_mode}\n\n- fixed: Use absolute pixel sizes (backward compatible)\n- display-based: Percentage-based sizing (calculates sizes as percentage of screen resolution)\n\nNote: Percentage-based (display-based) mode adapts to different screen sizes automatically." \
                 600 \
                 350 \
                 "fixed (Absolute Pixels)" "display-based (Percentage of Screen)")
@@ -742,9 +791,9 @@ get_popup_size_mode_config() {
         echo "" >&2
         echo "Options:" >&2
         echo "  1) fixed - Use absolute pixel sizes (backward compatible)" >&2
-        echo "  2) display-based - Calculate sizes as percentage of screen resolution" >&2
+        echo "  2) display-based - Percentage-based sizing (calculates sizes as percentage of screen resolution)" >&2
         echo "" >&2
-        echo "Note: display-based mode adapts to different screen sizes automatically." >&2
+        echo "Note: Percentage-based (display-based) mode adapts to different screen sizes automatically." >&2
         echo "" >&2
         
         while true; do

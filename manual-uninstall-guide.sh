@@ -438,12 +438,21 @@ show_gui_step() {
     if [ -n "${commands}" ]; then
         full_text="${full_text}\n\nCommands:\n${commands}"
     fi
+
+    # Ensure dialog text is safe under non-UTF locales (GTK tools can crash on Unicode).
+    if type dialog_safe_text >/dev/null 2>&1; then
+        full_text="$(dialog_safe_text "${full_text}")"
+    fi
+    local safe_title="Manual Uninstall Guide - Step ${step_num}"
+    if type dialog_safe_text >/dev/null 2>&1; then
+        safe_title="$(dialog_safe_text "${safe_title}")"
+    fi
     
     case "${tool}" in
         yad)
             # Show one step at a time (prevents easy copying of all steps at once)
             echo -e "${full_text}" | yad --text-info \
-                --title="Manual Uninstall Guide - Step ${step_num}" \
+                --title="${safe_title}" \
                 --width=700 \
                 --height=400 \
                 --button="Next Step:0" \
@@ -455,7 +464,7 @@ show_gui_step() {
         zenity)
             # Zenity doesn't support preventing copying, but we show one step at a time
             echo -e "${full_text}" | zenity --text-info \
-                --title="Manual Uninstall Guide - Step ${step_num}" \
+                --title="${safe_title}" \
                 --width=700 \
                 --height=400 \
                 --font="monospace" \

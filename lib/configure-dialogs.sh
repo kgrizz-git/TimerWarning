@@ -23,12 +23,42 @@
 #   source lib/configure-dialogs.sh
 ###############################################################################
 
+# Ensure Unicode / locale safety helpers are available.
+# These prevent GUI dialog tools (especially yad/zenity) from crashing when the
+# process locale is non-UTF-8 (e.g., LANG=C in some systemd environments).
+if ! type dialog_safe_text >/dev/null 2>&1; then
+    _DIALOGS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # shellcheck disable=SC1090
+    if [ -f "${_DIALOGS_DIR}/unicode-dialog-safety.sh" ]; then
+        source "${_DIALOGS_DIR}/unicode-dialog-safety.sh"
+    fi
+    unset _DIALOGS_DIR
+fi
+
+# Hard fallback: if helper failed to load for any reason, keep dialogs functional.
+if ! type dialog_safe_text >/dev/null 2>&1; then
+    dialog_safe_text() { printf '%s' "${1:-}"; }
+fi
+
+# Helper: sanitize a list of strings (items/options) for GUI tools.
+_dialog_safe_array_items() {
+    local out=()
+    local v
+    for v in "$@"; do
+        out+=("$(dialog_safe_text "${v}")")
+    done
+    printf '%s\n' "${out[@]}"
+}
+
 # Show information dialog
 show_info_dialog() {
     local title="$1"
     local text="$2"
     local width="${3:-500}"
     local height="${4:-200}"
+
+    title="$(dialog_safe_text "${title}")"
+    text="$(dialog_safe_text "${text}")"
     
     local tool
     tool=$(get_dialog_tool)
@@ -60,6 +90,9 @@ show_error_dialog() {
     local text="$2"
     local width="${3:-600}"
     local height="${4:-300}"
+
+    title="$(dialog_safe_text "${title}")"
+    text="$(dialog_safe_text "${text}")"
     
     local tool
     tool=$(get_dialog_tool)
@@ -136,6 +169,8 @@ show_time_selection_dialog() {
     local title="$1"
     local start_time="$2"
     local end_time="$3"
+
+    title="$(dialog_safe_text "${title}")"
     
     local tool
     tool=$(get_dialog_tool)
@@ -162,6 +197,8 @@ show_time_selection_dialog_yad() {
     local title="$1"
     local start_time="${2:-}"
     local end_time="${3:-}"
+
+    title="$(dialog_safe_text "${title}")"
     
     # Parse pre-filled values or use defaults
     local start_data end_data
@@ -222,6 +259,8 @@ show_time_selection_dialog_zenity() {
     local title="$1"
     local start_time="${2:-}"
     local end_time="${3:-}"
+
+    title="$(dialog_safe_text "${title}")"
     
     # Parse pre-filled values or use defaults
     local start_data end_data
@@ -285,6 +324,8 @@ show_time_selection_dialog_kdialog() {
     local title="$1"
     local start_time="${2:-}"
     local end_time="${3:-}"
+
+    title="$(dialog_safe_text "${title}")"
     
     # Parse pre-filled values or use defaults
     local start_data end_data
@@ -329,6 +370,11 @@ show_question_dialog() {
     local cancel_label="${4:-No}"
     local width="${5:-600}"
     local height="${6:-400}"
+
+    title="$(dialog_safe_text "${title}")"
+    text="$(dialog_safe_text "${text}")"
+    ok_label="$(dialog_safe_text "${ok_label}")"
+    cancel_label="$(dialog_safe_text "${cancel_label}")"
     
     local tool
     tool=$(get_dialog_tool)
@@ -367,6 +413,12 @@ show_entry_dialog() {
     local text="$2"
     local default_value="${3:-}"
     local extra_button="${4:-}"
+
+    title="$(dialog_safe_text "${title}")"
+    text="$(dialog_safe_text "${text}")"
+    # Default value is displayed to the user; sanitize only for GUI safety.
+    default_value="$(dialog_safe_text "${default_value}")"
+    extra_button="$(dialog_safe_text "${extra_button}")"
     
     local tool
     tool=$(get_dialog_tool)
@@ -430,14 +482,26 @@ show_entry_dialog() {
                     return 1
                 fi
             else
-                zenity --entry --title="${title}" --text="${text}" \
-                    --entry-text="${default_value}" 2>/dev/null
+                local result
+                result=$(zenity --entry --title="${title}" --text="${text}" \
+                    --entry-text="${default_value}" 2>/dev/null)
+                local exit_code=$?
+                if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
+                    echo "${result}"
+                fi
+                return ${exit_code}
             fi
             ;;
         kdialog)
             # KDialog doesn't support extra buttons, so ignore extra_button parameter
-            kdialog --title "${title}" --inputbox "${text}" "${default_value}" \
-                2>/dev/null
+            local result
+            result=$(kdialog --title "${title}" --inputbox "${text}" "${default_value}" \
+                2>/dev/null)
+            local exit_code=$?
+            if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
+                echo "${result}"
+            fi
+            return ${exit_code}
             ;;
         *)
             return 1
@@ -453,6 +517,12 @@ show_list_dialog() {
     local height="${4:-350}"
     shift 4
     local items=("$@")
+
+    title="$(dialog_safe_text "${title}")"
+    text="$(dialog_safe_text "${text}")"
+    if [ ${#items[@]} -gt 0 ]; then
+        mapfile -t items < <(_dialog_safe_array_items "${items[@]}")
+    fi
     
     local tool
     tool=$(get_dialog_tool)
@@ -485,9 +555,19 @@ show_list_dialog() {
             ;;
         zenity)
             # Zenity expects: --column="Name" item1 item2 item3
-            zenity --list --title="${title}" --text="${text}" \
+            local result
+            result=$(zenity --list --title="${title}" --text="${text}" \
                 --width="${width}" --height="${height}" \
-                --column="Option" "${items[@]}" 2>/dev/null
+                --column="Option" "${items[@]}" 2>/dev/null)
+            local exit_code=$?
+            if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
+                # Trim whitespace and newlines
+                result=$(echo "${result}" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if [ -n "${result}" ]; then
+                    echo "${result}"
+                fi
+            fi
+            return ${exit_code}
             ;;
         kdialog)
             # KDialog uses --menu format: tag1 "item1" tag2 "item2"
@@ -501,10 +581,22 @@ show_list_dialog() {
             local result
             result=$(kdialog --title "${title}" --menu "${text}" \
                 "${kdialog_args[@]}" 2>/dev/null)
+            local exit_code=$?
             # Convert tag back to item
-            if [ -n "${result}" ]; then
-                echo "${items[$((result - 1))]}"
+            if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
+                # Trim whitespace and newlines from tag
+                result=$(echo "${result}" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if [ -n "${result}" ] && [[ "${result}" =~ ^[0-9]+$ ]]; then
+                    local item_index=$((result - 1))
+                    if [ ${item_index} -ge 0 ] && [ ${item_index} -lt ${#items[@]} ]; then
+                        echo "${items[${item_index}]}"
+                        return 0
+                    fi
+                fi
+                # If we get here, tag conversion failed - treat as cancellation
+                return 1
             fi
+            return ${exit_code}
             ;;
         *)
             return 1
@@ -518,6 +610,9 @@ show_text_info_dialog() {
     local text="$2"
     local width="${3:-600}"
     local height="${4:-500}"
+
+    title="$(dialog_safe_text "${title}")"
+    text="$(dialog_safe_text "${text}")"
     
     local tool
     tool=$(get_dialog_tool)
@@ -647,6 +742,18 @@ show_multi_column_list_dialog() {
     
     # Remaining arguments are data (alternating: col1_row1, col2_row1, col1_row2, col2_row2, ...)
     local data=("$@")
+
+    # Sanitize all user-visible strings for GUI safety under non-UTF locales.
+    title="$(dialog_safe_text "${title}")"
+    text="$(dialog_safe_text "${text}")"
+    local _i
+    for _i in "${!column_names[@]}"; do
+        column_names[${_i}]="$(dialog_safe_text "${column_names[${_i}]}")"
+    done
+    for _i in "${!data[@]}"; do
+        data[${_i}]="$(dialog_safe_text "${data[${_i}]}")"
+    done
+    unset _i
     
     local tool
     tool=$(get_dialog_tool)
@@ -698,7 +805,20 @@ show_multi_column_list_dialog() {
             # Add data (already in correct alternating format)
             zenity_args+=("${data[@]}")
             
-            zenity "${zenity_args[@]}" 2>/dev/null
+            local result
+            result=$(zenity "${zenity_args[@]}" 2>/dev/null)
+            local exit_code=$?
+            if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
+                # Trim whitespace and newlines
+                result=$(echo "${result}" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if [ -n "${result}" ]; then
+                    echo "${result}"
+                else
+                    # Result became empty after trimming - treat as cancellation
+                    return 1
+                fi
+            fi
+            return ${exit_code}
             ;;
         kdialog)
             # KDialog uses --menu with tag/item pairs
@@ -745,7 +865,30 @@ show_multi_column_list_dialog() {
                 i=$((i + num_columns))
             done
             
-            kdialog "${kdialog_args[@]}" 2>/dev/null
+            local result
+            result=$(kdialog "${kdialog_args[@]}" 2>/dev/null)
+            local exit_code=$?
+            # Convert tag back to item (result is the tag, which is the first column value)
+            if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
+                # Find the row index where this tag appears
+                local row_idx=0
+                while [ ${row_idx} -lt ${num_data} ]; do
+                    if [ "${data[${row_idx}]}" = "${result}" ]; then
+                        # Found the row - return the value from the requested column
+                        local target_col_idx=$((print_column - 1))
+                        if [ $((row_idx + target_col_idx)) -lt ${num_data} ]; then
+                            echo "${data[$((row_idx + target_col_idx))]}"
+                        else
+                            echo "${result}"  # Fallback to tag if column doesn't exist
+                        fi
+                        return ${exit_code}
+                    fi
+                    row_idx=$((row_idx + num_columns))
+                done
+                # Tag not found in data - return tag itself as fallback
+                echo "${result}"
+            fi
+            return ${exit_code}
             ;;
         *)
             return 1

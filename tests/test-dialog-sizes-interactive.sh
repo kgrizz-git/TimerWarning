@@ -80,14 +80,14 @@ This wizard will help you set up restricted hours for each day of the week.
 During these hours, you will receive warning popups if you use your computer.
 
 NAVIGATION:
-• You can cancel at any time (changes won't be saved)
-• You can go back to previous days to edit
-• You can skip days to have no restrictions
+- You can cancel at any time (changes won't be saved)
+- You can go back to previous days to edit
+- You can skip days to have no restrictions
 
 TIME RANGE FORMATS:
-• Single: '0-5' = Midnight to 4:59 AM
-• Multiple: '0-5,22-23' = Two periods (midnight-4:59 AM AND 10 PM-11:59 PM)
-• Overnight: '23-6' = 11 PM to 5:59 AM (spans midnight to next day)
+- Single: '0-5' = Midnight to 4:59 AM
+- Multiple: '0-5,22-23' = Two periods (midnight-4:59 AM AND 10 PM-11:59 PM)
+- Overnight: '23-6' = 11 PM to 5:59 AM (spans midnight to next day)
 
 IMPORTANT - Overnight Ranges:
 If you enter '23-6' on Monday, it means:
@@ -97,10 +97,10 @@ This spans across midnight to the next day. If you also set Tuesday 0-5,
 both will cover Tuesday midnight-4:59 AM (redundant but harmless).
 
 Examples:
-• '0-5' = Midnight to 4:59 AM (same day)
-• '22-23' = 10:00 PM to 11:59 PM (same day)
-• '23-6' = 11:00 PM to 5:59 AM (overnight, spans to next day)
-• '0-5,22-23' = Midnight-4:59 AM AND 10 PM-11:59 PM
+- '0-5' = Midnight to 4:59 AM (same day)
+- '22-23' = 10:00 PM to 11:59 PM (same day)
+- '23-6' = 11:00 PM to 5:59 AM (overnight, spans to next day)
+- '0-5,22-23' = Midnight-4:59 AM AND 10 PM-11:59 PM
 
 Let's get started!"
 
@@ -199,16 +199,16 @@ read -p "Press Enter to show dialog..."
 HELP_TEXT="Configuration Help
 
 TIME RANGE FORMAT:
-• Enter hours in 24-hour format (0-23)
-• Use START-END format (e.g., 0-5 for midnight to 4:59 AM)
-• Multiple ranges: separate with commas (e.g., 0-5,22-23)
-• Overnight ranges: START > END (e.g., 23-6 for 11 PM to 5:59 AM)
+- Enter hours in 24-hour format (0-23)
+- Use START-END format (e.g., 0-5 for midnight to 4:59 AM)
+- Multiple ranges: separate with commas (e.g., 0-5,22-23)
+- Overnight ranges: START > END (e.g., 23-6 for 11 PM to 5:59 AM)
 
 EXAMPLES:
-• '0-5' = Midnight to 4:59 AM (same day)
-• '22-23' = 10:00 PM to 11:59 PM (same day)
-• '23-6' = 11:00 PM to 5:59 AM (overnight, spans to next day)
-• '0-5,22-23' = Midnight-4:59 AM AND 10 PM-11:59 PM"
+- '0-5' = Midnight to 4:59 AM (same day)
+- '22-23' = 10:00 PM to 11:59 PM (same day)
+- '23-6' = 11:00 PM to 5:59 AM (overnight, spans to next day)
+- '0-5,22-23' = Midnight-4:59 AM AND 10 PM-11:59 PM"
 
 show_info_dialog \
     "Configuration Help" \
@@ -277,7 +277,7 @@ read -p "Press Enter to show dialog..."
 
 show_info_dialog \
     "Invalid Format" \
-    "Invalid format. Use: START-END or START-END,START-END\n\nExamples:\n• 0-5 (midnight to 4:59 AM)\n• 0-5,22-23 (two periods)\n• 23-6 (11 PM to 5:59 AM, overnight)" \
+    "Invalid format. Use: START-END or START-END,START-END\n\nExamples:\n- 0-5 (midnight to 4:59 AM)\n- 0-5,22-23 (two periods)\n- 23-6 (11 PM to 5:59 AM, overnight)" \
     500 \
     200
 
@@ -368,8 +368,8 @@ WARNING_HIGH="You have configured restrictions for more than 23 hours per day.
 This leaves very little unrestricted time and may effectively lock you out.
 
 Safety measures will be applied:
-• Config locking features will be disabled
-• Popup size will be limited to small/medium
+- Config locking features will be disabled
+- Popup size will be limited to small/medium
 
 Do you want to save this configuration anyway?"
 
@@ -401,13 +401,13 @@ Minimum Display Time: Disabled
 Prevent Window Movement: Disabled
 
 Restricted Hours:
-• Sunday: No restrictions
-• Monday: Midnight-4:59 AM
-• Tuesday: Midnight-4:59 AM
-• Wednesday: Midnight-4:59 AM
-• Thursday: Midnight-4:59 AM
-• Friday: Midnight-4:59 AM
-• Saturday: No restrictions
+- Sunday: No restrictions
+- Monday: Midnight-4:59 AM
+- Tuesday: Midnight-4:59 AM
+- Wednesday: Midnight-4:59 AM
+- Thursday: Midnight-4:59 AM
+- Friday: Midnight-4:59 AM
+- Saturday: No restrictions
 
 Save this configuration?"
 

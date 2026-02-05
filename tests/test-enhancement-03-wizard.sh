@@ -158,8 +158,14 @@ test_write_read_cycle() {
     declare -a config_lines=()
     
     # Write config with new options
+    # Note: write_config requires 15 positional parameters before config_lines array:
+    #   check_interval, popup_size, popup_position, min_display_time,
+    #   popup_immovable, popup_auto_close, configure_block_enabled,
+    #   uninstall_protection_mode, pause_enabled, pause_duration,
+    #   dialog_tool, config_lock_enabled, popup_size_mode,
+    #   popup_size_custom, popup_size_custom_absolute
     write_config \
-        "10" "xlarge" "center" "30" "true" "false" "difficult" "true" "5" "auto" "false" \
+        "10" "xlarge" "center" "30" "true" "false" "true" "difficult" "true" "5" "auto" "false" \
         "display-based" "75%x75%" "1920x1080" \
         "${config_lines[@]}"
     

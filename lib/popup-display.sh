@@ -29,6 +29,59 @@
 #   source lib/popup-display.sh
 ###############################################################################
 
+# Unicode / locale safety helper (prevents GTK dialog tools from crashing when
+# locale is non-UTF-8 by sanitizing dialog strings to ASCII as needed).
+if ! type dialog_safe_text >/dev/null 2>&1; then
+    _POPUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # shellcheck disable=SC1090
+    if [ -f "${_POPUP_DIR}/unicode-dialog-safety.sh" ]; then
+        source "${_POPUP_DIR}/unicode-dialog-safety.sh"
+    fi
+    unset _POPUP_DIR
+fi
+
+# Hard fallback: keep popups functional even if helper can't be sourced.
+if ! type dialog_safe_text >/dev/null 2>&1; then
+    dialog_safe_text() { printf '%s' "${1:-}"; }
+fi
+
+# Ensure we have a UTF-8 locale before invoking GTK dialog tools (yad/zenity).
+# SteamOS/systemd user services can run with locale "C" (non-UTF-8), which makes
+# GTK reject Unicode text (e.g., ⚠️ / ⏱️) with errors like:
+#   "Unable to parse command line: Invalid byte sequence in conversion input"
+# This results in yad exiting immediately, which then triggers respawn loops.
+#
+# This function attempts to set a UTF-8 locale (preferring C.UTF-8) only when the
+# current locale does not already appear to be UTF-8.
+ensure_utf8_locale_for_dialogs() {
+    # If locale(1) isn't available, we can't safely detect; do nothing.
+    command -v locale >/dev/null 2>&1 || return 0
+
+    # If any locale category is already UTF-8, do nothing.
+    if locale 2>/dev/null | grep -qi "utf-8"; then
+        return 0
+    fi
+
+    # Prefer widely-available UTF-8 locales.
+    local candidate
+    for candidate in "C.UTF-8" "en_US.UTF-8"; do
+        if locale -a 2>/dev/null | tr -d '\r' | grep -qx "${candidate}"; then
+            export LC_ALL="${candidate}"
+            # Keep LANG consistent if it's unset/empty.
+            if [ -z "${LANG:-}" ]; then
+                export LANG="${candidate}"
+            fi
+            if type log_to_file >/dev/null 2>&1; then
+                log_to_file "WARNING" "Locale was not UTF-8; set LC_ALL=${candidate} for dialog compatibility"
+            fi
+            return 0
+        fi
+    done
+
+    # No known UTF-8 locale found; proceed without changing environment.
+    return 0
+}
+
 # Clean up stale PID file if process no longer exists
 # This function checks if the PID in the PID file is still running
 # If not, removes the PID file
@@ -136,17 +189,17 @@ is_popup_running() {
     window_tool=$(check_window_tools)
     
     if [ -n "${window_tool}" ]; then
-        local window_title="Restricted Hours Alert"
+        local window_title="ALERT: Restricted time window"
         local found_pid=""
         
         case "${window_tool}" in
             wmctrl)
                 # Use wmctrl to find window by title
-                found_pid=$(wmctrl -l 2>/dev/null | grep -i "Restricted Hours Alert" | head -n1 | awk '{print $1}' | xargs -I {} wmctrl -lp 2>/dev/null | grep "{}" | awk '{print $3}' | head -n1)
+                found_pid=$(wmctrl -l 2>/dev/null | grep -i "ALERT: Restricted time window" | head -n1 | awk '{print $1}' | xargs -I {} wmctrl -lp 2>/dev/null | grep "{}" | awk '{print $3}' | head -n1)
                 ;;
             xdotool)
                 # Use xdotool to find window by title
-                found_pid=$(xdotool search --name "Restricted Hours Alert" 2>/dev/null | head -n1)
+                found_pid=$(xdotool search --name "ALERT: Restricted time window" 2>/dev/null | head -n1)
                 if [ -n "${found_pid}" ]; then
                     # Get process PID from window ID
                     found_pid=$(xdotool getwindowpid "${found_pid}" 2>/dev/null || echo "")
@@ -169,7 +222,7 @@ is_popup_running() {
     
     # Final fallback: Process tree checking
     local dialog_pids
-    dialog_pids=$(pgrep -f "zenity.*Restricted Hours Alert\|yad.*Restricted Hours Alert\|kdialog.*Restricted Hours Alert" 2>/dev/null | head -n1)
+    dialog_pids=$(pgrep -f "zenity.*ALERT: Restricted time window\|yad.*ALERT: Restricted time window\|kdialog.*ALERT: Restricted time window" 2>/dev/null | head -n1)
     
     if [ -n "${dialog_pids}" ] && [[ "${dialog_pids}" =~ ^[0-9]+$ ]]; then
         local age
@@ -191,7 +244,7 @@ close_existing_popups() {
     window_tool=$(check_window_tools)
     
     # Find all popups by window title
-    local window_title="Restricted Hours Alert"
+    local window_title="ALERT: Restricted time window"
     local window_ids=""
     
     if [ -n "${window_tool}" ]; then
@@ -413,6 +466,13 @@ show_warning() {
     local display_env
     local env_type
     local display_id
+
+    # Prefer UTF-8 locale when available; otherwise we will sanitize dialog text.
+    if type dialog_prepare_utf8_locale >/dev/null 2>&1; then
+        dialog_prepare_utf8_locale
+    else
+        ensure_utf8_locale_for_dialogs
+    fi
     
     # Detect display environment type
     env_type=$(detect_display_environment)
@@ -553,6 +613,7 @@ This warning will appear ${interval_text} while you continue using your computer
     fi
     
     local message="${base_message}${countdown_msg}"
+    message="$(dialog_safe_text "${message}")"
     
     # Check for window manager tools (needed for stay-on-top and minimum display time)
     local window_tool
@@ -586,9 +647,10 @@ This warning will appear ${interval_text} while you continue using your computer
     fi
     
     # Display popup based on available tool
-    # Note: Window title is "Restricted Hours Alert" to avoid matching "Sleep Warning Configuration"
+    # Note: Window title is set to a specific string to avoid matching unrelated windows.
     local popup_pid
-    local window_title="Restricted Hours Alert"
+    local window_title="ALERT: Restricted time window"
+    window_title="$(dialog_safe_text "${window_title}")"
     
     case "${dialog_tool}" in
         zenity)
@@ -749,7 +811,7 @@ This warning will appear ${interval_text} while you continue using your computer
     else
         log_to_file "ERROR" "Failed to display popup, Dialog tool: ${dialog_tool}"
         if command -v notify-send >/dev/null 2>&1; then
-            notify-send "Restricted Hours Alert" "You are using your computer during restricted hours. Please consider resting." >/dev/null 2>&1
+            notify-send "ALERT: Restricted time window" "You are using your computer during restricted hours. Please consider resting." >/dev/null 2>&1
             log_to_file "WARNING" "notify-send fallback used (non-modal)"
             return 0
         fi
@@ -782,6 +844,7 @@ This warning will appear ${interval_text} while you continue using your computer
         # Build updated message with countdown
         local countdown_msg="\n\n⏱️  This popup must remain visible for ${remaining_seconds} more second(s) before it can be closed."
         local updated_message="${base_message}${countdown_msg}"
+        updated_message="$(dialog_safe_text "${updated_message}")"
         
         # Clean up old PID file before killing old popup (Enhancement #9)
         cleanup_popup_pid "${old_pid}"

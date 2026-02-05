@@ -5,16 +5,16 @@ This document provides a concise overview of work remaining to be completed for 
 **Note**: This document focuses on work that remains to be done. Fully implemented enhancements (with no remaining work) are not listed here but can be found in [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). Enhancements marked as "Mostly Implemented" or "Partially Implemented" are listed here if they have remaining work (testing, documentation, etc.).
 
 ## Priority Items
-- [ ] **#16c: Multiple Time Range Entry in GUI** - Allow adding/editing multiple comma-separated time ranges per day in configure.sh GUI (text mode already supports it). See [enhancement-16c-multiple-range-entry-gui.md](enhancements/enhancement-16c-multiple-range-entry-gui.md). Largely implemented but improve UI (such as displaying day for which time is being set). Make sure multiple ranges possible for additional hours, as well.
-- [ ] **ADDED HERE: Fix install.sh not installing lib files?** pause-state.sh was not found when running sleep-warning-status although it worked for ./status.sh and also sleep-warning-configure ran OK
-- [ ] **ADDED HERE: Check pause works and popups appear after pause expires** 
-- [ ] **ADDED HERE: verify reading and usage of restricted hours, popup size, script blocking, all settings from config** - status is saying only Saturday and Sunday have restrictions but popup started appearing at midnight on Friday morning (probably using default hours). Block scripts is disabled according to sleep-warning-status but when I try to run configure, it exits with error code 1 (no window appears). Also verify scripts can distinguish between restricted hours and additional
+- [ ] **#16c: Multiple Time Range Entry in GUI** - Allow adding/editing multiple comma-separated time ranges per day in configure.sh GUI (text mode already supports it). See [enhancement-16c-multiple-range-entry-gui.md](enhancements/enhancement-16c-multiple-range-entry-gui.md). Largely implemented but improve UI (such as displaying day for which time is being set). Make sure multiple ranges possible for additional hours, as well. Also test with all dialog tools.
+- [ ] **ADDED HERE: improve config wizard UI** When clicking on a day in weekly view, do not ask if user wants to apply the same hours to all weekdays/weekends - only set hours for the clicked day. Displaying day for which time is currently being set.  If user selects main menu item for setting lock or uninstall hours, ask if they want to set the same hours for all weekdays/weekends. Rename Security Settings - just use what is currently in parentheses.
+- [ ] **ADDED HERE: re-order configure menu items** - order related items closer together, make order more logical and user-friendly, split some sub-items off from menu items that have many sub-items. Make sure all related code and documentation is updated after the code updates.
+- [?] **ADDED HERE: Fix install.sh not installing lib files?** pause-state.sh was not found when running sleep-warning-status although it worked for ./status.sh and also sleep-warning-configure ran OK. FIXED??
 - [ ] **ADDED HERE: When choosing display-based popup size in configure.sh, show the percentages.** For example, medium (30%x30% or 50%x50% - check percentages for named sizes are correct and consistent in writing config file, configuration messages, popup display, documentation). Also change "display-based" to "percentage" or something similar.
-- [ ] **ADDED HERE: Do not preserve old comments in prior version of config file when writing a new one.** 
+- [?] **ADDED HERE: Do not preserve old comments in prior version of config file when writing a new one.** IMPLEMENTED??
 - [ ] **ADDED HERE: improve configuration process for additional lock/uninstall hours** - be able to set all days at once, be able to set lock or uninstall schedule equal to the other one if it is configured (state what the schedule is when asking if the user wants to set one equal to the other)
 - [ ] **ADDED HERE: Fix configure.sh GUI fallback when no usable display** - tighten `has_gui()` detection so configure.sh automatically falls back to text mode when no accessible DISPLAY/Wayland socket exists.
-- [ ] **When checking if popup min display time > interval, use currently set interval, not one from config file**
-- [ ] **ADDED HERE: Uninstall should remove files like warnings log, last uptime, pause state file, etc.** - leave config file unless user says to remove it 
+- [ ] **When checking if popup min display time > interval, use currently set interval, not one from config file** if it has been updated in config wizard but not saved yet
+- [?] **ADDED HERE: Uninstall should remove files like warnings log, last uptime, pause state file, etc.** - leave config file unless user says to remove it. IMPLEMENTED? 
 - [ ] **#30: Separate Timer Check Interval from Popup Display Frequency** - Hardcode timer to check every 5 minutes, add user-configurable popup display frequency to solve minute precision timing issues
 - [ ] **ADDED HERE: Additional hours should not apply on days with no restrictions** - Additional lock hours and uninstall lock hours should not apply on days when there are no restricted times configured. User-configurable option to allow such locking (disabled by default). Warn users when entering additional hours on days with no restrictions. See [plan-additional-hours-no-restrictions.md](plans/plan-additional-hours-no-restrictions.md)
 - [ ] **#10: Audio Alerts** 
@@ -22,11 +22,11 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#13a: Single Executable Installer Script** - Self-extracting installer bundling all files
 - [ ] **#13b: Desktop GUI Application Wrapper** - Native desktop application (GTK/Qt/Electron)
 - [ ] **ADDED HERE: Check popup, pause dialogs with all three toools** - yad, zenity, kdialog - make sure they work and cannot block script indefinitely
-- [ ] **ADDED HERE: re-order configure menu items** - order related items closer together, make order more logical and user-friendly, split some sub-items off from menu items that have many sub-items. Make sure all related code and documentation is updated after the code updates.
 - [ ] **ADDED HERE: test in Desktop Mode without external display** - run all tests on Steam Deck in Desktop mode without an external display connected
 - [ ] **#29: kdialog Window Size Control** - Try using `--textbox` with `--geometry` for kdialog popups to enable size control, with fallback to `--sorry` if it doesn't work properly
 - [ ] **#27 Donation Links** - ✅ **Phase 1 Partially Implemented** - PayPal donation links added to README.md, GETTING_STARTED.md, and install.sh. **Remaining**: Testing and verification. **Phase 2**: GitHub Sponsors support planned (see [enhancements/enhancement-27-phase-2-github-sponsors.md](enhancements/enhancement-27-phase-2-github-sponsors.md)) - requires license first.
 - [ ] **ADDED HERE: check end lock hours display, calculation** - eg, when trying to run configure.sh
+- [ ] **Change message from install** "The timer is now active and will check for restricted hours every 10 minutes."
 
 ## Master Plan Phases
 
@@ -46,7 +46,7 @@ This document provides a concise overview of work remaining to be completed for 
 ## Complementary Enhancements
 
 - [ ] **#2a: Extend Dialog Tool Priority to Configuration Wizard** - ✅ **MOSTLY IMPLEMENTED** - Main functionality implemented for configure.sh. **Remaining**: Comprehensive testing across all dialog tools and environments
-- [ ] **#3: Enhanced Window Size Options and Display-Based Sizing** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: resolution detection module, six predefined sizes (xsmall, small, medium, large, xlarge, max), display-based and fixed modes, percentage-based custom sizing, configuration wizard integration, automated tests passing (53/53). **Remaining**: UI/Dialog Tool Testing (button visibility for all sizes with YAD/Zenity/KDialog), resolution detection testing on Wayland and gamescope environments, multi-monitor setup testing, testing on different display resolutions (1080p, 4K, ultrawide)
+- [ ] **#3: Enhanced Window Size Options and Percentage-Based (Display-Based) Sizing** - ✅ **MOSTLY IMPLEMENTED** - Core functionality complete: resolution detection module, six predefined sizes (xsmall, small, medium, large, xlarge, max), display-based (percentage-based) and fixed modes, percentage-based custom sizing, configuration wizard integration, automated tests passing (53/53). **Remaining**: UI/Dialog Tool Testing (button visibility for all sizes with YAD/Zenity/KDialog), resolution detection testing on Wayland and gamescope environments, multi-monitor setup testing, testing on different display resolutions (1080p, 4K, ultrawide)
 - [ ] **#4: Systemd Service Environment Detection** - ✅ **MOSTLY IMPLEMENTED** - Core implementation complete (Phases 1-10): mode detection functions, service configuration infrastructure, installation/configuration integration, logging, automated tests (15/15 passing), documentation. **Remaining**: Manual testing on actual SteamOS Desktop Mode and Gaming Mode environments (Phase 7.3-7.6), optional status.sh troubleshooting enhancement (Phase 6.3)
 - [ ] **#5: Configurable Warning Messages** - Customize warning text per day/time range
 - [ ] **#6: Escalating Warnings** - Progressively stronger warnings for continued usage
@@ -84,6 +84,9 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#6: Executable/Binary Distribution Options** - Various approaches for distributing as executables/binaries where end-users don't have source code access (self-extracting installer, shell compiler, obfuscation, package managers, compiled language rewrite). See [enhancements/alternative-06-executable-binary-distribution.md](enhancements/alternative-06-executable-binary-distribution.md)
 
 ## Testing & Validation Work
+
+### Re-test after major updates/before publishing
+- [ ] **ADDED HERE: Check pause works and popups appear after pause expires** 
 
 ### Critical Testing Gaps
 - [ ] **SteamOS Gaming Mode Testing** - Validate system behavior in Gaming Mode with full-screen games

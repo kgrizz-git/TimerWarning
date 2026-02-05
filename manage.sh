@@ -335,11 +335,11 @@ The Sleep Warning System displays warning popups when you use your computer
 during configured restricted hours, helping you maintain healthy sleep schedules.
 
 KEY FEATURES:
-• Configurable restricted hours for each day of the week
-• Automatic checks every 10 minutes
-• Modal warning popups that require acknowledgment
-• Easy configuration through interactive wizard
-• Can be temporarily disabled without uninstalling
+- Configurable restricted hours for each day of the week
+- Automatic checks every 10 minutes
+- Modal warning popups that require acknowledgment
+- Easy configuration through interactive wizard
+- Can be temporarily disabled without uninstalling
 
 COMMON TASKS:
 
@@ -462,9 +462,9 @@ To completely remove the Sleep Warning System:
    ./uninstall.sh
 
 This will:
-• Stop and disable the service
-• Remove all installed files
-• Optionally remove your configuration file
+- Stop and disable the service
+- Remove all installed files
+- Optionally remove your configuration file
 
 Your configuration will be preserved unless you choose to remove it."
     

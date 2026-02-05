@@ -436,7 +436,7 @@ get_pause_duration_config() {
             local duration_result
             duration_result=$(show_list_dialog \
                 "Sleep Warning Configuration - Pause Duration" \
-                "Select pause duration:\n\nCurrent setting: ${default_duration} minutes\n\nOptions:\n• 5 minutes - Shorter pause period\n• 10 minutes - Longer pause period\n\nThe selected duration determines how long warning popups are paused when user clicks pause button." \
+                "Select pause duration:\n\nCurrent setting: ${default_duration} minutes\n\nOptions:\n- 5 minutes - Shorter pause period\n- 10 minutes - Longer pause period\n\nThe selected duration determines how long warning popups are paused when user clicks pause button." \
                 600 \
                 350 \
                 "5" "10")
@@ -594,32 +594,42 @@ get_uninstall_protection_mode_config() {
                 mode_display="Difficult Uninstall (Recommended)"
             fi
             
-            mode_result=$(show_list_dialog \
+            # Call dialog and capture result (and exit code for reference)
+            local temp_result
+            temp_result=$(show_list_dialog \
                 "Sleep Warning Configuration - Uninstall Protection" \
-                "Choose protection mode for uninstall.sh during restricted hours:\n\nCurrent setting: ${mode_display}\n\nOptions:\n• none - No protection, uninstall works normally during restricted hours\n• difficult - Difficult uninstall, requires confirmation phrase + 10 arithmetic questions\n\nDifficult mode allows legitimate uninstalls while deterring impulsive ones.\nIt requires significant effort and cognitive engagement.\n\nNote: Total block mode may be considered as future phase." \
+                "Choose protection mode for uninstall.sh during restricted hours:\n\nCurrent setting: ${mode_display}\n\nOptions:\n- none - No protection, uninstall works normally during restricted hours\n- difficult - Difficult uninstall, requires confirmation phrase + 10 arithmetic questions\n\nDifficult mode allows legitimate uninstalls while deterring impulsive ones.\nIt requires significant effort and cognitive engagement.\n\nNote: Total block mode may be considered as future phase." \
                 700 \
                 500 \
                 "none" "difficult")
             local exit_code=$?
+            mode_result="${temp_result}"
             
-            if [ ${exit_code} -eq 0 ] && [ -n "${mode_result}" ]; then
-                protection_mode="${mode_result}"
+            # Trim whitespace and newlines from result (only if result exists)
+            if [ -n "${mode_result}" ]; then
+                mode_result=$(printf '%s' "${mode_result}" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            fi
+            
+            # Normalize to lowercase for comparison (dialog may return different casing)
+            local mode_result_lower
+            mode_result_lower=$(echo "${mode_result}" | tr '[:upper:]' '[:lower:]')
+            
+            # If we have a valid selection, accept it regardless of exit code (some dialog tools
+            # return non-zero even on OK). Only treat as cancel when result is empty or invalid.
+            if [ "${mode_result_lower}" = "none" ] || [ "${mode_result_lower}" = "difficult" ]; then
+                protection_mode="${mode_result_lower}"
+                echo "${protection_mode}"
+                return 0
+            fi
+            
+            # No valid result: user cancelled or dialog returned empty. Ask if they want to
+            # cancel the whole configuration or try again.
+            if confirm_cancel "${use_gui}"; then
+                echo "CANCELLED"
+                return 2  # Special return code for cancellation
             else
-                protection_mode=""
+                continue  # User wants to continue, re-prompt
             fi
-            
-            # User cancelled
-            if [ "${exit_code}" -ne 0 ] || [ -z "${protection_mode}" ]; then
-                if confirm_cancel "${use_gui}"; then
-                    echo "CANCELLED"
-                    return 2  # Special return code for cancellation
-                else
-                    continue  # User wants to continue, re-prompt
-                fi
-            fi
-            
-            echo "${protection_mode}"
-            return 0
         done
     else
         # Text mode

@@ -209,7 +209,7 @@ systemctl --user daemon-reload
 
 **Option**: `POPUP_SIZE`
 
-**Description**: Size of the warning popup dialog. Supports both fixed pixel sizes and display-based percentage sizing.
+**Description**: Size of the warning popup dialog. Supports both fixed pixel sizes and percentage-based sizing (the "display-based" mode).
 
 **Size Mode**: `POPUP_SIZE_MODE`
 
@@ -217,7 +217,7 @@ systemctl --user daemon-reload
 
 **Options**:
 - `fixed` (default): Uses absolute pixel values (backward compatible)
-- `display-based`: Calculates sizes as percentages of current display resolution
+- `display-based`: Percentage-based sizing; calculates sizes as percentages of the current display resolution
 
 **Format**: 
 - Predefined sizes: `xsmall`, `small`, `medium`, `large`, `xlarge`, `max`
@@ -234,7 +234,7 @@ In **fixed mode** (absolute pixels):
 - `xlarge`: 1845×1080 pixels (fixed mode) or 75% × 75% of screen (display-based mode)
 - `max`: 2214×1296 pixels
 
-In **display-based mode** (percentage of screen):
+In **percentage-based (display-based) mode** (percentage of screen):
 - `xsmall`: 15% × 15% of screen resolution
 - `small`: 20% × 20% of screen resolution
 - `medium`: 30% × 30% of screen resolution
@@ -826,7 +826,7 @@ Here is a complete example configuration file with all options:
 # Check interval: How often to check for restricted hours (in minutes)
 CHECK_INTERVAL=10
 
-# Popup size mode: fixed (pixels) or display-based (percentage of screen)
+# Popup size mode: fixed (pixels) or percentage-based (display-based; percentage of screen)
 POPUP_SIZE_MODE=fixed
 # Popup size: xsmall, small, medium, large, xlarge, max, or custom (WIDTHxHEIGHT or WIDTH%xHEIGHT%)
 POPUP_SIZE=medium

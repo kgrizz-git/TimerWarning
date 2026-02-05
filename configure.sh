@@ -327,7 +327,9 @@ main() {
                 
                 # Get popup size
                 local new_size
-                new_size=$(get_popup_size_config "${use_gui}")
+                # Pass current size mode so GUI can show percentage mappings
+                # when using display-based (percentage-based) sizing.
+                new_size=$(get_popup_size_config "${use_gui}" "${popup_size_mode}")
                 if [ "${new_size}" = "CANCELLED" ]; then
                     # User already confirmed cancellation
                     exit 0

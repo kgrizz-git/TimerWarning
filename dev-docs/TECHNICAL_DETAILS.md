@@ -111,6 +111,15 @@ For detailed display detection strategies for SteamOS Gaming Mode, see [STEAMOS_
 - Supports configurable minimum display time (prevents closing/minimizing for set duration)
 - Dialog tool priority: YAD → Zenity → KDialog (unified across all environments)
 
+### Locale / Unicode considerations (non-UTF-8)
+
+Some environments (notably systemd user services) can run with a non-UTF locale (e.g. `LANG=C`). GTK dialog tools (`yad` / `zenity`) may exit immediately if passed UTF‑8 text under a non‑UTF locale (e.g. “Invalid byte sequence in conversion input”).
+
+**Current behavior**:
+- The project attempts to switch to a UTF‑8 locale when available.
+- If UTF‑8 cannot be confirmed, user-visible GUI dialog strings are sanitized to **ASCII-only** before being passed to `yad`/`zenity`/`kdialog` to avoid crashes.
+- Console-only output may display Unicode separators/arrows as garbled text under non‑UTF locales, but does not affect GUI dialog safety.
+
 ## Dialog Tool Selection
 
 **Automatic Priority System**:

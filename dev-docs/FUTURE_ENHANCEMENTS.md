@@ -117,7 +117,7 @@ These enhancements can be integrated into the existing bash script suite without
 ### 14b. Configure.sh GUI Window Behavior (Implemented)
 - **Description**: Fix issue where `configure.sh` GUI windows (when run in GUI mode) can be mistaken for the warning popup and end up staying on top and being immovable. The actual warning popup should stay on top, not the configuration GUI windows.
 - **Priority**: Medium (usability issue, can confuse users)
-- **Status**: ✅ **Implemented** - Warning popup uses window title "Restricted Hours Alert" while configure.sh dialogs use "Sleep Warning Configuration". This title differentiation prevents configure.sh windows from being mistaken for warning popups by window management functions that identify windows by title.
+- **Status**: ✅ **Implemented** - Warning popup uses window title "ALERT: Restricted time window" while configure.sh dialogs use "Sleep Warning Configuration". This title differentiation prevents configure.sh windows from being mistaken for warning popups by window management functions that identify windows by title.
 - **Details**: See [enhancements/enhancement-14b-configure-gui-window-behavior.md](enhancements/enhancement-14b-configure-gui-window-behavior.md)
 
 ### 15. Auto-Close Popup Window (Implemented)

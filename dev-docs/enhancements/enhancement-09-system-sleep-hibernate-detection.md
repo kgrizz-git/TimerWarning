@@ -64,7 +64,7 @@ It is possible to configure `POPUP_MIN_DISPLAY_TIME` (0-300 seconds) to be great
 
 **Detection Method**:
 - Check for existing popup processes before spawning new one
-- Use window title matching: "Restricted Hours Alert"
+- Use window title matching: "ALERT: Restricted time window"
 - Check process tree: Look for zenity/yad/kdialog processes with matching window title
 - Store popup PID in state file: `~/.config/sleep-warning/.popup_pid`
 
@@ -78,7 +78,7 @@ It is possible to configure `POPUP_MIN_DISPLAY_TIME` (0-300 seconds) to be great
 - Works on all platforms
 
 **Approach B: Window Title Matching (Secondary)**
-- Use `wmctrl` or `xdotool` to find windows with exact title "Restricted Hours Alert"
+- Use `wmctrl` or `xdotool` to find windows with exact title "ALERT: Restricted time window"
 - Works on X11, limited on Wayland
 - Used as fallback if PID file is locked/unreadable
 
@@ -404,7 +404,7 @@ The following decisions have been made for implementation:
 - This handles edge cases where multiple popups somehow exist
 
 **Decision**: Window title matching
-- Use exact match for "Restricted Hours Alert"
+- Use exact match for "ALERT: Restricted time window"
 - Case-sensitive matching
 
 **Decision**: Stale PID cleanup

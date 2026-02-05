@@ -16,6 +16,21 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ---
 
+## test-non-utf-dialog-safety.sh
+
+**Last Run**: 2026-02-05 12:05 EST  
+**Status**: ✅ **PASS**  
+**Execution Time**: ~1 second  
+**Dependencies**: bash
+
+**Findings Summary**: Added and ran a regression test that forces ASCII fallback mode for dialog strings. Verified that `dialog_safe_text()` produces ASCII-only output and performs expected replacements for common symbols (arrows, checkmarks, alert signs, sirens, stopwatches, etc.). This guards against GUI dialog tool crashes under non-UTF locales.
+
+**Results**:
+- ✅ ASCII-only output under forced non-UTF mode (`DIALOG_SAFETY_FORCE_ASCII=1`)
+- ✅ Replacement mapping sanity checks (WARNING/TIMER/OK/->)
+
+---
+
 ## test-pause-feature.sh
 
 **Last Run**: 2026-01-25 00:54 EST  
@@ -567,7 +582,7 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ## test-enhancement-03-window-sizes.sh
 
-**Last Run**: 2026-01-25  
+**Last Run**: 2026-02-02  
 **Status**: ✅ **PASS** (11/11 tests passed)  
 **Execution Time**: ~3 seconds  
 **Dependencies**: bash
@@ -604,7 +619,7 @@ When a test is run again, **update the date/time and findings** for that test en
 - ✅ Large pixel values (2000x1350) treated as pixels, not percentages
 - ✅ Missing `POPUP_SIZE_MODE` defaults to `fixed` for backward compatibility
 
-**Results**: All tests pass. Window size functionality works correctly in both fixed and display-based modes. Size interpretation correctly distinguishes between pixel and percentage formats. Invalid values are properly rejected with fallback to safe defaults.
+**Results**: All tests pass. Window size functionality works correctly in both fixed and display-based modes. Size interpretation correctly distinguishes between pixel and percentage formats. Invalid values are properly rejected with fallback to safe defaults. Re-run on 2026-02-02 after popup size wizard label changes; no regressions detected.
 
 **Related Enhancement**: Enhancement #3 - Enhanced Window Size Options and Display-Based Sizing
 
@@ -846,12 +861,12 @@ Based on the latest test execution results:
 
 ## test-enhancement-03-integration.sh (Re-run after atomic write fix)
 
-**Last Run**: 2026-01-26 15:36 EST  
+**Last Run**: 2026-02-02 23:15 EST  
 **Status**: ✅ **PASS** (22/22 tests passed)  
-**Execution Time**: ~5 seconds  
+**Execution Time**: ~6 seconds  
 **Dependencies**: bash
 
-**Findings Summary**: Re-ran after atomic write fix. Initially 20/22 tests passed, 2 failed. Fixed test to pass all 15 required parameters to `write_config()`. All 22 tests now pass successfully.
+**Findings Summary**: Re-ran after atomic write fix and subsequent popup size wizard label changes. Initially 20/22 tests passed, 2 failed; test was fixed to pass all 15 required parameters to `write_config()`. All 22 tests now pass successfully and continue to do so after the February 2026 UI updates.
 
 **Context**: Test was failing because `write_config()` function signature requires 15 positional parameters before the config_lines array, but test was only passing 11 parameters. After atomic write fix, test needed update to match current function signature.
 

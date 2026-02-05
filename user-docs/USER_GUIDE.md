@@ -113,7 +113,7 @@ nano ~/.config/sleep-warning/config/sleep-warning.conf
 # Check interval (minutes)
 CHECK_INTERVAL=10
 
-# Popup size mode: fixed (pixels) or display-based (percentage of screen)
+# Popup size mode: fixed (pixels) or percentage-based (display-based; percentage of screen)
 POPUP_SIZE_MODE=fixed
 # Popup size: xsmall, small, medium, large, xlarge, max, or custom (WIDTHxHEIGHT or WIDTH%xHEIGHT%)
 POPUP_SIZE=medium
@@ -428,6 +428,28 @@ If you prefer to manually close popups, you can disable auto-close:
 **See [CONFIGURATION.md](CONFIGURATION.md#auto-close-popup-window) for complete auto-close configuration documentation.**
 
 ## Troubleshooting
+
+### Problem: Dialogs fail or crash under non‑UTF‑8 locales (LANG=C)
+
+**Symptoms:**
+- GUI popups or wizard dialogs close immediately
+- Errors in logs mentioning “Invalid byte sequence” or locale/encoding
+
+**Cause:**
+Some environments can run with a non‑UTF locale (e.g. `LANG=C`). GTK dialog tools (especially `yad`/`zenity`) may fail if they receive UTF‑8 text under a non‑UTF locale.
+
+**What to expect:**
+- The Sleep Warning System will prefer “fancy” Unicode symbols when a UTF‑8 locale is available.
+- If a UTF‑8 locale cannot be confirmed, GUI dialog text is automatically reduced to **ASCII-only** to avoid crashes.
+- In a non‑UTF locale, some console output (arrows/box lines) may look garbled, but the system should still function.
+
+**Optional fix (recommended):**
+Configure a UTF‑8 locale for your session/environment (examples):
+
+```bash
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+```
 
 ### Problem: Popup Doesn't Appear
 
