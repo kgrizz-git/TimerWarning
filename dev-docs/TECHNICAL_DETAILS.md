@@ -223,84 +223,14 @@ Users can manually override the automatic priority system by setting `DIALOG_TOO
 - Values: `true` or `false` (default: `true` - enabled by default)
 - Configurable via configuration wizard (Window Behavior menu option)
 
-**Implementation**:
+**Implementation Summary**:
+- Uses process termination (SIGTERM, then SIGKILL if needed) to close popup after fixed 10-second delay
+- Timer starts after minimum display time completes (or immediately if minimum display time is 0)
+- Works on all platforms (X11, Wayland, gamescope) since it uses process termination rather than window management tools
+- Integrates with minimum display time and pause button features
+- Auto-close delay is fixed at 10 seconds and cannot be configured
 
-1. **Timer Mechanism**:
-   - Auto-close happens **10 seconds after minimum display time completes** (additional time, not total time)
-   - If `POPUP_MIN_DISPLAY_TIME=30`, total time until auto-close = 40 seconds (30 + 10)
-   - If `POPUP_MIN_DISPLAY_TIME=0`, auto-close happens after 10 seconds
-   - Timer starts after minimum display time loop completes (if min_display_time > 0)
-   - Timer starts immediately if min_display_time = 0
-
-2. **Process Termination Method**:
-   - Uses process termination (SIGTERM first, then SIGKILL if needed)
-   - **SIGTERM** (graceful shutdown): `kill -TERM "${popup_pid}"`
-     - Waits 0.5 seconds for process to exit
-     - Checks if process exited
-   - **SIGKILL** (force termination): `kill -KILL "${popup_pid}"` (if SIGTERM fails)
-     - Waits 0.5 seconds for process to exit
-     - Checks if process exited
-   - Works for all dialog tools (zenity, yad, kdialog) - process termination is universal
-
-3. **Timer Function**:
-   - `auto_close_popup()` - Background function that:
-     - Sleeps for 10 seconds (fixed delay)
-     - Checks if popup process is still running
-     - Closes popup using `close_popup_process()` if still running
-     - Logs auto-close events
-
-4. **Process Close Function**:
-   - `close_popup_process()` - Handles process termination:
-     - Checks if process is still running (`kill -0 "${popup_pid}"`)
-     - Returns success if process already exited (user closed manually)
-     - Tries SIGTERM first, then SIGKILL if needed
-     - Handles errors gracefully (logs warnings, doesn't crash)
-
-5. **Timer Management**:
-   - Timer PID stored when starting auto-close timer
-   - If user manually closes popup, timer is automatically cancelled
-   - If auto-close succeeds, timer process exits naturally
-   - Timer cancellation handled in main `show_warning()` function
-
-6. **Integration with Minimum Display Time**:
-   - Auto-close respects minimum display time:
-     - If `min_display_time > 0`: Wait for minimum display time to complete, then start 10-second timer
-     - If `min_display_time = 0`: Start 10-second timer immediately after popup displays
-   - Popup messages updated to show auto-close information:
-     - During minimum display time: "This popup must remain visible for X more second(s) before it can be closed. It will auto-close 10 seconds after that."
-     - If minimum display time is 0: "This popup will auto-close in 10 seconds."
-
-7. **Pause Button Integration**:
-   - If pause button is clicked, popup closes immediately (before auto-close timer starts)
-   - No timer cancellation needed (pause causes early return before timer starts)
-
-**Platform Compatibility**:
-- **X11**: Full support - process termination works on all X11 systems
-- **Wayland**: Full support - process termination works on Wayland (doesn't require window tools)
-- **gamescope (SteamOS Gaming Mode)**: Full support - process termination works in gamescope
-- **Advantage**: Unlike window management features (minimum display time enforcement), auto-close doesn't require window tools, so it works on all platforms
-
-**Logging**:
-- Logs auto-close configuration when popup is displayed
-- Logs when auto-close timer starts
-- Logs when popup is auto-closed (successful termination)
-- Logs if auto-close is cancelled (user closed manually)
-- Logs if process termination fails (SIGTERM and SIGKILL both fail)
-- Uses appropriate log levels (INFO for normal operation, WARNING for issues)
-
-**Limitations**:
-- **Fixed Delay**: Auto-close delay is fixed at 10 seconds and cannot be configured
-- **Process Termination**: Relies on process termination, which may fail in rare edge cases (both SIGTERM and SIGKILL fail)
-- **No Visual Countdown**: Currently no visual countdown for the 10-second auto-close delay (future enhancement possibility)
-
-**Testing Requirements**:
-- Test with all dialog tools (zenity, yad, kdialog)
-- Test with minimum display time enabled (e.g., 30 seconds) - verify popup closes after 40 seconds total
-- Test with minimum display time disabled (0) - verify popup closes after 10 seconds
-- Test manual close before auto-close - verify timer is cancelled
-- Test pause button with auto-close - verify popup closes immediately
-- Test on X11, Wayland, and gamescope platforms
-- Test process termination failure scenarios (if possible to simulate)
+**For detailed implementation information**, including timer mechanism, process termination methods, platform compatibility, logging, limitations, and testing requirements, see [enhancements/enhancement-15-auto-close-popup-window.md](enhancements/enhancement-15-auto-close-popup-window.md).
 
 ## Full-Screen Application Compatibility
 
@@ -413,287 +343,33 @@ The `configure.sh` script provides a user-friendly way to set up restricted hour
 
 The configuration wizard includes a critical safety feature that prevents users from accidentally configuring restrictions for all 24 hours, 7 days a week, which would effectively lock them out of their computer.
 
-### Overview
+**Implementation Summary**:
+- Validation runs automatically when user attempts to save configuration (in `configure.sh`, case 6: "Review and Save")
+- Uses holistic time coverage analysis evaluating all 7 days together, including restriction hours, config lock hours, and uninstall lock hours
+- Detects and merges overlapping intervals (within-day, cross-day, and cross-type overlaps) to avoid double-counting
+- Compares total restricted minutes against thresholds:
+  - **>= 10080 minutes** (24/7): Configuration blocked, user must modify settings
+  - **> 6720 but < 10080 minutes** (16+ hours/day): Warning shown, automatic safety overrides applied if user confirms
+  - **<= 6720 minutes**: Configuration valid, proceeds normally
+- Handles overnight ranges, week wrap-around, and edge cases correctly
+- Module: `lib/configure-validation.sh` with `check_restriction_coverage()` function
 
-**Purpose**: Detect and prevent dangerous restriction configurations that would leave no unrestricted time for the user to modify settings or use their computer.
-
-**Implementation**: Validation runs automatically when the user attempts to save their configuration (in `configure.sh`, case 6: "Review and Save"), after the summary is confirmed but before writing to the config file.
-
-### Validation Algorithm
-
-The validation uses a **holistic time coverage analysis** that evaluates all 7 days together and includes **all three types of hours**:
-
-1. **Input Processing**: The validation function accepts three types of hour configurations:
-   - **Restriction hours** (`config_lines[]`): Main schedule for sleep warnings (format: "DAYVAR=RANGE")
-   - **Config lock hours** (`lock_hours_lines[]`): Additional hours for config locking and configure.sh blocking (format: "CONFIG_LOCK_HOURS_DAYVAR=RANGE")
-   - **Uninstall lock hours** (`uninstall_lock_hours_lines[]`): Additional hours for difficult uninstall verification (format: "UNINSTALL_LOCK_HOURS_DAYVAR=RANGE")
-
-2. **Unified Timeline Mapping**: All time ranges from all three types are converted to a unified weekly timeline (minutes 0-10079)
-   - Day 0 (Sunday): minutes 0-1439
-   - Day 1 (Monday): minutes 1440-2879
-   - Day 2 (Tuesday): minutes 2880-4319
-   - Day 3 (Wednesday): minutes 4320-5759
-   - Day 4 (Thursday): minutes 5760-7199
-   - Day 5 (Friday): minutes 7200-8639
-   - Day 6 (Saturday): minutes 8640-10079
-
-2. **Overnight Range Handling**: Overnight ranges (start hour > end hour, e.g., "23-6") are split into two segments:
-   - Segment 1: [start_hour×60, 1440) on current day
-   - Segment 2: [0, end_hour×60) on next day
-   - Handles wrap-around: Saturday overnight ranges wrap to Sunday
-
-3. **Overlap Detection and Merging**: **Critical** - The system detects and merges overlapping intervals:
-   - **Within-day overlaps**: Multiple ranges on the same day (e.g., "0-10,9-23" overlaps at hours 9-10)
-   - **Cross-day overlaps**: Overnight ranges overlapping with next day's ranges (e.g., Monday "23-6" and Tuesday "0-5" overlap at hours 0-5)
-   - **Cross-type overlaps**: Different hour types overlapping on the same day (e.g., restriction "0-8", lock "7-15", uninstall "10-18" all overlap)
-   - All overlapping intervals are merged to avoid double-counting restricted minutes
-
-4. **Total Calculation**: After merging, total restricted minutes are calculated from all merged intervals
-
-5. **Threshold Comparison**: Total is compared against two thresholds:
-   - **THRESHOLD_BLOCK = 10080 minutes** (7 days × 24 hours × 60 minutes)
-     - If total >= 10080: Configuration is **blocked** (24/7 detected)
-   - **THRESHOLD_WARN = 6720 minutes** (7 days × 16 hours × 60 minutes)
-     - If total > 6720 but < 10080: **Warning** shown (high restriction level)
-     - If total <= 6720: Configuration is **valid** (proceeds normally)
-
-### Time Range Semantics
-
-**Important**: Hour ranges use **inclusive start, exclusive end** semantics:
-- "0-23" covers hours 0-22 (23 hours total: 00:00-22:59)
-- "0-5" covers hours 0-4 (5 hours total: 00:00-04:59)
-- To cover all 24 hours, use combination like "0-12,12-0" (12 hours + 12 hours = 24 hours)
-
-### Validation Results
-
-The validation function (`check_restriction_coverage()` in `lib/configure-validation.sh`) returns one of three results:
-
-1. **"block"** (24/7 detected, >= 10080 minutes):
-   - Error dialog shown: "ERROR: 24/7 Restrictions Detected"
-   - Configuration is **blocked from saving**
-   - User must modify settings to reduce restriction level
-   - Prevents accidental lockout
-
-2. **"warn"** (High restriction level, > 6720 but < 10080 minutes):
-   - Warning dialog shown: "Warning: Very High Restriction Level"
-   - Message clarifies that the combined total of restriction hours and additional lock hours exceeds 16 hours/day
-   - User can confirm to save anyway or modify settings
-   - **Automatic safety overrides applied** if user confirms:
-     - Popup size restricted to "small" or "medium" only (if "large" or "fullscreen" was selected)
-     - Config locking features automatically disabled (if implemented)
-     - Configure.sh blocking automatically disabled (if implemented)
-     - **Additional lock hours cleared**: Config lock hours and uninstall lock hours arrays are cleared completely
-   - Config file includes comments explaining why safety features are disabled or cleared
-
-3. **"ok"** (Valid configuration, <= 6720 minutes):
-   - Configuration proceeds normally
-   - No warnings or restrictions
-
-### Implementation Details
-
-**Module**: `lib/configure-validation.sh`
-- `check_restriction_coverage()`: Main validation function
-- `merge_overlapping_intervals()`: Interval merging algorithm
-
-**Integration**: Validation is called in `configure.sh` (case 6: "Review and Save") after `show_summary()` confirms but before `write_config()` is called.
-
-**Dialog Functions**: Error and warning dialogs are in `lib/configure-ui.sh`:
-- `show_24_7_error()`: Error dialog for 24/7 restrictions
-- `show_high_restriction_warning()`: Warning dialog for high restriction levels
-
-**Performance**: 
-- Time complexity: O(n log n) where n = total number of time ranges
-- Runs once per configuration save (not continuously)
-- Minimal memory and CPU overhead
-
-### Edge Cases Handled
-
-- **Empty days**: Counted as 0 restricted minutes
-- **Explicitly skipped days**: Days with empty string "" are counted as 0 restricted minutes
-- **Multiple ranges per day**: All ranges are processed and merged correctly
-- **Overnight ranges**: Correctly split and mapped to unified timeline
-- **Week wrap-around**: Saturday overnight ranges correctly wrap to Sunday
-- **Boundary cases**: 
-  - Exactly 6720 minutes (16 hours/day): returns "ok" (no warning)
-  - Exactly 10080 minutes (24/7): returns "block" (prevents saving)
-- **Invalid ranges**: Skipped silently (should be caught by format validation first)
-
-### Safety Features
-
-When high restrictions (> 6720 minutes) are detected and user confirms:
-- **Popup size restriction**: Automatically limits popup size to "small" or "medium" only
-  - Prevents overly intrusive popups when user has very limited unrestricted time
-  - Config file comment explains: "POPUP_SIZE has been restricted to small/medium only because restrictions exceed 16 hours/day"
-- **Config locking disabled**: Automatically disables config file locking features (if implemented)
-  - Prevents users from locking themselves out during very limited unrestricted time
-  - Config file comment explains: "CONFIG_LOCK_ENABLED and CONFIGURE_BLOCK_ENABLED are disabled because restrictions exceed 16 hours/day"
-- **Transparency**: Config file comments clearly explain why safety features are disabled
-
-### Related Enhancements
-
-- **Enhancement #18 (Config File Locking)**: Automatically disabled if restrictions > 9660 minutes per week (> 23 hours/day)
-- **Enhancement #19 (Prevent configure.sh Execution)**: Automatically disabled if restrictions > 6720 minutes
-- **Enhancement #20 (Additional Hours for Config Locking)**: Automatically cleared if restrictions > 6720 minutes
-- **Enhancement #03 (Enhanced Window Size Options)**: Popup size automatically restricted to small/medium only if restrictions > 6720 minutes
-
-For detailed implementation notes, see [enhancements/enhancement-22-prevent-24-7-restriction-configuration.md](enhancements/enhancement-22-prevent-24-7-restriction-configuration.md).
+**For detailed implementation information**, including validation algorithm, time range semantics, validation results, implementation details, edge cases, safety features, and related enhancements, see [enhancements/enhancement-22-prevent-24-7-restriction-configuration.md](enhancements/enhancement-22-prevent-24-7-restriction-configuration.md).
 
 ## Config File Locking (Enhancement #18)
 
-### Overview
-
 Config file locking is a deterrence feature that makes the configuration file and directory read-only during restricted hours and configured lock hours. This prevents users from easily modifying settings during times they've chosen to restrict.
 
-**Implementation**: Option A (Dedicated Config Directory) - Stronger deterrence by locking both the config directory and file.
+**Implementation Summary**:
+- **Option A (Dedicated Config Directory)**: Locks both config directory (`chmod 555`) and config file (`chmod 444`) for stronger deterrence
+- **Module**: `lib/config-locking.sh` with functions for lock state management, permission storage/restoration, and self-healing
+- **Self-Healing**: Runs on every timer tick to detect and restore tampering (config file deletion, permission changes)
+- **Integration**: Applied in `sleep-warning.sh` before restriction checking; checked in `configure.sh` before allowing edits; bypassed in `uninstall.sh` for safety
+- **Migration**: Automatically migrates config from `~/.config/sleep-warning/sleep-warning.conf` to `~/.config/sleep-warning/config/sleep-warning.conf` during installation
+- **Safety Features**: Automatically disabled if restrictions exceed 9660 minutes/week; uninstall script always works even during lock hours
+- **Limitations**: Deterrence-only feature; can be bypassed by stopping timer or changing permissions manually
 
-### Architecture
-
-**Module**: `lib/config-locking.sh`
-
-**Key Functions**:
-- `is_config_lock_active()` - Determines if lock should be active based on `CONFIG_LOCK_ENABLED` and current time
-- `store_lock_state()` - Saves original permissions to marker file
-- `retrieve_lock_state()` - Reads permissions from marker file for restoration
-- `apply_config_directory_lock()` - Main locking function (idempotent)
-- `check_and_restore_config_file()` - Self-healing function that detects tampering
-
-**Dependencies**:
-- `lib/config.sh` - For `CONFIG_FILE`, `CONFIG_DIR`, `get_config_lock_enabled()`, `parse_config()`, `parse_lock_hours()`
-- `lib/time-validation.sh` - For `is_restricted_hour()`, `is_lock_hour()`
-- `lib/logging.sh` - Optional, for logging warnings
-
-### Lock Mechanism
-
-**Option A Implementation** (Chosen):
-- **Config Directory**: `~/.config/sleep-warning/config/` → locked to `555` (no writes)
-- **Config File**: `~/.config/sleep-warning/config/sleep-warning.conf` → locked to `444` (read-only)
-- **Marker File**: `~/.config/sleep-warning/.config_locked` (in parent directory, accessible even when config directory is locked)
-- **Snapshot File**: `~/.config/sleep-warning/.config_locked_snapshot` (for self-healing)
-
-**Why Option A**:
-- Stronger deterrence - directory lock prevents common editor pattern of writing temp file then renaming over original
-- Prevents most bypass methods that work with file-only locks
-- Still deterrence-only (user can stop service or change permissions if they have access)
-
-### Lock State Management
-
-**Marker File Format**:
-```
-TIMESTAMP=2026-01-23T10:30:00|REASON=restricted_hours|DIR_MODE=755|FILE_MODE=644|MARKER_MODE=644
-```
-
-**Lock Application Flow**:
-1. Check if lock should be active (`is_config_lock_active()`)
-2. If active:
-   - If marker doesn't exist (first lock): Store current permissions, create snapshot, create marker
-   - Lock marker file (`chmod 444`) to prevent deletion/editing
-   - Lock directory (`chmod 555`)
-   - Lock config file (`chmod 444`)
-3. If not active:
-   - If marker exists (was locked): Restore permissions from marker, remove marker and snapshot
-
-**Permission Restoration**:
-- **CRITICAL**: System MUST restore actual original permissions (stored in marker file), not hardcoded defaults
-- Only use safe defaults (755/644) as fallback if marker file is corrupted/missing
-- Marker file permissions are restored first (to make it writable), then directory, then file
-
-### Self-Healing Mechanism
-
-**Frequency**: Runs on every timer tick (every `sleep-warning.sh` execution)
-
-**What It Checks**:
-1. Config file existence - restores from snapshot if missing
-2. Config file modification time - restores from snapshot if newer than snapshot
-3. Directory permissions - re-applies lock if writable
-4. File permissions - re-applies lock if writable
-5. Marker file permissions - re-applies lock if writable
-
-**Rationale**:
-- Low overhead (< 10ms for checks)
-- Immediate detection (catches tampering within one check interval, typically 10 minutes)
-- Defense-in-depth (directory lock prevents most bypasses, self-healing catches edge cases)
-
-### Integration Points
-
-**sleep-warning.sh**:
-- Calls `apply_config_directory_lock()` early in main function (before restriction checking)
-- Calls `check_and_restore_config_file()` after lock application (if lock is active)
-
-**configure.sh**:
-- Checks `is_config_lock_active()` before allowing configuration changes
-- Shows error message via `show_config_file_locked_error()` if locked
-- Exits without calling `write_config()` if lock is active
-
-**uninstall.sh**:
-- Always restores permissions via `restore_config_permissions()` function
-- Works even during lock hours (bypasses lock check)
-- Uses safe defaults (755/644) if marker file is missing/corrupted
-
-### Migration (Option A)
-
-**Old Location**: `~/.config/sleep-warning/sleep-warning.conf`
-**New Location**: `~/.config/sleep-warning/config/sleep-warning.conf`
-
-**Migration Process**:
-- Runs during `install.sh` execution
-- If old config exists and new doesn't:
-  1. Create backup of old config
-  2. Create config directory: `mkdir -p ~/.config/sleep-warning/config`
-  3. Copy old config to new location
-  4. Verify copy succeeded (size + checksum when available)
-  5. Remove old config only after successful verification
-- If migration fails, old config is preserved and error is logged
-
-**Backward Compatibility**: No fallback - only new location is used. Migration must succeed before system can function.
-
-### Safety Features
-
-**Automatic Disabling** (Enhancement #22):
-- If restrictions exceed 9660 minutes per week (> 23 hours/day), `CONFIG_LOCK_ENABLED` is automatically set to `false`
-- Prevents accidental lockout scenarios where users cannot modify configuration during very limited unrestricted time
-- User is informed why the feature was disabled
-
-**Uninstall Safety**:
-- `uninstall.sh` always works, even during lock hours
-- Force restores permissions before removing config files
-- No lock check in uninstall script (bypasses lock)
-
-### Edge Cases Handled
-
-1. **System Time Changes**: Lock state adapts automatically (no cached time values)
-2. **System Sleep/Resume**: Lock persists (re-applied on next timer tick)
-3. **Manual Permission Changes**: Self-healing re-applies lock on next timer tick
-4. **Config File Deletion**: Self-healing restores from snapshot (though directory lock makes this difficult)
-5. **Missing Marker File**: Treated as first lock (stores current permissions, creates marker)
-6. **Corrupted Marker File**: Uses safe defaults (755/644) for restoration, logs warning
-7. **Corrupted Snapshot File**: Doesn't restore from corrupted snapshot (prevents data loss)
-
-### Limitations
-
-**Deterrence Only**:
-- User can stop systemd timer/service to bypass
-- User can change permissions manually if they have write access to parent directory
-- User can edit files outside expected flow
-- Not a complete security boundary (no root/Polkit required)
-
-**Bypass Methods**:
-- Stop timer: `systemctl --user stop sleep-warning.timer`
-- Change permissions: `chmod 755 ~/.config/sleep-warning/config` (if user has access)
-- Edit via root/sudo (if user has root access)
-
-### Testing
-
-**Test Files**:
-- `tests/test-config-locking.sh` - Unit and edge case tests
-- `tests/test-configure-blocking.sh` - Integration test for configure.sh blocking
-- `tests/test-uninstall-lock-hours.sh` - Integration test for uninstall during lock hours
-
-**Coverage**:
-- Lock activation/deactivation
-- Permission storage and restoration
-- Self-healing mechanism
-- Edge cases (missing marker, corrupted snapshot, manual permission changes)
-- Integration with configure.sh and uninstall.sh
+**For detailed implementation information**, including architecture, lock mechanism, lock state management, self-healing mechanism, integration points, migration process, safety features, edge cases, limitations, and testing, see [enhancements/enhancement-18-config-file-locking.md](enhancements/enhancement-18-config-file-locking.md).
 
 ## Management/Help Script Details
 

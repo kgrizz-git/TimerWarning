@@ -237,130 +237,49 @@ systemctl --user daemon-reload
 
 ## Understanding Logs
 
-### Log File Locations
+The Sleep Warning System creates logs in two locations to help you monitor system activity and troubleshoot issues:
 
-The system creates logs in two places:
+1. **User Log File**: `~/.config/sleep-warning/warnings.log` - Most useful for troubleshooting
+2. **Systemd Journal**: `journalctl --user -u sleep-warning.service` - Service execution logs
 
-1. **User Log File** (most useful for troubleshooting):
-   ```
-   ~/.config/sleep-warning/warnings.log
-   ```
+### Quick Reference
 
-2. **Systemd Journal** (service execution logs):
-   ```bash
-   journalctl --user -u sleep-warning.service
-   ```
-
-### Viewing Logs
-
-**View User Log File:**
+**View recent log entries:**
 ```bash
-# View last 20 lines
+# User log file (last 20 lines)
 tail -n 20 ~/.config/sleep-warning/warnings.log
 
-# Follow log in real-time
+# Systemd journal (last 50 entries)
+journalctl --user -u sleep-warning.service -n 50
+```
+
+**Follow logs in real-time:**
+```bash
+# User log file
 tail -f ~/.config/sleep-warning/warnings.log
 
-# View entire log
-cat ~/.config/sleep-warning/warnings.log
-```
-
-**View Systemd Journal:**
-```bash
-# Last 50 entries
-journalctl --user -u sleep-warning.service -n 50
-
-# Follow in real-time
+# Systemd journal
 journalctl --user -u sleep-warning.service -f
-
-# All entries
-journalctl --user -u sleep-warning.service
 ```
 
-### Log File Format
+### What Is Logged?
 
-**User Log File Format:**
+The system logs information about:
+- **Restricted hours detection** - When restrictions are active and detected
+- **Popup display** - When popups are shown, including window state and dialog tool used
+- **Popup closure** - How popups were closed and whether minimum display time was respected
+- **Errors and warnings** - Missing dependencies, display detection failures, dialog tool failures
+
+### Log Format
+
+Log entries follow this format:
 ```
 [YYYY-MM-DD HH:MM:SS] [LEVEL] Message
 ```
 
-**Example Log Entries:**
-```
-[2024-01-15 02:30:15] [WARNING] Restricted time detected - Day: 1, Time: 0230, Range: 00:00-05:00, Display: x11, Display ID: :0
-[2024-01-15 02:30:15] [INFO] Display environment: x11, Display ID: :0, Window state: fullscreen, Window title: Game Window
-[2024-01-15 02:30:15] [INFO] Using dialog tool: zenity
-[2024-01-15 02:30:15] [INFO] Popup displayed successfully (PID: 12345), Dialog tool: zenity, Size: medium, Position: center, Min display time: 30s
-[2024-01-15 02:30:45] [INFO] Popup closed by user after minimum display time
-```
+Log levels: `INFO` (normal operation), `WARNING` (warnings), `ERROR` (errors)
 
-**Log Levels:**
-- `INFO` - Normal operation information
-- `WARNING` - Warning messages (restricted hours detected, popup issues)
-- `ERROR` - Error messages (missing dependencies, popup failures)
-
-### What Information Is Logged?
-
-**When Restricted Hours Are Detected:**
-- Timestamp
-- Day of week (0=Sunday, 6=Saturday)
-- Current hour (0-23)
-- Matched time range
-- Display environment (x11, wayland, gamescope)
-- Display ID
-
-**When Popup Is Displayed:**
-- Display environment type and ID
-- Window state (fullscreen, maximized, windowed, unknown)
-- Window title (active window when popup appears)
-- Dialog tool used (zenity, yad, kdialog)
-- Popup size and position
-- Minimum display time setting
-- Popup process ID (PID)
-
-**When Popup Closes:**
-- How popup was closed (user dismissal, timeout, error)
-- Exit code (if applicable)
-- Whether minimum display time was respected
-
-**Errors and Warnings:**
-- Missing dependencies
-- Display detection failures
-- Dialog tool failures
-- Window management issues
-
-### Window State Detection
-
-The system detects the state of the active window when a warning is triggered. This helps troubleshoot why popups might not appear over certain applications.
-
-**Detected Window States:**
-
-**X11 (with xdotool/xprop):**
-- `fullscreen` - Window is in fullscreen mode
-- `maximized` - Window is maximized (but not fullscreen)
-- `windowed` - Window is in normal windowed mode
-- `windowed (detection limited)` - Window detected but state couldn't be determined
-
-**Wayland:**
-- `fullscreen` - Window is fullscreen (if detected via swaymsg)
-- `fullscreen (gamescope)` - Running in gamescope compositor
-- `windowed` - Window is in windowed mode (if detected)
-- `unknown (wayland - limited detection)` - State couldn't be determined
-
-**Gamescope (SteamOS Gaming Mode):**
-- `fullscreen (gamescope)` - Detected gamescope session
-- `unknown (gamescope)` - Gamescope detected but state unknown
-
-**Why This Matters:**
-- Fullscreen applications may block popups from appearing
-- Window state is logged to help diagnose popup visibility issues
-- Some window managers handle popups differently based on active window state
-
-### Log Rotation
-
-The user log file automatically rotates when it exceeds 10 MB:
-- Log file is truncated to the last 1000 lines
-- Old entries are preserved in the truncated file
-- No manual intervention required
+**For comprehensive log documentation**, including detailed log format, log entry examples, window state detection, log rotation, and troubleshooting with logs, see [LOG_REFERENCE.md](LOG_REFERENCE.md).
 
 ## Common Use Cases
 
