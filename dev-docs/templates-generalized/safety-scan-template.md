@@ -607,9 +607,9 @@ When documenting issues in the timestamped scan file, include:
 #### 11.2 Unintended File Deletion Prevention
 - [ ] **Verify**: `un[INSTALL_SCRIPT].sh` only removes specifically named files, not wildcard patterns that could match unintended files
 - [ ] **Check**: All `rm` commands in `un[INSTALL_SCRIPT].sh` use explicit file paths (e.g., `rm -f "$INSTALL_DIR/[MAIN_SCRIPT].sh"`), not wildcards (e.g., `rm -f "$INSTALL_DIR/*"`)
-- [ ] **Test**: Create files with similar names in installation directories (e.g., `[MAIN_SCRIPT].sh.backup`, `sleep-warning-other.sh`) and verify they are not deleted
+- [ ] **Test**: Create files with similar names in installation directories (e.g., `[MAIN_SCRIPT].sh.backup`, `[PROJECT_NAME]-other.sh`) and verify they are not deleted
 - [ ] **Verify**: Directory removal (`rmdir`) only occurs after explicit checks that directory is empty
-- [ ] **Check**: `rm -rf "$LIB_DIR"` only removes the specific sleep-warning library directory, not parent directories
+- [ ] **Check**: `rm -rf "$LIB_DIR"` only removes the specific project library directory, not parent directories
 - [ ] **Test**: Verify `LIB_DIR` is always an absolute path and never contains `..` or resolves outside intended location
 - [ ] **Verify**: No script uses `rm -rf` with user-provided input or config file values
 
@@ -638,7 +638,7 @@ When documenting issues in the timestamped scan file, include:
 - [ ] **Verify**: `[INSTALL_SCRIPT].sh` only creates/copies files to intended installation locations
 - [ ] **Check**: `[INSTALL_SCRIPT].sh` doesn't remove or overwrite files outside installation directories
 - [ ] **Test**: Run `[INSTALL_SCRIPT].sh` and verify it doesn't modify project directory files
-- [ ] **Verify**: `[CONFIG_SCRIPT].sh` only modifies the config file in `~/[CONFIG_DIR]/config/sleep-warning.conf` (older installs may have `~/[CONFIG_DIR]/sleep-warning.conf`)
+- [ ] **Verify**: `[CONFIG_SCRIPT].sh` only modifies the config file in `~/[CONFIG_DIR]/config/[CONFIG_FILE]` (ensure path handling works for different config locations)
 - [ ] **Check**: `[CONFIG_SCRIPT].sh` doesn't delete or rename any files
 - [ ] **Test**: Run `[CONFIG_SCRIPT].sh` and verify no files are deleted or renamed
 - [ ] **Verify**: `[MANAGE_SCRIPT].sh` doesn't perform any file deletion operations

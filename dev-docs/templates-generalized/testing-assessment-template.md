@@ -267,7 +267,7 @@ This approach ensures:
    - **CRITICAL**: Dummy config files should mimic the structure and format of real config files
    - Use dummy config files that accurately represent real-world configurations
    - This approach completely isolates tests from the actual installed configuration
-   - Example: Create `[TEST_DIR]/test-configs/test-sleep-warning.conf` that mimics `${HOME}/[CONFIG_FILE_PATH]`
+   - Example: Create `[TEST_DIR]/test-configs/test-config.conf` that mimics `${HOME}/[CONFIG_FILE_PATH]`
 
 2. **Copy and Modify Scripts When Needed** (REQUIRED IF SCRIPTS MUST BE MODIFIED):
    - **NEVER modify actual `.sh` scripts during testing**
@@ -321,7 +321,7 @@ This approach ensures:
 - **test-[CONFIG_SCRIPT].sh**: Uses modified copy of [CONFIG_SCRIPT].sh with dummy config path
   - Approach: Copies `[CONFIG_SCRIPT].sh` to `[TEST_DIR]/test-[CONFIG_SCRIPT].sh` and modifies to use dummy config
   - Copied Scripts: `[TEST_DIR]/test-[CONFIG_SCRIPT].sh` (copy of `[CONFIG_SCRIPT].sh`)
-  - Dummy Config: `[TEST_DIR]/test-configs/test-sleep-warning.conf` (mimics real config)
+  - Dummy Config: `[TEST_DIR]/test-configs/test-config.conf` (mimics real config)
   - Script Modifications: Modified copy uses `TEST_CONFIG_PATH` variable pointing to dummy config
   - Safety Level: SAFE - No risk to actual config or scripts
   - Tracked Edits for Original Scripts:
