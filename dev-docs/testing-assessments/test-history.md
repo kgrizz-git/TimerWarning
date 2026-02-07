@@ -33,12 +33,12 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ## test-pause-feature.sh
 
-**Last Run**: 2026-01-25 00:54 EST  
+**Last Run**: 2026-02-07 00:22 EST  
 **Status**: ✅ **PASS** (27/27 tests passed)  
 **Execution Time**: ~5 seconds  
 **Dependencies**: bash
 
-**Findings Summary**: Re-ran. All 27 tests passed successfully. Pause feature (Enhancement #21) is working correctly. No issues identified.
+**Findings Summary**: Re-ran after refactors to popup/config modules. All 27 tests passed successfully. Pause feature (Enhancement #21) remains working correctly. No issues identified.
 
 **Results**:
 - ✅ Pause state file creation and permissions
@@ -54,12 +54,12 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ## test-dialog-tool-selection.sh
 
-**Last Run**: 2026-01-25 00:54 EST  
+**Last Run**: 2026-02-07 00:22 EST  
 **Status**: ✅ **PASS** (24/24 tests passed)  
 **Execution Time**: ~3 seconds  
 **Dependencies**: bash, zenity/yad/kdialog (at least one)
 
-**Findings Summary**: Re-ran. All 24 tests passed successfully. Dialog tool selection (Enhancement #25) is working correctly. No issues identified.
+**Findings Summary**: Re-ran after refactors to dialog/popup code. All 24 tests passed successfully. Dialog tool selection (Enhancement #25) is working correctly. No issues identified.
 
 **Results**:
 - ✅ Configuration file parsing (13 tests)
@@ -109,12 +109,12 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ## test-write-config-override-flags.sh
 
-**Last Run**: 2026-01-26 15:36 EST  
+**Last Run**: 2026-02-07 00:22 EST  
 **Status**: ✅ **PASS** (17/17 tests passed)  
 **Execution Time**: ~3 seconds  
 **Dependencies**: bash
 
-**Findings Summary**: Re-ran after atomic write fix. Initially 15/17 tests passed, 2 failed. Fixed test to pass all 15 required parameters to `write_config()`. All 17 tests now pass successfully.
+**Findings Summary**: Re-ran after splitting `write_config()` into helper functions. All 17 tests pass successfully (override flag detection + backward compatibility intact).
 
 **Context**: Test was failing because `write_config()` function signature requires 15 positional parameters before the config_lines array, but test was only passing 7 parameters. After atomic write fix, test needed update to match current function signature.
 
@@ -358,11 +358,11 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ## test-configure-dialogs.sh
 
-**Last Run**: 2026-01-25 00:54 EST  
+**Last Run**: 2026-02-07 00:22 EST  
 **Status**: ✅ **PASS** (7/7 checks passed)  
 **Dependencies**: bash  
 
-**Findings Summary**: Dialog abstraction module functions exist and dialog tool detection works (detected: `yad` in this environment).
+**Findings Summary**: Dialog abstraction module functions exist and dialog tool detection works (detected: `yad` in this environment). Confirms the recent time-dialog extraction did not break public function availability.
 
 ---
 
@@ -830,12 +830,23 @@ Based on the latest test execution results:
 
 ## test-atomic-write.sh (NEW)
 
-**Last Run**: 2026-01-26 15:36 EST  
+**Last Run**: 2026-02-07 00:22 EST  
 **Status**: ✅ **PASS** (7/7 tests passed)  
 **Execution Time**: ~2 seconds  
 **Dependencies**: bash
 
-**Findings Summary**: Created new test to verify atomic write fix for `write_config()` function. All 7 tests passed successfully. The atomic write pattern (temp file + rename) is working correctly.
+**Findings Summary**: Re-ran after refactoring `write_config()` into helpers. All 7 tests passed successfully. The atomic write pattern (temp file + rename) is still working correctly.
+
+---
+
+## test-enhancement-03-simple.sh
+
+**Last Run**: 2026-02-07 00:22 EST  
+**Status**: ✅ **PASS** (6/6 checks passed)  
+**Execution Time**: ~1 second  
+**Dependencies**: bash
+
+**Findings Summary**: Quick smoke run after extracting popup-size logic into `lib/config-popup-size.sh`. Verified `get_popup_dimensions` works for new sizes, percentage sizes, and backward-compatible presets; getters return values as expected.
 
 **Context**: This test was created to verify the fix for the non-atomic config file write issue identified in safety scan 2026-01-26-025039. The fix updates `write_config()` to use atomic write pattern matching other critical file operations.
 
@@ -1000,6 +1011,22 @@ Based on the latest test execution results:
 ### Recommendations
 
 1. ✅ **Re-run successful tests regularly** to catch regressions
-2. 🔍 **TODO**: Update expect script (test-configure-comprehensive.exp) to better handle interactive prompts, or consider alternative testing approach
+2. ✅ **DONE**: Updated comprehensive expect runner to handle newer prompts (size mode + auto-close) and updated verification to tolerate time-range normalization
 3. 🔄 **TODO**: Run remaining automated tests from assessment documents
 4. 🚀 **TODO**: Consider running tests in CI/CD pipeline for continuous validation
+
+---
+
+## test-configure-comprehensive.sh (Suites 1-3)
+
+**Last Run**: 2026-02-07  
+**Status**: ✅ **PASS** (3/3 suites passed)  
+**Command**: `timeout 300s ./tests/test-configure-comprehensive.sh 1 2 3`  
+**Dependencies**: bash, expect
+
+**Findings Summary**: Suites 1-3 now pass after updating the expect flow for Window Behavior to account for:
+- Window size calculation mode prompt (fixed vs display-based)
+- Expanded popup size menu (large is option 4)
+- Auto-close prompt
+
+**Notes**: Config verification for day restrictions now tolerates canonical time normalization (e.g., user input `0-5` being saved as `00:00-05:00`).

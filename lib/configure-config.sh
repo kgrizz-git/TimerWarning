@@ -369,6 +369,238 @@ update_timer_file() {
 # Note: lock_hours_lines is detected by checking for "CONFIG_LOCK_HOURS_" prefix in arguments
 # Note: uninstall_lock_hours_lines is detected by checking for "UNINSTALL_LOCK_HOURS_" prefix in arguments
 # Note: If pause settings are not provided (for backward compatibility), defaults will be used
+_write_config_header() {
+    local check_interval="$1"
+    local popup_size="$2"
+    local popup_position="$3"
+    local min_display_time="$4"
+    local popup_immovable="$5"
+    local popup_auto_close="$6"
+    local configure_block_enabled="$7"
+    local uninstall_protection_mode="$8"
+    local pause_enabled="$9"
+    local pause_duration="${10}"
+    local dialog_tool="${11}"
+    local config_lock_enabled="${12}"
+    local popup_size_mode="${13}"
+    local popup_size_custom="${14}"
+    local popup_size_custom_absolute="${15}"
+    local popup_size_overridden="${16}"
+    local configure_block_overridden="${17}"
+
+    # Standard header
+    echo "# Sleep Warning Configuration"
+    echo "# Format: DAY=START_HOUR-END_HOUR"
+    echo "# Hours are in 24-hour format (0-23)"
+    echo "# Multiple ranges can be specified per day (comma-separated)"
+    echo "# Leave a day empty or omit it to have no restrictions for that day"
+    echo "#"
+    echo "# CHECK_INTERVAL: How often to check for restricted hours (in minutes)"
+    echo "# Default: 10 minutes"
+    echo "# Minimum: 1 minute"
+    echo "# Maximum: 60 minutes"
+    echo "CHECK_INTERVAL=${check_interval}"
+    echo "#"
+    echo "# POPUP_SIZE: Size of warning popup (xsmall, small, medium, large, xlarge, max, custom, or custom WIDTHxHEIGHT/WIDTH%xHEIGHT%)"
+    echo "# Default: medium"
+    echo "# Enhancement #3: New sizes available: xsmall, xlarge, max. Custom sizes support percentage format (WIDTH%xHEIGHT%)"
+    echo "POPUP_SIZE=${popup_size}"
+    # Add comment if popup size was restricted due to high restrictions
+    if [ "${popup_size_overridden}" = "true" ]; then
+        echo "# POPUP_SIZE has been restricted to xsmall/small/medium only because restrictions exceed 16 hours/day."
+        echo "# This prevents overly intrusive popups when user has very limited unrestricted time."
+    fi
+    echo "#"
+    echo "# POPUP_SIZE_MODE: Window size calculation mode (Enhancement #3)"
+    echo "# Options: fixed (absolute pixel sizes) or display-based (percentage-based)"
+    echo "# Default: fixed (for backward compatibility)"
+    echo "POPUP_SIZE_MODE=${popup_size_mode}"
+    echo "#"
+    echo "# POPUP_SIZE_CUSTOM: Custom size configuration (Enhancement #3)"
+    echo "# Format: PERCENT%xPERCENT% (e.g., 50%x50%) or WIDTHxHEIGHT (absolute pixels)"
+    echo "# If percentage format, used in display-based mode; if pixel format, used as absolute fallback"
+    echo "# Default: 50%x50%"
+    echo "POPUP_SIZE_CUSTOM=${popup_size_custom}"
+    echo "#"
+    echo "# POPUP_SIZE_CUSTOM_ABSOLUTE: Absolute pixel fallback for custom size (Enhancement #3)"
+    echo "# Used when resolution cannot be detected and custom size is percentage-based"
+    echo "# Default: 1280x720 (50% of 2560x1440)"
+    echo "POPUP_SIZE_CUSTOM_ABSOLUTE=${popup_size_custom_absolute}"
+    echo "#"
+    echo "# POPUP_POSITION: Position of warning popup on screen"
+    echo "# Default: center"
+    echo "POPUP_POSITION=${popup_position}"
+    echo "#"
+    echo "# POPUP_MIN_DISPLAY_TIME: Minimum time popup must be visible before it can be closed (in seconds)"
+    echo "# Default: 30 seconds"
+    echo "POPUP_MIN_DISPLAY_TIME=${min_display_time}"
+    echo "#"
+    echo "# POPUP_IMMOVABLE: Prevent popup window from being moved during minimum display time"
+    echo "# Default: true"
+    echo "POPUP_IMMOVABLE=${popup_immovable}"
+    echo "#"
+    echo "# POPUP_AUTO_CLOSE: Automatically close popup window 10 seconds after minimum display time completes"
+    echo "# Default: true (enabled by default)"
+    echo "# Options: true, false"
+    echo "# Auto-close happens 10 seconds after minimum display time completes (additional time, not total time)"
+    echo "# If minimum display time is 0, auto-close happens after 10 seconds"
+    echo "# Auto-close time is fixed at 10 seconds (not configurable)"
+    echo "# This is Enhancement #15 (Auto-Close Popup Window)"
+    echo "POPUP_AUTO_CLOSE=${popup_auto_close}"
+    echo "#"
+    echo "# CONFIGURE_BLOCK_ENABLED: Prevent configure.sh and manage.sh from running during restricted hours"
+    echo "# Default: false (opt-in feature)"
+    echo "# When enabled, configuration and management scripts are blocked during restricted hours"
+    echo "# to prevent users from circumventing restrictions by changing settings"
+    echo "# This is Enhancement #19 (Prevent configure.sh and manage.sh Execution)"
+    echo "CONFIGURE_BLOCK_ENABLED=${configure_block_enabled}"
+    # Add comment if configure block was disabled due to high restrictions
+    if [ "${configure_block_overridden}" = "true" ]; then
+        echo "# CONFIGURE_BLOCK_ENABLED has been disabled because restrictions exceed 16 hours/day."
+        echo "# This prevents accidental lockout when user has very limited unrestricted time."
+    fi
+    echo "#"
+    echo "# UNINSTALL_PROTECTION_MODE: Protection mode for uninstall.sh during restricted hours"
+    echo "# Default: difficult"
+    echo "# Options:"
+    echo "#   none - No protection, uninstall works normally during restricted hours"
+    echo "#   difficult - Difficult uninstall, requires confirmation phrase + 10 arithmetic questions"
+    echo "# When enabled, uninstall.sh requires verification during restricted hours to prevent"
+    echo "# users from circumventing restrictions by uninstalling the system."
+    echo "# This is Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours)"
+    echo "# Note: Total block mode may be considered as future phase"
+    echo "UNINSTALL_PROTECTION_MODE=${uninstall_protection_mode}"
+    echo "#"
+    echo "# PAUSE_ENABLED: Enable/disable pause feature for warning popups"
+    echo "# Default: true"
+    echo "# When enabled, users can pause warning popups for a short period (5 or 10 minutes)"
+    echo "# directly from the warning popup window. Pause only suppresses popups, not restrictions."
+    echo "# This is Enhancement #21 (One-Time Pause Feature)"
+    echo "PAUSE_ENABLED=${pause_enabled}"
+    echo "#"
+    echo "# PAUSE_DURATION: Duration of pause in minutes (5 or 10)"
+    echo "# Default: 5 minutes"
+    echo "# This controls how long warning popups are paused when user clicks pause button"
+    echo "# This is Enhancement #21 (One-Time Pause Feature)"
+    echo "# Note: Pause is ALWAYS limited to once per day (not configurable)"
+    echo "PAUSE_DURATION=${pause_duration}"
+    echo "#"
+    echo "# DIALOG_TOOL: Dialog tool selection for popup windows"
+    echo "# Default: auto (uses automatic priority: YAD → Zenity → KDialog)"
+    echo "# Options:"
+    echo "#   auto - Automatic selection (recommended, uses priority system)"
+    echo "#   zenity - Force use of zenity (if installed)"
+    echo "#   yad - Force use of yad (if installed)"
+    echo "#   kdialog - Force use of kdialog (if installed)"
+    echo "# If selected tool is not installed, system falls back to automatic selection"
+    echo "# This is Enhancement #25 (User-Selectable Dialog Tool)"
+    echo "DIALOG_TOOL=${dialog_tool}"
+    echo "#"
+    echo "# CONFIG_LOCK_ENABLED: Enable/disable config file locking during restricted hours"
+    echo "# Default: false (opt-in feature)"
+    echo "# When enabled, the config file and directory are made read-only during restricted hours"
+    echo "# and any configured lock hours to prevent users from circumventing restrictions"
+    echo "# by changing settings. This is a deterrence mechanism, not true security."
+    echo "# This is Enhancement #18 (Config File Locking During Restricted Hours)"
+    echo "# Note: Automatically disabled if restrictions exceed ${THRESHOLD_WARN} minutes/week (> $(get_threshold_warn_description)) (Enhancement #22)"
+    echo "CONFIG_LOCK_ENABLED=${config_lock_enabled}"
+    echo "#"
+    echo "# This file was generated by the configuration wizard on $(date)"
+
+    echo ""
+}
+
+_write_restrictions_section() {
+    local -n config_lines_ref="$1"
+
+    # Write configuration lines in calendar order (Sun-Sat, indices 0-6)
+    for day_index in 0 1 2 3 4 5 6; do
+        if [ -n "${config_lines_ref[${day_index}]}" ]; then
+            # Write the line (includes empty values for explicitly skipped days)
+            echo "${config_lines_ref[${day_index}]}"
+        fi
+    done
+}
+
+_write_lock_hours_section() {
+    local -n lock_hours_lines_ref="$1"
+    local lock_hours_cleared="$2"
+
+    # Only write section header if there are any lock hours configured
+    local has_lock_hours=false
+    for day_index in 0 1 2 3 4 5 6; do
+        if [ -n "${lock_hours_lines_ref[${day_index}]}" ]; then
+            has_lock_hours=true
+            break
+        fi
+    done
+
+    if [ "${has_lock_hours}" = "true" ]; then
+        echo ""
+        echo "# CONFIG_LOCK_HOURS: Additional hours for blocking configure.sh and manage.sh (separate from restriction hours)"
+        echo "# Format: CONFIG_LOCK_HOURS_DAYNAME=START_HOUR-END_HOUR"
+        echo "# Hours are in 24-hour format (0-23)"
+        echo "# Multiple ranges can be specified per day (comma-separated)"
+        echo "# Overnight ranges are supported (e.g., 23-6 spans midnight)"
+        echo "# Leave a day empty or omit it to have no lock hours for that day"
+        echo "# When CONFIGURE_BLOCK_ENABLED=true, scripts are blocked during restriction hours OR lock hours"
+        echo "# This is Enhancement #19 Phase 2 (Additional Configurable Lock Hours)"
+        # Add comment if lock hours were cleared due to high restrictions
+        if [ "${lock_hours_cleared}" = "true" ]; then
+            echo "# CONFIG_LOCK_HOURS have been cleared because combined restrictions exceed 16 hours/day."
+            echo "# This prevents accidental lockout when user has very limited unrestricted time."
+        fi
+
+        # Write lock hours lines in calendar order (Sun-Sat, indices 0-6)
+        for day_index in 0 1 2 3 4 5 6; do
+            if [ -n "${lock_hours_lines_ref[${day_index}]}" ]; then
+                # Write the line (includes empty values for explicitly disabled days)
+                echo "${lock_hours_lines_ref[${day_index}]}"
+            fi
+        done
+    fi
+}
+
+_write_uninstall_lock_hours_section() {
+    local -n uninstall_lock_hours_lines_ref="$1"
+    local uninstall_lock_hours_cleared="$2"
+
+    # Only write section header if there are any uninstall lock hours configured
+    local has_uninstall_lock_hours=false
+    for day_index in 0 1 2 3 4 5 6; do
+        if [ -n "${uninstall_lock_hours_lines_ref[${day_index}]}" ]; then
+            has_uninstall_lock_hours=true
+            break
+        fi
+    done
+
+    if [ "${has_uninstall_lock_hours}" = "true" ]; then
+        echo ""
+        echo "# UNINSTALL_LOCK_HOURS: Additional hours for difficult uninstall verification (separate from restriction hours and configure.sh lock hours)"
+        echo "# Format: UNINSTALL_LOCK_HOURS_DAYNAME=START_HOUR-END_HOUR"
+        echo "# Hours are in 24-hour format (0-23)"
+        echo "# Multiple ranges can be specified per day (comma-separated)"
+        echo "# Overnight ranges are supported (e.g., 23-6 spans midnight)"
+        echo "# Leave a day empty or omit it to have no uninstall lock hours for that day"
+        echo "# When UNINSTALL_PROTECTION_MODE=difficult, difficult uninstall verification applies during restriction hours OR uninstall lock hours"
+        echo "# This is Enhancement #26 Phase 2 (Additional Uninstall Lock Hours)"
+        echo "# WARNING: Additional uninstall lock hours increase the risk of preventing legitimate uninstall needs"
+        # Add comment if uninstall lock hours were cleared due to high restrictions
+        if [ "${uninstall_lock_hours_cleared}" = "true" ]; then
+            echo "# UNINSTALL_LOCK_HOURS have been cleared because combined restrictions exceed 16 hours/day."
+            echo "# This prevents accidental lockout when user has very limited unrestricted time."
+        fi
+
+        # Write uninstall lock hours lines in calendar order (Sun-Sat, indices 0-6)
+        for day_index in 0 1 2 3 4 5 6; do
+            if [ -n "${uninstall_lock_hours_lines_ref[${day_index}]}" ]; then
+                # Write the line (includes empty values for explicitly disabled days)
+                echo "${uninstall_lock_hours_lines_ref[${day_index}]}"
+            fi
+        done
+    fi
+}
+
 write_config() {
     local check_interval="$1"
     local popup_size="$2"
@@ -561,205 +793,28 @@ write_config() {
     
     # Write configuration file to temp file
     {
-        # Standard header
-        echo "# Sleep Warning Configuration"
-        echo "# Format: DAY=START_HOUR-END_HOUR"
-        echo "# Hours are in 24-hour format (0-23)"
-        echo "# Multiple ranges can be specified per day (comma-separated)"
-        echo "# Leave a day empty or omit it to have no restrictions for that day"
-        echo "#"
-        echo "# CHECK_INTERVAL: How often to check for restricted hours (in minutes)"
-        echo "# Default: 10 minutes"
-        echo "# Minimum: 1 minute"
-        echo "# Maximum: 60 minutes"
-        echo "CHECK_INTERVAL=${check_interval}"
-        echo "#"
-        echo "# POPUP_SIZE: Size of warning popup (xsmall, small, medium, large, xlarge, max, custom, or custom WIDTHxHEIGHT/WIDTH%xHEIGHT%)"
-        echo "# Default: medium"
-        echo "# Enhancement #3: New sizes available: xsmall, xlarge, max. Custom sizes support percentage format (WIDTH%xHEIGHT%)"
-        echo "POPUP_SIZE=${popup_size}"
-        # Add comment if popup size was restricted due to high restrictions
-        if [ "${popup_size_overridden}" = "true" ]; then
-            echo "# POPUP_SIZE has been restricted to xsmall/small/medium only because restrictions exceed 16 hours/day."
-            echo "# This prevents overly intrusive popups when user has very limited unrestricted time."
-        fi
-        echo "#"
-        echo "# POPUP_SIZE_MODE: Window size calculation mode (Enhancement #3)"
-        echo "# Options: fixed (absolute pixel sizes) or display-based (percentage-based)"
-        echo "# Default: fixed (for backward compatibility)"
-        echo "POPUP_SIZE_MODE=${popup_size_mode}"
-        echo "#"
-        echo "# POPUP_SIZE_CUSTOM: Custom size configuration (Enhancement #3)"
-        echo "# Format: PERCENT%xPERCENT% (e.g., 50%x50%) or WIDTHxHEIGHT (absolute pixels)"
-        echo "# If percentage format, used in display-based mode; if pixel format, used as absolute fallback"
-        echo "# Default: 50%x50%"
-        echo "POPUP_SIZE_CUSTOM=${popup_size_custom}"
-        echo "#"
-        echo "# POPUP_SIZE_CUSTOM_ABSOLUTE: Absolute pixel fallback for custom size (Enhancement #3)"
-        echo "# Used when resolution cannot be detected and custom size is percentage-based"
-        echo "# Default: 1280x720 (50% of 2560x1440)"
-        echo "POPUP_SIZE_CUSTOM_ABSOLUTE=${popup_size_custom_absolute}"
-        echo "#"
-        echo "# POPUP_POSITION: Position of warning popup on screen"
-        echo "# Default: center"
-        echo "POPUP_POSITION=${popup_position}"
-        echo "#"
-        echo "# POPUP_MIN_DISPLAY_TIME: Minimum time popup must be visible before it can be closed (in seconds)"
-        echo "# Default: 30 seconds"
-        echo "POPUP_MIN_DISPLAY_TIME=${min_display_time}"
-        echo "#"
-        echo "# POPUP_IMMOVABLE: Prevent popup window from being moved during minimum display time"
-        echo "# Default: true"
-        echo "POPUP_IMMOVABLE=${popup_immovable}"
-        echo "#"
-        echo "# POPUP_AUTO_CLOSE: Automatically close popup window 10 seconds after minimum display time completes"
-        echo "# Default: true (enabled by default)"
-        echo "# Options: true, false"
-        echo "# Auto-close happens 10 seconds after minimum display time completes (additional time, not total time)"
-        echo "# If minimum display time is 0, auto-close happens after 10 seconds"
-        echo "# Auto-close time is fixed at 10 seconds (not configurable)"
-        echo "# This is Enhancement #15 (Auto-Close Popup Window)"
-        echo "POPUP_AUTO_CLOSE=${popup_auto_close}"
-        echo "#"
-        echo "# CONFIGURE_BLOCK_ENABLED: Prevent configure.sh and manage.sh from running during restricted hours"
-        echo "# Default: false (opt-in feature)"
-        echo "# When enabled, configuration and management scripts are blocked during restricted hours"
-        echo "# to prevent users from circumventing restrictions by changing settings"
-        echo "# This is Enhancement #19 (Prevent configure.sh and manage.sh Execution)"
-        echo "CONFIGURE_BLOCK_ENABLED=${configure_block_enabled}"
-        # Add comment if configure block was disabled due to high restrictions
-        if [ "${configure_block_overridden}" = "true" ]; then
-            echo "# CONFIGURE_BLOCK_ENABLED has been disabled because restrictions exceed 16 hours/day."
-            echo "# This prevents accidental lockout when user has very limited unrestricted time."
-        fi
-        echo "#"
-        echo "# UNINSTALL_PROTECTION_MODE: Protection mode for uninstall.sh during restricted hours"
-        echo "# Default: difficult"
-        echo "# Options:"
-        echo "#   none - No protection, uninstall works normally during restricted hours"
-        echo "#   difficult - Difficult uninstall, requires confirmation phrase + 10 arithmetic questions"
-        echo "# When enabled, uninstall.sh requires verification during restricted hours to prevent"
-        echo "# users from circumventing restrictions by uninstalling the system."
-        echo "# This is Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours)"
-        echo "# Note: Total block mode may be considered as future phase"
-        echo "UNINSTALL_PROTECTION_MODE=${uninstall_protection_mode}"
-        echo "#"
-        echo "# PAUSE_ENABLED: Enable/disable pause feature for warning popups"
-        echo "# Default: true"
-        echo "# When enabled, users can pause warning popups for a short period (5 or 10 minutes)"
-        echo "# directly from the warning popup window. Pause only suppresses popups, not restrictions."
-        echo "# This is Enhancement #21 (One-Time Pause Feature)"
-        echo "PAUSE_ENABLED=${pause_enabled}"
-        echo "#"
-        echo "# PAUSE_DURATION: Duration of pause in minutes (5 or 10)"
-        echo "# Default: 5 minutes"
-        echo "# This controls how long warning popups are paused when user clicks pause button"
-        echo "# This is Enhancement #21 (One-Time Pause Feature)"
-        echo "# Note: Pause is ALWAYS limited to once per day (not configurable)"
-        echo "PAUSE_DURATION=${pause_duration}"
-        echo "#"
-        echo "# DIALOG_TOOL: Dialog tool selection for popup windows"
-        echo "# Default: auto (uses automatic priority: YAD → Zenity → KDialog)"
-        echo "# Options:"
-        echo "#   auto - Automatic selection (recommended, uses priority system)"
-        echo "#   zenity - Force use of zenity (if installed)"
-        echo "#   yad - Force use of yad (if installed)"
-        echo "#   kdialog - Force use of kdialog (if installed)"
-        echo "# If selected tool is not installed, system falls back to automatic selection"
-        echo "# This is Enhancement #25 (User-Selectable Dialog Tool)"
-        echo "DIALOG_TOOL=${dialog_tool}"
-        echo "#"
-        echo "# CONFIG_LOCK_ENABLED: Enable/disable config file locking during restricted hours"
-        echo "# Default: false (opt-in feature)"
-        echo "# When enabled, the config file and directory are made read-only during restricted hours"
-        echo "# and any configured lock hours to prevent users from circumventing restrictions"
-        echo "# by changing settings. This is a deterrence mechanism, not true security."
-        echo "# This is Enhancement #18 (Config File Locking During Restricted Hours)"
-        echo "# Note: Automatically disabled if restrictions exceed ${THRESHOLD_WARN} minutes/week (> $(get_threshold_warn_description)) (Enhancement #22)"
-        echo "CONFIG_LOCK_ENABLED=${config_lock_enabled}"
-        echo "#"
-        echo "# This file was generated by the configuration wizard on $(date)"
-        
-        echo ""
-        
-        # Write configuration lines in calendar order (Sun-Sat, indices 0-6)
-        for day_index in 0 1 2 3 4 5 6; do
-            if [ -n "${config_lines[${day_index}]}" ]; then
-                # Write the line (includes empty values for explicitly skipped days)
-                echo "${config_lines[${day_index}]}"
-            fi
-        done
-        
-        # Write lock hours configuration lines (Enhancement #19 Phase 2)
-        # Only write section header if there are any lock hours configured
-        local has_lock_hours=false
-        for day_index in 0 1 2 3 4 5 6; do
-            if [ -n "${lock_hours_lines[${day_index}]}" ]; then
-                has_lock_hours=true
-                break
-            fi
-        done
-        
-        if [ "${has_lock_hours}" = "true" ]; then
-            echo ""
-            echo "# CONFIG_LOCK_HOURS: Additional hours for blocking configure.sh and manage.sh (separate from restriction hours)"
-            echo "# Format: CONFIG_LOCK_HOURS_DAYNAME=START_HOUR-END_HOUR"
-            echo "# Hours are in 24-hour format (0-23)"
-            echo "# Multiple ranges can be specified per day (comma-separated)"
-            echo "# Overnight ranges are supported (e.g., 23-6 spans midnight)"
-            echo "# Leave a day empty or omit it to have no lock hours for that day"
-            echo "# When CONFIGURE_BLOCK_ENABLED=true, scripts are blocked during restriction hours OR lock hours"
-            echo "# This is Enhancement #19 Phase 2 (Additional Configurable Lock Hours)"
-            # Add comment if lock hours were cleared due to high restrictions
-            if [ "${lock_hours_cleared}" = "true" ]; then
-                echo "# CONFIG_LOCK_HOURS have been cleared because combined restrictions exceed 16 hours/day."
-                echo "# This prevents accidental lockout when user has very limited unrestricted time."
-            fi
-            
-            # Write lock hours lines in calendar order (Sun-Sat, indices 0-6)
-            for day_index in 0 1 2 3 4 5 6; do
-                if [ -n "${lock_hours_lines[${day_index}]}" ]; then
-                    # Write the line (includes empty values for explicitly disabled days)
-                    echo "${lock_hours_lines[${day_index}]}"
-                fi
-            done
-        fi
-        
-        # Write uninstall lock hours configuration lines (Enhancement #26 Phase 2)
-        # Only write section header if there are any uninstall lock hours configured
-        local has_uninstall_lock_hours=false
-        for day_index in 0 1 2 3 4 5 6; do
-            if [ -n "${uninstall_lock_hours_lines[${day_index}]}" ]; then
-                has_uninstall_lock_hours=true
-                break
-            fi
-        done
-        
-        if [ "${has_uninstall_lock_hours}" = "true" ]; then
-            echo ""
-            echo "# UNINSTALL_LOCK_HOURS: Additional hours for difficult uninstall verification (separate from restriction hours and configure.sh lock hours)"
-            echo "# Format: UNINSTALL_LOCK_HOURS_DAYNAME=START_HOUR-END_HOUR"
-            echo "# Hours are in 24-hour format (0-23)"
-            echo "# Multiple ranges can be specified per day (comma-separated)"
-            echo "# Overnight ranges are supported (e.g., 23-6 spans midnight)"
-            echo "# Leave a day empty or omit it to have no uninstall lock hours for that day"
-            echo "# When UNINSTALL_PROTECTION_MODE=difficult, difficult uninstall verification applies during restriction hours OR uninstall lock hours"
-            echo "# This is Enhancement #26 Phase 2 (Additional Uninstall Lock Hours)"
-            echo "# WARNING: Additional uninstall lock hours increase the risk of preventing legitimate uninstall needs"
-            # Add comment if uninstall lock hours were cleared due to high restrictions
-            if [ "${uninstall_lock_hours_cleared}" = "true" ]; then
-                echo "# UNINSTALL_LOCK_HOURS have been cleared because combined restrictions exceed 16 hours/day."
-                echo "# This prevents accidental lockout when user has very limited unrestricted time."
-            fi
-            
-            # Write uninstall lock hours lines in calendar order (Sun-Sat, indices 0-6)
-            for day_index in 0 1 2 3 4 5 6; do
-                if [ -n "${uninstall_lock_hours_lines[${day_index}]}" ]; then
-                    # Write the line (includes empty values for explicitly disabled days)
-                    echo "${uninstall_lock_hours_lines[${day_index}]}"
-                fi
-            done
-        fi
+        _write_config_header \
+            "${check_interval}" \
+            "${popup_size}" \
+            "${popup_position}" \
+            "${min_display_time}" \
+            "${popup_immovable}" \
+            "${popup_auto_close}" \
+            "${configure_block_enabled}" \
+            "${uninstall_protection_mode}" \
+            "${pause_enabled}" \
+            "${pause_duration}" \
+            "${dialog_tool}" \
+            "${config_lock_enabled}" \
+            "${popup_size_mode}" \
+            "${popup_size_custom}" \
+            "${popup_size_custom_absolute}" \
+            "${popup_size_overridden}" \
+            "${configure_block_overridden}"
+
+        _write_restrictions_section config_lines
+        _write_lock_hours_section lock_hours_lines "${lock_hours_cleared}"
+        _write_uninstall_lock_hours_section uninstall_lock_hours_lines "${uninstall_lock_hours_cleared}"
     } > "${temp_file}"
     
     # Check if write to temp file succeeded

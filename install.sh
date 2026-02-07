@@ -635,9 +635,19 @@ install_files() {
     
     # Copy library modules
     if [ -d "$SCRIPT_DIR/lib" ]; then
+        # Count modules for accurate reporting (the module set evolves over time).
+        local nullglob_was_set=false
+        shopt -q nullglob && nullglob_was_set=true
+        shopt -s nullglob
+        local module_files=("$SCRIPT_DIR/lib"/*.sh)
+        local module_count="${#module_files[@]}"
+        if [ "${nullglob_was_set}" != "true" ]; then
+            shopt -u nullglob
+        fi
+
         cp "$SCRIPT_DIR/lib"/*.sh "$LIB_DIR/"
         chmod +x "$LIB_DIR"/*.sh
-        print_success "Library modules installed (7 modules)"
+        print_success "Library modules installed (${module_count} modules)"
     else
         print_error "Library directory not found"
         exit 1

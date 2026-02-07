@@ -23,55 +23,92 @@
 # - configure-ui.sh (for confirm_cancel)
 ###############################################################################
 
-get_configure_block_enabled_config() {
-    local use_gui="$1"
-    local default_block_enabled="false"
-    
-    # Try to get existing setting from config
+###############################################################################
+# Internal helpers
+###############################################################################
+
+# Read a boolean-like config value from CONFIG_FILE and normalize it to "true" or
+# "false". If the key is not present (or doesn't parse), returns the provided
+# default ("true" or "false").
+#
+# Args:
+# - $1: config key (e.g. "CONFIG_LOCK_ENABLED")
+# - $2: default value ("true" or "false")
+_get_existing_bool_setting_from_config() {
+    local key="$1"
+    local default_value="$2"
+
+    if [ -z "${key}" ]; then
+        echo "${default_value}"
+        return 0
+    fi
+
     if [ -f "${CONFIG_FILE}" ]; then
-        local existing_block_enabled
-        existing_block_enabled=$(grep -E "^[[:space:]]*CONFIGURE_BLOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-        if [ -n "${existing_block_enabled}" ]; then
-            if [ "${existing_block_enabled}" = "true" ] || [ "${existing_block_enabled}" = "1" ] || [ "${existing_block_enabled}" = "yes" ]; then
-                default_block_enabled="true"
-            elif [ "${existing_block_enabled}" = "false" ] || [ "${existing_block_enabled}" = "0" ] || [ "${existing_block_enabled}" = "no" ]; then
-                default_block_enabled="false"
+        local existing_value
+        existing_value=$(grep -E "^[[:space:]]*${key}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ -n "${existing_value}" ]; then
+            if [ "${existing_value}" = "true" ] || [ "${existing_value}" = "1" ] || [ "${existing_value}" = "yes" ]; then
+                echo "true"
+                return 0
+            elif [ "${existing_value}" = "false" ] || [ "${existing_value}" = "0" ] || [ "${existing_value}" = "no" ]; then
+                echo "false"
+                return 0
             fi
         fi
     fi
+
+    echo "${default_value}"
+    return 0
+}
+
+# Standard GUI prompt for a "true/false" setting using show_list_dialog.
+# Behavior is intentionally strict: it only accepts a selection when the dialog
+# returns exit code 0 AND a non-empty selection (matching existing call sites).
+#
+# Args:
+# - $1: use_gui ("true"/"false") (passed through to confirm_cancel)
+# - $2: title
+# - $3: message
+# - $4: width
+# - $5: height
+_prompt_bool_setting_gui_strict() {
+    local use_gui="$1"
+    local title="$2"
+    local message="$3"
+    local width="$4"
+    local height="$5"
+
+    while true; do
+        local result
+        result=$(show_list_dialog "${title}" "${message}" "${width}" "${height}" "true" "false")
+        local exit_code=$?
+
+        if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
+            echo "${result}"
+            return 0
+        fi
+
+        if confirm_cancel "${use_gui}"; then
+            echo "CANCELLED"
+            return 2
+        fi
+    done
+}
+
+get_configure_block_enabled_config() {
+    local use_gui="$1"
+    local default_block_enabled
+    default_block_enabled="$(_get_existing_bool_setting_from_config "CONFIGURE_BLOCK_ENABLED" "false")"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
-        while true; do
-            local block_enabled
-            local block_enabled_result
-            block_enabled_result=$(show_list_dialog \
-                "Sleep Warning Configuration - Block Configuration During Restricted Hours" \
-                "Block configure.sh and manage.sh during restricted hours?\n\nWhen enabled, the configuration and management scripts will be blocked from running during restricted hours to prevent circumventing restrictions.\n\nNote: This must be enabled for 'Additional Configuration Block Hours' to take effect.\n\nCurrent setting: ${default_block_enabled}" \
-                650 \
-                400 \
-                "true" "false")
-            local exit_code=$?
-            
-            if [ ${exit_code} -eq 0 ] && [ -n "${block_enabled_result}" ]; then
-                block_enabled="${block_enabled_result}"
-            else
-                block_enabled=""
-            fi
-            
-            # User cancelled
-            if [ "${exit_code}" -ne 0 ] || [ -z "${block_enabled}" ]; then
-                if confirm_cancel "${use_gui}"; then
-                    echo "CANCELLED"
-                    return 2  # Special return code for cancellation
-                else
-                    continue  # User wants to continue, re-prompt
-                fi
-            fi
-            
-            echo "${block_enabled}"
-            return 0
-        done
+        _prompt_bool_setting_gui_strict \
+            "${use_gui}" \
+            "Sleep Warning Configuration - Block Configuration During Restricted Hours" \
+            "Block configure.sh and manage.sh during restricted hours?\n\nWhen enabled, the configuration and management scripts will be blocked from running during restricted hours to prevent circumventing restrictions.\n\nNote: This must be enabled for 'Additional Configuration Block Hours' to take effect.\n\nCurrent setting: ${default_block_enabled}" \
+            650 \
+            400
+        return $?
     else
         # Text mode
         echo "" >&2
@@ -232,59 +269,18 @@ get_security_settings_config() {
 
 get_config_lock_enabled_config() {
     local use_gui="$1"
-    local default_lock_enabled="false"
-    
-    # Try to get existing setting from config
-    if [ -f "${CONFIG_FILE}" ]; then
-        local existing_lock_enabled
-        existing_lock_enabled=$(grep -E "^[[:space:]]*CONFIG_LOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-        if [ -n "${existing_lock_enabled}" ]; then
-            if [ "${existing_lock_enabled}" = "true" ] || [ "${existing_lock_enabled}" = "1" ] || [ "${existing_lock_enabled}" = "yes" ]; then
-                default_lock_enabled="true"
-            elif [ "${existing_lock_enabled}" = "false" ] || [ "${existing_lock_enabled}" = "0" ] || [ "${existing_lock_enabled}" = "no" ]; then
-                default_lock_enabled="false"
-            fi
-        fi
-    fi
+    local default_lock_enabled
+    default_lock_enabled="$(_get_existing_bool_setting_from_config "CONFIG_LOCK_ENABLED" "false")"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
-        while true; do
-            local lock_enabled
-            local lock_enabled_result
-            lock_enabled_result=$(show_list_dialog \
-                "Sleep Warning Configuration - Config File Locking" \
-                "Enable config file locking during restricted hours?\n\nWhen enabled, the config file and directory are made read-only during restricted hours and any configured lock hours to prevent users from circumventing restrictions by changing settings.\n\nNote: Automatically disabled if restrictions exceed ${THRESHOLD_WARN} minutes/week (> $(get_threshold_warn_description)) for safety.\n\nCurrent setting: ${default_lock_enabled}" \
-                700 \
-                450 \
-                "true" "false")
-            local exit_code=$?
-            
-            if [ ${exit_code} -eq 0 ] && [ -n "${lock_enabled_result}" ]; then
-                lock_enabled="${lock_enabled_result}"
-            else
-                lock_enabled=""
-            fi
-            
-            # User cancelled
-            if [ ${exit_code} -ne 0 ] || [ -z "${lock_enabled}" ]; then
-                if confirm_cancel "${use_gui}"; then
-                    echo "CANCELLED"
-                    return 2  # Special return code for cancellation
-                else
-                    continue  # User wants to continue, re-prompt
-                fi
-            fi
-            
-            # Validate result
-            if [ "${lock_enabled}" = "true" ] || [ "${lock_enabled}" = "false" ]; then
-                echo "${lock_enabled}"
-                return 0
-            else
-                # Invalid result (shouldn't happen, but handle gracefully)
-                continue
-            fi
-        done
+        _prompt_bool_setting_gui_strict \
+            "${use_gui}" \
+            "Sleep Warning Configuration - Config File Locking" \
+            "Enable config file locking during restricted hours?\n\nWhen enabled, the config file and directory are made read-only during restricted hours and any configured lock hours to prevent users from circumventing restrictions by changing settings.\n\nNote: Automatically disabled if restrictions exceed ${THRESHOLD_WARN} minutes/week (> $(get_threshold_warn_description)) for safety.\n\nCurrent setting: ${default_lock_enabled}" \
+            700 \
+            450
+        return $?
     else
         # Text mode
         while true; do

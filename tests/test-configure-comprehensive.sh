@@ -24,6 +24,13 @@ STATUS_SCRIPT="${PROJECT_ROOT}/status.sh"
 TEST_DIR="${PROJECT_ROOT}/tests/test-configs"
 mkdir -p "${TEST_DIR}"
 
+# We normalize expected time-range strings (e.g. "0-5") to the on-disk canonical
+# format used by the wizard (HH:MM-HH:MM), to avoid false failures when the user
+# inputs hour-only ranges that are normalized during save.
+#
+# This is a test helper only; it does not affect production behavior.
+source "${PROJECT_ROOT}/lib/time-parsing.sh" >/dev/null 2>&1 || true
+
 PASSED=0
 FAILED=0
 TOTAL_TESTS=0
@@ -101,11 +108,17 @@ verify_day_config() {
     fi
     
     actual=$(grep -E "^[[:space:]]*${day_var}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-    
-    if [ "${actual}" = "${expected}" ]; then
+
+    # Canonicalize expected time range(s) (the wizard normalizes to HH:MM-HH:MM).
+    local expected_normalized="${expected}"
+    if type normalize_time_range >/dev/null 2>&1; then
+        expected_normalized=$(normalize_time_range "${expected}" 2>/dev/null || echo "${expected}")
+    fi
+
+    if [ "${actual}" = "${expected}" ] || [ "${actual}" = "${expected_normalized}" ]; then
         return 0
     else
-        echo "    ERROR: Expected ${day_var}=${expected}, got ${day_var}=${actual}"
+        echo "    ERROR: Expected ${day_var}=${expected} (normalized: ${expected_normalized}), got ${day_var}=${actual}"
         return 1
     fi
 }

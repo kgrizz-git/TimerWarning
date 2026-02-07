@@ -61,51 +61,51 @@ expect {
             # Test 2: Window Behavior
             send "2\r"
             expect {
-                "Popup Size Options" {
-                    expect "Select size"
-                    send "3\r"
-                    expect "Popup Position Options"
-                    send "2\r"
-                    expect "Minimum display time in seconds"
-                    send "60\r"
-                    expect "Prevent window movement"
-                    send "n\r"
-                    expect "Configuration Menu"
-                    send "13\r"
-                    expect "Save this configuration"
-                    send "y\r"
+                -re {Window Size Calculation Mode:|Select mode \[1-2, default: .*\]:} {
+                    # Enhancement #3: popup size mode prompt (fixed vs display-based)
+                    # Choose fixed (1) for deterministic test behavior.
+                    send "1\r"
                     expect {
-                        "Configuration saved successfully" {
-                            sleep 2
-                            puts "PASS: Window behavior settings saved"
-                            exit 0
+                        -re {Popup Size Options:|Select size \[1-7, default: .*\]:} {
+                            # New size list includes xsmall..max; large is option 4.
+                            expect -re "Select size"
+                            send "4\r"
+                            expect -re "Popup Position Options:|Select position"
+                            send "2\r"
+                            expect -re "Minimum display time in seconds"
+                            send "60\r"
+                            expect -re "Prevent window movement\\?"
+                            send "n\r"
+                            # Auto-close prompt was added (Enhancement #15). Accept default.
+                            expect {
+                                -re "Enable auto-close\\?" {
+                                    send "\r"
+                                    exp_continue
+                                }
+                                -re "Select option|Configuration Menu" {
+                                    send "13\r"
+                                    expect "Save this configuration"
+                                    send "y\r"
+                                    expect {
+                                        "Configuration saved successfully" {
+                                            sleep 2
+                                            puts "PASS: Window behavior settings saved"
+                                            exit 0
+                                        }
+                                        timeout {
+                                            puts "ERROR: Save confirmation timeout"
+                                            exit 1
+                                        }
+                                    }
+                                }
+                                timeout {
+                                    puts "ERROR: Window behavior timeout - waiting for menu after window behavior prompts"
+                                    exit 1
+                                }
+                            }
                         }
                         timeout {
-                            puts "ERROR: Save confirmation timeout"
-                            exit 1
-                        }
-                    }
-                }
-                "Select size" {
-                    send "3\r"
-                    expect "Popup Position Options"
-                    send "2\r"
-                    expect "Minimum display time in seconds"
-                    send "60\r"
-                    expect "Prevent window movement"
-                    send "n\r"
-                    expect "Configuration Menu"
-                    send "13\r"
-                    expect "Save this configuration"
-                    send "y\r"
-                    expect {
-                        "Configuration saved successfully" {
-                            sleep 2
-                            puts "PASS: Window behavior settings saved"
-                            exit 0
-                        }
-                        timeout {
-                            puts "ERROR: Save confirmation timeout"
+                            puts "ERROR: Window behavior timeout - waiting for popup size prompt"
                             exit 1
                         }
                     }
