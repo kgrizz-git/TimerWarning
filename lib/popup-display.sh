@@ -521,10 +521,12 @@ show_warning() {
             elapsed=$((current_timestamp - start_timestamp))
             remaining=$((min_display_time - elapsed))
             
-            # Safety check: if elapsed exceeds min_display_time, break immediately
+            # Safety check: if elapsed reaches/exceeds min_display_time, clamp values.
+            # IMPORTANT: Do NOT break here. We want the redraw logic below to run
+            # once with remaining=0 so the popup always updates at countdown zero.
             if [ "${elapsed}" -ge "${min_display_time}" ]; then
+                elapsed="${min_display_time}"
                 remaining=0
-                break
             fi
             
             # Check if popup is still running
