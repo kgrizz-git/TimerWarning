@@ -12,7 +12,7 @@
 # - get_min_display_time_config()  - Get minimum display time
 # - get_popup_immovable_config()   - Get immovable setting
 # - get_popup_auto_close_config() - Get auto-close setting (Enhancement #15)
-# - get_popup_size_mode_config()  - Get popup size mode (percentage-based / display-based vs fixed)
+# - get_popup_size_mode_config()  - Get popup size mode (percentage vs fixed; config value remains display-based)
 # - get_popup_position_config()   - Get popup position
 #
 # Dependencies:
@@ -339,12 +339,14 @@ get_popup_size_mode_config() {
         # GUI mode
         while true; do
             local mode_result
+            local mode_display_name="${default_mode}"
+            [ "${default_mode}" = "display-based" ] && mode_display_name="percentage"
             mode_result=$(show_list_dialog \
                 "Sleep Warning Configuration - Size Mode" \
-                "Select window size calculation mode:\n\nCurrent: ${default_mode}\n\n- fixed: Use absolute pixel sizes (backward compatible)\n- display-based: Percentage-based sizing (calculates sizes as percentage of screen resolution)\n\nNote: Percentage-based (display-based) mode adapts to different screen sizes automatically." \
+                "Select window size calculation mode:\n\nCurrent: ${mode_display_name}\n\n- fixed: Use absolute pixel sizes (backward compatible)\n- percentage: Percentage-based sizing (calculates sizes as percentage of screen resolution)\n\nNote: Percentage-based mode adapts to different screen sizes automatically." \
                 600 \
                 350 \
-                "fixed (Absolute Pixels)" "display-based (Percentage of Screen)")
+                "fixed (Absolute Pixels)" "Percentage (Percentage of Screen)")
             local exit_code=$?
             
             if [ ${exit_code} -ne 0 ] || [ -z "${mode_result}" ]; then
@@ -360,7 +362,7 @@ get_popup_size_mode_config() {
             if echo "${mode_result}" | grep -q "fixed"; then
                 echo "fixed"
                 return 0
-            elif echo "${mode_result}" | grep -q "display-based"; then
+            elif echo "${mode_result}" | grep -q "Percentage"; then
                 echo "display-based"
                 return 0
             else
@@ -371,13 +373,15 @@ get_popup_size_mode_config() {
         # Text mode
         echo "" >&2
         echo "Window Size Calculation Mode:" >&2
-        echo "  Current: ${default_mode}" >&2
+        local mode_display_name="${default_mode}"
+        [ "${default_mode}" = "display-based" ] && mode_display_name="percentage"
+        echo "  Current: ${mode_display_name}" >&2
         echo "" >&2
         echo "Options:" >&2
         echo "  1) fixed - Use absolute pixel sizes (backward compatible)" >&2
-        echo "  2) display-based - Percentage-based sizing (calculates sizes as percentage of screen resolution)" >&2
+        echo "  2) percentage - Percentage-based sizing (calculates sizes as percentage of screen resolution)" >&2
         echo "" >&2
-        echo "Note: Percentage-based (display-based) mode adapts to different screen sizes automatically." >&2
+        echo "Note: Percentage-based mode adapts to different screen sizes automatically." >&2
         echo "" >&2
         
         while true; do
@@ -394,7 +398,7 @@ get_popup_size_mode_config() {
                     echo "fixed"
                     return 0
                     ;;
-                2|display-based)
+                2|display-based|percentage)
                     echo "display-based"
                     return 0
                     ;;

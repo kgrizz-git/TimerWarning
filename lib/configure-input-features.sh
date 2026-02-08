@@ -152,7 +152,7 @@ get_security_settings_config() {
             # First, ask about configure block
             local block_enabled_result
             block_enabled_result=$(show_list_dialog \
-                "Sleep Warning Configuration - Security Settings" \
+                "Sleep Warning Configuration - Script Blocking and Config Locking" \
                 "Block configure.sh and manage.sh during restricted hours?\n\nWhen enabled, the configuration and management scripts will be blocked from running during restricted hours to prevent circumventing restrictions.\n\nNote: This must be enabled for 'Additional Configuration Block Hours' to take effect.\n\nCurrent setting: ${current_configure_block}" \
                 700 \
                 400 \
@@ -171,7 +171,7 @@ get_security_settings_config() {
             # Then, ask about config file locking
             local lock_enabled_result
             lock_enabled_result=$(show_list_dialog \
-                "Sleep Warning Configuration - Security Settings" \
+                "Sleep Warning Configuration - Script Blocking and Config Locking" \
                 "Enable config file locking during restricted hours?\n\nWhen enabled, the config file and directory are made read-only during restricted hours and any configured lock hours to prevent users from circumventing restrictions by changing settings.\n\nNote: Automatically disabled if restrictions exceed ${THRESHOLD_WARN} minutes/week (> $(get_threshold_warn_description)) for safety.\n\nCurrent setting: ${current_config_lock}" \
                 700 \
                 450 \
@@ -194,7 +194,7 @@ get_security_settings_config() {
     else
         # Text mode
         echo "" >&2
-        echo "Security Settings Configuration" >&2
+        echo "Script Blocking and Config Locking" >&2
         echo "" >&2
         echo "1. Block configure.sh and manage.sh during restricted hours" >&2
         echo "   When enabled, configure.sh and manage.sh will be blocked from running" >&2

@@ -323,7 +323,7 @@ show_main_menu() {
             "3" "Weekdays Configuration ${safe_weekdays}" \
             "4" "Weekends Configuration ${safe_weekends}" \
             "5" "View Weekly Hours Settings" \
-            "6" "Security Settings (Script Blocking and Config Locking)${safe_security_status}" \
+            "6" "Script Blocking and Config Locking${safe_security_status}" \
             "7" "Additional Configuration Block Hours${safe_lock_status}" \
             "8" "Uninstall Protection${safe_uninstall_protection}" \
             "9" "Additional Uninstall Protection Hours${safe_uninstall_lock}" \
@@ -418,12 +418,12 @@ show_main_menu() {
         if [ -n "${lock_hours_status}" ]; then
             lock_status_display=" ${lock_hours_status}"
         fi
-        echo "6. Security Settings (Script Blocking and Config Locking)${security_status}" >&2
+        echo "6. Script Blocking and Config Locking${security_status}" >&2
         echo "   Configure blocking of configure.sh/manage.sh and config file locking during restricted hours" >&2
         echo "" >&2
         echo "7. Additional Configuration Block Hours${lock_status_display}" >&2
         echo "   Configure additional hours when configuration/management is blocked" >&2
-        echo "   (Only applies when Security Settings - Script Blocking is enabled)" >&2
+        echo "   (Only applies when Script Blocking is enabled)" >&2
         echo "" >&2
         # Build uninstall protection status indicator (Enhancement #26)
         local uninstall_protection_status=""
@@ -999,7 +999,7 @@ show_summary() {
         
         local popup_size_display="${popup_size}"
         
-        # Show dimensions with percentage if in display-based mode
+        # Show dimensions with percentage if in percentage mode (display-based)
         if [ "${size_mode}" = "display-based" ]; then
             case "${popup_size}" in
                 xsmall) popup_size_display="${popup_size} (15%x15%)" ;;

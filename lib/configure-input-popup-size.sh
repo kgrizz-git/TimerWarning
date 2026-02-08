@@ -34,7 +34,7 @@ get_popup_size_config() {
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         # Determine current size mode so we can show percentage mappings
-        # when the user is using display-based (percentage-based) sizing.
+        # when the user is using percentage-based sizing (config value: display-based).
         local size_mode="fixed"
         if [ -n "${size_mode_override}" ]; then
             size_mode="${size_mode_override}"
@@ -46,7 +46,7 @@ get_popup_size_config() {
             fi
         fi
 
-        # Build option labels; when in percentage-based (display-based) mode,
+        # Build option labels; when in percentage-based mode (POPUP_SIZE_MODE=display-based),
         # include the percentages directly in the list items so users can see
         # mappings at a glance in the wizard.
         local xsmall_label="xsmall"
@@ -58,7 +58,7 @@ get_popup_size_config() {
 
         if [ "${size_mode}" = "display-based" ]; then
             # These mappings must remain consistent with Enhancement #3,
-            # CONFIGURATION.md, and get_popup_dimensions().
+            # CONFIGURATION.md, and get_popup_dimensions() in config-popup-size.sh.
             # Use ASCII 'x' between width/height to avoid any dialog
             # tool / locale issues with the unicode multiplication sign.
             xsmall_label="xsmall (15%x15%)"
@@ -67,6 +67,14 @@ get_popup_size_config() {
             large_label="large (50%x50%)"
             xlarge_label="xlarge (75%x75%)"
             max_label="max (90%x90%)"
+        else
+            # Fixed (absolute pixel) mode: show pixel dimensions (must match config-popup-size.sh)
+            xsmall_label="xsmall (384x216)"
+            small_label="small (400x250)"
+            medium_label="medium (800x500)"
+            large_label="large (1230x720)"
+            xlarge_label="xlarge (1845x1080)"
+            max_label="max (2214x1296)"
         fi
 
         while true; do

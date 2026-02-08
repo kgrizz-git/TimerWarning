@@ -6,15 +6,15 @@ This document provides a concise overview of work remaining to be completed for 
 
 ## Priority Items
 - [ ] **#16c: Multiple Time Range Entry in GUI** - Allow adding/editing multiple comma-separated time ranges per day in configure.sh GUI (text mode already supports it). See [enhancement-16c-multiple-range-entry-gui.md](enhancements/enhancement-16c-multiple-range-entry-gui.md). Largely implemented but improve UI (such as displaying day for which time is being set). Make sure multiple ranges possible for additional hours, as well. Also test with all dialog tools.
-- [ ] **ADDED HERE: improve config wizard UI** When clicking on a day in weekly view, do not ask if user wants to apply the same hours to all weekdays/weekends - only set hours for the clicked day. Displaying day for which time is currently being set.  If user selects main menu item for setting lock or uninstall hours, ask if they want to set the same hours for all weekdays/weekends. Rename Security Settings - just use what is currently in parentheses.
+- [ ] **ADDED HERE: improve config wizard UI** When clicking on a day in weekly view, do not ask if user wants to apply the same hours to all weekdays/weekends - only set hours for the clicked day. Displaying day for which time is currently being set.  If user selects main menu item for setting lock or uninstall hours, ask if they want to set the same hours for all weekdays/weekends. ~~Rename Security Settings~~ - **Done** (menu item is now "Script Blocking and Config Locking").
 - [ ] **ADDED HERE: re-order configure menu items** - order related items closer together, make order more logical and user-friendly, split some sub-items off from menu items that have many sub-items. Make sure all related code and documentation is updated after the code updates.
-- [?] **ADDED HERE: Fix install.sh not installing lib files?** pause-state.sh was not found when running sleep-warning-status although it worked for ./status.sh and also sleep-warning-configure ran OK. FIXED??
-- [ ] **ADDED HERE: When choosing display-based popup size in configure.sh, show the percentages.** For example, medium (30%x30% or 50%x50% - check percentages for named sizes are correct and consistent in writing config file, configuration messages, popup display, documentation). Also change "display-based" to "percentage" or something similar.
-- [?] **ADDED HERE: Do not preserve old comments in prior version of config file when writing a new one.** IMPLEMENTED??
+- [x] **ADDED HERE: Fix install.sh not installing lib files?** **Verified fixed** (code inspection 2026-02-07): install.sh copies libs to `~/.local/lib/sleep-warning`; status.sh sets `INSTALLED_LIB_DIR` to that path and passes it first to `init_library_paths`, so `detect_library_dir` / `find_lib_file` find installed libs when running `sleep-warning-status` from PATH.
+- [x] **ADDED HERE: When choosing popup size in configure.sh, show percentages for percentage mode and pixel dimensions for fixed.** **Done** (2026-02-07): GUI shows e.g. medium (30%x30%) in percentage mode and medium (800x500) in fixed mode; text mode already showed both. "display-based" renamed to "percentage" in wizard UI and user docs (config value remains `display-based`).
+- [x] **ADDED HERE: Do not preserve old comments in prior version of config file when writing a new one.** **Verified implemented** (code inspection 2026-02-07): `write_config()` in lib/configure-config.sh only writes from `_write_config_header` and section writers; no logic reads or re-inserts user comments from the existing file.
 - [ ] **ADDED HERE: improve configuration process for additional lock/uninstall hours** - be able to set all days at once, be able to set lock or uninstall schedule equal to the other one if it is configured (state what the schedule is when asking if the user wants to set one equal to the other)
 - [ ] **ADDED HERE: Fix configure.sh GUI fallback when no usable display** - tighten `has_gui()` detection so configure.sh automatically falls back to text mode when no accessible DISPLAY/Wayland socket exists.
 - [ ] **When checking if popup min display time > interval, use currently set interval, not one from config file** if it has been updated in config wizard but not saved yet
-- [?] **ADDED HERE: Uninstall should remove files like warnings log, last uptime, pause state file, etc.** - leave config file unless user says to remove it. IMPLEMENTED? 
+- [x] **ADDED HERE: Uninstall should remove files like warnings log, last uptime, pause state file, etc.** **Verified implemented** (code inspection 2026-02-07): `remove_ancillary_files()` in uninstall.sh removes warnings.log, .pause_state, .last_uptime, and popup PID file; it is always called during uninstall. Config file is only removed if user confirms or uses `--remove-config`. 
 - [ ] **#30: Separate Timer Check Interval from Popup Display Frequency** - Hardcode timer to check every 5 minutes, add user-configurable popup display frequency to solve minute precision timing issues
 - [ ] **ADDED HERE: Additional hours should not apply on days with no restrictions** - Additional lock hours and uninstall lock hours should not apply on days when there are no restricted times configured. User-configurable option to allow such locking (disabled by default). Warn users when entering additional hours on days with no restrictions. See [plan-additional-hours-no-restrictions.md](plans/plan-additional-hours-no-restrictions.md)
 - [ ] **#10: Audio Alerts** 
@@ -26,7 +26,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **#29: kdialog Window Size Control** - Try using `--textbox` with `--geometry` for kdialog popups to enable size control, with fallback to `--sorry` if it doesn't work properly
 - [ ] **#27 Donation Links** - ✅ **Phase 1 Partially Implemented** - PayPal donation links added to README.md, GETTING_STARTED.md, and install.sh. **Remaining**: Testing and verification. **Phase 2**: GitHub Sponsors support planned (see [enhancements/enhancement-27-phase-2-github-sponsors.md](enhancements/enhancement-27-phase-2-github-sponsors.md)) - requires license first.
 - [ ] **ADDED HERE: check end lock hours display, calculation** - eg, when trying to run configure.sh
-- [ ] **Change message from install** "The timer is now active and will check for restricted hours every 10 minutes."
+- [x] **Change message from install to use configured interval** **Already correct** (verified 2026-02-07): install.sh completion message uses `$(get_check_interval)` which reads CHECK_INTERVAL from the config file (new or old path) and defaults to 10 only when no valid value exists.
 
 ## Master Plan Phases
 
@@ -141,7 +141,7 @@ The following enhancements are fully implemented with no remaining work. They ar
 
 ---
 
-**Last Updated**: 2026-01-26 (Added Enhancement #16c: Multiple Time Range Entry in GUI)
+**Last Updated**: 2026-02-07 (Verification of ? items; popup size UI labels and percentage rename; Security Settings rename; install message; REMAINING_WORK_SUMMARY updates)
 **Related Documents**: 
 - [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) - Detailed enhancement descriptions
 - [linux-warning-system-plan.md](linux-warning-system-plan.md) - Master implementation plan

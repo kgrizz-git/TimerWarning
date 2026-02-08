@@ -441,7 +441,7 @@ main() {
                 done
                 ;;
             6)
-                # Security Settings (Script Blocking & Config File Locking)
+                # Script Blocking and Config Locking (menu item 6)
                 local security_result
                 security_result=$(get_security_settings_config "${use_gui}" "${configure_block_enabled}" "${config_lock_enabled}")
                 if [ "${security_result}" = "CANCELLED" ]; then

@@ -209,7 +209,7 @@ systemctl --user daemon-reload
 
 **Option**: `POPUP_SIZE`
 
-**Description**: Size of the warning popup dialog. Supports both fixed pixel sizes and percentage-based sizing (the "display-based" mode).
+**Description**: Size of the warning popup dialog. Supports both fixed pixel sizes and percentage-based sizing (shown as "percentage" in the configuration wizard; config file value: `display-based`).
 
 **Size Mode**: `POPUP_SIZE_MODE`
 
@@ -217,7 +217,7 @@ systemctl --user daemon-reload
 
 **Options**:
 - `fixed` (default): Uses absolute pixel values (backward compatible)
-- `display-based`: Percentage-based sizing; calculates sizes as percentages of the current display resolution
+- `display-based` (shown as "percentage" in the wizard): Percentage-based sizing; calculates sizes as percentages of the current display resolution
 
 **Format**: 
 - Predefined sizes: `xsmall`, `small`, `medium`, `large`, `xlarge`, `max`
@@ -231,10 +231,10 @@ In **fixed mode** (absolute pixels):
 - `small`: 400×250 pixels
 - `medium`: 800×500 pixels (default)
 - `large`: 1230×720 pixels
-- `xlarge`: 1845×1080 pixels (fixed mode) or 75% × 75% of screen (display-based mode)
+- `xlarge`: 1845×1080 pixels (fixed mode) or 75% × 75% of screen (percentage mode)
 - `max`: 2214×1296 pixels
 
-In **percentage-based (display-based) mode** (percentage of screen):
+In **percentage-based mode** (percentage of screen; config: `POPUP_SIZE_MODE=display-based`):
 - `xsmall`: 15% × 15% of screen resolution
 - `small`: 20% × 20% of screen resolution
 - `medium`: 30% × 30% of screen resolution
@@ -262,7 +262,7 @@ Fixed mode (default, backward compatible):
 POPUP_SIZE_MODE=fixed
 POPUP_SIZE=medium      # Use medium size (800x500 pixels)
 POPUP_SIZE=xsmall      # Use xsmall size (384x216 pixels)
-POPUP_SIZE=xlarge      # Use xlarge size (1845x1080 pixels in fixed mode, 75%×75% in display-based mode)
+POPUP_SIZE=xlarge      # Use xlarge size (1845x1080 pixels in fixed mode, 75%×75% in percentage mode)
 POPUP_SIZE=max         # Use max size (2214x1296 pixels)
 POPUP_SIZE=1920x1080   # Custom pixel size
 ```
@@ -273,7 +273,7 @@ POPUP_SIZE_MODE=display-based
 POPUP_SIZE=medium      # 30% × 30% of screen (e.g., 768×432 on 2560×1440 display)
 POPUP_SIZE=xsmall      # 15% × 15% of screen (e.g., 384×216 on 2560×1440 display)
 POPUP_SIZE=xlarge      # 75% × 75% of screen (e.g., 1920×1080 on 2560×1440 display) or 1845×1080 in fixed mode
-POPUP_SIZE=max         # 90% × 90% of screen (e.g., 2304×1296 on 2560×1440 display in display-based mode) or 2214×1296 in fixed mode
+POPUP_SIZE=max         # 90% × 90% of screen (e.g., 2304×1296 on 2560×1440 display in percentage mode) or 2214×1296 in fixed mode
 POPUP_SIZE=50%x50%     # Custom percentage size (50% of screen width and height)
 POPUP_SIZE=75%x60%     # Custom percentage size (75% width, 60% height)
 ```
@@ -826,7 +826,7 @@ Here is a complete example configuration file with all options:
 # Check interval: How often to check for restricted hours (in minutes)
 CHECK_INTERVAL=10
 
-# Popup size mode: fixed (pixels) or percentage-based (display-based; percentage of screen)
+# Popup size mode: fixed (pixels) or percentage (percentage of screen; config value: display-based)
 POPUP_SIZE_MODE=fixed
 # Popup size: xsmall, small, medium, large, xlarge, max, or custom (WIDTHxHEIGHT or WIDTH%xHEIGHT%)
 POPUP_SIZE=medium
@@ -871,7 +871,7 @@ DIALOG_TOOL=auto
 # IMPORTANT: This is a deterrence feature only - it can be bypassed by determined users
 # The system automatically disables this feature if restrictions exceed 9660 minutes per week (> 23 hours/day)
 # to prevent accidental lockout scenarios
-# See "Security Settings" in the configuration wizard to enable/disable
+# See "Script Blocking and Config Locking" in the configuration wizard to enable/disable
 CONFIG_LOCK_ENABLED=false
 
 # Restricted hours for each day
@@ -999,7 +999,7 @@ The wizard will guide you through setting all configuration options with a user-
 3. **Weekdays Configuration** - Set restricted hours for Monday through Friday
 4. **Weekends Configuration** - Set restricted hours for Saturday and Sunday
 5. **Visual Day/Time Grid** - View and edit all days in a visual grid format (see below)
-6. **Security Settings** - Configure blocking of configure.sh and manage.sh during restricted/lock hours, and config file locking
+6. **Script Blocking and Config Locking** - Configure blocking of configure.sh and manage.sh during restricted/lock hours, and config file locking
 7. **Lock Hours Configuration** - Configure additional hours when configuration/management is blocked (separate from restriction hours)
 8. **Uninstall Protection** - Configure protection mode for uninstall.sh during restricted hours
 9. **Uninstall Lock Hours Configuration** - Configure additional hours when difficult uninstall verification is required
@@ -1052,7 +1052,7 @@ The script automatically validates configuration values:
 - **Hour ranges**: Start hour must be less than end hour
 - **CHECK_INTERVAL**: Must be between 1 and 60
 - **POPUP_SIZE**: Must be `xsmall`, `small`, `medium`, `large`, `xlarge`, `max`, `custom`, or match `WIDTHxHEIGHT` (pixel) or `WIDTH%xHEIGHT%` (percentage) format
-- **POPUP_SIZE_MODE**: Must be `fixed` or `display-based` (default: `fixed`)
+- **POPUP_SIZE_MODE**: Must be `fixed` or `display-based` (default: `fixed`). The value `display-based` is shown as "percentage" in the configuration wizard.
 - **POPUP_POSITION**: Must be one of the valid position names
 - **POPUP_MIN_DISPLAY_TIME**: Must be between 0 and 300
 - **Timing Configuration**: `POPUP_MIN_DISPLAY_TIME` (in seconds) must not exceed `CHECK_INTERVAL` (in minutes) × 60. If this conflict is detected, the configuration wizard will show an error and prevent saving until the conflict is resolved. You can either increase `CHECK_INTERVAL` or decrease `POPUP_MIN_DISPLAY_TIME` to fix the conflict.

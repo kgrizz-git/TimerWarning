@@ -88,7 +88,7 @@ sleep-warning-configure
 - Window Behavior - Configure popup size (including new xsmall, xlarge, max options and percentage-based sizing), position, minimum display time, immovable setting, and auto-close
 - Weekdays/Weekends Configuration - Set restricted hours
 - Visual Day/Time Grid - View and edit all days at once (recommended!)
-- Security Settings - Configure blocking of configure.sh and manage.sh during restricted/lock hours
+- Script Blocking and Config Locking - Configure blocking of configure.sh and manage.sh during restricted/lock hours
 - Lock Hours Configuration - Configure additional hours when configuration/management is blocked
 - Uninstall Protection - Configure protection mode for uninstall.sh during restricted hours
 - Uninstall Lock Hours Configuration - Configure additional hours when difficult uninstall verification is required
@@ -113,7 +113,7 @@ nano ~/.config/sleep-warning/config/sleep-warning.conf
 # Check interval (minutes)
 CHECK_INTERVAL=10
 
-# Popup size mode: fixed (pixels) or percentage-based (display-based; percentage of screen)
+# Popup size mode: fixed (pixels) or percentage (percentage of screen; config value: display-based)
 POPUP_SIZE_MODE=fixed
 # Popup size: xsmall, small, medium, large, xlarge, max, or custom (WIDTHxHEIGHT or WIDTH%xHEIGHT%)
 POPUP_SIZE=medium
