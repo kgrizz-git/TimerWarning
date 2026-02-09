@@ -70,12 +70,17 @@ get_check_interval() {
             fi
             
             # Validate timing configuration (Enhancement #9)
+            # Use wizard's current min display time if set and valid; else config file or default
             local current_min_display_time
-            if [ -f "${CONFIG_FILE}" ]; then
-                current_min_display_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-            fi
-            if [ -z "${current_min_display_time}" ] || ! [[ "${current_min_display_time}" =~ ^[0-9]+$ ]]; then
-                current_min_display_time=30  # Default
+            current_min_display_time="${min_display_time:-}"
+            if [ -z "${current_min_display_time}" ] || ! [[ "${current_min_display_time}" =~ ^[0-9]+$ ]] || \
+               [ "${current_min_display_time}" -lt "${MIN_DISPLAY_TIME}" ] || [ "${current_min_display_time}" -gt "${MAX_DISPLAY_TIME}" ]; then
+                if [ -f "${CONFIG_FILE}" ]; then
+                    current_min_display_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                fi
+                if [ -z "${current_min_display_time}" ] || ! [[ "${current_min_display_time}" =~ ^[0-9]+$ ]]; then
+                    current_min_display_time=30  # Default
+                fi
             fi
             
             if type validate_popup_timing_config >/dev/null 2>&1; then
@@ -97,12 +102,17 @@ get_check_interval() {
             interval=${interval:-${default_interval}}
             
             if [[ "${interval}" =~ ^[0-9]+$ ]] && [ "${interval}" -ge "${MIN_CHECK_INTERVAL}" ] && [ "${interval}" -le "${MAX_CHECK_INTERVAL}" ]; then
+                # Use wizard's current min display time if set and valid; else config file or default
                 local current_min_display_time
-                if [ -f "${CONFIG_FILE}" ]; then
-                    current_min_display_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-                fi
-                if [ -z "${current_min_display_time}" ] || ! [[ "${current_min_display_time}" =~ ^[0-9]+$ ]]; then
-                    current_min_display_time=30  # Default
+                current_min_display_time="${min_display_time:-}"
+                if [ -z "${current_min_display_time}" ] || ! [[ "${current_min_display_time}" =~ ^[0-9]+$ ]] || \
+                   [ "${current_min_display_time}" -lt "${MIN_DISPLAY_TIME}" ] || [ "${current_min_display_time}" -gt "${MAX_DISPLAY_TIME}" ]; then
+                    if [ -f "${CONFIG_FILE}" ]; then
+                        current_min_display_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    fi
+                    if [ -z "${current_min_display_time}" ] || ! [[ "${current_min_display_time}" =~ ^[0-9]+$ ]]; then
+                        current_min_display_time=30  # Default
+                    fi
                 fi
                 
                 if type validate_popup_timing_config >/dev/null 2>&1; then
@@ -184,7 +194,7 @@ get_day_hours() {
             local range_confirmed=false
             
             while [ "${range_confirmed}" = "false" ]; do
-                range_input=$(show_time_selection_dialog "Sleep Warning Configuration - ${day_name}" "" "")
+                range_input=$(show_time_selection_dialog "Sleep Warning Configuration - ${day_name}" "" "" "${day_name}")
                 local exit_code=$?
                 
                 if [ ${exit_code} -ne 0 ] || [ -z "${range_input}" ]; then

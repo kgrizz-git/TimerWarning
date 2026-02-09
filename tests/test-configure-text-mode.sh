@@ -51,8 +51,8 @@ test_check "Text mode flag (--text)" "${CONFIGURE_SCRIPT} --text --help 2>&1 | g
 # Test 3: Script syntax is valid
 test_check "Script syntax validation" "bash -n ${CONFIGURE_SCRIPT}"
 
-# Test 4: Menu option 5 exists in code
-test_check "Menu option 5 (Visual Day/Time Grid) exists" "grep -q 'Visual Day/Time Grid' ${LIB_DIR}/configure-display.sh"
+# Test 4: Menu option 9 (View Weekly Hours / grid) exists in code
+test_check "Menu option 9 (View Weekly Hours Settings) exists" "grep -q 'View Weekly Hours Settings' ${LIB_DIR}/configure-display.sh"
 
 # Test 5: show_visual_grid function exists
 test_check "show_visual_grid function exists" "grep -q '^show_visual_grid()' ${LIB_DIR}/configure-display.sh"
@@ -60,11 +60,11 @@ test_check "show_visual_grid function exists" "grep -q '^show_visual_grid()' ${L
 # Test 6: configure_day_from_grid function exists
 test_check "configure_day_from_grid function exists" "grep -q '^configure_day_from_grid()' ${LIB_DIR}/configure-workflow.sh"
 
-# Test 7: Case statement handles option 5
-test_check "Case statement handles option 5" "grep -A 15 '^[[:space:]]*5)' ${CONFIGURE_SCRIPT} | grep -q 'show_visual_grid'"
+# Test 7: Case statement handles option 9 (grid)
+test_check "Case statement handles option 9" "grep -A 15 '^[[:space:]]*9)' ${CONFIGURE_SCRIPT} | grep -q 'show_visual_grid'"
 
-# Test 8: Text mode menu shows option 5
-test_check "Text mode menu includes option 5" "grep -q 'Visual Day/Time Grid' ${LIB_DIR}/configure-display.sh"
+# Test 8: Text mode menu shows option 9 (View Weekly Hours)
+test_check "Text mode menu includes option 9" "grep -q 'View Weekly Hours Settings' ${LIB_DIR}/configure-display.sh"
 
 # Test 9: Text mode grid display function exists
 test_check "Text mode grid display code exists" "grep -q '^show_visual_grid()' ${LIB_DIR}/configure-display.sh && grep -q 'Visual Day/Time Grid' ${LIB_DIR}/configure-display.sh"

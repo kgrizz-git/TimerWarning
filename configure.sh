@@ -312,86 +312,68 @@ main() {
                 fi
                 ;;
             2)
-                # Window Behavior
-                # This is for Enhancement #3 (Enhanced Window Size Options)
-                
-                # Get size mode (fixed or display-based)
-                local new_size_mode
-                new_size_mode=$(get_popup_size_mode_config "${use_gui}")
-                if [ "${new_size_mode}" = "CANCELLED" ]; then
-                    # User already confirmed cancellation
-                    exit 0
-                else
-                    popup_size_mode="${new_size_mode}"
-                fi
-                
-                # Get popup size
-                local new_size
-                # Pass current size mode so GUI can show percentage mappings
-                # when using display-based (percentage-based) sizing.
-                new_size=$(get_popup_size_config "${use_gui}" "${popup_size_mode}")
-                if [ "${new_size}" = "CANCELLED" ]; then
-                    # User already confirmed cancellation
-                    exit 0
-                else
-                    # Check if the result contains custom dimensions (format: "custom|95%x95%")
-                    if echo "${new_size}" | grep -qE '^custom\|'; then
-                        # Extract the size type and custom dimensions
-                        popup_size="custom"
-                        popup_size_custom=$(echo "${new_size}" | cut -d'|' -f2)
-                        
-                        # If it's a percentage format, we need an absolute fallback
-                        if echo "${popup_size_custom}" | grep -qE '^[0-9]+%x[0-9]+%$'; then
-                            # Calculate absolute fallback from percentage (based on 2560×1440)
-                            local width_percent height_percent
-                            width_percent=$(echo "${popup_size_custom}" | cut -d'x' -f1 | tr -d '%')
-                            height_percent=$(echo "${popup_size_custom}" | cut -d'x' -f2 | tr -d '%')
-                            popup_size_custom_absolute="$((2560 * width_percent / 100))x$((1440 * height_percent / 100))"
-                        else
-                            # It's already a pixel format, use it as both custom and absolute
-                            popup_size_custom_absolute="${popup_size_custom}"
-                        fi
-                    else
-                        # Regular size (not custom)
-                        popup_size="${new_size}"
+                # Window Behavior (submenu: size, position, min display time, immovable, auto-close, Back)
+                while true; do
+                    local sub_choice
+                    sub_choice=$(show_window_behavior_submenu "${use_gui}")
+                    local sub_exit=$?
+                    if [ ${sub_exit} -eq 2 ]; then
+                        exit 0
                     fi
-                fi
-                
-                local new_position
-                new_position=$(get_popup_position_config "${use_gui}")
-                if [ "${new_position}" = "CANCELLED" ]; then
-                    # User already confirmed cancellation
-                    exit 0
-                else
-                    popup_position="${new_position}"
-                fi
-                
-                local new_time
-                new_time=$(get_min_display_time_config "${use_gui}")
-                if [ "${new_time}" = "CANCELLED" ]; then
-                    # User already confirmed cancellation
-                    exit 0
-                else
-                    min_display_time="${new_time}"
-                fi
-                
-                local new_immovable
-                new_immovable=$(get_popup_immovable_config "${use_gui}")
-                if [ "${new_immovable}" = "CANCELLED" ]; then
-                    # User already confirmed cancellation
-                    exit 0
-                else
-                    popup_immovable="${new_immovable}"
-                fi
-                
-                local new_auto_close
-                new_auto_close=$(get_popup_auto_close_config "${use_gui}")
-                if [ "${new_auto_close}" = "CANCELLED" ]; then
-                    # User already confirmed cancellation
-                    exit 0
-                else
-                    popup_auto_close="${new_auto_close}"
-                fi
+                    if [ ${sub_exit} -ne 0 ] || [ -z "${sub_choice}" ] || [ "${sub_choice}" = "6" ]; then
+                        break
+                    fi
+                    case "${sub_choice}" in
+                        1)
+                            local new_size_mode
+                            new_size_mode=$(get_popup_size_mode_config "${use_gui}")
+                            if [ "${new_size_mode}" = "CANCELLED" ]; then exit 0; fi
+                            popup_size_mode="${new_size_mode}"
+                            local new_size
+                            new_size=$(get_popup_size_config "${use_gui}" "${popup_size_mode}")
+                            if [ "${new_size}" = "CANCELLED" ]; then exit 0; fi
+                            if echo "${new_size}" | grep -qE '^custom\|'; then
+                                popup_size="custom"
+                                popup_size_custom=$(echo "${new_size}" | cut -d'|' -f2)
+                                if echo "${popup_size_custom}" | grep -qE '^[0-9]+%x[0-9]+%$'; then
+                                    local width_percent height_percent
+                                    width_percent=$(echo "${popup_size_custom}" | cut -d'x' -f1 | tr -d '%')
+                                    height_percent=$(echo "${popup_size_custom}" | cut -d'x' -f2 | tr -d '%')
+                                    popup_size_custom_absolute="$((2560 * width_percent / 100))x$((1440 * height_percent / 100))"
+                                else
+                                    popup_size_custom_absolute="${popup_size_custom}"
+                                fi
+                            else
+                                popup_size="${new_size}"
+                            fi
+                            ;;
+                        2)
+                            local new_position
+                            new_position=$(get_popup_position_config "${use_gui}")
+                            if [ "${new_position}" = "CANCELLED" ]; then exit 0; fi
+                            popup_position="${new_position}"
+                            ;;
+                        3)
+                            local new_time
+                            new_time=$(get_min_display_time_config "${use_gui}")
+                            if [ "${new_time}" = "CANCELLED" ]; then exit 0; fi
+                            min_display_time="${new_time}"
+                            ;;
+                        4)
+                            local new_immovable
+                            new_immovable=$(get_popup_immovable_config "${use_gui}")
+                            if [ "${new_immovable}" = "CANCELLED" ]; then exit 0; fi
+                            popup_immovable="${new_immovable}"
+                            ;;
+                        5)
+                            local new_auto_close
+                            new_auto_close=$(get_popup_auto_close_config "${use_gui}")
+                            if [ "${new_auto_close}" = "CANCELLED" ]; then exit 0; fi
+                            popup_auto_close="${new_auto_close}"
+                            ;;
+                        *) break ;;
+                    esac
+                done
                 ;;
             3)
                 # Weekdays Configuration
@@ -412,79 +394,59 @@ main() {
                 fi
                 ;;
             5)
-                # View Weekly Hours Settings
-                # Use global variable to store result (avoid subshell issue with namerefs)
-                declare -g grid_result_var=""
-                while true; do
-                    grid_result_var=""
-                    show_visual_grid "${use_gui}" config_lines summary_lines lock_hours_lines uninstall_lock_hours_lines
-                    local grid_exit=$?
-                    
-                    if [ "${grid_exit}" -ne 0 ] || [ "${grid_result_var}" = "BACK" ]; then
-                        # User wants to go back to main menu
-                        break
-                    fi
-                    
-                    # grid_result_var contains the day index (0-6) or "BACK"
-                    local day_index="${grid_result_var}"
-                    
-                    # Configure the selected day (restricted hours, lock hours, and/or uninstall lock hours)
-                    configure_day_from_grid "${day_index}" "${use_gui}" config_lines summary_lines lock_hours_lines uninstall_lock_hours_lines
-                    local config_exit=$?
-                    
-                    if [ "${config_exit}" -eq 2 ]; then
-                        # User cancelled configuration
-                        break
-                    fi
-                    
-                    # Grid will refresh automatically on next loop iteration
-                done
-                ;;
-            6)
-                # Script Blocking and Config Locking (menu item 6)
+                # Script Blocking and Config Locking
                 local security_result
                 security_result=$(get_security_settings_config "${use_gui}" "${configure_block_enabled}" "${config_lock_enabled}")
                 if [ "${security_result}" = "CANCELLED" ]; then
-                    # User already confirmed cancellation
                     exit 0
                 else
-                    # Parse pipe-separated result: "configure_block|config_lock"
                     configure_block_enabled=$(echo "${security_result}" | cut -d'|' -f1)
                     config_lock_enabled=$(echo "${security_result}" | cut -d'|' -f2)
                 fi
                 ;;
-            7)
+            6)
                 # Additional Configuration Block Hours (Enhancement #19 Phase 2)
-                # Configure additional hours when configure.sh/manage.sh are blocked,
-                # separate from restricted hours.
                 configure_lock_hours_section "${use_gui}" lock_hours_lines
                 local lock_exit=$?
                 if [ "${lock_exit}" -eq 2 ]; then
-                    # User cancelled
                     exit 0
                 fi
                 ;;
-            8)
+            7)
                 # Uninstall Protection Configuration (Enhancement #26)
                 local new_protection_mode
                 new_protection_mode=$(get_uninstall_protection_mode_config "${use_gui}")
                 if [ "${new_protection_mode}" = "CANCELLED" ]; then
-                    # User already confirmed cancellation
                     exit 0
                 else
                     uninstall_protection_mode="${new_protection_mode}"
                 fi
                 ;;
-            9)
+            8)
                 # Uninstall Lock Hours Configuration (Enhancement #26 Phase 2)
-                # Configure additional hours when difficult uninstall verification is required,
-                # separate from restriction hours and configure.sh lock hours.
                 configure_uninstall_lock_hours_section "${use_gui}" uninstall_lock_hours_lines
                 local uninstall_lock_exit=$?
                 if [ "${uninstall_lock_exit}" -eq 2 ]; then
-                    # User cancelled
                     exit 0
                 fi
+                ;;
+            9)
+                # View Weekly Hours Settings
+                declare -g grid_result_var=""
+                while true; do
+                    grid_result_var=""
+                    show_visual_grid "${use_gui}" config_lines summary_lines lock_hours_lines uninstall_lock_hours_lines
+                    local grid_exit=$?
+                    if [ "${grid_exit}" -ne 0 ] || [ "${grid_result_var}" = "BACK" ]; then
+                        break
+                    fi
+                    local day_index="${grid_result_var}"
+                    configure_day_from_grid "${day_index}" "${use_gui}" config_lines summary_lines lock_hours_lines uninstall_lock_hours_lines
+                    local config_exit=$?
+                    if [ "${config_exit}" -eq 2 ]; then
+                        break
+                    fi
+                done
                 ;;
             10)
                 # Pause Settings Configuration (Enhancement #21)

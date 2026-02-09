@@ -112,7 +112,7 @@ timeout 300s ./tests/test-configure-comprehensive.sh 10
 - **Actions**: Opens grid view with empty config, navigates menu
 - **Verification**:
   - Grid displays "no restrictions" for unconfigured days
-  - Navigation works (option 0 and 6)
+  - Navigation works (Back and option 13 for Review and Save)
 
 ### Test 8: Config Persistence and Reload
 - **Purpose**: Full integration test of all settings
@@ -137,13 +137,8 @@ timeout 300s ./tests/test-configure-comprehensive.sh 10
 - **Note**: Full individual day skip flow not automated due to expect/stdin complexity
 
 ### Test 10: Backward Compatibility
-- **Purpose**: Verify all menu options (1-6) still work correctly
-- **Actions**: Tests all main menu options in sequence:
-  - Option 1: Timer Settings (25 min)
-  - Option 2: Window Behavior (medium, top-center, 90s, immovable)
-  - Option 3: Weekdays (1-4)
-  - Option 4: Weekends (2-7)
-  - Option 6: Review and Save
+- **Purpose**: Verify main menu options (1-13) still work correctly
+- **Actions**: Tests menu options in sequence (e.g. option 1 Timer, 2 Window Behavior submenu, 3–4 Weekdays/Weekends, 9 View Weekly Hours, 13 Review and Save)
 - **Verification**:
   - All settings persist correctly
   - Menu structure unchanged

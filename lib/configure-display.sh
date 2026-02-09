@@ -319,14 +319,14 @@ show_main_menu() {
             "Option" \
             "Description" \
             "1" "Timer Settings (Check Interval: ${check_interval} min)" \
-            "2" "Window Behavior (${window_desc})" \
+            "2" "Window Behavior (opens submenu)" \
             "3" "Weekdays Configuration ${safe_weekdays}" \
             "4" "Weekends Configuration ${safe_weekends}" \
-            "5" "View Weekly Hours Settings" \
-            "6" "Script Blocking and Config Locking${safe_security_status}" \
-            "7" "Additional Configuration Block Hours${safe_lock_status}" \
-            "8" "Uninstall Protection${safe_uninstall_protection}" \
-            "9" "Additional Uninstall Protection Hours${safe_uninstall_lock}" \
+            "5" "Script Blocking and Config Locking${safe_security_status}" \
+            "6" "Additional Configuration Block Hours${safe_lock_status}" \
+            "7" "Uninstall Protection${safe_uninstall_protection}" \
+            "8" "Additional Uninstall Protection Hours${safe_uninstall_lock}" \
+            "9" "View Weekly Hours Settings" \
             "10" "Enable pause and configure duration${safe_pause_status}" \
             "11" "Dialog Tool Selection${safe_dialog_status}" \
             "12" "Service Mode Configuration (Desktop/Gaming Mode)" \
@@ -386,8 +386,8 @@ show_main_menu() {
         echo "1. Timer Settings (Check Interval: ${check_interval} min)" >&2
         echo "   Configure how often the system checks for restricted hours" >&2
         echo "" >&2
-        echo "2. Window Behavior (${window_desc})" >&2
-        echo "   Configure popup size, position, display time, and immovable settings" >&2
+        echo "2. Window Behavior (opens submenu for size, position, etc.)" >&2
+        echo "   Configure popup size, position, display time, immovable, and auto-close" >&2
         echo "" >&2
         echo "3. Weekdays Configuration ${weekdays_status}" >&2
         echo "   Set restricted hours for Monday through Friday" >&2
@@ -395,14 +395,9 @@ show_main_menu() {
         echo "4. Weekends Configuration ${weekends_status}" >&2
         echo "   Set restricted hours for Saturday and Sunday" >&2
         echo "" >&2
-        echo "5. View Weekly Hours Settings" >&2
-        echo "   View and edit all days in a visual grid format" >&2
-        echo "" >&2
         # Build security settings status indicator (combined)
-        # Ensure variables have defaults if not set
         local config_lock_val="${config_lock_enabled:-false}"
         local configure_block_val="${configure_block_enabled:-false}"
-        
         local security_status=""
         if [ "${configure_block_val}" = "true" ] && [ "${config_lock_val}" = "true" ]; then
             security_status=" (Both Enabled)"
@@ -413,39 +408,37 @@ show_main_menu() {
         else
             security_status=" (Both Disabled)"
         fi
-        # Build lock hours status indicator (Phase 2)
         local lock_status_display=""
         if [ -n "${lock_hours_status}" ]; then
             lock_status_display=" ${lock_hours_status}"
         fi
-        echo "6. Script Blocking and Config Locking${security_status}" >&2
+        echo "5. Script Blocking and Config Locking${security_status}" >&2
         echo "   Configure blocking of configure.sh/manage.sh and config file locking during restricted hours" >&2
         echo "" >&2
-        echo "7. Additional Configuration Block Hours${lock_status_display}" >&2
+        echo "6. Additional Configuration Block Hours${lock_status_display}" >&2
         echo "   Configure additional hours when configuration/management is blocked" >&2
         echo "   (Only applies when Script Blocking is enabled)" >&2
         echo "" >&2
-        # Build uninstall protection status indicator (Enhancement #26)
         local uninstall_protection_status=""
         if [ "${uninstall_protection_mode}" = "difficult" ]; then
             uninstall_protection_status=" (Enabled)"
         else
             uninstall_protection_status=" (Disabled)"
         fi
-        echo "8. Uninstall Protection${uninstall_protection_status}" >&2
+        echo "7. Uninstall Protection${uninstall_protection_status}" >&2
         echo "   Configure protection mode for uninstall.sh during restricted hours" >&2
         echo "" >&2
-        # Build uninstall lock hours status indicator (Enhancement #26 Phase 2)
         local uninstall_lock_status_display=""
         if [ -n "${uninstall_lock_hours_status}" ]; then
             uninstall_lock_status_display=" ${uninstall_lock_hours_status}"
         fi
-        echo "9. Additional Uninstall Protection Hours${uninstall_lock_status_display}" >&2
+        echo "8. Additional Uninstall Protection Hours${uninstall_lock_status_display}" >&2
         echo "   Configure additional hours when difficult uninstall verification is required" >&2
         echo "   (Only applies when Uninstall Protection is enabled)" >&2
         echo "" >&2
-        # Build pause settings status indicator (Enhancement #21)
-        # Note: Pause is always once per day (not configurable), so we only show enabled/disabled and duration
+        echo "9. View Weekly Hours Settings" >&2
+        echo "   View and edit all days in a visual grid format" >&2
+        echo "" >&2
         local pause_status=""
         if [ "${pause_enabled}" = "true" ]; then
             pause_status=" (Enabled, ${pause_duration} min)"
@@ -476,6 +469,62 @@ show_main_menu() {
                     ;;
                 *)
                     echo "Invalid option. Please enter 1-13." >&2
+                    ;;
+            esac
+        done
+    fi
+}
+
+# Show Window Behavior submenu (size, position, min display time, immovable, auto-close, Back).
+# Returns: stdout = "1"-"6"; return 0 = valid choice; return 1 = Back/cancel (caller re-shows main menu); return 2 = CANCELLED (exit config).
+show_window_behavior_submenu() {
+    local use_gui="$1"
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        local choice
+        choice=$(show_multi_column_list_dialog \
+            "Window Behavior" \
+            "Select an option to configure:" \
+            500 \
+            320 \
+            1 \
+            "Option" "Description" \
+            "1" "Popup size (mode and size)" \
+            "2" "Position" \
+            "3" "Min display time" \
+            "4" "Immovable" \
+            "5" "Auto-close" \
+            "6" "Back to main menu")
+        local exit_code=$?
+        if [ ${exit_code} -ne 0 ] || [ -z "${choice}" ]; then
+            return 1
+        fi
+        if [ "${choice}" = "6" ]; then
+            return 1
+        fi
+        echo "${choice}"
+        return 0
+    else
+        echo "" >&2
+        echo "=== Window Behavior ===" >&2
+        echo "1. Popup size (mode and size)" >&2
+        echo "2. Position" >&2
+        echo "3. Min display time" >&2
+        echo "4. Immovable" >&2
+        echo "5. Auto-close" >&2
+        echo "6. Back to main menu" >&2
+        echo "" >&2
+        while true; do
+            read -p "Select option [1-6]: " choice >&2
+            case "${choice}" in
+                1|2|3|4|5)
+                    echo "${choice}"
+                    return 0
+                    ;;
+                6)
+                    return 1
+                    ;;
+                *)
+                    echo "Invalid option. Please enter 1-6." >&2
                     ;;
             esac
         done

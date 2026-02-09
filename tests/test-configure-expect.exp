@@ -31,8 +31,8 @@ expect {
             puts "PASS: Menu displayed"
             exit 0
         } elseif {$test_name == "grid_display"} {
-            # Select option 5 (Visual Grid)
-            send "5\r"
+            # Select option 9 (View Weekly Hours)
+            send "9\r"
             sleep 0.5
             expect {
                 -re "=== Visual Day/Time Grid ===" {
@@ -55,8 +55,8 @@ expect {
                 }
             }
         } elseif {$test_name == "grid_configured_days"} {
-            # Select option 5
-            send "5\r"
+            # Select option 9 (grid)
+            send "9\r"
             expect "Visual Day/Time Grid"
             # Check for Monday with restrictions in the grid output
             expect {
@@ -70,8 +70,8 @@ expect {
                 }
             }
         } elseif {$test_name == "grid_overnight"} {
-            # Select option 5
-            send "5\r"
+            # Select option 9 (grid)
+            send "9\r"
             expect "Visual Day/Time Grid"
             # Check for overnight range
             expect {
@@ -81,8 +81,8 @@ expect {
                 }
             }
         } elseif {$test_name == "grid_multiple_ranges"} {
-            # Select option 5
-            send "5\r"
+            # Select option 9 (grid)
+            send "9\r"
             expect "Visual Day/Time Grid"
             # Check for multiple ranges with AND
             expect {
@@ -92,17 +92,15 @@ expect {
                 }
             }
         } elseif {$test_name == "individual_day_edit"} {
-            # Select option 5 (grid)
-            send "5\r"
+            # Select option 9 (grid) - grid click only edits the clicked day (no bulk prompt)
+            send "9\r"
             expect "Visual Day/Time Grid"
             expect "Select option"
             # Select Monday from the grid (Sunday=1, Monday=2)
             send "2\r"
             expect "What would you like to edit for Monday"
             send "1\r"  ;# Restricted Hours
-            expect "Use same hours for all weekdays"
-            send "n\r"  ;# Edit just Monday
-            expect "Configure restricted hours for Monday"
+            expect -re "Configuring Monday|Time range.*Monday|Configure restricted hours for Monday"
             send "0-5\r"
             expect "Is this correct"
             send "y\r"
@@ -110,36 +108,30 @@ expect {
             puts "PASS: Individual day editing works"
             exit 0
         } elseif {$test_name == "weekday_bulk_apply"} {
-            # Select option 5 (grid)
-            send "5\r"
+            # Select option 9 (grid) - grid only edits clicked day; expect direct time entry for Monday
+            send "9\r"
             expect "Visual Day/Time Grid"
             expect "Select option"
-            # Select Monday from the grid (Sunday=1, Monday=2)
             send "2\r"
             expect "What would you like to edit for Monday"
             send "1\r"  ;# Restricted Hours
-            expect "Use same hours for all weekdays"
-            puts "PASS: Weekday bulk apply prompt appeared"
-            send "y\r"
-            expect -re "Configure restricted hours for Weekdays|Weekdays"
+            expect -re "Configuring Monday|Time range.*Monday|Configure restricted hours for Monday"
+            puts "PASS: Grid goes directly to time entry for Monday (no bulk prompt)"
             send "0-5\r"
             expect "Is this correct"
             send "y\r"
             expect "Visual Day/Time Grid"
             exit 0
         } elseif {$test_name == "weekend_bulk_apply"} {
-            # Select option 5 (grid)
-            send "5\r"
+            # Select option 9 (grid) - grid only edits clicked day; expect direct time entry for Saturday
+            send "9\r"
             expect "Visual Day/Time Grid"
             expect "Select option"
-            # Select Saturday from the grid (Saturday=7)
             send "7\r"
             expect "What would you like to edit for Saturday"
             send "1\r"  ;# Restricted Hours
-            expect "Use same hours for both weekend days"
-            puts "PASS: Weekend bulk apply prompt appeared"
-            send "y\r"
-            expect -re "Configure restricted hours for Weekends|Weekends"
+            expect -re "Configuring Saturday|Time range.*Saturday|Configure restricted hours for Saturday"
+            puts "PASS: Grid goes directly to time entry for Saturday (no bulk prompt)"
             send "1-5\r"
             expect "Is this correct"
             send "y\r"

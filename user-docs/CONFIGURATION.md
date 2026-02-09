@@ -438,7 +438,7 @@ POPUP_AUTO_CLOSE=false
 - **Accessibility**: Useful for users who prefer automatic dismissal or have difficulty interacting with popups
 
 **Configuration via Wizard**:
-- Use menu option 2: **Window Behavior** in the configuration wizard
+- Use menu option 2: **Window Behavior** (opens a submenu for size, position, min display time, immovable, auto-close) in the configuration wizard
 - Auto-close is configured alongside immovable settings
 - The wizard shows current minimum display time for reference when configuring auto-close
 
@@ -536,7 +536,7 @@ CONFIG_LOCK_HOURS_WEDNESDAY=23-6     # Block overnight (11 PM to 5:59 AM)
 - **Flexible Scheduling**: Have different lock hours than restriction hours (e.g., restrict late night but lock work hours)
 
 **Configuration via Wizard**:
-- Use menu option 7: **Lock Hours Configuration** in the configuration wizard
+- Use menu option 6: **Additional Configuration Block Hours** in the configuration wizard
 - Configure lock hours per day, similar to restriction hours
 - Lock hours are saved to the config file with the `CONFIG_LOCK_HOURS_DAYNAME` format
 
@@ -679,10 +679,10 @@ UNINSTALL_LOCK_HOURS_WEDNESDAY=23-6      # Require verification overnight (11 PM
 - Multiple ranges per day are supported (comma-separated, e.g., `9-17,20-22`).
 
 **Configuration via Wizard**:
-- Use menu option 9: **Uninstall Lock Hours Configuration** in the configuration wizard
+- Use menu option 8: **Additional Uninstall Protection Hours** in the configuration wizard
 - Configure uninstall lock hours per day, similar to restriction hours
 - Uninstall lock hours are saved to the config file with the `UNINSTALL_LOCK_HOURS_DAYNAME` format
-- You can also edit uninstall lock hours from the Visual Day/Time Grid (option 5) by selecting a day and choosing "Uninstall Lock Hours" or "All"
+- You can also edit uninstall lock hours from the View Weekly Hours Settings (option 9) by selecting a day and choosing "Uninstall Lock Hours" or "All"
 
 **Use Cases**:
 - **Extended Protection**: Add additional hours beyond your restriction hours when you want extra uninstall protection
@@ -734,7 +734,7 @@ PAUSE_DURATION=10         # 10 minute pause duration
 - Pause buttons are available even during minimum display time - clicking pause immediately closes the popup (bypasses minimum display time)
 
 **Configuration via Wizard**:
-- Use menu option 9: **Enable pause and configure duration** in the configuration wizard
+- Use menu option 10: **Enable pause and configure duration** in the configuration wizard
 - Configure pause enabled/disabled and duration (5 or 10 minutes)
 - Settings are saved to the config file with the `PAUSE_ENABLED` and `PAUSE_DURATION` format
 
@@ -1008,7 +1008,7 @@ The wizard will guide you through setting all configuration options with a user-
 12. **Review and Save** - Review your configuration and save changes
 
 **Visual Day/Time Grid**:
-The grid view (option 5) provides a convenient way to see all days of the week and their configured time ranges at a glance. The grid displays:
+The View Weekly Hours Settings (option 9) provides a convenient way to see all days of the week and their configured time ranges at a glance. The grid displays:
 - All 7 days (Sunday through Saturday) in a single view
 - Four columns: Day, Restricted Hours, Lock Hours (configure.sh/manage.sh), and Uninstall Lock Hours
 - You can select any day to edit its restricted hours, lock hours, uninstall lock hours, or all of them

@@ -716,7 +716,7 @@ manage_ranges_dialog() {
             "Add range")
                 # Add a new range
                 local new_range_input
-                new_range_input=$(show_time_selection_dialog "Add Time Range - ${day_name}" "" "")
+                new_range_input=$(show_time_selection_dialog "Add Time Range - ${day_name}" "" "" "${day_name}")
                 local add_exit=$?
                 
                 if [ ${add_exit} -eq 0 ] && [ -n "${new_range_input}" ]; then
@@ -783,7 +783,7 @@ manage_ranges_dialog() {
                     
                     # Edit the range
                     local edited_range_input
-                    edited_range_input=$(show_time_selection_dialog "Edit Time Range - ${day_name}" "${start_part}" "${end_part}")
+                    edited_range_input=$(show_time_selection_dialog "Edit Time Range - ${day_name}" "${start_part}" "${end_part}" "${day_name}")
                     local edit_exit=$?
                     
                     if [ ${edit_exit} -eq 0 ] && [ -n "${edited_range_input}" ]; then

@@ -227,7 +227,7 @@ expect {
             }
         } elseif {$test_name == "test_grid_empty"} {
             # Test 7: Grid with empty config
-            send "5\r"
+            send "9\r"
             expect {
                 "Visual Day/Time Grid" {
                     expect "Select option"
@@ -408,7 +408,7 @@ expect {
             }
         } elseif {$test_name == "test_grid_empty"} {
             # Test 6: Grid with empty config
-            send "5\r"
+            send "9\r"
             expect {
                 "Visual Day/Time Grid" {
                     expect "Select option"
@@ -428,15 +428,15 @@ expect {
                 }
             }
         } elseif {$test_name == "test_grid_multiple_ranges"} {
-            # Test 7: Grid with multiple time ranges
-            send "5\r"
+            # Test 7: Grid with multiple time ranges (grid only edits clicked day, no bulk prompt)
+            send "9\r"
             expect "Visual Day/Time Grid"
             expect "Select option"
             send "2\r"
+            expect "What would you like to edit for Monday"
+            send "1\r"
             expect {
-                "all weekdays" {
-                    send "n\r"
-                    expect "Configure restricted hours for Monday"
+                -re "Configuring Monday|Time range.*Monday|Configure restricted hours for Monday" {
                     send "0-5,22-23\r"
                     expect "Is this correct"
                     send "y\r"
@@ -466,15 +466,15 @@ expect {
                 }
             }
         } elseif {$test_name == "test_grid_overnight"} {
-            # Test 8: Grid with overnight ranges
-            send "5\r"
+            # Test 8: Grid with overnight ranges (grid only edits clicked day)
+            send "9\r"
             expect "Visual Day/Time Grid"
             expect "Select option"
             send "2\r"
+            expect "What would you like to edit for Monday"
+            send "1\r"
             expect {
-                "all weekdays" {
-                    send "n\r"
-                    expect "Configure restricted hours for Monday"
+                -re "Configuring Monday|Time range.*Monday|Configure restricted hours for Monday" {
                     send "23-6\r"
                     expect "Is this correct"
                     send "y\r"
@@ -504,22 +504,21 @@ expect {
                 }
             }
         } elseif {$test_name == "test_cancellation"} {
-            # Test 9: Cancellation handling
-            send "5\r"
+            # Test 9: Cancellation handling (grid only edits clicked day)
+            send "9\r"
             expect "Visual Day/Time Grid"
             expect "Select option"
             send "2\r"
+            expect "What would you like to edit for Monday"
+            send "1\r"
+            expect -re "Configuring Monday|Time range.*Monday|Configure restricted hours for Monday"
+            send "\r"
             expect {
-                "all weekdays" {
-                    send "n\r"
-                    expect "Configure restricted hours for Monday"
-                    send "\r"
-                    expect {
-                        "What would you like to do" {
-                            puts "PASS: Cancellation menu appeared"
-                            send "Continue configuring\r"
-                            expect "Configure restricted hours for Monday"
-                            send "0-5\r"
+                "What would you like to do" {
+                    puts "PASS: Cancellation menu appeared"
+                    send "Continue configuring\r"
+                    expect -re "Configuring Monday|Time range.*Monday|Configure restricted hours for Monday"
+                    send "0-5\r"
                             expect "Is this correct"
                             send "y\r"
                             expect "Visual Day/Time Grid"
@@ -530,12 +529,6 @@ expect {
                             send "n\r"
                             puts "PASS: Cancellation handling works"
                             exit 0
-                        }
-                        timeout {
-                            puts "ERROR: Cancellation menu timeout"
-                            exit 1
-                        }
-                    }
                 }
                 timeout {
                     puts "ERROR: Cancellation test timeout"
@@ -589,13 +582,13 @@ expect {
                 }
             }
             expect "Select option"
-            send "5\r"
+            send "9\r"
             expect {
-                "Visual Day/Time Grid" {
-                    puts "PASS: Option 5 accessible"
+                -re "View Weekly Hours Settings|Visual Day/Time Grid" {
+                    puts "PASS: Option 9 accessible"
                 }
                 timeout {
-                    puts "ERROR: Option 5 timeout"
+                    puts "ERROR: Option 9 timeout"
                     exit 1
                 }
             }
@@ -613,11 +606,15 @@ expect {
             send "20\r"
             expect "Select option"
             send "2\r"
+            expect -re "Window Behavior|Select option"
+            send "1\r"
+            expect -re "Select mode|Size Mode|Popup Size Options"
+            send "1\r"
             expect "Popup Size Options"
             send "1\r"
             expect "Select option"
             expect "Popup Position Options"
-            send "5\r"
+            send "9\r"
             expect "Select option"
             expect "Minimum display time"
             send "45\r"

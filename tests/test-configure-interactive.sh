@@ -88,15 +88,15 @@ echo -e "${BLUE}Test 1: Text mode menu display${NC}"
 create_test_config ""
 # Press Enter to skip welcome, then menu appears
 timeout 3 bash -c "printf '\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/menu-output.txt" 2>&1 || true
-test_check "Menu shows option 5" "grep -q '5\. Visual Day/Time Grid' ${TEST_DIR}/menu-output.txt"
-test_check "Menu shows option 6" "grep -q '6\. Review and Save' ${TEST_DIR}/menu-output.txt"
+test_check "Menu shows option 9 (View Weekly Hours)" "grep -q '9\. View Weekly Hours Settings' ${TEST_DIR}/menu-output.txt"
+test_check "Menu shows option 13 (Review and Save)" "grep -q '13\. Review and Save' ${TEST_DIR}/menu-output.txt"
 test_check "Menu shows options 1-4" "grep -q '1\. Timer Settings' ${TEST_DIR}/menu-output.txt"
 echo ""
 
 # Test 2: Grid displays with empty config (all unrestricted)
 echo -e "${BLUE}Test 2: Grid with empty/unconfigured days${NC}"
 create_test_config ""
-# Simulate: press Enter for welcome, select option 5, then option 0 (back)
+# Simulate: press Enter for welcome, select option 9 (grid), then option 0 (back)
 timeout 5 bash -c "printf '\n5\n0\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/grid-empty.txt" 2>&1 || true
 test_check "Grid shows 'Visual Day/Time Grid' header" "grep -q 'Visual Day/Time Grid' ${TEST_DIR}/grid-empty.txt"
 test_check "Grid shows all 7 days" "grep -c '\. Sunday:\|\. Monday:\|\. Tuesday:\|\. Wednesday:\|\. Thursday:\|\. Friday:\|\. Saturday:' ${TEST_DIR}/grid-empty.txt | grep -q '^7$'"
@@ -136,29 +136,28 @@ test_check "Grid shows multiple ranges with AND" "grep -q 'AND' ${TEST_DIR}/grid
 test_check "Grid shows both time periods" "grep -q '12:00 AM.*10:00 PM' ${TEST_DIR}/grid-multiple.txt"
 echo ""
 
-# Test 6: Individual day editing (edit Monday only)
+# Test 6: Individual day editing (edit Monday only; grid only edits clicked day, no bulk prompt)
 echo -e "${BLUE}Test 6: Individual day editing${NC}"
 create_test_config ""
-# Simulate: press Enter for welcome, option 5, select Monday (1), say no to bulk apply, enter 0-5, confirm, back
-timeout 10 bash -c "printf '\n5\n1\nn\n0-5\ny\n0\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/edit-individual.txt" 2>&1 || true
-# Check if config was updated (this would require the script to save, but we're just testing the flow)
-test_check "Individual day edit flow works" "grep -q 'Configure restricted hours for Monday' ${TEST_DIR}/edit-individual.txt || grep -q 'Monday' ${TEST_DIR}/edit-individual.txt"
+# Simulate: press Enter, option 9 (grid), select Monday (2), restricted hours (1), enter 0-5, confirm, back
+timeout 10 bash -c "printf '\n9\n2\n1\n0-5\ny\n0\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/edit-individual.txt" 2>&1 || true
+test_check "Individual day edit flow works" "grep -q 'Configure restricted hours for Monday\|Configuring Monday\|Time range.*Monday' ${TEST_DIR}/edit-individual.txt || grep -q 'Monday' ${TEST_DIR}/edit-individual.txt"
 echo ""
 
-# Test 7: Weekday bulk apply
-echo -e "${BLUE}Test 7: Weekday bulk apply functionality${NC}"
+# Test 7: Grid single-day entry for Monday (no bulk prompt from grid)
+echo -e "${BLUE}Test 7: Grid single-day entry for Monday${NC}"
 create_test_config ""
-# Simulate: press Enter for welcome, option 5, select Monday (1), say yes to bulk apply, enter 0-5, confirm, back
-timeout 10 bash -c "printf '\n5\n1\ny\n0-5\ny\n0\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/bulk-weekday.txt" 2>&1 || true
-test_check "Weekday bulk apply prompt appears" "grep -q 'all weekdays\|Monday-Friday' ${TEST_DIR}/bulk-weekday.txt"
+# Simulate: option 9 (grid), Monday (2), restricted (1), 0-5, confirm, back - no bulk prompt
+timeout 10 bash -c "printf '\n9\n2\n1\n0-5\ny\n0\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/bulk-weekday.txt" 2>&1 || true
+test_check "Grid goes to time entry for Monday" "grep -q 'Configuring Monday\|Configure restricted hours for Monday\|Time range.*Monday' ${TEST_DIR}/bulk-weekday.txt"
 echo ""
 
-# Test 8: Weekend bulk apply
-echo -e "${BLUE}Test 8: Weekend bulk apply functionality${NC}"
+# Test 8: Grid single-day entry for Saturday (no bulk prompt from grid)
+echo -e "${BLUE}Test 8: Grid single-day entry for Saturday${NC}"
 create_test_config ""
-# Simulate: press Enter for welcome, option 5, select Saturday (7), say yes to bulk apply, enter 1-5, confirm, back
-timeout 10 bash -c "printf '\n5\n7\ny\n1-5\ny\n0\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/bulk-weekend.txt" 2>&1 || true
-test_check "Weekend bulk apply prompt appears" "grep -q 'both weekend days\|Saturday and Sunday' ${TEST_DIR}/bulk-weekend.txt"
+# Simulate: option 9 (grid), Saturday (7), restricted (1), 1-5, confirm, back - no bulk prompt
+timeout 10 bash -c "printf '\n9\n7\n1\n1-5\ny\n0\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/bulk-weekend.txt" 2>&1 || true
+test_check "Grid goes to time entry for Saturday" "grep -q 'Configuring Saturday\|Configure restricted hours for Saturday\|Time range.*Saturday' ${TEST_DIR}/bulk-weekend.txt"
 echo ""
 
 # Test 9: Backward compatibility - options 1-4 still work
@@ -178,8 +177,8 @@ echo ""
 # Test 10: Cancellation handling
 echo -e "${BLUE}Test 10: Cancellation handling${NC}"
 create_test_config ""
-# Simulate: press Enter for welcome, option 5, then let timeout cancel
-timeout 2 bash -c "printf '\n5\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/cancel-test.txt" 2>&1 || true
+# Simulate: press Enter for welcome, option 9 (grid), then let timeout cancel
+timeout 2 bash -c "printf '\n9\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/cancel-test.txt" 2>&1 || true
 test_check "Grid can be cancelled" "test -f ${TEST_DIR}/cancel-test.txt"
 echo ""
 

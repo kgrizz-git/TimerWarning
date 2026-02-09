@@ -340,7 +340,7 @@ POPUP_AUTO_CLOSE=false  # Disable auto-close (user must close manually)
 **Disabling Auto-Close**:
 If you prefer to manually close popups, you can disable auto-close:
 1. Run `sleep-warning-configure`
-2. Select option 2: **Window Behavior**
+2. Select option 2: **Window Behavior** (opens a submenu; choose size, position, min display time, immovable, or auto-close)
 3. When prompted, choose `false` for auto-close
 4. Save your configuration
 
