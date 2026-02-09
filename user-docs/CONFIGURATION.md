@@ -578,7 +578,7 @@ CONFIG_LOCK_HOURS_WEDNESDAY=23-6     # Block overnight (11 PM to 5:59 AM)
 - The config file and directory become read-only during:
   - **Restricted hours** (your configured restriction periods)
   - **Lock hours** (if `CONFIG_LOCK_HOURS_*` are configured)
-- If you try to run `configure.sh` during lock hours, it will show an error message and exit
+- If you try to run `configure.sh` or `manage.sh` during restricted or lock hours, they show an error message (including when the lock ends) and exit
 - The lock is automatically applied/removed by `sleep-warning.sh` on each timer tick
 
 **Self-Healing**:

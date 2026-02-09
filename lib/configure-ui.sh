@@ -794,9 +794,25 @@ show_config_locked_error() {
         if [ -n "${lock_hours_range}" ]; then
             lock_end=$(calculate_restriction_end_time "${current_hour}" "${current_day}" "${lock_hours_range}" 2>/dev/null || echo "")
         fi
+        # If lock_end still empty, we may be in previous day's overnight lock hours
+        if [ -z "${lock_end}" ] && [ -n "${prev_day_lock_hours}" ]; then
+            local IFS=','
+            for range in ${prev_day_lock_hours}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                    local end_12h
+                    end_12h=$(format_hour_12h "${end_hour}")
+                    lock_end="${end_12h}|${day_name}|true"
+                    break
+                fi
+            done
+            unset IFS
+        fi
         
-        # Determine which ends first (simplified: use restriction end if available, otherwise lock end)
-        # TODO: Could improve this to actually compare times, but for now use restriction end as primary
+        # Use restriction end if available, otherwise lock end (user can retry when first period ends)
         end_info="${restriction_end}"
         if [ -z "${end_info}" ] && [ -n "${lock_end}" ]; then
             end_info="${lock_end}"
@@ -855,9 +871,26 @@ show_config_locked_error() {
             unset IFS
         fi
         
-        # Calculate when lock hours end
+        # Calculate when lock hours end (current day's lock range)
         if [ -n "${lock_hours_range}" ]; then
             end_info=$(calculate_restriction_end_time "${current_hour}" "${current_day}" "${lock_hours_range}" 2>/dev/null || echo "")
+        fi
+        # If still no end time, we may be in previous day's overnight lock hours
+        if [ -z "${end_info}" ] && [ -n "${prev_day_lock_hours}" ]; then
+            local IFS=','
+            for range in ${prev_day_lock_hours}; do
+                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                local start_hour end_hour
+                start_hour=$(echo "${range}" | cut -d'-' -f1)
+                end_hour=$(echo "${range}" | cut -d'-' -f2)
+                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                    local end_12h
+                    end_12h=$(format_hour_12h "${end_hour}")
+                    end_info="${end_12h}|${day_name}|true"
+                    break
+                fi
+            done
+            unset IFS
         fi
     else
         # Should not happen (function should only be called when blocked)

@@ -5,7 +5,8 @@ This document provides a concise overview of work remaining to be completed for 
 **Note**: This document focuses on work that remains to be done. Fully implemented enhancements (with no remaining work) are not listed here but can be found in [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). Enhancements marked as "Mostly Implemented" or "Partially Implemented" are listed here if they have remaining work (testing, documentation, etc.).
 
 ## Priority Items
-- [ ] **#16c: Multiple Time Range Entry in GUI** - Allow adding/editing multiple comma-separated time ranges per day in configure.sh GUI (text mode already supports it). See [enhancement-16c-multiple-range-entry-gui.md](enhancements/enhancement-16c-multiple-range-entry-gui.md). Largely implemented but improve UI (such as displaying day for which time is being set). Make sure multiple ranges possible for additional hours, as well. Also test with all dialog tools.
+- [x] **ADDED HERE: check pause end calculation** **Done** (2026-02-08): Verified end timestamp = current_time + (duration_minutes * 60); duration always 5 or 10 from config/UI; tests confirm. Popups confirmed to appear after pause expires.
+- [ ] **#16c: Multiple Time Range Entry in GUI** - Allow adding/editing multiple time ranges per day in configure.sh GUI (text mode already supports it). See [enhancement-16c-multiple-range-entry-gui.md](enhancements/enhancement-16c-multiple-range-entry-gui.md). Largely implemented but improve UI (such as displaying day for which time is being set). Make sure multiple ranges possible for additional hours, as well. Also test with all dialog tools.
 - [x] **ADDED HERE: improve config wizard UI** **Done** (2026-02-08): Grid click only sets the clicked day (no weekday/weekend bulk prompt). Day name shown in time-selection dialogs (optional 4th param). Lock/uninstall hours from main menu ask weekday/weekend together. Security Settings already renamed to "Script Blocking and Config Locking".
 - [x] **ADDED HERE: re-order configure menu items** **Done** (2026-02-08): View Weekly Hours moved to option 9 (after Additional Uninstall Protection Hours, before Pause). Window Behavior split into submenu (size, position, min display time, immovable, auto-close, Back). Menu order: 1 Timer, 2 Window Behavior (submenu), 3–4 Weekdays/Weekends, 5 Script Blocking, 6 Additional Config Block, 7 Uninstall Protection, 8 Additional Uninstall Protection, 9 View Weekly Hours, 10–13 Pause, Dialog Tool, Service Mode, Review and Save. Code and docs updated.
 - [x] **ADDED HERE: Fix install.sh not installing lib files?** **Verified fixed** (code inspection 2026-02-07): install.sh copies libs to `~/.local/lib/sleep-warning`; status.sh sets `INSTALLED_LIB_DIR` to that path and passes it first to `init_library_paths`, so `detect_library_dir` / `find_lib_file` find installed libs when running `sleep-warning-status` from PATH.
@@ -25,7 +26,7 @@ This document provides a concise overview of work remaining to be completed for 
 - [ ] **ADDED HERE: test in Desktop Mode without external display** - run all tests on Steam Deck in Desktop mode without an external display connected
 - [ ] **#29: kdialog Window Size Control** - Try using `--textbox` with `--geometry` for kdialog popups to enable size control, with fallback to `--sorry` if it doesn't work properly
 - [ ] **#27 Donation Links** - ✅ **Phase 1 Partially Implemented** - PayPal donation links added to README.md, GETTING_STARTED.md, and install.sh. **Remaining**: Testing and verification. **Phase 2**: GitHub Sponsors support planned (see [enhancements/enhancement-27-phase-2-github-sponsors.md](enhancements/enhancement-27-phase-2-github-sponsors.md)) - requires license first.
-- [ ] **ADDED HERE: check end lock hours display, calculation** - eg, when trying to run configure.sh
+- [x] **ADDED HERE: check end lock hours display, calculation** **Done** (2026-02-08): Verified show_config_locked_error and calculate_restriction_end_time. Fixed display when blocked by lock hours only from previous day's overnight range (end time was missing); added same overnight lock-end calculation for "both" case. Configure/manage blocked message now shows "Lock ends: …" correctly for lock-only and overnight lock.
 - [x] **Change message from install to use configured interval** **Already correct** (verified 2026-02-07): install.sh completion message uses `$(get_check_interval)` which reads CHECK_INTERVAL from the config file (new or old path) and defaults to 10 only when no valid value exists.
 
 ## Master Plan Phases
@@ -87,7 +88,7 @@ This document provides a concise overview of work remaining to be completed for 
 ## Testing & Validation Work
 
 ### Re-test after major updates/before publishing
-- [ ] **ADDED HERE: Check pause works and popups appear after pause expires** 
+- [x] **ADDED HERE: Check pause works and popups appear after pause expires** **Done** (2026-02-08): Confirmed popups appear after pause expires. 
 
 ### Critical Testing Gaps
 - [ ] **SteamOS Gaming Mode Testing** - Validate system behavior in Gaming Mode with full-screen games
@@ -152,7 +153,7 @@ The following enhancements are fully implemented with no remaining work. They ar
 
 ---
 
-**Last Updated**: 2026-02-08 (SteamOS locale: research on install.sh automation; steam-timer as option)
+**Last Updated**: 2026-02-08 (Pause work formalized; end lock hours display/calculation verified and fixed for overnight lock; docs updated)
 **Related Documents**: 
 - [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) - Detailed enhancement descriptions
 - [linux-warning-system-plan.md](linux-warning-system-plan.md) - Master implementation plan
