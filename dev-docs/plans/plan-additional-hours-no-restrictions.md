@@ -2,6 +2,8 @@
 
 ## Overview
 
+** This is only an idea for consideration. It may or may not ever be implemented. 
+
 Currently, additional lock hours (config lock hours and uninstall lock hours) can be configured and will apply even on days that have no restricted times configured. This plan addresses making additional hours conditional on the presence of restriction hours for that day, with a user-configurable option to allow additional hours without restrictions (disabled by default).
 
 ## Goals
