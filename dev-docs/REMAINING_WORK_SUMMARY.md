@@ -72,7 +72,6 @@ This document provides a concise overview of work remaining to be completed for 
 ## Testing & Validation Work
 
 ### Re-test after major updates/before publishing
-- [x] **ADDED HERE: Check pause works and popups appear after pause expires** **Done** (2026-02-08): Confirmed popups appear after pause expires. 
 
 ### Critical Testing Gaps
 - [ ] **SteamOS Gaming Mode Testing** - Validate system behavior in Gaming Mode with full-screen games
@@ -112,10 +111,11 @@ Based on [Quality Improvement Assessment (2026-01-23)](qi-assessments/qi-assessm
 ## Possible changes for consideration
 - [ ] **For consideration - not definite. ADDED HERE: Additional hours should not apply on days with no restrictions** - Additional lock hours and uninstall lock hours should not apply on days when there are no restricted times configured. User-configurable option to allow such locking (disabled by default). Warn users when entering additional hours on days with no restrictions. See [plan-additional-hours-no-restrictions.md](plans/plan-additional-hours-no-restrictions.md)
 
-## Completed Enhancements (No Remaining Work)
+## Completed (No Remaining Work)
 
-The following enhancements are fully implemented with no remaining work. They are listed here for reference but are not tracked in the remaining work sections above:
+The following are fully implemented with no remaining work. They are listed here for reference but are not tracked in the remaining work sections above:
 
+- [x] **ADDED HERE: Check pause works and popups appear after pause expires** **Done** (2026-02-08): Confirmed popups appear after pause expires. 
 - [x] **#16b: 12-Hour Format Time Input and GUI Spinbox Widgets** - ✅ **COMPLETED** - Support for 12-hour format (e.g., 11:30pm) and minute precision implemented across all components. Specialized GUI widgets created for YAD (spinboxes), Zenity (forms), and KDialog (sequential comboboxes). Automatic config migration and display format preference added. See [enhancement-16b-12-hour-format-time-input.md](enhancements/enhancement-16b-12-hour-format-time-input.md).
 - [x] **ADDED HERE (no enhancement md file): reduce arithmetic questions from 10 to 5, allow up to 3 wrong answers total** - for uninstall.sh and for manual-uninstall-guide.sh ✅ **COMPLETED** - Updated both `lib/uninstall-verification.sh` and `manual-uninstall-guide.sh` to use 5 questions with 3 wrong answers allowed. All user-facing messages and comments updated. Tests updated and passing (30/30).
 - [x] **ADDED HERE: check end lock hours display, calculation** **Done** (2026-02-08): Verified show_config_locked_error and calculate_restriction_end_time. Fixed display when blocked by lock hours only from previous day's overnight range (end time was missing); added same overnight lock-end calculation for "both" case. Configure/manage blocked message now shows "Lock ends: …" correctly for lock-only and overnight lock.
