@@ -51,7 +51,7 @@ menu_result=$(show_multi_column_list_dialog \
     1 \
     "Option" \
     "Description" \
-    "1" "Timer Settings (Check Interval: 5 min)" \
+    "1" "Timer Settings [Check Interval: 5 min]" \
     "2" "Window Behavior (Size: medium, Position: center)" \
     "3" "Weekdays Configuration ✓" \
     "4" "Weekends Configuration ✓" \
@@ -82,13 +82,13 @@ grid_result=$(show_multi_column_list_dialog \
     1 \
     "Day" \
     "Time Ranges" \
-    "Sunday" "(no restrictions)" \
+    "Sunday" "[no restrictions]" \
     "Monday" "Midnight to 4:59 AM" \
-    "Tuesday" "(no restrictions)" \
+    "Tuesday" "[no restrictions]" \
     "Wednesday" "10:00 PM to 11:59 PM" \
-    "Thursday" "(no restrictions)" \
+    "Thursday" "[no restrictions]" \
     "Friday" "Midnight to 4:59 AM, 10:00 PM to 11:59 PM" \
-    "Saturday" "(no restrictions)" \
+    "Saturday" "[no restrictions]" \
     "<<BACK>>" "Back to Main Menu")
 
 if [ -n "${grid_result}" ]; then

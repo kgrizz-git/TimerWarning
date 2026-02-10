@@ -154,10 +154,10 @@ test_multi_column_dialog() {
         1 \
         "Option" \
         "Description" \
-        "1" "Timer Settings (Check Interval: 5 min)" \
+        "1" "Timer Settings [Check Interval: 5 min]" \
         "2" "Window Behavior (Size: medium, Position: center)" \
-        "3" "Weekdays Configuration (configured)" \
-        "4" "Weekends Configuration (configured)" \
+        "3" "Weekdays Configuration [configured]" \
+        "4" "Weekends Configuration [configured]" \
         "5" "Visual Day/Time Grid" \
         "6" "Review and Save"
 }

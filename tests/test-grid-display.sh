@@ -52,7 +52,7 @@ POPUP_MIN_DISPLAY_TIME=30
 POPUP_IMMOVABLE=true
 EOF
 
-echo "Expected: All days should show '(no restrictions)' with blank status"
+echo "Expected: All days should show '[no restrictions]' with blank status"
 echo ""
 
 # Test 2: Grid with some days configured
@@ -76,7 +76,7 @@ EOF
 echo "Expected:"
 echo "  - Monday-Friday should show '12:00 AM → 5:00 AM'"
 echo "  - Saturday should show '1:00 AM → 5:00 AM'"
-echo "  - Sunday should show '(no restrictions)'"
+echo "  - Sunday should show '[no restrictions]'"
 echo ""
 
 # Test 3: Grid with overnight ranges
@@ -132,7 +132,7 @@ EOF
 
 echo "Expected:"
 echo "  - Monday should show ✗ with restrictions"
-echo "  - Tuesday should show blank with '(no restrictions)' (explicitly skipped)"
+echo "  - Tuesday should show blank with '[no restrictions]' (explicitly skipped)"
 echo "  - Wednesday should show ✗ with restrictions"
 echo ""
 

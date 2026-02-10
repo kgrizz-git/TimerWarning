@@ -194,7 +194,7 @@ get_day_hours() {
             local range_confirmed=false
             
             while [ "${range_confirmed}" = "false" ]; do
-                range_input=$(show_time_selection_dialog "Sleep Warning Configuration - ${day_name}" "" "" "${day_name}")
+                range_input=$(show_time_selection_dialog "Sleep Warning Configuration - ${day_name}" "" "" "${day_name}" "Press Cancel to skip this day.")
                 local exit_code=$?
                 
                 if [ ${exit_code} -ne 0 ] || [ -z "${range_input}" ]; then
@@ -288,7 +288,7 @@ get_day_hours() {
                 fi
             done
             
-            # After confirming a range, ask if user wants to add another
+            # After confirming a range, ask if user wants to add another, remove last, or done
             if [ ${#collected_ranges[@]} -gt 0 ]; then
                 local add_another_text
                 if [ ${#collected_ranges[@]} -eq 1 ]; then
@@ -309,8 +309,11 @@ get_day_hours() {
                     add_another_text="Current ranges for ${day_name}:\n${current_preview}\n\nAdd another time range?"
                 fi
                 
-                if ! show_question_dialog "Add Another Range?" "${add_another_text}" "Yes, Add Another" "No, Done" 600 350; then
-                    # User chose "No, Done" - join all ranges and return
+                local next_choice
+                next_choice=$(show_list_dialog "Add Another Range?" "${add_another_text}" 600 350 "Yes, Add Another" "No, Done" "Remove last range")
+                local list_exit=$?
+                if [ ${list_exit} -ne 0 ] || [ -z "${next_choice}" ]; then
+                    # Cancelled - treat as done, return current ranges
                     local result=""
                     local first=true
                     for r in "${collected_ranges[@]}"; do
@@ -324,7 +327,35 @@ get_day_hours() {
                     echo "${result}"
                     return 0
                 fi
-                # User chose "Yes, Add Another" - continue outer loop to collect next range
+                case "${next_choice}" in
+                    "No, Done")
+                        local result=""
+                        local first=true
+                        for r in "${collected_ranges[@]}"; do
+                            if [ "${first}" = "true" ]; then
+                                result="${r}"
+                                first=false
+                            else
+                                result="${result},${r}"
+                            fi
+                        done
+                        echo "${result}"
+                        return 0
+                        ;;
+                    "Remove last range")
+                        # Remove last element (portable for bash 4.2 and earlier)
+                        local new_len=$((${#collected_ranges[@]} - 1))
+                        if [ "${new_len}" -le 0 ]; then
+                            collected_ranges=()
+                        else
+                            collected_ranges=("${collected_ranges[@]:0:${new_len}}")
+                        fi
+                        # Continue outer loop: will ask for next range (or "Add another?" again with fewer ranges)
+                        ;;
+                    *)
+                        # "Yes, Add Another" - continue outer loop to collect next range
+                        ;;
+                esac
             fi
         done
     else

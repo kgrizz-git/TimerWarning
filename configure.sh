@@ -82,6 +82,7 @@ source_required_lib "configure-input-time.sh" || exit 1
 source_required_lib "configure-input-service.sh" || exit 1
 source_required_lib "configure-display.sh" || exit 1
 source_required_lib "configure-workflow.sh" || exit 1
+source_required_lib "service-config.sh" || exit 1
 
 # Ensure we have a UTF-8 locale so GUI dialogs (yad/zenity) can render
 # extended characters reliably. Without this, yad aborts when parsing
@@ -234,7 +235,7 @@ main() {
         # If any day has lock hours configured, show as "Configured"
         # Note: Must check if the VALUE after = is non-empty, not just if the array element exists
         # (Empty values like "CONFIG_LOCK_HOURS_MONDAY=" should not count as configured)
-        local lock_hours_status="(None)"
+        local lock_hours_status="[None]"
         local i
         for i in 0 1 2 3 4 5 6; do
             if [ -n "${lock_hours_lines[${i}]:-}" ]; then
@@ -242,26 +243,31 @@ main() {
                 local lock_value
                 lock_value=$(echo "${lock_hours_lines[${i}]}" | cut -d'=' -f2- | tr -d '[:space:]')
                 if [ -n "${lock_value}" ]; then
-                    lock_hours_status="(Configured)"
+                    lock_hours_status="[Configured]"
                     break
                 fi
             fi
         done
         
         # Determine uninstall lock hours status for display in main menu (Enhancement #26 Phase 2)
-        # If any day has uninstall lock hours configured, show as "Configured"
-        local uninstall_lock_hours_status="(None)"
+        # If any day has uninstall lock hours configured, show as "[Configured]"
+        local uninstall_lock_hours_status="[None]"
         for i in 0 1 2 3 4 5 6; do
             if [ -n "${uninstall_lock_hours_lines[${i}]:-}" ]; then
                 # Extract the value after the = sign
                 local uninstall_lock_value
                 uninstall_lock_value=$(echo "${uninstall_lock_hours_lines[${i}]}" | cut -d'=' -f2- | tr -d '[:space:]')
                 if [ -n "${uninstall_lock_value}" ]; then
-                    uninstall_lock_hours_status="(Configured)"
+                    uninstall_lock_hours_status="[Configured]"
                     break
                 fi
             fi
         done
+        
+        # Get current service mode for menu display (option 12)
+        local current_service_mode
+        current_service_mode=$(get_current_service_mode)
+        local service_mode_status="[${current_service_mode}]"
         
         # Calculate dialog tool status for menu display
         local dialog_tool_status=""
@@ -274,19 +280,19 @@ main() {
         fi
         
         if [ "${current_dialog_tool}" = "auto" ]; then
-            dialog_tool_status="(Automatic)"
+            dialog_tool_status="[Automatic]"
         else
             # Check if selected tool is installed
             if command -v "${current_dialog_tool}" >/dev/null 2>&1; then
-                dialog_tool_status="(${current_dialog_tool})"
+                dialog_tool_status="[${current_dialog_tool}]"
             else
-                dialog_tool_status="(${current_dialog_tool} - not installed)"
+                dialog_tool_status="[${current_dialog_tool} - not installed]"
             fi
         fi
         
         # Show main menu
         local menu_choice
-        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}" "${dialog_tool_status}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}")
+        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}" "${dialog_tool_status}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "${service_mode_status}")
         local menu_exit=$?
         
         if [ "${menu_exit}" -eq 2 ] || [ "${menu_choice}" = "CANCELLED" ]; then
@@ -315,7 +321,7 @@ main() {
                 # Window Behavior (submenu: size, position, min display time, immovable, auto-close, Back)
                 while true; do
                     local sub_choice
-                    sub_choice=$(show_window_behavior_submenu "${use_gui}")
+                    sub_choice=$(show_window_behavior_submenu "${use_gui}" "${popup_size}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}")
                     local sub_exit=$?
                     if [ ${sub_exit} -eq 2 ]; then
                         exit 0

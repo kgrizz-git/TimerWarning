@@ -662,12 +662,24 @@ show_multi_column_list_dialog() {
 
 # Manage multiple time ranges for a day (Phase 2 - Enhancement #16c)
 # Parameters:
-#   $1: day_name (e.g., "Monday")
+#   $1: day_name (e.g., "Monday" or "Additional Block Hours - Monday")
 #   $2: existing_ranges (comma-separated normalized ranges, e.g., "00:00-05:00,23:00-05:00" or empty)
 # Returns: comma-separated normalized ranges string, or empty string on cancel
 manage_ranges_dialog() {
     local day_name="$1"
     local existing_ranges="${2:-}"
+    
+    # Derive short day name and title context for clear UI (Enhancement #16c – display day for which time is being set)
+    local display_day="${day_name}"
+    if [[ "${day_name}" = *" - "* ]]; then
+        display_day="${day_name##* - }"
+    fi
+    local title_context="Time ranges"
+    if [[ "${day_name}" = "Additional Block Hours - "* ]]; then
+        title_context="Additional block hours"
+    elif [[ "${day_name}" = "Uninstall Lock Hours - "* ]]; then
+        title_context="Uninstall lock hours"
+    fi
     
     # Parse existing ranges into array
     local ranges_array=()
@@ -690,21 +702,22 @@ manage_ranges_dialog() {
         local i=0
         for range in "${ranges_array[@]}"; do
             local formatted
-            formatted=$(format_range_human "${range}" "${day_name}")
+            formatted=$(format_range_human "${range}" "${display_day}")
             list_items+=("Range $((i + 1))" "${formatted}")
             i=$((i + 1))
         done
         
-        # Build dialog text
-        local dialog_text="Time ranges for ${day_name}:"
+        # Build dialog text (show day clearly – Enhancement #16c)
+        local dialog_text="${title_context} for ${display_day}:"
         if [ ${#ranges_array[@]} -eq 0 ]; then
             dialog_text="${dialog_text}\n\nNo ranges configured yet."
         fi
+        dialog_text="${dialog_text}\n\nPress Cancel to skip this day."
         
-        # Show action selection dialog
-        local actions=("Add range" "Edit range" "Remove range" "Done" "Cancel")
+        # Show action selection dialog (Add/Remove with +/− for visibility)
+        local actions=("Add range (+)" "Edit range" "Remove range (−)" "Done" "Cancel")
         local action
-        action=$(show_list_dialog "Manage Time Ranges - ${day_name}" "${dialog_text}" 600 400 "${actions[@]}")
+        action=$(show_list_dialog "${title_context} – ${display_day}" "${dialog_text}" 600 400 "${actions[@]}")
         local action_exit=$?
         
         if [ ${action_exit} -ne 0 ] || [ -z "${action}" ]; then
@@ -713,10 +726,10 @@ manage_ranges_dialog() {
         fi
         
         case "${action}" in
-            "Add range")
+            "Add range (+)")
                 # Add a new range
                 local new_range_input
-                new_range_input=$(show_time_selection_dialog "Add Time Range - ${day_name}" "" "" "${day_name}")
+                new_range_input=$(show_time_selection_dialog "Add Time Range - ${display_day}" "" "" "${display_day}")
                 local add_exit=$?
                 
                 if [ ${add_exit} -eq 0 ] && [ -n "${new_range_input}" ]; then
@@ -750,14 +763,14 @@ manage_ranges_dialog() {
                 local idx=0
                 for range in "${ranges_array[@]}"; do
                     local formatted
-                    formatted=$(format_range_human "${range}" "${day_name}")
+                    formatted=$(format_range_human "${range}" "${display_day}")
                     range_items+=("Range $((idx + 1))" "${formatted}")
                     idx=$((idx + 1))
                 done
                 
                 local selected_range_label
                 selected_range_label=$(show_multi_column_list_dialog \
-                    "Select Range to Edit - ${day_name}" \
+                    "Select Range to Edit - ${display_day}" \
                     "Select a range to edit:" \
                     500 300 \
                     1 \
@@ -783,7 +796,7 @@ manage_ranges_dialog() {
                     
                     # Edit the range
                     local edited_range_input
-                    edited_range_input=$(show_time_selection_dialog "Edit Time Range - ${day_name}" "${start_part}" "${end_part}" "${day_name}")
+                    edited_range_input=$(show_time_selection_dialog "Edit Time Range - ${display_day}" "${start_part}" "${end_part}" "${display_day}")
                     local edit_exit=$?
                     
                     if [ ${edit_exit} -eq 0 ] && [ -n "${edited_range_input}" ]; then
@@ -807,7 +820,7 @@ manage_ranges_dialog() {
                 fi
                 ;;
                 
-            "Remove range")
+            "Remove range (−)")
                 if [ ${#ranges_array[@]} -eq 0 ]; then
                     show_info_dialog "No Ranges" "There are no ranges to remove."
                     continue
@@ -818,14 +831,14 @@ manage_ranges_dialog() {
                 local idx=0
                 for range in "${ranges_array[@]}"; do
                     local formatted
-                    formatted=$(format_range_human "${range}" "${day_name}")
+                    formatted=$(format_range_human "${range}" "${display_day}")
                     range_items+=("Range $((idx + 1))" "${formatted}")
                     idx=$((idx + 1))
                 done
                 
                 local selected_range_label
                 selected_range_label=$(show_multi_column_list_dialog \
-                    "Select Range to Remove - ${day_name}" \
+                    "Select Range to Remove - ${display_day}" \
                     "Select a range to remove:" \
                     500 300 \
                     1 \
@@ -844,7 +857,7 @@ manage_ranges_dialog() {
                 if [ ${range_idx} -ge 0 ] && [ ${range_idx} -lt ${#ranges_array[@]} ]; then
                     local range_to_remove="${ranges_array[${range_idx}]}"
                     local formatted_remove
-                    formatted_remove=$(format_range_human "${range_to_remove}" "${day_name}")
+                    formatted_remove=$(format_range_human "${range_to_remove}" "${display_day}")
                     
                     # Confirm removal
                     if show_question_dialog "Confirm Removal" "Remove this range?\n\n${formatted_remove}" "Yes, Remove" "Cancel" 500 200; then

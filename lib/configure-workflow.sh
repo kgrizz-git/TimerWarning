@@ -188,8 +188,10 @@ configure_lock_hours_section() {
             for i in 6 0; do
                 local day_name="${DAY_NAMES[${i}]}"
                 local label="Additional Block Hours - ${day_name}"
+                local existing_lock=""
+                [ -n "${lock_hours_lines_ref[${i}]+set}" ] && [ -n "${lock_hours_lines_ref[${i}]}" ] && existing_lock=$(echo "${lock_hours_lines_ref[${i}]}" | cut -d'=' -f2-)
                 local range
-                range=$(get_day_hours "${label}" "${i}" "${use_gui}" "false" "true")
+                range=$(get_day_hours "${label}" "${i}" "${use_gui}" "false" "true" "${existing_lock}")
                 if [ "${range}" = "CANCELLED" ]; then
                     return 2
                 fi
@@ -225,8 +227,10 @@ configure_lock_hours_section() {
             local label="Additional Block Hours - ${day_name}"
             local allow_back="true"
             [ "${day_index}" -eq 1 ] && allow_back="false"
+            local existing_lock=""
+            [ -n "${lock_hours_lines_ref[${day_index}]+set}" ] && [ -n "${lock_hours_lines_ref[${day_index}]}" ] && existing_lock=$(echo "${lock_hours_lines_ref[${day_index}]}" | cut -d'=' -f2-)
             local range
-            range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "${allow_back}" "true")
+            range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "${allow_back}" "true" "${existing_lock}")
             if [ "${range}" = "CANCELLED" ]; then
                 return 2
             fi
@@ -252,8 +256,10 @@ configure_lock_hours_section() {
         local label="Additional Block Hours - ${day_name}"
         local allow_back="false"
         [ "${day_index}" -gt 0 ] && allow_back="true"
+        local existing_lock=""
+        [ -n "${lock_hours_lines_ref[${day_index}]+set}" ] && [ -n "${lock_hours_lines_ref[${day_index}]}" ] && existing_lock=$(echo "${lock_hours_lines_ref[${day_index}]}" | cut -d'=' -f2-)
         local range
-        range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "${allow_back}" "true")
+        range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "${allow_back}" "true" "${existing_lock}")
         local exit_code=$?
         if [ "${range}" = "CANCELLED" ]; then
             return 2
@@ -427,9 +433,10 @@ configure_day_from_grid() {
     if [ "${edit_choice}" = "lock" ] || [ "${edit_choice}" = "both" ] || [ "${edit_choice}" = "all" ]; then
         # Build friendly label to differentiate from restriction hours
         local label="Additional Block Hours - ${day_name}"
-        
-        # Reuse get_day_hours for consistent validation and UX
-        lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "false" "true")
+        local existing_lock=""
+        [ -n "${lock_hours_lines_ref[${day_index}]+set}" ] && [ -n "${lock_hours_lines_ref[${day_index}]}" ] && existing_lock=$(echo "${lock_hours_lines_ref[${day_index}]}" | cut -d'=' -f2-)
+        # Reuse get_day_hours for consistent validation and UX (pass existing for multi-range manage dialog)
+        lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "false" "true" "${existing_lock}")
         exit_code=$?
         
         if [ "${lock_range}" = "CANCELLED" ]; then
@@ -453,9 +460,10 @@ configure_day_from_grid() {
     if [ "${edit_choice}" = "uninstall_lock" ] || [ "${edit_choice}" = "all" ]; then
         # Build friendly label to differentiate from restriction hours and configure.sh lock hours
         local label="Uninstall Lock Hours - ${day_name}"
-        
-        # Reuse get_day_hours for consistent validation and UX
-        uninstall_lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "false" "true")
+        local existing_uninstall=""
+        [ -n "${uninstall_lock_hours_lines_ref[${day_index}]+set}" ] && [ -n "${uninstall_lock_hours_lines_ref[${day_index}]}" ] && existing_uninstall=$(echo "${uninstall_lock_hours_lines_ref[${day_index}]}" | cut -d'=' -f2-)
+        # Reuse get_day_hours for consistent validation and UX (pass existing for multi-range manage dialog)
+        uninstall_lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "false" "true" "${existing_uninstall}")
         exit_code=$?
         
         if [ "${uninstall_lock_range}" = "CANCELLED" ]; then
@@ -546,8 +554,10 @@ configure_uninstall_lock_hours_section() {
             for i in 6 0; do
                 local day_name="${DAY_NAMES[${i}]}"
                 local label="Uninstall Lock Hours - ${day_name}"
+                local existing_uninstall=""
+                [ -n "${uninstall_lock_hours_lines_ref[${i}]+set}" ] && [ -n "${uninstall_lock_hours_lines_ref[${i}]}" ] && existing_uninstall=$(echo "${uninstall_lock_hours_lines_ref[${i}]}" | cut -d'=' -f2-)
                 local uninstall_lock_range
-                uninstall_lock_range=$(get_day_hours "${label}" "${i}" "${use_gui}" "false" "true")
+                uninstall_lock_range=$(get_day_hours "${label}" "${i}" "${use_gui}" "false" "true" "${existing_uninstall}")
                 if [ "${uninstall_lock_range}" = "CANCELLED" ]; then
                     return 2
                 fi
@@ -582,8 +592,10 @@ configure_uninstall_lock_hours_section() {
             local label="Uninstall Lock Hours - ${day_name}"
             local allow_back="true"
             [ "${day_index}" -eq 1 ] && allow_back="false"
+            local existing_uninstall=""
+            [ -n "${uninstall_lock_hours_lines_ref[${day_index}]+set}" ] && [ -n "${uninstall_lock_hours_lines_ref[${day_index}]}" ] && existing_uninstall=$(echo "${uninstall_lock_hours_lines_ref[${day_index}]}" | cut -d'=' -f2-)
             local uninstall_lock_range
-            uninstall_lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "${allow_back}" "true")
+            uninstall_lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "${allow_back}" "true" "${existing_uninstall}")
             if [ "${uninstall_lock_range}" = "CANCELLED" ]; then
                 return 2
             fi
@@ -608,8 +620,10 @@ configure_uninstall_lock_hours_section() {
         local day_name="${DAY_NAMES[${day_index}]}"
         local day_var="${DAY_VARS[${day_index}]}"
         local label="Uninstall Lock Hours - ${day_name}"
+        local existing_uninstall=""
+        [ -n "${uninstall_lock_hours_lines_ref[${day_index}]+set}" ] && [ -n "${uninstall_lock_hours_lines_ref[${day_index}]}" ] && existing_uninstall=$(echo "${uninstall_lock_hours_lines_ref[${day_index}]}" | cut -d'=' -f2-)
         local uninstall_lock_range
-        uninstall_lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "false" "true")
+        uninstall_lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "false" "true" "${existing_uninstall}")
         local exit_code=$?
         if [ "${uninstall_lock_range}" = "CANCELLED" ]; then
             return 2

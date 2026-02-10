@@ -59,12 +59,14 @@ parse_normalized_time_to_12h() {
 #   $2: start_time (optional, format: HH:MM or empty for defaults)
 #   $3: end_time (optional, format: HH:MM or empty for defaults)
 #   $4: day_name (optional) - when set, display "Day: ..." in the dialog so user sees which day is being set
+#   $5: hint_text (optional) - e.g. "Press Cancel to skip this day."; when set, shown in the dialog
 # Returns normalized time range string (HH:MM-HH:MM)
 show_time_selection_dialog() {
     local title="$1"
     local start_time="$2"
     local end_time="$3"
     local day_name="${4:-}"
+    local hint_text="${5:-}"
 
     title="$(dialog_safe_text "${title}")"
     
@@ -73,13 +75,13 @@ show_time_selection_dialog() {
     
     case "${tool}" in
         yad)
-            show_time_selection_dialog_yad "${title}" "${start_time}" "${end_time}" "${day_name}"
+            show_time_selection_dialog_yad "${title}" "${start_time}" "${end_time}" "${day_name}" "${hint_text}"
             ;;
         zenity)
-            show_time_selection_dialog_zenity "${title}" "${start_time}" "${end_time}" "${day_name}"
+            show_time_selection_dialog_zenity "${title}" "${start_time}" "${end_time}" "${day_name}" "${hint_text}"
             ;;
         kdialog)
-            show_time_selection_dialog_kdialog "${title}" "${start_time}" "${end_time}" "${day_name}"
+            show_time_selection_dialog_kdialog "${title}" "${start_time}" "${end_time}" "${day_name}" "${hint_text}"
             ;;
         *)
             # Fallback to entry dialog if no advanced tool
@@ -89,11 +91,13 @@ show_time_selection_dialog() {
 }
 
 # YAD implementation of time selection dialog
+# $5: hint_text (optional) - e.g. "Press Cancel to skip this day."
 show_time_selection_dialog_yad() {
     local title="$1"
     local start_time="${2:-}"
     local end_time="${3:-}"
     local day_name="${4:-}"
+    local hint_text="${5:-}"
 
     title="$(dialog_safe_text "${title}")"
     
@@ -120,32 +124,29 @@ show_time_selection_dialog_yad() {
     em=$(echo "${end_data}" | cut -d' ' -f2)
     eap=$(echo "${end_data}" | cut -d' ' -f3)
     
-    local yad_fields
+    local yad_fields=()
+    local output_offset=0
+    if [ -n "${hint_text}" ]; then
+        hint_text="$(dialog_safe_text "${hint_text}")"
+        yad_fields+=(--field="${hint_text}":LBL "")
+        output_offset=$((output_offset + 1))
+    fi
     if [ -n "${day_name}" ]; then
         day_name="$(dialog_safe_text "${day_name}")"
-        yad_fields=(
-            --field="Day: ${day_name}":LBL ""
-            --field="Start Time:":LBL ""
-            --field="Hour:NUM" "${sh}!1..12!1!0"
-            --field="Minute:CB" "^${sm}!00!30"
-            --field="AM/PM:CB" "^${sap}!AM!PM"
-            --field="End Time:":LBL ""
-            --field="Hour:NUM" "${eh}!1..12!1!0"
-            --field="Minute:CB" "^${em}!00!30"
-            --field="AM/PM:CB" "^${eap}!AM!PM"
-        )
-    else
-        yad_fields=(
-            --field="Start Time:":LBL ""
-            --field="Hour:NUM" "${sh}!1..12!1!0"
-            --field="Minute:CB" "^${sm}!00!30"
-            --field="AM/PM:CB" "^${sap}!AM!PM"
-            --field="End Time:":LBL ""
-            --field="Hour:NUM" "${eh}!1..12!1!0"
-            --field="Minute:CB" "^${em}!00!30"
-            --field="AM/PM:CB" "^${eap}!AM!PM"
-        )
+        yad_fields+=(--field="Day: ${day_name}":LBL "")
+        output_offset=$((output_offset + 1))
     fi
+    # Use combobox for hour (1-12) so both increment and decrement are clear; avoids spinbox wrap issues
+    yad_fields+=(
+        --field="Start Time:":LBL ""
+        --field="Hour:CB" "^${sh}!1!2!3!4!5!6!7!8!9!10!11!12"
+        --field="Minute:CB" "^${sm}!00!30"
+        --field="AM/PM:CB" "^${sap}!AM!PM"
+        --field="End Time:":LBL ""
+        --field="Hour:CB" "^${eh}!1!2!3!4!5!6!7!8!9!10!11!12"
+        --field="Minute:CB" "^${em}!00!30"
+        --field="AM/PM:CB" "^${eap}!AM!PM"
+    )
     
     local output
     output=$(yad --form --title="${title}" --separator="|" "${yad_fields[@]}" 2>/dev/null)
@@ -154,22 +155,23 @@ show_time_selection_dialog_yad() {
         return 1
     fi
     
-    # Parse output: with day_name we have one extra leading token; without: |sh|sm|sap||eh|em|eap|
+    # Parse output: indices depend on optional leading fields (hint, day)
     local start_h start_m start_ap end_h end_m end_ap
-    if [ -n "${day_name}" ]; then
-        start_h=$(echo "${output}" | cut -d'|' -f3)
-        start_m=$(echo "${output}" | cut -d'|' -f4)
-        start_ap=$(echo "${output}" | cut -d'|' -f5)
-        end_h=$(echo "${output}" | cut -d'|' -f7)
-        end_m=$(echo "${output}" | cut -d'|' -f8)
-        end_ap=$(echo "${output}" | cut -d'|' -f9)
-    else
-        start_h=$(echo "${output}" | cut -d'|' -f2)
-        start_m=$(echo "${output}" | cut -d'|' -f3)
-        start_ap=$(echo "${output}" | cut -d'|' -f4)
-        end_h=$(echo "${output}" | cut -d'|' -f6)
-        end_m=$(echo "${output}" | cut -d'|' -f7)
-        end_ap=$(echo "${output}" | cut -d'|' -f8)
+    start_h=$(echo "${output}" | cut -d'|' -f$((2 + output_offset)))
+    start_m=$(echo "${output}" | cut -d'|' -f$((3 + output_offset)))
+    start_ap=$(echo "${output}" | cut -d'|' -f$((4 + output_offset)))
+    end_h=$(echo "${output}" | cut -d'|' -f$((6 + output_offset)))
+    end_m=$(echo "${output}" | cut -d'|' -f$((7 + output_offset)))
+    end_ap=$(echo "${output}" | cut -d'|' -f$((8 + output_offset)))
+    
+    # Normalize hour to 1-12 (wrap 13->1, 0->12) in case any tool returns out-of-range
+    if [[ "${start_h}" =~ ^[0-9]+$ ]]; then
+        [ "${start_h}" -lt 1 ] && start_h=12
+        [ "${start_h}" -gt 12 ] && start_h=$(( (start_h - 1) % 12 + 1 ))
+    fi
+    if [[ "${end_h}" =~ ^[0-9]+$ ]]; then
+        [ "${end_h}" -lt 1 ] && end_h=12
+        [ "${end_h}" -gt 12 ] && end_h=$(( (end_h - 1) % 12 + 1 ))
     fi
     
     echo "${start_h}:${start_m}${start_ap}-${end_h}:${end_m}${end_ap}"
@@ -177,11 +179,13 @@ show_time_selection_dialog_yad() {
 }
 
 # Zenity implementation of time selection dialog
+# $5: hint_text (optional) - e.g. "Press Cancel to skip this day."
 show_time_selection_dialog_zenity() {
     local title="$1"
     local start_time="${2:-}"
     local end_time="${3:-}"
     local day_name="${4:-}"
+    local hint_text="${5:-}"
 
     title="$(dialog_safe_text "${title}")"
     
@@ -213,6 +217,10 @@ show_time_selection_dialog_zenity() {
         day_name="$(dialog_safe_text "${day_name}")"
         text_prompt="Configure time range for ${day_name}:"
     fi
+    if [ -n "${hint_text}" ]; then
+        hint_text="$(dialog_safe_text "${hint_text}")"
+        text_prompt="${text_prompt}\n\n${hint_text}"
+    fi
     local output
     output=$(zenity --forms --title="${title}" \
         --text="${text_prompt}" \
@@ -236,25 +244,34 @@ show_time_selection_dialog_zenity() {
     end_m=$(echo "${output}" | cut -d'|' -f5)
     end_ap=$(echo "${output}" | cut -d'|' -f6)
     
-    # Basic validation for zenity text entries
-    if ! [[ "${start_h}" =~ ^[0-9]+$ ]] || [ "${start_h}" -lt 1 ] || [ "${start_h}" -gt 12 ] || \
-       ! [[ "${end_h}" =~ ^[0-9]+$ ]] || [ "${end_h}" -lt 1 ] || [ "${end_h}" -gt 12 ]; then
-        show_error_dialog "Invalid Input" "Hours must be between 1 and 12."
+    # Normalize hour to 1-12 (wrap 13->1, 0->12); reject non-numeric
+    if ! [[ "${start_h}" =~ ^[0-9]+$ ]] || ! [[ "${end_h}" =~ ^[0-9]+$ ]]; then
+        show_error_dialog "Invalid Input" "Hours must be numbers between 1 and 12."
         return 1
     fi
+    [ "${start_h}" -lt 1 ] && start_h=12
+    [ "${start_h}" -gt 12 ] && start_h=$(( (start_h - 1) % 12 + 1 ))
+    [ "${end_h}" -lt 1 ] && end_h=12
+    [ "${end_h}" -gt 12 ] && end_h=$(( (end_h - 1) % 12 + 1 ))
     
     echo "${start_h}:${start_m}${start_ap}-${end_h}:${end_m}${end_ap}"
     return 0
 }
 
 # KDialog implementation of time selection dialog (title already includes day when passed by caller)
+# $5: hint_text (optional) - e.g. "Press Cancel to skip this day."
 show_time_selection_dialog_kdialog() {
     local title="$1"
     local start_time="${2:-}"
     local end_time="${3:-}"
     local _day_name="${4:-}"
+    local hint_text="${5:-}"
 
     title="$(dialog_safe_text "${title}")"
+    if [ -n "${hint_text}" ]; then
+        hint_text="$(dialog_safe_text "${hint_text}")"
+        title="${title} — ${hint_text}"
+    fi
     
     # Parse pre-filled values or use defaults
     local start_data end_data

@@ -21,8 +21,8 @@
 
 get_section_status() {
     # Access global config_lines array directly
-    local weekdays_status="(not configured)"
-    local weekends_status="(not configured)"
+    local weekdays_status="[not configured]"
+    local weekends_status="[not configured]"
     
     # Check weekdays (indices 1-5: Monday-Friday)
     local has_weekdays=false
@@ -34,7 +34,7 @@ get_section_status() {
     done
     
     if [ "${has_weekdays}" = "true" ]; then
-        weekdays_status="(configured)"
+        weekdays_status="[configured]"
     fi
     
     # Check weekends (indices 0, 6: Sunday, Saturday)
@@ -47,7 +47,7 @@ get_section_status() {
     done
     
     if [ "${has_weekends}" = "true" ]; then
-        weekends_status="(configured)"
+        weekends_status="[configured]"
     fi
     
     echo "${weekdays_status}|${weekends_status}"
@@ -104,12 +104,12 @@ format_popup_size_display() {
 
     if [ "${size_mode}" = "display-based" ]; then
         case "${popup_size}" in
-            xsmall) popup_size_display="${popup_size} (15%${mult_char}15%)" ;;
-            small) popup_size_display="${popup_size} (20%${mult_char}20%)" ;;
-            medium) popup_size_display="${popup_size} (30%${mult_char}30%)" ;;
-            large) popup_size_display="${popup_size} (50%${mult_char}50%)" ;;
-            xlarge) popup_size_display="${popup_size} (75%${mult_char}75%)" ;;
-            max) popup_size_display="${popup_size} (90%${mult_char}90%)" ;;
+            xsmall) popup_size_display="${popup_size} [15%${mult_char}15%]" ;;
+            small) popup_size_display="${popup_size} [20%${mult_char}20%]" ;;
+            medium) popup_size_display="${popup_size} [30%${mult_char}30%]" ;;
+            large) popup_size_display="${popup_size} [50%${mult_char}50%]" ;;
+            xlarge) popup_size_display="${popup_size} [75%${mult_char}75%]" ;;
+            max) popup_size_display="${popup_size} [90%${mult_char}90%]" ;;
             custom)
                 # Prefer provided overrides; fall back to config file.
                 local custom_size=""
@@ -119,9 +119,9 @@ format_popup_size_display() {
                     custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
                 fi
                 if [ -n "${custom_size}" ]; then
-                    popup_size_display="custom (${custom_size})"
+                    popup_size_display="custom [${custom_size}]"
                 else
-                    popup_size_display="custom (50%${mult_char}50%)"
+                    popup_size_display="custom [50%${mult_char}50%]"
                 fi
                 ;;
             *)
@@ -129,14 +129,14 @@ format_popup_size_display() {
                 if echo "${popup_size}" | grep -qE '^[0-9]+%x[0-9]+%$'; then
                     if [ "${style}" = "menu" ]; then
                         # Preserve original menu behavior: show value twice for raw percentage sizes.
-                        popup_size_display="${popup_size} (${popup_size})"
+                        popup_size_display="${popup_size} [${popup_size}]"
                     else
                         popup_size_display="${popup_size}"
                     fi
                 elif echo "${popup_size}" | grep -qE '^[0-9]+x[0-9]+$'; then
                     if [ "${style}" = "menu" ]; then
-                        # Preserve original menu behavior: show value + (valuepx).
-                        popup_size_display="${popup_size} (${popup_size}px)"
+                        # Preserve original menu behavior: show value + [valuepx].
+                        popup_size_display="${popup_size} [${popup_size}px]"
                     else
                         popup_size_display="${popup_size}px"
                     fi
@@ -146,12 +146,12 @@ format_popup_size_display() {
     else
         # Fixed pixel mode - show absolute dimensions.
         case "${popup_size}" in
-            xsmall) popup_size_display="${popup_size} (384${mult_char}216)" ;;
-            small) popup_size_display="${popup_size} (400${mult_char}250)" ;;
-            medium) popup_size_display="${popup_size} (800${mult_char}500)" ;;
-            large) popup_size_display="${popup_size} (1230${mult_char}720)" ;;
-            xlarge) popup_size_display="${popup_size} (1845${mult_char}1080)" ;;
-            max) popup_size_display="${popup_size} (2214${mult_char}1296)" ;;
+            xsmall) popup_size_display="${popup_size} [384${mult_char}216]" ;;
+            small) popup_size_display="${popup_size} [400${mult_char}250]" ;;
+            medium) popup_size_display="${popup_size} [800${mult_char}500]" ;;
+            large) popup_size_display="${popup_size} [1230${mult_char}720]" ;;
+            xlarge) popup_size_display="${popup_size} [1845${mult_char}1080]" ;;
+            max) popup_size_display="${popup_size} [2214${mult_char}1296]" ;;
             custom)
                 # Prefer provided overrides; fall back to config file.
                 local custom_absolute=""
@@ -161,10 +161,10 @@ format_popup_size_display() {
                     custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
                 fi
                 if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
-                    # Note: keep the original "WIDTHxHEIGHT" value in parentheses.
-                    popup_size_display="custom (${custom_absolute})"
+                    # Note: keep the original "WIDTHxHEIGHT" value in brackets.
+                    popup_size_display="custom [${custom_absolute}]"
                 else
-                    popup_size_display="custom (1280${mult_char}720)"
+                    popup_size_display="custom [1280${mult_char}720]"
                 fi
                 ;;
             *)
@@ -172,7 +172,7 @@ format_popup_size_display() {
                 if echo "${popup_size}" | grep -qE '^[0-9]+x[0-9]+$'; then
                     if [ "${style}" = "menu" ]; then
                         # Preserve original menu behavior: show value twice for raw pixel sizes.
-                        popup_size_display="${popup_size} (${popup_size})"
+                        popup_size_display="${popup_size} [${popup_size}]"
                     else
                         popup_size_display="${popup_size}"
                     fi
@@ -196,16 +196,17 @@ format_popup_size_display() {
 #   $8  - weekdays_status
 #   $9  - weekends_status
 #   $10 - configure_block_enabled
-#   $11 - lock_hours_status (e.g., "(None)" or "(Configured)") - Enhancement #19 Phase 2
+#   $11 - lock_hours_status (e.g., "[None]" or "[Configured]") - Enhancement #19 Phase 2
 #   $12 - uninstall_protection_mode (e.g., "none" or "difficult") - Enhancement #26
-#   $13 - uninstall_lock_hours_status (e.g., "(None)" or "(Configured)") - Enhancement #26 Phase 2
+#   $13 - uninstall_lock_hours_status (e.g., "[None]" or "[Configured]") - Enhancement #26 Phase 2
 #   $14 - pause_enabled (e.g., "true" or "false") - Enhancement #21
 #   $15 - pause_duration (e.g., "5" or "10") - Enhancement #21
-#   $16 - dialog_tool_status (e.g., " (auto)") - Enhancement #25
+#   $16 - dialog_tool_status (e.g., " [Automatic]" or " [yad]") - Enhancement #25
 #   $17 - config_lock_enabled (e.g., "true" or "false") - Enhancement #18
 #   $18 - popup_size_mode (optional, e.g., "fixed" or "display-based") - Enhancement #3
 #   $19 - popup_size_custom (optional, e.g., "95%x95%") - Enhancement #3
 #   $20 - popup_size_custom_absolute (optional, e.g., "2432x1368") - Enhancement #3
+#   $21 - service_mode_status (e.g., "[desktop]" or "[gaming]" or "[none]") - current service mode for option 12
 show_main_menu() {
     local use_gui="$1"
     local check_interval="$2"
@@ -227,6 +228,7 @@ show_main_menu() {
     local popup_size_mode="${18:-}"  # Enhancement #3: Optional size mode
     local popup_size_custom="${19:-}"  # Enhancement #3: Optional custom size
     local popup_size_custom_absolute="${20:-}"  # Enhancement #3: Optional custom absolute size
+    local service_mode_status="${21:-[none]}"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
@@ -261,13 +263,13 @@ show_main_menu() {
         
         local security_status=""
         if [ "${configure_block_val}" = "true" ] && [ "${config_lock_val}" = "true" ]; then
-            security_status=" (Both Enabled)"
+            security_status=" [Both Enabled]"
         elif [ "${configure_block_val}" = "true" ]; then
-            security_status=" (Script Block: On, File Lock: Off)"
+            security_status=" [Script Block: On, File Lock: Off]"
         elif [ "${config_lock_val}" = "true" ]; then
-            security_status=" (Script Block: Off, File Lock: On)"
+            security_status=" [Script Block: Off, File Lock: On]"
         else
-            security_status=" (Both Disabled)"
+            security_status=" [Both Disabled]"
         fi
         
         # Build lock hours status indicator (Phase 2)
@@ -279,9 +281,9 @@ show_main_menu() {
         # Build uninstall protection status indicator (Enhancement #26)
         local uninstall_protection_status=""
         if [ "${uninstall_protection_mode}" = "difficult" ]; then
-            uninstall_protection_status=" (Enabled)"
+            uninstall_protection_status=" [Enabled]"
         else
-            uninstall_protection_status=" (Disabled)"
+            uninstall_protection_status=" [Disabled]"
         fi
         
         # Build uninstall lock hours status indicator (Enhancement #26 Phase 2)
@@ -294,17 +296,17 @@ show_main_menu() {
         # Note: Pause is always once per day (not configurable), so we only show enabled/disabled and duration
         local pause_status=""
         if [ "${pause_enabled}" = "true" ]; then
-            pause_status=" (Enabled, ${pause_duration} min)"
+            pause_status=" [Enabled, ${pause_duration} min]"
         else
-            pause_status=" (Disabled)"
+            pause_status=" [Disabled]"
         fi
         
         # Ensure all status variables are set (prevent empty values from causing misalignment)
-        local safe_security_status="${security_status:- (Both Disabled)}"
+        local safe_security_status="${security_status:- [Both Disabled]}"
         local safe_lock_status="${lock_status_display:-}"
-        local safe_uninstall_protection="${uninstall_protection_status:- (Disabled)}"
+        local safe_uninstall_protection="${uninstall_protection_status:- [Disabled]}"
         local safe_uninstall_lock="${uninstall_lock_status_display:-}"
-        local safe_pause_status="${pause_status:- (Disabled)}"
+        local safe_pause_status="${pause_status:- [Disabled]}"
         local safe_dialog_status="${dialog_tool_status:-}"
         local safe_weekdays="${weekdays_status:-}"
         local safe_weekends="${weekends_status:-}"
@@ -318,8 +320,8 @@ show_main_menu() {
             1 \
             "Option" \
             "Description" \
-            "1" "Timer Settings (Check Interval: ${check_interval} min)" \
-            "2" "Window Behavior (opens submenu)" \
+            "1" "Timer Settings [Check Interval: ${check_interval} min]" \
+            "2" "Window Behavior [opens submenu]" \
             "3" "Weekdays Configuration ${safe_weekdays}" \
             "4" "Weekends Configuration ${safe_weekends}" \
             "5" "Script Blocking and Config Locking${safe_security_status}" \
@@ -328,8 +330,8 @@ show_main_menu() {
             "8" "Additional Uninstall Protection Hours${safe_uninstall_lock}" \
             "9" "View Weekly Hours Settings" \
             "10" "Enable pause and configure duration${safe_pause_status}" \
-            "11" "Dialog Tool Selection${safe_dialog_status}" \
-            "12" "Service Mode Configuration (Desktop/Gaming Mode)" \
+            "11" "Dialog Tool Selection ${safe_dialog_status}" \
+            "12" "Service Mode Configuration ${service_mode_status}" \
             "13" "Review and Save")
         local exit_code=$?
         
@@ -383,10 +385,10 @@ show_main_menu() {
             window_desc="${window_desc}, Auto-close: Off"
         fi
         
-        echo "1. Timer Settings (Check Interval: ${check_interval} min)" >&2
+        echo "1. Timer Settings [Check Interval: ${check_interval} min]" >&2
         echo "   Configure how often the system checks for restricted hours" >&2
         echo "" >&2
-        echo "2. Window Behavior (opens submenu for size, position, etc.)" >&2
+        echo "2. Window Behavior [opens submenu for size, position, etc.]" >&2
         echo "   Configure popup size, position, display time, immovable, and auto-close" >&2
         echo "" >&2
         echo "3. Weekdays Configuration ${weekdays_status}" >&2
@@ -400,13 +402,13 @@ show_main_menu() {
         local configure_block_val="${configure_block_enabled:-false}"
         local security_status=""
         if [ "${configure_block_val}" = "true" ] && [ "${config_lock_val}" = "true" ]; then
-            security_status=" (Both Enabled)"
+            security_status=" [Both Enabled]"
         elif [ "${configure_block_val}" = "true" ]; then
-            security_status=" (Script Block: On, File Lock: Off)"
+            security_status=" [Script Block: On, File Lock: Off]"
         elif [ "${config_lock_val}" = "true" ]; then
-            security_status=" (Script Block: Off, File Lock: On)"
+            security_status=" [Script Block: Off, File Lock: On]"
         else
-            security_status=" (Both Disabled)"
+            security_status=" [Both Disabled]"
         fi
         local lock_status_display=""
         if [ -n "${lock_hours_status}" ]; then
@@ -421,9 +423,9 @@ show_main_menu() {
         echo "" >&2
         local uninstall_protection_status=""
         if [ "${uninstall_protection_mode}" = "difficult" ]; then
-            uninstall_protection_status=" (Enabled)"
+            uninstall_protection_status=" [Enabled]"
         else
-            uninstall_protection_status=" (Disabled)"
+            uninstall_protection_status=" [Disabled]"
         fi
         echo "7. Uninstall Protection${uninstall_protection_status}" >&2
         echo "   Configure protection mode for uninstall.sh during restricted hours" >&2
@@ -441,17 +443,17 @@ show_main_menu() {
         echo "" >&2
         local pause_status=""
         if [ "${pause_enabled}" = "true" ]; then
-            pause_status=" (Enabled, ${pause_duration} min)"
+            pause_status=" [Enabled, ${pause_duration} min]"
         else
-            pause_status=" (Disabled)"
+            pause_status=" [Disabled]"
         fi
         echo "10. Enable pause and configure duration${pause_status}" >&2
         echo "   Configure pause feature for warning popups (pause suppresses popups, not restrictions)" >&2
         echo "" >&2
-        echo "11. Dialog Tool Selection${dialog_tool_status}" >&2
+        echo "11. Dialog Tool Selection ${dialog_tool_status}" >&2
         echo "   Select which dialog tool to use for popup windows" >&2
         echo "" >&2
-        echo "12. Service Mode Configuration (Desktop/Gaming Mode)" >&2
+        echo "12. Service Mode Configuration ${service_mode_status}" >&2
         echo "   Configure systemd service for Desktop Mode or Gaming Mode" >&2
         echo "" >&2
         echo "13. Review and Save" >&2
@@ -476,9 +478,60 @@ show_main_menu() {
 }
 
 # Show Window Behavior submenu (size, position, min display time, immovable, auto-close, Back).
-# Returns: stdout = "1"-"6"; return 0 = valid choice; return 1 = Back/cancel (caller re-shows main menu); return 2 = CANCELLED (exit config).
+# Shows current value next to each option (from memory when valid, otherwise from config).
+# Parameters: $1=use_gui, $2=popup_size, $3=popup_size_mode, $4=popup_size_custom,
+#   $5=popup_size_custom_absolute, $6=popup_position, $7=min_display_time,
+#   $8=popup_immovable, $9=popup_auto_close. Empty params are filled from CONFIG_FILE when available.
+# Returns: stdout = "1"-"6"; return 0 = valid choice; return 1 = Back/cancel; return 2 = CANCELLED (exit config).
 show_window_behavior_submenu() {
     local use_gui="$1"
+    local popup_size="${2:-}"
+    local popup_size_mode="${3:-}"
+    local popup_size_custom="${4:-}"
+    local popup_size_custom_absolute="${5:-}"
+    local popup_position="${6:-}"
+    local min_display_time="${7:-}"
+    local popup_immovable="${8:-}"
+    local popup_auto_close="${9:-}"
+
+    # Fallback to config file when params are empty
+    if [ -f "${CONFIG_FILE}" ]; then
+        [ -z "${popup_size}" ] && popup_size=$(grep -E "^[[:space:]]*POPUP_SIZE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        [ -z "${popup_size_mode}" ] && popup_size_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        [ -z "${popup_size_custom}" ] && popup_size_custom=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        [ -z "${popup_size_custom_absolute}" ] && popup_size_custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        [ -z "${popup_position}" ] && popup_position=$(grep -E "^[[:space:]]*POPUP_POSITION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        [ -z "${min_display_time}" ] && min_display_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        [ -z "${popup_immovable}" ] && popup_immovable=$(grep -E "^[[:space:]]*POPUP_IMMOVABLE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        [ -z "${popup_auto_close}" ] && popup_auto_close=$(grep -E "^[[:space:]]*POPUP_AUTO_CLOSE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    fi
+    # Defaults when still empty
+    [ -z "${popup_size}" ] && popup_size="medium"
+    [ -z "${popup_size_mode}" ] && popup_size_mode="fixed"
+    [ -z "${popup_position}" ] && popup_position="center"
+    [[ ! "${min_display_time}" =~ ^[0-9]+$ ]] && min_display_time="0"
+    [ "${popup_immovable}" != "true" ] && popup_immovable="false"
+    [ "${popup_auto_close}" != "true" ] && popup_auto_close="false"
+
+    # Build description strings with current values
+    local size_display
+    size_display=$(format_popup_size_display "${popup_size}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "x" "menu")
+    local desc_1="Popup size — ${size_display}"
+    local pos_display="${popup_position}"
+    case "${popup_position}" in
+        center) pos_display="Center" ;;
+        top-left) pos_display="Top-left" ;;
+    esac
+    local desc_2="Position — ${pos_display}"
+    local desc_3
+    if [ "${min_display_time}" -eq 0 ] 2>/dev/null; then
+        desc_3="Min display time — Disabled"
+    else
+        desc_3="Min display time — ${min_display_time}s"
+    fi
+    local desc_4="Immovable — $([ "${popup_immovable}" = "true" ] && echo "On" || echo "Off")"
+    local desc_5="Auto-close — $([ "${popup_auto_close}" = "true" ] && echo "On" || echo "Off")"
+
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         local choice
         choice=$(show_multi_column_list_dialog \
@@ -488,11 +541,11 @@ show_window_behavior_submenu() {
             320 \
             1 \
             "Option" "Description" \
-            "1" "Popup size (mode and size)" \
-            "2" "Position" \
-            "3" "Min display time" \
-            "4" "Immovable" \
-            "5" "Auto-close" \
+            "1" "${desc_1}" \
+            "2" "${desc_2}" \
+            "3" "${desc_3}" \
+            "4" "${desc_4}" \
+            "5" "${desc_5}" \
             "6" "Back to main menu")
         local exit_code=$?
         if [ ${exit_code} -ne 0 ] || [ -z "${choice}" ]; then
@@ -506,11 +559,11 @@ show_window_behavior_submenu() {
     else
         echo "" >&2
         echo "=== Window Behavior ===" >&2
-        echo "1. Popup size (mode and size)" >&2
-        echo "2. Position" >&2
-        echo "3. Min display time" >&2
-        echo "4. Immovable" >&2
-        echo "5. Auto-close" >&2
+        echo "1. ${desc_1}" >&2
+        echo "2. ${desc_2}" >&2
+        echo "3. ${desc_3}" >&2
+        echo "4. ${desc_4}" >&2
+        echo "5. ${desc_5}" >&2
         echo "6. Back to main menu" >&2
         echo "" >&2
         while true; do
@@ -576,7 +629,7 @@ show_visual_grid() {
                         if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
                             restricted_hours="${inherited}"
                         else
-                            restricted_hours="(no restrictions)"
+                            restricted_hours="[no restrictions]"
                         fi
                     else
                         # Has restrictions - show formatted time ranges
@@ -589,7 +642,7 @@ show_visual_grid() {
                     if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
                         restricted_hours="${inherited}"
                     else
-                        restricted_hours="(no restrictions)"
+                        restricted_hours="[no restrictions]"
                     fi
                 fi
                 
@@ -605,11 +658,11 @@ show_visual_grid() {
                         lock_hours=$(format_ranges_human "${lock_range}" "${day_name}")
                     else
                         # Explicitly disabled (empty value)
-                        lock_hours="(no lock hours)"
+                        lock_hours="[no lock hours]"
                     fi
                 else
                     # No lock hours configured
-                    lock_hours="(no lock hours)"
+                    lock_hours="[no lock hours]"
                 fi
                 
                 # Get uninstall lock hours (Enhancement #26 Phase 2)
@@ -624,11 +677,11 @@ show_visual_grid() {
                         uninstall_lock_hours=$(format_ranges_human "${uninstall_lock_range}" "${day_name}")
                     else
                         # Explicitly disabled (empty value)
-                        uninstall_lock_hours="(no uninstall lock hours)"
+                        uninstall_lock_hours="[no uninstall lock hours]"
                     fi
                 else
                     # No uninstall lock hours configured
-                    uninstall_lock_hours="(no uninstall lock hours)"
+                    uninstall_lock_hours="[no uninstall lock hours]"
                 fi
                 
                 # Store separately
@@ -770,7 +823,7 @@ show_visual_grid() {
                         if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
                             restricted_hours="${inherited}"
                         else
-                            restricted_hours="(no restrictions)"
+                            restricted_hours="[no restrictions]"
                         fi
                     else
                         # Has restrictions - show formatted time ranges
@@ -783,7 +836,7 @@ show_visual_grid() {
                     if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
                         restricted_hours="${inherited}"
                     else
-                        restricted_hours="(no restrictions)"
+                        restricted_hours="[no restrictions]"
                     fi
                 fi
                 
@@ -799,11 +852,11 @@ show_visual_grid() {
                         lock_hours=$(format_ranges_human "${lock_range}" "${day_name}")
                     else
                         # Explicitly disabled (empty value)
-                        lock_hours="(no lock hours)"
+                        lock_hours="[no lock hours]"
                     fi
                 else
                     # No lock hours configured
-                    lock_hours="(no lock hours)"
+                    lock_hours="[no lock hours]"
                 fi
                 
                 # Get uninstall lock hours (Enhancement #26 Phase 2)
@@ -818,11 +871,11 @@ show_visual_grid() {
                         uninstall_lock_hours=$(format_ranges_human "${uninstall_lock_range}" "${day_name}")
                     else
                         # Explicitly disabled (empty value)
-                        uninstall_lock_hours="(no uninstall lock hours)"
+                        uninstall_lock_hours="[no uninstall lock hours]"
                     fi
                 else
                     # No uninstall lock hours configured
-                    uninstall_lock_hours="(no uninstall lock hours)"
+                    uninstall_lock_hours="[no uninstall lock hours]"
                 fi
                 
                 # Display as table: number, day name, restricted hours, lock hours, uninstall lock hours
@@ -964,7 +1017,7 @@ show_summary() {
             
             # Check if this is a skipped day (no restrictions)
             if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
-                summary="${summary}- ${day_name}: No restrictions\n"
+                summary="${summary}- ${day_name}: [No restrictions]\n"
             else
                 # Format to human-readable
                 local formatted
@@ -1003,7 +1056,7 @@ show_summary() {
             fi
         else
             # Day has no restrictions configured
-            summary="${summary}- ${day_name}: No restrictions\n"
+            summary="${summary}- ${day_name}: [No restrictions]\n"
         fi
     done
     
@@ -1051,12 +1104,12 @@ show_summary() {
         # Show dimensions with percentage if in percentage mode (display-based)
         if [ "${size_mode}" = "display-based" ]; then
             case "${popup_size}" in
-                xsmall) popup_size_display="${popup_size} (15%x15%)" ;;
-                small) popup_size_display="${popup_size} (20%x20%)" ;;
-                medium) popup_size_display="${popup_size} (30%x30%)" ;;
-                large) popup_size_display="${popup_size} (50%x50%)" ;;
-                xlarge) popup_size_display="${popup_size} (75%x75%)" ;;
-                max) popup_size_display="${popup_size} (90%x90%)" ;;
+                xsmall) popup_size_display="${popup_size} [15%x15%]" ;;
+                small) popup_size_display="${popup_size} [20%x20%]" ;;
+                medium) popup_size_display="${popup_size} [30%x30%]" ;;
+                large) popup_size_display="${popup_size} [50%x50%]" ;;
+                xlarge) popup_size_display="${popup_size} [75%x75%]" ;;
+                max) popup_size_display="${popup_size} [90%x90%]" ;;
                 custom)
                     # Get custom size value
                     local custom_size=""
@@ -1066,9 +1119,9 @@ show_summary() {
                         custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
                     fi
                     if [ -n "${custom_size}" ]; then
-                        popup_size_display="custom (${custom_size})"
+                        popup_size_display="custom [${custom_size}]"
                     else
-                        popup_size_display="custom (50%x50%)"
+                        popup_size_display="custom [50%x50%]"
                     fi
                     ;;
                 *)
@@ -1083,12 +1136,12 @@ show_summary() {
         else
             # Fixed pixel mode - show absolute dimensions
             case "${popup_size}" in
-                xsmall) popup_size_display="${popup_size} (384x216)" ;;
-                small) popup_size_display="${popup_size} (400x250)" ;;
-                medium) popup_size_display="${popup_size} (800x500)" ;;
-                large) popup_size_display="${popup_size} (1230x720)" ;;
-                xlarge) popup_size_display="${popup_size} (1845x1080)" ;;
-                max) popup_size_display="${popup_size} (2214x1296)" ;;
+                xsmall) popup_size_display="${popup_size} [384x216]" ;;
+                small) popup_size_display="${popup_size} [400x250]" ;;
+                medium) popup_size_display="${popup_size} [800x500]" ;;
+                large) popup_size_display="${popup_size} [1230x720]" ;;
+                xlarge) popup_size_display="${popup_size} [1845x1080]" ;;
+                max) popup_size_display="${popup_size} [2214x1296]" ;;
                 custom)
                     # Get custom absolute size value
                     local custom_absolute=""
@@ -1098,7 +1151,7 @@ show_summary() {
                         custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
                     fi
                     if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
-                        popup_size_display="custom (${custom_absolute})"
+                        popup_size_display="custom [${custom_absolute}]"
                     else
                         # Fallback to custom size if absolute not available
                         local custom_size=""
@@ -1108,9 +1161,9 @@ show_summary() {
                             custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
                         fi
                         if [ -n "${custom_size}" ]; then
-                            popup_size_display="custom (${custom_size})"
+                            popup_size_display="custom [${custom_size}]"
                         else
-                            popup_size_display="custom (1280x720)"
+                            popup_size_display="custom [1280x720]"
                         fi
                     fi
                     ;;
@@ -1158,7 +1211,7 @@ show_summary() {
                 
                 # Check if this is a skipped day (no restrictions)
                 if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
-                    echo "  - ${day_name}: No restrictions"
+                    echo "  - ${day_name}: [No restrictions]"
                 else
                     # Format to human-readable
                     local formatted
@@ -1197,7 +1250,7 @@ show_summary() {
                 fi
             else
                 # Day has no restrictions configured
-                echo "  - ${day_name}: No restrictions"
+                echo "  - ${day_name}: [No restrictions]"
             fi
         done
         

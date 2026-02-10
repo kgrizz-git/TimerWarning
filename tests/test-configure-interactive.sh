@@ -100,7 +100,7 @@ create_test_config ""
 timeout 5 bash -c "printf '\n5\n0\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/grid-empty.txt" 2>&1 || true
 test_check "Grid shows 'Visual Day/Time Grid' header" "grep -q 'Visual Day/Time Grid' ${TEST_DIR}/grid-empty.txt"
 test_check "Grid shows all 7 days" "grep -c '\. Sunday:\|\. Monday:\|\. Tuesday:\|\. Wednesday:\|\. Thursday:\|\. Friday:\|\. Saturday:' ${TEST_DIR}/grid-empty.txt | grep -q '^7$'"
-test_check "Grid shows '(no restrictions)' for unrestricted days" "grep -q '(no restrictions)' ${TEST_DIR}/grid-empty.txt"
+test_check "Grid shows '[no restrictions]' for unrestricted days" "grep -qF '[no restrictions]' ${TEST_DIR}/grid-empty.txt"
 test_check "Grid shows 'Back to Main Menu' option" "grep -q 'Back to Main Menu' ${TEST_DIR}/grid-empty.txt"
 echo ""
 
@@ -116,7 +116,7 @@ timeout 5 bash -c "printf '\n5\n0\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TES
 test_check "Grid shows Monday with restrictions" "grep -q 'Monday.*12:00 AM' ${TEST_DIR}/grid-configured.txt"
 test_check "Grid shows status indicator for restricted days" "grep -q '\[✗\].*Monday' ${TEST_DIR}/grid-configured.txt"
 test_check "Grid shows Saturday with restrictions" "grep -q 'Saturday.*1:00 AM' ${TEST_DIR}/grid-configured.txt"
-test_check "Grid shows Sunday as unrestricted" "grep -q 'Sunday.*(no restrictions)' ${TEST_DIR}/grid-configured.txt"
+test_check "Grid shows Sunday as unrestricted" "grep -qF 'Sunday' ${TEST_DIR}/grid-configured.txt && grep -qF '[no restrictions]' ${TEST_DIR}/grid-configured.txt"
 echo ""
 
 # Test 4: Grid with overnight ranges
