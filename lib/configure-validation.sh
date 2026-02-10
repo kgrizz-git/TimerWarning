@@ -514,7 +514,7 @@ validate_popup_timing_config() {
     # Check if min display time exceeds check interval
     if [ "${min_display_time}" -gt "${check_interval_seconds}" ]; then
         # Conflict detected - return error message
-        echo "Error: Minimum display time (${min_display_time} seconds) is greater than check interval (${check_interval} minutes = ${check_interval_seconds} seconds). This will cause multiple popups to appear simultaneously. Please adjust one of these values: either increase CHECK_INTERVAL or decrease POPUP_MIN_DISPLAY_TIME." >&2
+        echo "Error: Minimum display time (${min_display_time} seconds) is greater than popup display frequency (${check_interval} minutes = ${check_interval_seconds} seconds). This will cause multiple popups to appear simultaneously. Please adjust one of these values: either increase popup display frequency or decrease POPUP_MIN_DISPLAY_TIME." >&2
         return 1
     fi
     

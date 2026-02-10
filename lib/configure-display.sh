@@ -320,7 +320,7 @@ show_main_menu() {
             1 \
             "Option" \
             "Description" \
-            "1" "Timer Settings [Check Interval: ${check_interval} min]" \
+            "1" "Popup display frequency [Every ${check_interval} min]" \
             "2" "Window Behavior [opens submenu]" \
             "3" "Weekdays Configuration ${safe_weekdays}" \
             "4" "Weekends Configuration ${safe_weekends}" \
@@ -385,8 +385,8 @@ show_main_menu() {
             window_desc="${window_desc}, Auto-close: Off"
         fi
         
-        echo "1. Timer Settings [Check Interval: ${check_interval} min]" >&2
-        echo "   Configure how often the system checks for restricted hours" >&2
+        echo "1. Popup display frequency [Every ${check_interval} min]" >&2
+        echo "   How often to show warning popups (1-60 minutes)" >&2
         echo "" >&2
         echo "2. Window Behavior [opens submenu for size, position, etc.]" >&2
         echo "   Configure popup size, position, display time, immovable, and auto-close" >&2
@@ -929,7 +929,7 @@ show_summary() {
     
     # Build summary with human-readable time periods
     local summary="Configuration Summary:\n\n"
-    summary="${summary}Check Interval: Every ${check_interval} minute(s)\n"
+    summary="${summary}Popup display frequency: Every ${check_interval} minute(s)\n"
     
     # Format popup size display - show dimensions for all sizes (matching menu display)
     local popup_size_display
@@ -1084,7 +1084,7 @@ show_summary() {
         echo ""
         echo "=== Configuration Summary ==="
         echo ""
-        echo "Check Interval: Every ${check_interval} minute(s)"
+        echo "Popup display frequency: Every ${check_interval} minute(s)"
         
         # Format popup size display - show dimensions for all sizes (matching menu display)
         # Get size mode to determine format

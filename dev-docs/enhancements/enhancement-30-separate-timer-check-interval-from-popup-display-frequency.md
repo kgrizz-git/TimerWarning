@@ -1,9 +1,9 @@
 # Enhancement 30: Separate Timer Check Interval from Popup Display Frequency
 
-- **Description**: Separate the systemd timer check interval (hardcoded to ~5 minutes) from a user-configurable popup display frequency. The timer runs every 5 minutes to check for restricted hours, but popups are only displayed based on the user's configured display frequency (e.g., every 30 minutes, every hour).
-- **Files Affected**: `sleep-warning.sh`, `lib/config.sh`, `lib/configure-input-popup.sh`, `lib/configure-config.sh`, `lib/configure-core.sh`, `sleep-warning.timer`, `sleep-warning.conf`, `configure.sh`
+- **Description**: Separate the systemd timer run frequency from a user-configurable popup display frequency. The timer run interval is derived from the user's popup setting (5 minutes when popup interval ≥ 5; otherwise equal to popup interval). Only "Popup display frequency" (1–60 minutes) is exposed to the user; the script run frequency is not directly visible.
+- **Files Affected**: `sleep-warning.sh`, `lib/config.sh`, `lib/configure-input-popup.sh`, `lib/configure-config.sh`, `lib/configure-core.sh`, `sleep-warning.timer`, `sleep-warning.conf`, `configure.sh`, `install.sh`, `status.sh`
 - **Priority**: Medium-High (improves minute precision support and user experience)
-- **Status**: Not implemented
+- **Status**: Implemented (2026-02-09)
 - **Related**: [Enhancement 16b: 12-Hour Format Time Input with Minute Precision](enhancement-16b-12-hour-format-time-input.md)
 
 ## Problem Statement
@@ -17,22 +17,20 @@ This creates a conflict when minute precision is used:
 - Users who want infrequent popups (e.g., every hour) are forced to use a long timer interval, which delays detection of minute-precision restrictions
 - Users who want frequent checks for minute precision are forced to see popups very frequently
 
-## Proposed Solution
+## Proposed Solution (User-Approved Spec)
 
-Separate these concerns:
-1. **Timer Check Interval** (hardcoded, ~5 minutes):
-   - Systemd timer runs every 5 minutes to check for restricted hours
-   - Ensures minute-precision restrictions are detected within 5 minutes
-   - Not user-configurable (hardcoded for reliability)
-   - Timer format: `OnCalendar=*:0/5` (triggers at :00, :05, :10, :15, :20, :25, :30, :35, :40, :45, :50, :55)
+Separate these concerns; script run frequency is **not** shown to the user:
 
-2. **Popup Display Frequency** (user-configurable):
-   - New config option: `POPUP_DISPLAY_FREQUENCY` (in minutes)
-   - Controls how often popups are shown, independent of timer checks
-   - Default: 10 minutes (can be 1-60 minutes, or 0 for "show every check")
-   - The script tracks the last popup display time and only shows a popup if:
-     - Current time is within restricted hours, AND
-     - Time since last popup >= `POPUP_DISPLAY_FREQUENCY`
+1. **Timer / script run frequency** (derived, not user-visible):
+   - If popup display frequency is **≥ 5 minutes**: timer runs every **5 minutes**.
+   - If popup display frequency is **< 5 minutes** (1–4): timer runs at that same interval (e.g. every 2 minutes if user chose 2).
+   - Not displayed in configure wizard or status.
+
+2. **Popup display frequency** (user-configurable, 1–60 minutes only):
+   - New config option: `POPUP_DISPLAY_FREQUENCY` (in minutes).
+   - Range: **1–60 minutes** (no zero option).
+   - Default: 10 minutes.
+   - The script tracks the last popup display time and only shows a popup when in restricted hours and time since last popup ≥ `POPUP_DISPLAY_FREQUENCY`.
 
 ## Benefits
 
@@ -45,18 +43,17 @@ Separate these concerns:
 
 ### 1. Timer Configuration
 
-- **Hardcode timer interval**: Set `OnCalendar=*:0/5` in `sleep-warning.timer` (or use 1 minute for even better precision)
-- **Remove CHECK_INTERVAL from timer updates**: `update_timer_file()` should no longer accept an interval parameter
-- **Timer file**: Always uses `OnCalendar=*:0/5` (or `*:0/1` for 1-minute checks)
+- **Derived run interval**: `update_timer_file(popup_display_frequency)` computes run_interval = min(5, popup_display_frequency) in effect: if popup_freq ≥ 5 then 5, else popup_freq. Timer file uses `OnCalendar=*:0/run_interval`.
+- **Not user-visible**: Status and configure do not show "timer run interval" or "check interval"; only "Popup display frequency" is shown.
 
 ### 2. Configuration File Changes
 
-- **Remove**: `CHECK_INTERVAL` option (or keep for backward compatibility, but don't use for timer)
-- **Add**: `POPUP_DISPLAY_FREQUENCY` option:
+- **Add**: `POPUP_DISPLAY_FREQUENCY` (primary); **migrate from** `CHECK_INTERVAL` for backward compatibility.
+- **Popup display frequency**:
   - Format: `POPUP_DISPLAY_FREQUENCY=10` (minutes)
-  - Range: 1-60 minutes, or 0 for "show every check" (every 5 minutes)
+  - Range: **1-60 minutes only** (no zero)
   - Default: 10 minutes
-  - Description: "How often to display warning popups (in minutes). The system checks for restricted hours every 5 minutes, but popups are only shown at this frequency."
+  - Description: "How often to display warning popups (in minutes)."
 
 ### 3. State Tracking
 
@@ -110,15 +107,12 @@ main() {
 
 - **Remove**: Timer Settings option (or rename to "Popup Display Frequency")
 - **Update**: Menu option text: "Popup Display Frequency (how often to show popups)"
-- **Validation**: 
-  - Range: 1-60 minutes, or 0 for "every check"
-  - Show explanation: "The system checks for restricted hours every 5 minutes, but you can control how often popups appear."
+- **Validation**: Range 1-60 minutes only (no zero). Do not expose script run frequency.
 
 ### 7. Status Display Updates
 
 - **Remove**: "Check Interval" from status display
-- **Add**: "Timer Check Interval: Every 5 minutes (hardcoded)"
-- **Add**: "Popup Display Frequency: Every X minutes (user-configurable)"
+- **Show**: "Popup display frequency: Every X minutes" only (do not show timer/script run frequency)
 
 ## Example Scenarios
 
@@ -140,36 +134,29 @@ main() {
   - Popup shown every 5 minutes when in restricted hours
   - Effectively same as current behavior with `CHECK_INTERVAL=5`
 
-### Scenario 3: Show Every Check
+### Scenario 3: Most Frequent (5 minutes)
 - **Restrictions**: Start at 9:15
-- **Popup Display Frequency**: 0 (show every check)
+- **Popup Display Frequency**: 5 minutes
 - **Behavior**:
-  - Timer checks every 5 minutes
-  - Popup shown every 5 minutes when in restricted hours
-  - Maximum frequency (every 5 minutes)
+  - Timer runs every 5 minutes; popup shown every 5 minutes when in restricted hours
+  - Effectively maximum user-visible frequency (1-60 range, no zero)
 
 ## Implementation Checklist
 
-- [ ] Update `sleep-warning.timer` to hardcode `OnCalendar=*:0/5` (or `*:0/1`)
-- [ ] Remove `CHECK_INTERVAL` parameter from `update_timer_file()` or make it no-op
-- [ ] Add `POPUP_DISPLAY_FREQUENCY` to config file format
-- [ ] Create state directory: `~/.config/sleep-warning/state/`
-- [ ] Implement `read_last_popup_time()` function
-- [ ] Implement `write_last_popup_time()` function
-- [ ] Implement `get_popup_display_frequency()` function (with backward compatibility for `CHECK_INTERVAL`)
-- [ ] Update `sleep-warning.sh` main logic to check popup frequency before showing popup
-- [ ] Update `configure.sh` to remove/rename Timer Settings option
-- [ ] Update `lib/configure-input-popup.sh` to add Popup Display Frequency input
-- [ ] Update `lib/configure-config.sh` to handle `POPUP_DISPLAY_FREQUENCY` in read/write
-- [ ] Update `lib/config.sh` to parse `POPUP_DISPLAY_FREQUENCY` (with `CHECK_INTERVAL` fallback)
-- [ ] Update `status.sh` to show timer check interval and popup display frequency
-- [ ] Add migration logic for existing `CHECK_INTERVAL` configs
-- [ ] Update documentation (user guide, configuration guide)
-- [ ] Test minute precision scenarios (restrictions at :15, :30, :45)
-- [ ] Test various popup frequencies (1, 5, 10, 15, 30, 60 minutes)
-- [ ] Test backward compatibility (existing configs with `CHECK_INTERVAL`)
-- [ ] Test state file persistence across reboots
-- [ ] Test edge cases (state file missing, corrupted, etc.)
+- [x] Add `get_timer_run_interval(popup_freq)` (min 5 when popup_freq≥5, else popup_freq) and use in timer updates
+- [x] Add `POPUP_DISPLAY_FREQUENCY` to config; `update_timer_file(popup_freq)` uses derived run interval
+- [x] Create state directory: `~/.config/sleep-warning/state/`
+- [x] Implement `read_last_popup_time()` / `write_last_popup_time()`
+- [x] Implement `get_popup_display_frequency()` (with `CHECK_INTERVAL` fallback for migration)
+- [x] Update `sleep-warning.sh` to check last popup time vs popup frequency before showing popup
+- [x] Rename Timer Settings to "Popup display frequency" in configure (menu, input, summary, success)
+- [x] Update `lib/configure-config.sh` load/write for `POPUP_DISPLAY_FREQUENCY`
+- [x] Update `lib/config.sh` for `POPUP_DISPLAY_FREQUENCY` and `get_timer_run_interval`
+- [x] Update `status.sh` to show only "Popup display frequency" (not run interval)
+- [x] Update `install.sh` to generate timer using derived run interval from `POPUP_DISPLAY_FREQUENCY`
+- [x] Migration: existing `CHECK_INTERVAL` read as fallback for `POPUP_DISPLAY_FREQUENCY`
+- [ ] Update docs (user guide, configuration guide)
+- [x] Tests updated for POPUP_DISPLAY_FREQUENCY and new UI text (enhancement-09, atomic-write, configure-comprehensive, expect scripts, etc.)
 
 ## Technical Considerations
 

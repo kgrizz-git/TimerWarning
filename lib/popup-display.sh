@@ -386,20 +386,19 @@ show_warning() {
         existing_pid=$(echo "${existing_popup_info}" | cut -d'|' -f1)
         existing_age=$(echo "${existing_popup_info}" | cut -d'|' -f2)
         
-        # Get check interval in seconds
-        local check_interval_minutes
-        check_interval_minutes=$(get_check_interval)
-        local check_interval_seconds
-        check_interval_seconds=$((check_interval_minutes * 60))
+        # Get popup display frequency in seconds (Enhancement #30)
+        local popup_freq_minutes popup_freq_seconds
+        popup_freq_minutes=$(get_popup_display_frequency)
+        popup_freq_seconds=$((popup_freq_minutes * 60))
         
-        if [ "${existing_age}" -gt "${check_interval_seconds}" ]; then
-            # Existing popup has been open longer than CHECK_INTERVAL, close it and show new one
-            log_to_file "INFO" "Existing popup (PID ${existing_pid}) has been open ${existing_age} seconds (longer than CHECK_INTERVAL ${check_interval_seconds}s), closing and showing new popup"
+        if [ "${existing_age}" -gt "${popup_freq_seconds}" ]; then
+            # Existing popup has been open longer than display frequency, close it and show new one
+            log_to_file "INFO" "Existing popup (PID ${existing_pid}) has been open ${existing_age}s (longer than display frequency ${popup_freq_seconds}s), closing and showing new popup"
             close_existing_popups >/dev/null
             # Continue to show new popup below
         else
-            # Existing popup has been open less than CHECK_INTERVAL, skip showing new popup
-            log_to_file "INFO" "Skipping new popup: Existing popup (PID ${existing_pid}) has been open ${existing_age} seconds (less than CHECK_INTERVAL ${check_interval_seconds}s)"
+            # Existing popup has been open less than display frequency, skip showing new popup
+            log_to_file "INFO" "Skipping new popup: Existing popup (PID ${existing_pid}) has been open ${existing_age}s (less than display frequency ${popup_freq_seconds}s)"
             return 0
         fi
     fi

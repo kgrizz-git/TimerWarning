@@ -151,11 +151,11 @@ test_config_file_content() {
         return
     fi
     
-    # Check for key content
-    if grep -q "CHECK_INTERVAL=10" "${CONFIG_FILE}"; then
-        print_test_result "CHECK_INTERVAL written correctly" "PASS"
+    # Check for key content (Enhancement #30: wizard writes POPUP_DISPLAY_FREQUENCY)
+    if grep -q "POPUP_DISPLAY_FREQUENCY=10" "${CONFIG_FILE}"; then
+        print_test_result "POPUP_DISPLAY_FREQUENCY written correctly" "PASS"
     else
-        print_test_result "CHECK_INTERVAL written correctly" "FAIL" "CHECK_INTERVAL not found in config file"
+        print_test_result "POPUP_DISPLAY_FREQUENCY written correctly" "FAIL" "POPUP_DISPLAY_FREQUENCY not found in config file"
     fi
     
     if grep -q "POPUP_SIZE=medium" "${CONFIG_FILE}"; then
@@ -178,8 +178,8 @@ test_original_file_preserved() {
     # Use the test CONFIG_FILE already set in setup()
     # CONFIG_FILE is already set to ${TEST_OUTPUT_DIR}/config/sleep-warning.conf
     
-    # Create initial config file with known content
-    echo "CHECK_INTERVAL=5" > "${CONFIG_FILE}"
+    # Create initial config file with known content (use POPUP_DISPLAY_FREQUENCY for consistency with Enhancement #30)
+    echo "POPUP_DISPLAY_FREQUENCY=5" > "${CONFIG_FILE}"
     echo "POPUP_SIZE=small" >> "${CONFIG_FILE}"
     local original_content
     original_content=$(cat "${CONFIG_FILE}")

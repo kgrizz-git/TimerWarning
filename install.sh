@@ -526,15 +526,13 @@ ensure_path_setup() {
     print_info "~/.local/bin PATH entry already exists in shell config"
 }
 
-# Function to read CHECK_INTERVAL from config file
-get_check_interval() {
+# Read popup display frequency from config (Enhancement #30); fallback CHECK_INTERVAL for migration
+get_popup_display_frequency() {
     local new_config_file="$CONFIG_DIR/config/sleep-warning.conf"
     local old_config_file="$CONFIG_DIR/sleep-warning.conf"
     local config_file=""
-    local default_interval=10
+    local default_freq=10
 
-    # Prefer the new config location (Enhancement #18), but fall back to old location
-    # for safety/backward-compatibility during upgrades or partial migrations.
     if [ -f "$new_config_file" ]; then
         config_file="$new_config_file"
     elif [ -f "$old_config_file" ]; then
@@ -542,16 +540,29 @@ get_check_interval() {
     fi
 
     if [ -n "$config_file" ] && [ -f "$config_file" ]; then
-        local interval
-        interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "$config_file" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-        
-        if [ -n "$interval" ] && [[ "$interval" =~ ^[0-9]+$ ]] && [ "$interval" -ge 1 ] && [ "$interval" -le 60 ]; then
-            echo "$interval"
+        local val
+        val=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "$config_file" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        if [ -z "$val" ] || ! [[ "$val" =~ ^[0-9]+$ ]]; then
+            val=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "$config_file" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        fi
+        if [ -n "$val" ] && [[ "$val" =~ ^[0-9]+$ ]] && [ "$val" -ge 1 ] && [ "$val" -le 60 ]; then
+            echo "$val"
             return 0
         fi
     fi
-    
-    echo "$default_interval"
+    echo "$default_freq"
+}
+
+# Derive timer run interval from popup display frequency (Enhancement #30): 5 min if freq>=5, else freq
+get_timer_run_interval() {
+    local popup_freq="${1:-$(get_popup_display_frequency)}"
+    if [ -n "$popup_freq" ] && [[ "$popup_freq" =~ ^[0-9]+$ ]] && [ "$popup_freq" -ge 5 ]; then
+        echo "5"
+    elif [ -n "$popup_freq" ] && [[ "$popup_freq" =~ ^[0-9]+$ ]]; then
+        echo "$popup_freq"
+    else
+        echo "5"
+    fi
 }
 
 # Function to configure service for detected system mode (Enhancement #4)
@@ -590,25 +601,24 @@ configure_service_mode() {
     fi
 }
 
-# Function to generate timer file with correct interval
+# Generate timer file using run interval derived from popup display frequency (Enhancement #30)
 generate_timer_file() {
-    local interval
-    interval=$(get_check_interval)
+    local popup_freq run_interval
+    popup_freq=$(get_popup_display_frequency)
+    run_interval=$(get_timer_run_interval "$popup_freq")
     
     local timer_file="$SYSTEMD_USER_DIR/sleep-warning.timer"
     
     cat > "$timer_file" <<EOF
 [Unit]
-Description=Sleep Warning System Timer - Triggers warning check every $interval minutes
+Description=Sleep Warning System Timer - Triggers warning check every $run_interval minutes
 Documentation=man:systemd.timer(5)
 Requires=sleep-warning.service
 
 [Timer]
-# Run every $interval minutes
-# Note: The actual interval can be configured via CHECK_INTERVAL in the config file.
-# The configure.sh script will update this OnCalendar value when CHECK_INTERVAL is changed.
-# Format: OnCalendar=*:0/N where N is the check interval in minutes
-OnCalendar=*:0/$interval
+# Run every $run_interval minutes (derived from POPUP_DISPLAY_FREQUENCY in config)
+# Format: OnCalendar=*:0/N where N is the run interval in minutes
+OnCalendar=*:0/$run_interval
 
 # Start immediately if missed (e.g., after system boot or resume from suspend)
 Persistent=true
@@ -622,7 +632,7 @@ AccuracySec=1min
 WantedBy=timers.target
 EOF
     
-    print_success "Timer file generated with interval: $interval minutes"
+    print_success "Timer file generated (run interval: ${run_interval} min; popup frequency: ${popup_freq} min)"
 }
 
 # Function to install files
@@ -809,7 +819,7 @@ print_summary() {
     echo "  5. To uninstall later:"
     echo -e "     ${BLUE}sleep-warning-uninstall${NC}"
     echo ""
-    echo "The timer is now active and will check for restricted hours every $(get_check_interval) minutes."
+    echo "The timer is now active. Popups will be shown according to your display frequency (every $(get_popup_display_frequency) minutes)."
     echo ""
     echo "Support Development:"
     echo "  If you find this software useful, consider supporting future development:"

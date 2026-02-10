@@ -137,9 +137,9 @@ test_validation_invalid() {
         print_test_result "Invalid config (120s > 1min)" "FAIL" "Should return 1 and show error message"
     fi
     
-    # Verify error message contains both fix options
+    # Verify error message contains both fix options (Enhancement #30: wording uses popup display frequency)
     error_msg=$(validate_popup_timing_config 300 1 2>&1)
-    if echo "${error_msg}" | grep -q "increase CHECK_INTERVAL" && \
+    if echo "${error_msg}" | grep -q "increase popup display frequency" && \
        echo "${error_msg}" | grep -q "decrease POPUP_MIN_DISPLAY_TIME"; then
         print_test_result "Error message includes both fix options" "PASS"
     else

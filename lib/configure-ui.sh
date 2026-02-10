@@ -349,10 +349,10 @@ show_success() {
 Your settings have been saved to:
 ${CONFIG_FILE}
 
-Check interval: Every ${check_interval} minute(s)
+Popup display frequency: Every ${check_interval} minute(s)
 
 All settings (restricted hours, popup size, position, etc.) will take effect on the next check.
-If the timer was already running, it has been automatically restarted with the new interval.
+If the timer was already running, it has been automatically restarted.
 No manual action is required - everything is ready to use!
 
 You can run this wizard again anytime to change your settings."

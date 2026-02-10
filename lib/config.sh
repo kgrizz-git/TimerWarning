@@ -97,6 +97,16 @@ POPUP_START_TIME_FILE="${CONFIG_DIR}/.popup_start_time"
 # Used for detecting system resume via uptime comparison (Enhancement #9)
 LAST_UPTIME_FILE="${CONFIG_DIR}/.last_uptime"
 
+# State directory for popup display tracking (Enhancement #30)
+# Stores last-popup-time and other runtime state; created on first use
+STATE_DIR="${CONFIG_DIR}/state"
+# Last popup display timestamp (Unix seconds) - used to enforce POPUP_DISPLAY_FREQUENCY
+LAST_POPUP_TIME_FILE="${STATE_DIR}/last-popup-time"
+
+# Default popup display frequency (minutes) - used if config missing or invalid (Enhancement #30)
+# Range 1-60; user-facing "how often to show popups"
+DEFAULT_POPUP_DISPLAY_FREQUENCY=10
+
 # Default restricted hours (used if config file missing or invalid)
 # Format: day_number=start_hour-end_hour
 # Day numbers: 0=Sunday, 1=Monday, ..., 6=Saturday
@@ -132,6 +142,72 @@ get_check_interval() {
         echo "${DEFAULT_CHECK_INTERVAL}"
         return 0
     fi
+}
+
+# Get popup display frequency from config (Enhancement #30).
+# Returns minutes (1-60). Prefers POPUP_DISPLAY_FREQUENCY; falls back to CHECK_INTERVAL for migration.
+get_popup_display_frequency() {
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "${DEFAULT_POPUP_DISPLAY_FREQUENCY}"
+        return 0
+    fi
+    local val
+    val=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    if [ -z "${val}" ] || ! [[ "${val}" =~ ^[0-9]+$ ]]; then
+        val=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    fi
+    if [ -n "${val}" ] && [[ "${val}" =~ ^[0-9]+$ ]] && [ "${val}" -ge 1 ] && [ "${val}" -le 60 ]; then
+        echo "${val}"
+        return 0
+    fi
+    echo "${DEFAULT_POPUP_DISPLAY_FREQUENCY}"
+    return 0
+}
+
+# Get timer/script run interval in minutes (Enhancement #30).
+# Derived from popup display frequency: 5 if popup_freq >= 5, else popup_freq. Not user-visible.
+# Call with no args to read from config; or pass one arg (popup_freq in minutes) to compute.
+get_timer_run_interval() {
+    local popup_freq
+    if [ -n "${1:-}" ] && [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+        popup_freq="$1"
+    else
+        popup_freq=$(get_popup_display_frequency)
+    fi
+    if [ "${popup_freq}" -ge 5 ]; then
+        echo "5"
+    else
+        echo "${popup_freq}"
+    fi
+}
+
+# Read last popup display time as Unix timestamp (Enhancement #30).
+# Output: timestamp in seconds or empty if missing/invalid. Return 0 either way.
+read_last_popup_time() {
+    if [ ! -f "${LAST_POPUP_TIME_FILE}" ]; then
+        return 0
+    fi
+    local ts
+    ts=$(cat "${LAST_POPUP_TIME_FILE}" 2>/dev/null | tr -d '[:space:]')
+    if [ -n "${ts}" ] && [[ "${ts}" =~ ^[0-9]+$ ]]; then
+        echo "${ts}"
+    fi
+    return 0
+}
+
+# Write last popup display time (Enhancement #30). Atomic write. Creates STATE_DIR if needed.
+# Argument: Unix timestamp in seconds.
+write_last_popup_time() {
+    local ts="${1:-}"
+    if [ -z "${ts}" ] || ! [[ "${ts}" =~ ^[0-9]+$ ]]; then
+        return 1
+    fi
+    mkdir -p "${STATE_DIR}" 2>/dev/null || return 1
+    local tmp
+    tmp=$(mktemp -p "${STATE_DIR}" 2>/dev/null) || tmp=$(mktemp 2>/dev/null) || return 1
+    echo "${ts}" > "${tmp}" 2>/dev/null || { rm -f "${tmp}" 2>/dev/null; return 1; }
+    mv -f "${tmp}" "${LAST_POPUP_TIME_FILE}" 2>/dev/null || { rm -f "${tmp}" 2>/dev/null; return 1; }
+    return 0
 }
 
 ## Popup-size configuration helpers are sourced from a submodule to keep this

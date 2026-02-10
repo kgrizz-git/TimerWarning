@@ -24,10 +24,13 @@ get_check_interval() {
     local use_gui="$1"
     local default_interval="10"
     
-    # Try to get existing interval from config
-    if [ -f "${CONFIG_FILE}" ]; then
+    # Try to get existing popup display frequency from config (Enhancement #30; fallback CHECK_INTERVAL)
+    if type get_popup_display_frequency >/dev/null 2>&1; then
+        default_interval=$(get_popup_display_frequency)
+    elif [ -f "${CONFIG_FILE}" ]; then
         local existing_interval
-        existing_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        existing_interval=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        [ -z "${existing_interval}" ] && existing_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
         if [ -n "${existing_interval}" ] && [[ "${existing_interval}" =~ ^[0-9]+$ ]]; then
             default_interval="${existing_interval}"
         fi
@@ -41,7 +44,7 @@ get_check_interval() {
             # Get interval using dialog tool
             interval=$(show_entry_dialog \
                 "Sleep Warning Configuration" \
-                "How often should the system check for restricted hours?\n\nEnter interval in minutes (${MIN_CHECK_INTERVAL}-${MAX_CHECK_INTERVAL}):" \
+                "How often should warning popups be shown?\n\nEnter popup display frequency in minutes (${MIN_CHECK_INTERVAL}-${MAX_CHECK_INTERVAL}):" \
                 "${default_interval}")
             local exit_code=$?
             
@@ -64,8 +67,8 @@ get_check_interval() {
             # Validate interval
             if ! [[ "${interval}" =~ ^[0-9]+$ ]] || [ "${interval}" -lt "${MIN_CHECK_INTERVAL}" ] || [ "${interval}" -gt "${MAX_CHECK_INTERVAL}" ]; then
                 show_info_dialog \
-                    "Invalid Interval" \
-                    "Invalid interval. Please enter a number between ${MIN_CHECK_INTERVAL} and ${MAX_CHECK_INTERVAL} minutes."
+                    "Invalid value" \
+                    "Please enter a number between ${MIN_CHECK_INTERVAL} and ${MAX_CHECK_INTERVAL} minutes for popup display frequency."
                 continue
             fi
             
@@ -98,7 +101,7 @@ get_check_interval() {
     else
         # Text mode
         while true; do
-            read -p "Check interval in minutes (1-60) [${default_interval}]: " interval
+            read -p "Popup display frequency in minutes (1-60) [${default_interval}]: " interval
             interval=${interval:-${default_interval}}
             
             if [[ "${interval}" =~ ^[0-9]+$ ]] && [ "${interval}" -ge "${MIN_CHECK_INTERVAL}" ] && [ "${interval}" -le "${MAX_CHECK_INTERVAL}" ]; then
@@ -129,7 +132,7 @@ get_check_interval() {
                 echo "${interval}"
                 return 0
             else
-                echo "Invalid interval. Please enter a number between ${MIN_CHECK_INTERVAL} and ${MAX_CHECK_INTERVAL}." >&2
+                echo "Invalid value. Please enter a number between ${MIN_CHECK_INTERVAL} and ${MAX_CHECK_INTERVAL} for popup display frequency." >&2
             fi
         done
     fi

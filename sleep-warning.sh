@@ -288,7 +288,24 @@ main() {
         # Log warning trigger with full context
         log_to_file "WARNING" "Restricted time detected - Day: ${current_day}, Time: ${current_time_hhmm}, Range: ${matched_range}, Display: ${env_type}, Display ID: ${display_id}, System Mode: ${system_mode}"
         
+        # Enhancement #30: Only show popup if at least POPUP_DISPLAY_FREQUENCY minutes since last popup
+        local popup_freq_minutes popup_freq_seconds last_ts time_since_last
+        popup_freq_minutes=$(get_popup_display_frequency)
+        popup_freq_seconds=$((popup_freq_minutes * 60))
+        last_ts=$(read_last_popup_time)
+        if [ -n "${last_ts}" ]; then
+            time_since_last=$(($(date +%s) - last_ts))
+            if [ "${time_since_last}" -lt "${popup_freq_seconds}" ]; then
+                log_message "info" "Skipping popup - ${time_since_last}s since last (display frequency: ${popup_freq_minutes} min)"
+                log_to_file "INFO" "Skipping popup - ${time_since_last}s since last popup (display frequency: ${popup_freq_minutes} min)"
+                exit 0
+            fi
+        fi
+        
         show_warning
+        
+        # Record popup display time for frequency throttling (Enhancement #30)
+        write_last_popup_time "$(date +%s)" 2>/dev/null || true
     else
         # Not a restricted hour, exit silently
         exit 0

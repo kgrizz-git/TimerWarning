@@ -47,11 +47,14 @@ load_existing_config() {
         return 0
     fi
     
-    # Read check interval
-    local existing_interval
-    existing_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-    if [ -n "${existing_interval}" ] && [[ "${existing_interval}" =~ ^[0-9]+$ ]] && [ "${existing_interval}" -ge 1 ] && [ "${existing_interval}" -le 60 ]; then
-        declare -g check_interval="${existing_interval}"
+    # Read popup display frequency (Enhancement #30); fallback to CHECK_INTERVAL for migration
+    local existing_freq
+    existing_freq=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    if [ -z "${existing_freq}" ] || ! [[ "${existing_freq}" =~ ^[0-9]+$ ]]; then
+        existing_freq=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    fi
+    if [ -n "${existing_freq}" ] && [[ "${existing_freq}" =~ ^[0-9]+$ ]] && [ "${existing_freq}" -ge 1 ] && [ "${existing_freq}" -le 60 ]; then
+        declare -g check_interval="${existing_freq}"
     fi
     
     # Read popup size
@@ -290,9 +293,12 @@ load_existing_config() {
     done
 }
 
-# Update systemd timer file with new interval
+# Update systemd timer file from popup display frequency (Enhancement #30).
+# Argument: popup_display_frequency (1-60 minutes). Run interval is derived: 5 min if freq>=5, else freq.
 update_timer_file() {
-    local interval="$1"
+    local popup_freq="${1:-}"
+    local run_interval
+    run_interval=$(get_timer_run_interval "${popup_freq}")
     
     # Check if timer file exists
     if [ ! -f "${TIMER_FILE}" ]; then
@@ -300,26 +306,26 @@ update_timer_file() {
         return 0
     fi
     
-    # Convert interval to OnCalendar format
+    # Convert run interval to OnCalendar format
     local oncalendar
-    oncalendar=$(minutes_to_oncalendar "${interval}")
+    oncalendar=$(minutes_to_oncalendar "${run_interval}")
     
     # Create backup of timer file
     local backup_file="${TIMER_FILE}.bak"
     cp "${TIMER_FILE}" "${backup_file}" 2>/dev/null
     
-    # Update timer file
+    # Update timer file (use run_interval; do not expose to user)
     local temp_file
     temp_file=$(mktemp)
     
     {
         echo "[Unit]"
-        echo "Description=Sleep Warning System Timer - Triggers warning check every ${interval} minutes"
+        echo "Description=Sleep Warning System Timer - Triggers warning check every ${run_interval} minutes"
         echo "Documentation=man:systemd.timer(5)"
         echo "Requires=${SERVICE_NAME}.service"
         echo ""
         echo "[Timer]"
-        echo "# Run every ${interval} minutes"
+        echo "# Run every ${run_interval} minutes (derived from popup display frequency)"
         echo "OnCalendar=${oncalendar}"
         echo "# Start immediately if missed"
         echo "Persistent=true"
@@ -395,11 +401,9 @@ _write_config_header() {
     echo "# Multiple ranges can be specified per day (comma-separated)"
     echo "# Leave a day empty or omit it to have no restrictions for that day"
     echo "#"
-    echo "# CHECK_INTERVAL: How often to check for restricted hours (in minutes)"
+    echo "# POPUP_DISPLAY_FREQUENCY: How often to show warning popups (in minutes). Range 1-60. (Enhancement #30)"
     echo "# Default: 10 minutes"
-    echo "# Minimum: 1 minute"
-    echo "# Maximum: 60 minutes"
-    echo "CHECK_INTERVAL=${check_interval}"
+    echo "POPUP_DISPLAY_FREQUENCY=${check_interval}"
     echo "#"
     echo "# POPUP_SIZE: Size of warning popup (xsmall, small, medium, large, xlarge, max, custom, or custom WIDTHxHEIGHT/WIDTH%xHEIGHT%)"
     echo "# Default: medium"

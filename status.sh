@@ -374,15 +374,18 @@ show_configuration() {
         return 1
     fi
     
-    # Read check interval
-    local check_interval
-    check_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-    if [ -z "${check_interval}" ]; then
-        check_interval="10 (default)"
-    else
-        check_interval="${check_interval} minute(s)"
+    # Read popup display frequency (Enhancement #30); fallback CHECK_INTERVAL for migration
+    local popup_freq
+    popup_freq=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    if [ -z "${popup_freq}" ]; then
+        popup_freq=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     fi
-    print_status "Check Interval" "${check_interval}"
+    if [ -z "${popup_freq}" ]; then
+        popup_freq="10 (default)"
+    else
+        popup_freq="${popup_freq} minute(s)"
+    fi
+    print_status "Popup display frequency" "${popup_freq}"
     
     # Read popup size
     local popup_size
@@ -724,11 +727,13 @@ show_configuration() {
         echo -e "${COLOR_YELLOW}  → Note: Uninstall lock hours only take effect when Uninstall Protection is set to 'difficult'${COLOR_RESET}"
     fi
     
-    # Check minute precision compatibility (Enhancement 16b)
-    if type check_minute_precision_compatibility >/dev/null 2>&1; then
-        local check_interval
-        check_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-        if [ -n "${check_interval}" ]; then
+    # Check minute precision compatibility (Enhancement 16b); use run interval (Enhancement #30)
+    if type check_minute_precision_compatibility >/dev/null 2>&1 && type get_timer_run_interval >/dev/null 2>&1; then
+        local popup_freq_val run_interval
+        popup_freq_val=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        [ -z "${popup_freq_val}" ] && popup_freq_val=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        if [ -n "${popup_freq_val}" ]; then
+            run_interval=$(get_timer_run_interval "${popup_freq_val}")
             local config_lines=()
             for day_var in SUNDAY MONDAY TUESDAY WEDNESDAY THURSDAY FRIDAY SATURDAY; do
                 local line
@@ -737,7 +742,7 @@ show_configuration() {
             done
             
             local compatibility_warning
-            compatibility_warning=$(check_minute_precision_compatibility "${check_interval}" "${config_lines[@]}")
+            compatibility_warning=$(check_minute_precision_compatibility "${run_interval}" "${config_lines[@]}")
             if [ $? -ne 0 ]; then
                 echo ""
                 echo -e "  ${COLOR_YELLOW}⚠️  TIMER INTERVAL WARNING:${COLOR_RESET}"

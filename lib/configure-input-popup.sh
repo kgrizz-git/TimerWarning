@@ -72,14 +72,16 @@ get_min_display_time_config() {
                 continue
             fi
             
-            # Validate timing configuration (Enhancement #9)
-            # Use wizard's current check interval if set and valid; else config file or default
+            # Validate timing configuration (Enhancement #9); use popup display frequency (Enhancement #30)
             local current_check_interval
             current_check_interval="${check_interval:-}"
             if [ -z "${current_check_interval}" ] || ! [[ "${current_check_interval}" =~ ^[0-9]+$ ]] || \
                [ "${current_check_interval}" -lt "${MIN_CHECK_INTERVAL}" ] || [ "${current_check_interval}" -gt "${MAX_CHECK_INTERVAL}" ]; then
-                if [ -f "${CONFIG_FILE}" ]; then
-                    current_check_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                if type get_popup_display_frequency >/dev/null 2>&1; then
+                    current_check_interval=$(get_popup_display_frequency)
+                elif [ -f "${CONFIG_FILE}" ]; then
+                    current_check_interval=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    [ -z "${current_check_interval}" ] && current_check_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
                 fi
                 if [ -z "${current_check_interval}" ] || ! [[ "${current_check_interval}" =~ ^[0-9]+$ ]]; then
                     current_check_interval=10  # Default
@@ -108,14 +110,16 @@ get_min_display_time_config() {
             time=${time:-${default_time}}
             
             if [[ "${time}" =~ ^[0-9]+$ ]] && [ "${time}" -ge "${MIN_DISPLAY_TIME}" ] && [ "${time}" -le "${MAX_DISPLAY_TIME}" ]; then
-                # Validate timing configuration (Enhancement #9)
-                # Use wizard's current check interval if set and valid; else config file or default
+                # Validate timing configuration (Enhancement #9); use popup display frequency (Enhancement #30)
                 local current_check_interval
                 current_check_interval="${check_interval:-}"
                 if [ -z "${current_check_interval}" ] || ! [[ "${current_check_interval}" =~ ^[0-9]+$ ]] || \
                    [ "${current_check_interval}" -lt "${MIN_CHECK_INTERVAL}" ] || [ "${current_check_interval}" -gt "${MAX_CHECK_INTERVAL}" ]; then
-                    if [ -f "${CONFIG_FILE}" ]; then
-                        current_check_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    if type get_popup_display_frequency >/dev/null 2>&1; then
+                        current_check_interval=$(get_popup_display_frequency)
+                    elif [ -f "${CONFIG_FILE}" ]; then
+                        current_check_interval=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                        [ -z "${current_check_interval}" ] && current_check_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
                     fi
                     if [ -z "${current_check_interval}" ] || ! [[ "${current_check_interval}" =~ ^[0-9]+$ ]]; then
                         current_check_interval=10  # Default

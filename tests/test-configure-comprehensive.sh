@@ -182,12 +182,12 @@ else
 fi
 echo ""
 
-# Test 1: Timer Settings
+# Test 1: Popup display frequency (Enhancement #30)
 run_test_1() {
-    echo "Test Suite 1: Timer Settings"
+    echo "Test Suite 1: Popup display frequency"
     create_test_config ""
-    run_test "test_timer_settings" "Timer settings change and save" "${TEST_DIR}/test-comprehensive.exp"
-    if verify_config_value "CHECK_INTERVAL" "15"; then
+    run_test "test_timer_settings" "Popup display frequency change and save" "${TEST_DIR}/test-comprehensive.exp"
+    if verify_config_value "POPUP_DISPLAY_FREQUENCY" "15"; then
         echo "  [OK] Config file verified"
     else
         echo "  [FAIL] Config file verification failed"
@@ -324,7 +324,7 @@ run_test_8() {
     echo "Test Suite 8: Config Persistence and Reload"
     create_test_config ""
     run_test "test_config_persistence" "Configuration persists and reloads" "${TEST_DIR}/test-comprehensive.exp"
-    if verify_config_value "CHECK_INTERVAL" "20" && \
+    if verify_config_value "POPUP_DISPLAY_FREQUENCY" "20" && \
        verify_config_value "POPUP_SIZE" "small" && \
        verify_config_value "POPUP_POSITION" "top-left" && \
        verify_config_value "POPUP_MIN_DISPLAY_TIME" "45" && \
@@ -339,7 +339,7 @@ run_test_8() {
         # status.sh requires an installed systemd service/timer; under temp HOME it may not be installed.
         echo -n "  Verifying status.sh shows config... "
         if "${STATUS_SCRIPT}" >/dev/null 2>&1; then
-            if "${STATUS_SCRIPT}" 2>&1 | grep -q "Check Interval.*20 minute"; then
+            if "${STATUS_SCRIPT}" 2>&1 | grep -q "Popup display frequency.*20 minute"; then
                 echo "PASS"
                 ((PASSED++))
             else
@@ -382,7 +382,7 @@ run_test_10() {
     create_test_config ""
     run_test "test_menu_options" "All menu options (1-6) work correctly" "${TEST_DIR}/test-comprehensive.exp"
     # Verify all settings were configured
-    if verify_config_value "CHECK_INTERVAL" "25" && \
+    if verify_config_value "POPUP_DISPLAY_FREQUENCY" "25" && \
        verify_config_value "POPUP_SIZE" "medium" && \
        verify_config_value "POPUP_POSITION" "top-left" && \
        verify_config_value "POPUP_MIN_DISPLAY_TIME" "90" && \

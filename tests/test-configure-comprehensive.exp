@@ -25,10 +25,10 @@ expect {
 expect {
     "Select option" {
         if {$test_name == "test_timer_settings"} {
-            # Test 1: Timer Settings
+            # Test 1: Popup display frequency (Enhancement #30)
             send "1\r"
             expect {
-                "Check interval in minutes" {
+                "display frequency in minutes" {
                     send "15\r"
                     expect "Select option"
                     send "13\r"
@@ -37,7 +37,7 @@ expect {
                             send "y\r"
                             expect {
                                 "Configuration saved successfully" {
-                                    puts "PASS: Timer settings saved"
+                                    puts "PASS: Popup display frequency saved"
                                     exit 0
                                 }
                                 timeout {
@@ -53,7 +53,7 @@ expect {
                     }
                 }
                 timeout {
-                    puts "ERROR: Timer prompt timeout"
+                    puts "ERROR: Popup display frequency prompt timeout"
                     exit 1
                 }
             }
@@ -248,7 +248,7 @@ expect {
         } elseif {$test_name == "test_config_persistence"} {
             # Test 8: Config persistence
             send "1\r"
-            expect "Check interval in minutes"
+            expect "display frequency in minutes"
             send "20\r"
             expect "Select option"
             send "2\r"
@@ -310,7 +310,7 @@ expect {
         } elseif {$test_name == "test_menu_options"} {
             # Test 10: Backward compatibility - all menu options
             send "1\r"
-            expect "Check interval in minutes"
+            expect "display frequency in minutes"
             send "25\r"
             expect "Select option"
             send "2\r"
@@ -540,7 +540,7 @@ expect {
             expect "Select option"
             send "1\r"
             expect {
-                "Check interval" {
+                "Popup display frequency" {
                     puts "PASS: Option 1 accessible"
                 }
                 timeout {
@@ -602,7 +602,7 @@ expect {
         } elseif {$test_name == "test_config_persistence"} {
             # Test 11: Config persistence
             send "1\r"
-            expect "Check interval in minutes"
+            expect "display frequency in minutes"
             send "20\r"
             expect "Select option"
             send "2\r"
@@ -645,9 +645,9 @@ expect {
                         }
                     }
         } elseif {$test_name == "test_config_reload"} {
-            # Test 12: Verify saved config loads correctly
-            expect "Check Interval: 20"
-            puts "PASS: Check interval loaded correctly"
+            # Test 12: Verify saved config loads correctly (Enhancement #30: summary shows Popup display frequency)
+            expect "Popup display frequency: Every 20 minute"
+            puts "PASS: Popup display frequency loaded correctly"
             expect "Size: small"
             puts "PASS: Popup size loaded correctly"
             expect "Position: top-left"

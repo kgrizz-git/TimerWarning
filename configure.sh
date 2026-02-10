@@ -307,7 +307,7 @@ main() {
         # Handle menu choice
         case "${menu_choice}" in
             1)
-                # Timer Settings
+                # Popup display frequency (Enhancement #30)
                 local new_interval
                 new_interval=$(get_check_interval "${use_gui}")
                 if [ "${new_interval}" = "CANCELLED" ]; then
@@ -504,9 +504,10 @@ main() {
                 # Note: summary_lines is accessed globally by show_summary to preserve sparse array indices
                 if show_summary "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${configure_block_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}"; then
                     # Validate minute precision compatibility with timer interval
-                    if type check_minute_precision_compatibility >/dev/null 2>&1; then
-                        local compatibility_warning
-                        compatibility_warning=$(check_minute_precision_compatibility "${check_interval}" "${config_lines[@]}")
+                    if type check_minute_precision_compatibility >/dev/null 2>&1 && type get_timer_run_interval >/dev/null 2>&1; then
+                        local compatibility_warning run_interval
+                        run_interval=$(get_timer_run_interval "${check_interval}")
+                        compatibility_warning=$(check_minute_precision_compatibility "${run_interval}" "${config_lines[@]}")
                         if [ $? -ne 0 ]; then
                             if ! show_question_dialog "Timer Interval Warning" "${compatibility_warning}\n\nDo you want to proceed anyway?" "Yes, Save" "No, Edit Interval" 600 350; then
                                 continue  # Return to menu

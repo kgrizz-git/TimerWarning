@@ -65,12 +65,12 @@ timeout 300s ./tests/test-configure-comprehensive.sh 10
 
 ## Test Coverage
 
-### Test 1: Timer Settings
-- **Purpose**: Verify CHECK_INTERVAL configuration changes persist
-- **Actions**: Sets check interval to 15 minutes
+### Test 1: Popup display frequency (Enhancement #30)
+- **Purpose**: Verify POPUP_DISPLAY_FREQUENCY configuration changes persist
+- **Actions**: Sets popup display frequency to 15 minutes
 - **Verification**: 
-  - Config file contains `CHECK_INTERVAL=15`
-  - No status.sh verification (interval not shown in status)
+  - Config file contains `POPUP_DISPLAY_FREQUENCY=15`
+  - No status.sh verification (run interval not shown; status shows popup frequency)
 
 ### Test 2: Window Behavior
 - **Purpose**: Verify all popup window settings persist
@@ -117,12 +117,12 @@ timeout 300s ./tests/test-configure-comprehensive.sh 10
 ### Test 8: Config Persistence and Reload
 - **Purpose**: Full integration test of all settings
 - **Actions**: Configures:
-  - Check interval: 20 minutes
+  - Popup display frequency: 20 minutes
   - Window: small, bottom-right, 45s, not immovable
   - Weekdays: 0-8 hours
 - **Verification**:
-  - All settings persist in config file
-  - status.sh shows check interval correctly (20 minutes)
+  - All settings persist in config file (POPUP_DISPLAY_FREQUENCY=20, etc.)
+  - status.sh shows popup display frequency correctly (20 minutes)
 
 ### Test 9: Skip Feature UX Improvement  
 - **Purpose**: Verify easier skip functionality is implemented

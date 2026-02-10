@@ -90,7 +90,7 @@ create_test_config ""
 timeout 3 bash -c "printf '\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/menu-output.txt" 2>&1 || true
 test_check "Menu shows option 9 (View Weekly Hours)" "grep -q '9\. View Weekly Hours Settings' ${TEST_DIR}/menu-output.txt"
 test_check "Menu shows option 13 (Review and Save)" "grep -q '13\. Review and Save' ${TEST_DIR}/menu-output.txt"
-test_check "Menu shows options 1-4" "grep -q '1\. Timer Settings' ${TEST_DIR}/menu-output.txt"
+test_check "Menu shows options 1-4" "grep -q '1\. Popup display frequency' ${TEST_DIR}/menu-output.txt"
 echo ""
 
 # Test 2: Grid displays with empty config (all unrestricted)
@@ -166,7 +166,7 @@ create_test_config ""
 for option in 1 2 3 4; do
     timeout 3 bash -c "printf '\n${option}\n' | ${CONFIGURE_SCRIPT} --text 2>&1" > "${TEST_DIR}/option-${option}.txt" 2>&1 || true
     case ${option} in
-        1) test_check "Option 1 (Timer Settings) accessible" "grep -q 'Check interval\|Timer Settings' ${TEST_DIR}/option-1.txt" ;;
+        1) test_check "Option 1 (Popup display frequency) accessible" "grep -q 'Popup display frequency\|popup display frequency' ${TEST_DIR}/option-1.txt" ;;
         2) test_check "Option 2 (Window Behavior) accessible" "grep -q 'Window Behavior\|popup size' ${TEST_DIR}/option-2.txt" ;;
         3) test_check "Option 3 (Weekdays) accessible" "grep -q 'Weekdays\|Monday' ${TEST_DIR}/option-3.txt" ;;
         4) test_check "Option 4 (Weekends) accessible" "grep -q 'Weekends\|Saturday' ${TEST_DIR}/option-4.txt" ;;
