@@ -90,4 +90,34 @@ if [ -z "${LIBRARY_LOADER_LOADED:-}" ]; then
 
         return 1
     }
+
+    # Resolve platform-specific library basename (e.g. service-config -> service-config-darwin.sh)
+    platform_lib_basename() {
+        local base_name="$1"
+        if [ -z "${base_name}" ]; then
+            return 1
+        fi
+        # Ensure platform.sh is loaded
+        if ! type detect_platform >/dev/null 2>&1; then
+            source_required_lib "platform.sh" || return 1
+        fi
+        local platform_id
+        platform_id="$(detect_platform)"
+        echo "${base_name}-${platform_id}.sh"
+    }
+
+    # Source platform-specific implementation if present, else shared basename.
+    source_platform_lib() {
+        local base_name="$1"
+        shift || true
+
+        local platform_file
+        platform_file="$(platform_lib_basename "${base_name}")"
+        if [ -n "${platform_file}" ] && lib_path=$(find_lib_file "${platform_file}" "$@"); then
+            # shellcheck disable=SC1090
+            source "${lib_path}"
+            return 0
+        fi
+        source_required_lib "${base_name}.sh" "$@"
+    }
 fi

@@ -75,6 +75,12 @@ source_optional_lib "desktop-environment.sh" || true
 
 # Source pause state library if available (for pause status display - Enhancement #21)
 source_optional_lib "pause-state.sh" || true
+source_optional_lib "scheduler-platform.sh" || true
+
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+    TIMER_FILE="${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
+    SERVICE_FILE="${TIMER_FILE}"
+fi
 
 # ANSI color codes
 COLOR_RESET="\033[0m"
@@ -249,23 +255,34 @@ format_ranges_human() {
 # Check installation status
 check_installation() {
     print_header "INSTALLATION STATUS"
-    
-    # Check if service file exists
-    if [ -f "${SERVICE_FILE}" ]; then
-        print_status "Service File" "Installed" "good"
+
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        if [ -f "${TIMER_FILE}" ]; then
+            print_status "LaunchAgent" "Installed" "good"
+        else
+            print_status "LaunchAgent" "Not Installed" "error"
+            echo ""
+            echo -e "${COLOR_YELLOW}  → Run './install.sh' to install${COLOR_RESET}"
+            return 1
+        fi
     else
-        print_status "Service File" "Not Installed" "error"
-        echo ""
-        echo -e "${COLOR_YELLOW}  → Run './install.sh' to install the service${COLOR_RESET}"
-        return 1
-    fi
-    
-    # Check if timer file exists
-    if [ -f "${TIMER_FILE}" ]; then
-        print_status "Timer File" "Installed" "good"
-    else
-        print_status "Timer File" "Not Installed" "error"
-        return 1
+        # Check if service file exists
+        if [ -f "${SERVICE_FILE}" ]; then
+            print_status "Service File" "Installed" "good"
+        else
+            print_status "Service File" "Not Installed" "error"
+            echo ""
+            echo -e "${COLOR_YELLOW}  → Run './install.sh' to install the service${COLOR_RESET}"
+            return 1
+        fi
+        
+        # Check if timer file exists
+        if [ -f "${TIMER_FILE}" ]; then
+            print_status "Timer File" "Installed" "good"
+        else
+            print_status "Timer File" "Not Installed" "error"
+            return 1
+        fi
     fi
     
     # Check if config file exists
@@ -283,6 +300,13 @@ check_installation() {
 # Check service/timer status
 check_service_status() {
     print_header "SERVICE STATUS"
+
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && type scheduler_status_lines >/dev/null 2>&1; then
+        while IFS= read -r line; do
+            print_status "Scheduler" "${line}" ""
+        done < <(scheduler_status_lines)
+        return 0
+    fi
     
     # Check if timer is enabled
     if systemctl --user is-enabled "${SERVICE_NAME}.timer" >/dev/null 2>&1; then

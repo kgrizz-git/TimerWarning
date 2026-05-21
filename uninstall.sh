@@ -76,6 +76,7 @@ source_optional_lib "configure-core.sh" || true
 source_optional_lib "configure-dialogs.sh" || true
 source_optional_lib "configure-ui.sh" || true
 source_optional_lib "uninstall-verification.sh" || true
+source_optional_lib "scheduler-platform.sh" || true
 
 # Enable exit on error after library sourcing (for backward compatibility, libraries may not exist)
 set -e
@@ -197,12 +198,17 @@ restore_config_permissions() {
 
 # Function to stop and disable timer
 stop_timer() {
+    if type scheduler_stop_and_disable >/dev/null 2>&1 && scheduler_is_darwin; then
+        print_info "Stopping LaunchAgent..."
+        scheduler_stop_and_disable
+        print_success "LaunchAgent stopped"
+        return 0
+    fi
     print_info "Stopping systemd timer..."
     
     if systemctl --user is-active --quiet sleep-warning.timer 2>/dev/null; then
         if systemctl --user stop sleep-warning.timer; then
             print_success "Timer stopped"
-            # Wait briefly for service to exit (prevents re-locking)
             sleep 2
         else
             print_warning "Failed to stop timer (may not be running)"
@@ -224,6 +230,12 @@ stop_timer() {
 
 # Function to remove systemd files
 remove_systemd_files() {
+    if type scheduler_remove_files >/dev/null 2>&1 && scheduler_is_darwin; then
+        print_info "Removing LaunchAgent plist..."
+        scheduler_remove_files
+        print_success "LaunchAgent removed"
+        return 0
+    fi
     print_info "Removing systemd service and timer files..."
     
     local removed=false
@@ -409,6 +421,10 @@ remove_config() {
 
 # Function to reload systemd
 reload_systemd() {
+    if type scheduler_is_darwin >/dev/null 2>&1 && scheduler_is_darwin; then
+        print_info "LaunchAgent removed (no daemon reload needed on macOS)"
+        return 0
+    fi
     print_info "Reloading systemd user daemon..."
     
     if systemctl --user daemon-reload; then

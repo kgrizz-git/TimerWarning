@@ -1,0 +1,37 @@
+# Documentation index
+
+This directory is the **system of record** for humans and coding agents working in this repository. Prefer updating these files over chat-only decisions.
+
+## Read first (non-negotiable)
+
+| Doc | Why |
+|-----|-----|
+| [SAFETY.md](SAFETY.md) | **#1 priority:** avoid user lockout, stuck modals, 24/7 warnings, unrecoverable config |
+| [core-beliefs.md](core-beliefs.md) | Operating principles including safety and agent-first norms |
+
+## Harness engineering (agent-first workflow)
+
+| Doc | Why |
+|-----|-----|
+| [harness-engineering.md](harness-engineering.md) | How we apply [OpenAI harness engineering](references/openai-harness-engineering.md) in this repo |
+| [agent-workflow.md](agent-workflow.md) | Day-to-day steps for agents: map → change → verify → document |
+
+## Architecture and platforms
+
+| Doc | Why |
+|-----|-----|
+| [architecture/map.md](architecture/map.md) | Module layout, platform adapters (Linux systemd vs macOS launchd) |
+| [architecture/platforms.md](architecture/platforms.md) | Linux vs macOS file matrix |
+| [development/testing.md](development/testing.md) | Safe test practices (temp HOME, timeouts, no live config during blocked hours) |
+
+## User-facing docs
+
+| Doc | Audience |
+|-----|----------|
+| [../user-docs/MACOS.md](../user-docs/MACOS.md) | macOS install, troubleshooting, emergency stop |
+| [../user-docs/CONFIGURATION.md](../user-docs/CONFIGURATION.md) | Config file reference |
+| [../README.md](../README.md) | Project overview and quick start |
+
+## Maintenance
+
+When you change behavior, update the relevant doc in the same PR. If a rule is important enough to enforce, encode it in code (`lib/popup-safety.sh`, validation) or in [`.cursor/rules/`](../.cursor/rules/), not only in prose.

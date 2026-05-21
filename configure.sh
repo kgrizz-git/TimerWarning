@@ -67,9 +67,17 @@ source_required_lib "config.sh" || exit 1
 source_required_lib "logging.sh" || exit 1
 source_required_lib "time-validation.sh" || exit 1
 source_required_lib "config-locking.sh" || exit 1  # Enhancement #18: Config file locking
-source_required_lib "display-detection.sh" || exit 1
+source_required_lib "platform.sh" || exit 1
+if is_darwin; then
+    source_required_lib "display-detection-darwin.sh" || exit 1
+else
+    source_required_lib "display-detection.sh" || exit 1
+fi
 source_required_lib "desktop-environment.sh" || exit 1
 source_required_lib "configure-dialogs.sh" || exit 1
+if is_darwin; then
+    source_optional_lib "configure-dialogs-darwin.sh" || true
+fi
 source_required_lib "configure-config.sh" || exit 1
 source_required_lib "configure-validation.sh" || exit 1
 source_required_lib "configure-time.sh" || exit 1
@@ -475,7 +483,11 @@ main() {
                 fi
                 ;;
             11)
-                # Dialog Tool Selection (Enhancement #25)
+                # Dialog Tool Selection (Enhancement #25) - Linux only
+                if is_darwin; then
+                    echo "Dialog tool selection is not used on macOS (osascript only)." >&2
+                    continue
+                fi
                 local new_dialog_tool
                 new_dialog_tool=$(get_dialog_tool_selection "${use_gui}")
                 local selection_exit=$?
@@ -490,7 +502,11 @@ main() {
                 # If exit code is 1, function will have already re-prompted, so we continue the loop
                 ;;
             12)
-                # Service Mode Configuration (Enhancement #4)
+                # Service Mode Configuration (Enhancement #4) - Linux only
+                if is_darwin; then
+                    echo "Service mode configuration is not applicable on macOS." >&2
+                    continue
+                fi
                 configure_service_mode "${use_gui}"
                 local service_mode_exit=$?
                 if [ "${service_mode_exit}" -eq 2 ]; then

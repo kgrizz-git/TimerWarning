@@ -97,6 +97,9 @@ _POPUP_DIALOGS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "${_POPUP_DIALOGS_DIR}/popup-dialog-implementations.sh" ]; then
     source "${_POPUP_DIALOGS_DIR}/popup-dialog-implementations.sh"
 fi
+if [ -f "${_POPUP_DIALOGS_DIR}/popup-display-darwin.sh" ]; then
+    source "${_POPUP_DIALOGS_DIR}/popup-display-darwin.sh"
+fi
 unset _POPUP_DIALOGS_DIR
 
 # Close popup process using process termination
@@ -242,6 +245,11 @@ _popup_build_initial_countdown_suffix() {
 
 # Display warning popup
 show_warning() {
+    if type is_darwin >/dev/null 2>&1 && is_darwin && type show_warning_darwin >/dev/null 2>&1; then
+        show_warning_darwin
+        return $?
+    fi
+
     local dialog_tool
     local display_env
     local env_type

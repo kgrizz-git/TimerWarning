@@ -1,0 +1,24 @@
+---
+description: Safety guardrails — highest priority; prevents user lockout and stuck modals
+alwaysApply: true
+---
+
+# Safety guardrails (always apply)
+
+**Read:** [docs/SAFETY.md](../../docs/SAFETY.md) before any change to popups, schedulers, config validation, or install defaults.
+
+## Non-negotiable
+
+1. **No user lockout** — user must always be able to stop checks, dismiss UI, and fix config (see emergency paths in docs/SAFETY.md and user-docs/MACOS.md).
+2. **No 24/7 warnings** — preserve configure `block` and runtime fallback in `sleep-warning.sh`.
+3. **Bounded popups** — use `lib/popup-safety.sh`; never unbounded blocking dialogs in `sleep-warning.sh`.
+4. **Development** — do not modify installed `~/.config/sleep-warning/` during restricted/blocked hours; use temp `HOME` for tests (see config-file-edits.mdc).
+
+## Before merging popup/scheduler work
+
+- Run `tests/test-popup-safety-darwin.sh` (and relevant Linux tests on Linux).
+- Complete the PR checklist in docs/SAFETY.md.
+
+## If safety conflicts with a feature
+
+**Safety wins.**

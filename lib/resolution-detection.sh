@@ -32,6 +32,11 @@
 #
 # Note: Always detects fresh at each call (no caching) as per Enhancement #3
 get_display_resolution() {
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && type get_primary_screen_resolution >/dev/null 2>&1; then
+        get_primary_screen_resolution
+        return $?
+    fi
+
     local width=""
     local height=""
     

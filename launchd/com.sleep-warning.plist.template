@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template for com.sleep-warning LaunchAgent.
+  install.sh / service-config-darwin.sh generate the live plist with your
+  CHECK_INTERVAL and home directory paths.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sleep-warning</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>HOME_PLACEHOLDER/.local/bin/sleep-warning.sh</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>INTERVAL_SECONDS_PLACEHOLDER</integer>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>StandardOutPath</key>
+    <string>HOME_PLACEHOLDER/.config/sleep-warning/logs/launchd-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>HOME_PLACEHOLDER/.config/sleep-warning/logs/launchd-stderr.log</string>
+</dict>
+</plist>

@@ -77,6 +77,11 @@ source_required_lib "configure-core.sh" || exit 1
 source_required_lib "configure-time.sh" || exit 1
 source_required_lib "configure-ui.sh" || exit 1
 source_required_lib "configure-dialogs.sh" || exit 1
+source_optional_lib "scheduler-platform.sh" || true
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+    TIMER_FILE="${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
+    SERVICE_FILE="${TIMER_FILE}"
+fi
 
 # Check if any dialog tool is available (uses get_dialog_tool which respects user preference)
 # This replaces the old has_zenity() function to support all dialog tools
@@ -92,11 +97,19 @@ has_zenity() {
 
 # Check if GUI is available
 has_gui() {
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        command -v osascript >/dev/null 2>&1 && osascript -e 'return "ok"' >/dev/null 2>&1
+        return $?
+    fi
     [ -n "${DISPLAY}" ] || [ -S "/tmp/.X11-unix/X0" ] || command -v loginctl >/dev/null 2>&1
 }
 
 # Check if service is installed
 is_installed() {
+    if type scheduler_is_installed >/dev/null 2>&1; then
+        scheduler_is_installed
+        return $?
+    fi
     [ -f "${SCRIPT_PATH}" ] && [ -f "${SERVICE_FILE}" ] && [ -f "${TIMER_FILE}" ]
 }
 
@@ -154,21 +167,15 @@ get_service_status() {
         echo "Not installed"
         return
     fi
-    
+    if type scheduler_status_lines >/dev/null 2>&1; then
+        scheduler_status_lines
+        return
+    fi
     local enabled active
     enabled=$(systemctl --user is-enabled "${TIMER_NAME}" 2>/dev/null)
     active=$(systemctl --user is-active "${TIMER_NAME}" 2>/dev/null)
-    
     echo "Enabled: ${enabled:-unknown}"
     echo "Active: ${active:-unknown}"
-    
-    if [ "${active}" = "active" ]; then
-        local next_trigger
-        next_trigger=$(systemctl --user list-timers "${TIMER_NAME}" --no-pager --no-legend 2>/dev/null | awk '{print $1, $2, $3, $4, $5}')
-        if [ -n "${next_trigger}" ]; then
-            echo "Next trigger: ${next_trigger}"
-        fi
-    fi
 }
 
 # View service status
@@ -240,8 +247,12 @@ disable_service() {
         esac
     fi
     
-    systemctl --user stop "${TIMER_NAME}" 2>/dev/null
-    systemctl --user disable "${TIMER_NAME}" 2>/dev/null
+    if type scheduler_stop_and_disable >/dev/null 2>&1 && scheduler_is_darwin; then
+        scheduler_stop_and_disable
+    else
+        systemctl --user stop "${TIMER_NAME}" 2>/dev/null
+        systemctl --user disable "${TIMER_NAME}" 2>/dev/null
+    fi
     
     if [ $? -eq 0 ]; then
         show_message "Disable Service" "Service disabled successfully.\n\nThe sleep warning system will no longer check for restricted hours." "info" "${use_gui}"
@@ -277,9 +288,13 @@ enable_service() {
         esac
     fi
     
-    systemctl --user daemon-reload 2>/dev/null
-    systemctl --user enable "${TIMER_NAME}" 2>/dev/null
-    systemctl --user start "${TIMER_NAME}" 2>/dev/null
+    if type scheduler_enable_start >/dev/null 2>&1 && scheduler_is_darwin; then
+        scheduler_enable_start
+    else
+        systemctl --user daemon-reload 2>/dev/null
+        systemctl --user enable "${TIMER_NAME}" 2>/dev/null
+        systemctl --user start "${TIMER_NAME}" 2>/dev/null
+    fi
     
     if [ $? -eq 0 ]; then
         show_message "Enable Service" "Service enabled successfully.\n\nThe sleep warning system is now active." "info" "${use_gui}"

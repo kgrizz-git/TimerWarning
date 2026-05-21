@@ -51,19 +51,30 @@ source "${LIB_HELPER_PATH}"
 init_library_paths "${INSTALLED_LIB_DIR}" "${SCRIPT_LIB_DIR}"
 
 # Source library modules in dependency order
+source_required_lib "platform.sh" || exit 1
 source_required_lib "config.sh" || exit 1
 source_required_lib "logging.sh" || exit 1
 source_required_lib "pause-state.sh" || exit 1
-source_required_lib "sleep-detection.sh" || exit 1  # Enhancement #9: Sleep/hibernate detection
+if is_darwin; then
+    source_required_lib "sleep-detection-darwin.sh" || exit 1
+    source_required_lib "display-detection-darwin.sh" || exit 1
+    source_required_lib "window-management-darwin.sh" || exit 1
+else
+    source_required_lib "sleep-detection.sh" || exit 1  # Enhancement #9: Sleep/hibernate detection
+    source_required_lib "display-detection.sh" || exit 1
+    source_required_lib "window-management.sh" || exit 1
+fi
 source_required_lib "configure-core.sh" || exit 1
 source_required_lib "configure-validation.sh" || exit 1
-source_required_lib "display-detection.sh" || exit 1
 source_required_lib "desktop-environment.sh" || exit 1
-source_required_lib "window-management.sh" || exit 1
+source_required_lib "popup-safety.sh" || exit 1
 source_required_lib "time-validation.sh" || exit 1
 source_required_lib "time-parsing.sh" || exit 1  # normalize_time_range for parse_config (12h config format)
 source_required_lib "time-calculations.sh" || exit 1
 source_required_lib "config-locking.sh" || exit 1  # Enhancement #18: Config file locking
+if is_darwin; then
+    source_optional_lib "resolution-detection-darwin.sh" || true
+fi
 source_required_lib "resolution-detection.sh" || exit 1  # Enhancement #3: Display resolution detection
 source_required_lib "popup-display.sh" || exit 1
 

@@ -16,6 +16,28 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ---
 
+## test-platform-darwin.sh
+
+**Last Run**: 2026-05-20  
+**Status**: PASS  
+**Execution Time**: ~1 second  
+**Dependencies**: bash (macOS or Linux)
+
+**Findings Summary**: Platform detection returns `darwin` on macOS; LaunchAgent plist generation writes `StartInterval` 600 for 10-minute interval; `popup_compute_watchdog_seconds` returns bounded values.
+
+---
+
+## test-popup-safety-darwin.sh
+
+**Last Run**: 2026-05-20  
+**Status**: PASS  
+**Execution Time**: ~6 seconds  
+**Dependencies**: bash
+
+**Findings Summary**: `popup_run_with_watchdog` terminates a 120s background sleep within the configured 5s test cap; absolute max watchdog capped at 120 seconds.
+
+---
+
 ## test-non-utf-dialog-safety.sh
 
 **Last Run**: 2026-02-05 12:05 EST  

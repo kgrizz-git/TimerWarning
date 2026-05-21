@@ -115,7 +115,11 @@ show_disclaimer() {
     echo "  - You use this software at your own risk"
     echo "  - The developers are not responsible for any errors, data loss, or system"
     echo "    instability resulting from the use of this software"
-    echo "  - This software modifies systemd user services and system configuration"
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        echo "  - This software installs a LaunchAgent and configuration under your home directory"
+    else
+        echo "  - This software modifies systemd user services and system configuration"
+    fi
     echo "  - Compatibility cannot be guaranteed for all systems"
     echo "  - Support is provided on a best-effort basis"
     echo ""
@@ -818,8 +822,8 @@ print_summary() {
     echo ""
 }
 
-# Main installation function
-main() {
+# Main installation function (Linux)
+main_linux() {
     echo -e "${BLUE}Sleep Warning System - Installation${NC}"
     
     # Show disclaimer and get user confirmation
@@ -934,6 +938,16 @@ main() {
     
     # Print summary
     print_summary
+}
+
+main() {
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        # shellcheck disable=SC1091
+        source "${SCRIPT_DIR}/lib/install-darwin.sh"
+        main_darwin "$@"
+    else
+        main_linux "$@"
+    fi
 }
 
 # Run main function

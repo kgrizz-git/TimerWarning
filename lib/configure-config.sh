@@ -290,62 +290,57 @@ load_existing_config() {
     done
 }
 
-# Update systemd timer file with new interval
+# Update timer / LaunchAgent with new interval (platform-specific)
 update_timer_file() {
     local interval="$1"
-    
-    # Check if timer file exists
+    local _lib_dir
+    _lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    if [ -f "${_lib_dir}/platform.sh" ]; then
+        # shellcheck disable=SC1091
+        source "${_lib_dir}/platform.sh"
+    fi
+    if [ -f "${_lib_dir}/service-config.sh" ]; then
+        # shellcheck disable=SC1091
+        source "${_lib_dir}/service-config.sh"
+    fi
+
+    if type update_timer_file_platform >/dev/null 2>&1; then
+        update_timer_file_platform "${interval}"
+        return $?
+    fi
+
+    # Legacy fallback (Linux systemd)
     if [ ! -f "${TIMER_FILE}" ]; then
-        # Timer not installed yet, skip
         return 0
     fi
-    
-    # Convert interval to OnCalendar format
     local oncalendar
     oncalendar=$(minutes_to_oncalendar "${interval}")
-    
-    # Create backup of timer file
     local backup_file="${TIMER_FILE}.bak"
     cp "${TIMER_FILE}" "${backup_file}" 2>/dev/null
-    
-    # Update timer file
     local temp_file
     temp_file=$(mktemp)
-    
     {
         echo "[Unit]"
         echo "Description=Sleep Warning System Timer - Triggers warning check every ${interval} minutes"
-        echo "Documentation=man:systemd.timer(5)"
         echo "Requires=${SERVICE_NAME}.service"
         echo ""
         echo "[Timer]"
-        echo "# Run every ${interval} minutes"
         echo "OnCalendar=${oncalendar}"
-        echo "# Start immediately if missed"
         echo "Persistent=true"
-        echo "# Timer accuracy (can be adjusted)"
         echo "AccuracySec=1min"
         echo ""
         echo "[Install]"
         echo "WantedBy=timers.target"
     } > "${temp_file}"
-    
-    # Replace timer file
     if mv "${temp_file}" "${TIMER_FILE}" 2>/dev/null; then
-        # Always reload systemd daemon to pick up timer file changes
         systemctl --user daemon-reload >/dev/null 2>&1
-        
-        # Restart timer if it's active to pick up the new schedule
-        if systemctl --user is-active "${SERVICE_NAME}.timer" >/dev/null 2>&1; then
-            systemctl --user restart "${SERVICE_NAME}.timer" >/dev/null 2>&1
-        fi
+        systemctl --user restart "${SERVICE_NAME}.timer" >/dev/null 2>&1 || true
         rm -f "${backup_file}" 2>/dev/null
         return 0
-    else
-        # Restore backup on failure
-        mv "${backup_file}" "${TIMER_FILE}" 2>/dev/null
-        return 1
     fi
+    mv "${backup_file}" "${TIMER_FILE}" 2>/dev/null
+    return 1
 }
 
 # Write configuration file

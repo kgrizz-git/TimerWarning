@@ -46,8 +46,13 @@ CONFIG_DIR="${HOME}/.config/sleep-warning"
 # Enhancement #18: Config file is now in subdirectory
 CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
-TIMER_FILE="${SYSTEMD_USER_DIR}/sleep-warning.timer"
 SERVICE_NAME="sleep-warning"
+# Platform-aware timer config path (systemd timer or LaunchAgent plist)
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+    TIMER_FILE="${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
+else
+    TIMER_FILE="${SYSTEMD_USER_DIR}/sleep-warning.timer"
+fi
 
 # Day names array
 declare -a DAY_NAMES=("Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday")
@@ -149,6 +154,10 @@ has_zenity() {
 # Check if GUI is available
 # Now checks both DISPLAY and dialog tool availability
 has_gui() {
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        command -v osascript >/dev/null 2>&1 && osascript -e 'return "ok"' >/dev/null 2>&1
+        return $?
+    fi
     # Check for display
     if [ -z "${DISPLAY}" ] && [ ! -S "/tmp/.X11-unix/X0" ] && ! command -v loginctl >/dev/null 2>&1; then
         return 1
