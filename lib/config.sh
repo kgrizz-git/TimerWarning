@@ -98,17 +98,16 @@ POPUP_START_TIME_FILE="${CONFIG_DIR}/.popup_start_time"
 LAST_UPTIME_FILE="${CONFIG_DIR}/.last_uptime"
 
 # Default restricted hours (used if config file missing or invalid)
-# Format: day_number=start_hour-end_hour
-# Day numbers: 0=Sunday, 1=Monday, ..., 6=Saturday
-declare -A DEFAULT_HOURS=(
-    [0]="1-5"  # Sunday: 1:00 AM to 4:59 AM
-    [1]="0-5"  # Monday: Midnight to 4:59 AM
-    [2]="0-5"  # Tuesday: Midnight to 4:59 AM
-    [3]="0-5"  # Wednesday: Midnight to 4:59 AM
-    [4]="0-5"  # Thursday: Midnight to 4:59 AM
-    [5]="0-5"  # Friday: Midnight to 4:59 AM
-    [6]="1-5"  # Saturday: 1:00 AM to 4:59 AM
-)
+# day_number: 0=Sunday .. 6=Saturday (bash 3.2 compatible — no associative arrays)
+get_default_hours_for_day() {
+    local day_num="$1"
+    case "${day_num}" in
+        0) echo "1-5" ;;       # Sunday: 1:00 AM to 4:59 AM
+        1|2|3|4|5) echo "0-5" ;;  # Mon–Fri: midnight to 4:59 AM
+        6) echo "1-5" ;;       # Saturday: 1:00 AM to 4:59 AM
+        *) return 1 ;;
+    esac
+}
 
 # Get check interval from configuration file (no args; read-only).
 # Note: configure-input-time.sh defines get_check_interval(use_gui) for the config wizard;
@@ -531,7 +530,7 @@ parse_config() {
     # Check if config file exists
     if [ ! -f "${CONFIG_FILE}" ]; then
         # Use default value
-        echo "${DEFAULT_HOURS[${day_num}]}"
+        echo "$(get_default_hours_for_day "${day_num}")"
         return 0
     fi
     
@@ -542,7 +541,7 @@ parse_config() {
     
     if [ -z "${day_line_exists}" ]; then
         # Day line doesn't exist in config file = not configured yet, use default
-        echo "${DEFAULT_HOURS[${day_num}]}"
+        echo "$(get_default_hours_for_day "${day_num}")"
         return 0
     fi
     

@@ -11,6 +11,11 @@ install_darwin_check_dependencies() {
     if ! command -v bash >/dev/null 2>&1; then
         print_error "bash is required"
         missing=1
+    elif [ "${BASH_VERSINFO[0]:-0}" -lt 4 ]; then
+        print_error "bash 4+ is required (macOS /bin/bash is 3.2)"
+        echo "  Install: brew install bash" >&2
+        echo "  Then re-run: ./install.sh" >&2
+        missing=1
     fi
     if ! command -v osascript >/dev/null 2>&1; then
         print_error "osascript is required (should be pre-installed on macOS)"
@@ -86,6 +91,10 @@ install_darwin_install_files() {
     if [ -d "${SCRIPT_DIR}/lib" ]; then
         cp "${SCRIPT_DIR}/lib"/*.sh "${LIB_DIR}/"
         chmod +x "${LIB_DIR}"/*.sh
+        if compgen -G "${SCRIPT_DIR}/lib"/*.py > /dev/null; then
+            cp "${SCRIPT_DIR}/lib"/*.py "${LIB_DIR}/"
+            chmod +x "${LIB_DIR}"/*.py 2>/dev/null || true
+        fi
         print_success "Library modules installed"
     fi
     cp "${SCRIPT_DIR}/sleep-warning.sh" "${INSTALL_DIR}/sleep-warning.sh"

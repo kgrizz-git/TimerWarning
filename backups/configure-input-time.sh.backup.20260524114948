@@ -1,0 +1,422 @@
+#!/bin/bash
+
+###############################################################################
+# Sleep Warning System - Time Range Input Collection Module
+#
+# This module provides time range input collection functions for the
+# configuration wizard, supporting both GUI (YAD/Zenity/KDialog) and text modes.
+#
+# Functions:
+# - get_day_hours() - Get time ranges for a day (complex with navigation)
+# - get_check_interval(use_gui) - Get check interval via GUI/text prompt (config wizard only).
+#   Note: Same name as config.sh's get_check_interval() (no args); this definition shadows
+#   that one when this file is sourced after config.sh (e.g. in configure.sh).
+#
+# Dependencies:
+# - configure-core.sh (for has_dialog_tool, CONFIG_FILE)
+# - configure-dialogs.sh (for dialog abstraction functions)
+# - configure-ui.sh (for confirm_cancel, confirm_skip_day, show_help_dialog)
+# - configure-time.sh (for format_ranges_human)
+# - time-calculations.sh (for calculate_range_duration, calculate_total_day_duration)
+###############################################################################
+
+# Menu after user cancels time entry (GUI). stdout: skip|back|CANCELLED; exit 0/2/3.
+_handle_day_hours_cancel_menu() {
+    local day_name="$1"
+    local use_gui="$2"
+    local allow_back="$3"
+    local allow_cancel="$4"
+    local menu_prompt="${5:-You cancelled or left ${day_name} empty. What would you like to do?}"
+
+    while true; do
+        local menu_options=("Skip this day")
+        [ "${allow_back}" = "true" ] && menu_options+=("Go back to previous day")
+        [ "${allow_cancel}" = "true" ] && menu_options+=("Cancel configuration")
+        menu_options+=("Continue configuring")
+
+        local choice
+        choice=$(show_list_dialog "What would you like to do?" "${menu_prompt}" 500 300 "${menu_options[@]}")
+        local list_exit=$?
+        if [ ${list_exit} -ne 0 ] || [ -z "${choice}" ]; then
+            continue
+        fi
+
+        case "${choice}" in
+            "Skip this day")
+                if confirm_skip_day "${day_name}" "${use_gui}"; then
+                    echo "skip"
+                    return 0
+                fi
+                ;;
+            "Go back to previous day")
+                echo "back"
+                return 2
+                ;;
+            "Cancel configuration")
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2
+                fi
+                ;;
+            "Continue configuring")
+                return 3
+                ;;
+            *)
+                return 3
+                ;;
+        esac
+    done
+}
+
+get_check_interval() {
+    local use_gui="$1"
+    local default_interval="10"
+    
+    # Try to get existing interval from config
+    if [ -f "${CONFIG_FILE}" ]; then
+        local existing_interval
+        existing_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        if [ -n "${existing_interval}" ] && [[ "${existing_interval}" =~ ^[0-9]+$ ]]; then
+            default_interval="${existing_interval}"
+        fi
+    fi
+    
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        # GUI mode
+        while true; do
+            local interval
+            
+            # Get interval using dialog tool
+            interval=$(show_entry_dialog \
+                "Sleep Warning Configuration" \
+                "How often should the system check for restricted hours?\n\nEnter interval in minutes (${MIN_CHECK_INTERVAL}-${MAX_CHECK_INTERVAL}):" \
+                "${default_interval}")
+            local exit_code=$?
+            
+            # Check exit code - non-zero means Cancel was clicked
+            if [ ${exit_code} -ne 0 ]; then
+                if confirm_cancel "${use_gui}"; then
+                    echo "CANCELLED"
+                    return 2
+                else
+                    continue
+                fi
+            fi
+            
+            # Empty input - use default
+            if [ -z "${interval}" ]; then
+                echo "${default_interval}"
+                return 0
+            fi
+            
+            # Validate interval
+            if ! [[ "${interval}" =~ ^[0-9]+$ ]] || [ "${interval}" -lt "${MIN_CHECK_INTERVAL}" ] || [ "${interval}" -gt "${MAX_CHECK_INTERVAL}" ]; then
+                show_info_dialog \
+                    "Invalid Interval" \
+                    "Invalid interval. Please enter a number between ${MIN_CHECK_INTERVAL} and ${MAX_CHECK_INTERVAL} minutes."
+                continue
+            fi
+            
+            # Validate timing configuration (Enhancement #9)
+            # Use wizard's current min display time if set and valid; else config file or default
+            local current_min_display_time
+            current_min_display_time="${min_display_time:-}"
+            if [ -z "${current_min_display_time}" ] || ! [[ "${current_min_display_time}" =~ ^[0-9]+$ ]] || \
+               [ "${current_min_display_time}" -lt "${MIN_DISPLAY_TIME}" ] || [ "${current_min_display_time}" -gt "${MAX_DISPLAY_TIME}" ]; then
+                if [ -f "${CONFIG_FILE}" ]; then
+                    current_min_display_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                fi
+                if [ -z "${current_min_display_time}" ] || ! [[ "${current_min_display_time}" =~ ^[0-9]+$ ]]; then
+                    current_min_display_time=30  # Default
+                fi
+            fi
+            
+            if type validate_popup_timing_config >/dev/null 2>&1; then
+                local validation_error
+                validation_error=$(validate_popup_timing_config "${current_min_display_time}" "${interval}" 2>&1)
+                if [ $? -ne 0 ]; then
+                    show_error_dialog "Configuration Error" "${validation_error}"
+                    continue
+                fi
+            fi
+            
+            echo "${interval}"
+            return 0
+        done
+    else
+        # Text mode
+        while true; do
+            read -p "Check interval in minutes (1-60) [${default_interval}]: " interval
+            interval=${interval:-${default_interval}}
+            
+            if [[ "${interval}" =~ ^[0-9]+$ ]] && [ "${interval}" -ge "${MIN_CHECK_INTERVAL}" ] && [ "${interval}" -le "${MAX_CHECK_INTERVAL}" ]; then
+                # Use wizard's current min display time if set and valid; else config file or default
+                local current_min_display_time
+                current_min_display_time="${min_display_time:-}"
+                if [ -z "${current_min_display_time}" ] || ! [[ "${current_min_display_time}" =~ ^[0-9]+$ ]] || \
+                   [ "${current_min_display_time}" -lt "${MIN_DISPLAY_TIME}" ] || [ "${current_min_display_time}" -gt "${MAX_DISPLAY_TIME}" ]; then
+                    if [ -f "${CONFIG_FILE}" ]; then
+                        current_min_display_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    fi
+                    if [ -z "${current_min_display_time}" ] || ! [[ "${current_min_display_time}" =~ ^[0-9]+$ ]]; then
+                        current_min_display_time=30  # Default
+                    fi
+                fi
+                
+                if type validate_popup_timing_config >/dev/null 2>&1; then
+                    local validation_error
+                    validation_error=$(validate_popup_timing_config "${current_min_display_time}" "${interval}" 2>&1)
+                    if [ $? -ne 0 ]; then
+                        echo "" >&2
+                        echo "ERROR: ${validation_error}" >&2
+                        echo "" >&2
+                        continue
+                    fi
+                fi
+                
+                echo "${interval}"
+                return 0
+            else
+                echo "Invalid interval. Please enter a number between ${MIN_CHECK_INTERVAL} and ${MAX_CHECK_INTERVAL}." >&2
+            fi
+        done
+    fi
+}
+
+get_day_hours() {
+    local day_name="$1"
+    local day_index="$2"
+    local use_gui="$3"
+    local allow_back="$4"
+    local allow_cancel="$5"
+    local existing_ranges="${6:-}"  # Optional: existing ranges for editing (Phase 2)
+    
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        # GUI mode - support multiple ranges (Enhancement #16c Phase 1 & 2)
+        
+        # Phase 2: If editing existing day with ranges, use manage ranges dialog
+        if [ -n "${existing_ranges}" ]; then
+            local managed_ranges
+            managed_ranges=$(manage_ranges_dialog "${day_name}" "${existing_ranges}")
+            local manage_exit=$?
+            
+            if [ ${manage_exit} -eq 0 ]; then
+                # User completed management (may be empty string if all ranges removed)
+                echo "${managed_ranges}"
+                return 0
+            else
+                # User cancelled - return empty to indicate cancellation
+                local menu_result
+                menu_result=$(_handle_day_hours_cancel_menu "${day_name}" "${use_gui}" "${allow_back}" "${allow_cancel}" "You cancelled editing ${day_name}. What would you like to do?")
+                local menu_exit=$?
+                case ${menu_exit} in
+                    0|2) echo "${menu_result}"; return "${menu_exit}" ;;
+                    *) ;; # continue to Phase 1 loop
+                esac
+            fi
+        fi
+        
+        # Phase 1: "Add another?" loop for new days or fallback
+        local collected_ranges=()  # Array to store normalized ranges
+        
+        # Outer loop: collect multiple ranges
+        while true; do
+            # Inner loop: get and confirm a single range
+            local range_input=""
+            local range_confirmed=false
+            
+            while [ "${range_confirmed}" = "false" ]; do
+                range_input=$(show_time_selection_dialog "Sleep Warning Configuration - ${day_name}" "" "" "${day_name}" "Press Cancel to skip this day.")
+                local exit_code=$?
+                
+                if [ ${exit_code} -ne 0 ] || [ -z "${range_input}" ] || [ "${range_input}" = "CANCELLED" ]; then
+                    # User cancelled or left empty
+                    if [ ${#collected_ranges[@]} -eq 0 ]; then
+                        local menu_result
+                        menu_result=$(_handle_day_hours_cancel_menu "${day_name}" "${use_gui}" "${allow_back}" "${allow_cancel}")
+                        local menu_exit=$?
+                        case ${menu_exit} in
+                            0|2) echo "${menu_result}"; return "${menu_exit}" ;;
+                            *) continue ;;
+                        esac
+                    else
+                        # Already have at least one range - cancel means done adding ranges
+                        # Return collected ranges immediately
+                        local result=""
+                        local first=true
+                        for r in "${collected_ranges[@]}"; do
+                            if [ "${first}" = "true" ]; then
+                                result="${r}"
+                                first=false
+                            else
+                                result="${result},${r}"
+                            fi
+                        done
+                        echo "${result}"
+                        return 0
+                    fi
+                else
+                    # User entered a range - validate, normalize and confirm
+                    if [ "${range_input}" = "CANCELLED" ]; then
+                        continue
+                    fi
+                    # Validate the input range first
+                    if ! validate_time_range "${range_input}"; then
+                        show_error_dialog "Invalid Time Range" "The time range format is invalid. Please enter a valid range (e.g., 11:30pm-5:30am or 23:30-05:30)."
+                        continue
+                    fi
+                    
+                    local normalized
+                    normalized=$(normalize_time_range "${range_input}")
+                    
+                    # Validate normalized range as well (double-check)
+                    if ! validate_time_range "${normalized}"; then
+                        show_error_dialog "Invalid Time Range" "The time range could not be normalized. Please try again."
+                        continue
+                    fi
+                    
+                    # Build preview showing all ranges collected so far plus this new one
+                    local preview_ranges="${normalized}"
+                    if [ ${#collected_ranges[@]} -gt 0 ]; then
+                        # Join existing ranges with comma
+                        local existing_ranges=""
+                        local first=true
+                        for r in "${collected_ranges[@]}"; do
+                            if [ "${first}" = "true" ]; then
+                                existing_ranges="${r}"
+                                first=false
+                            else
+                                existing_ranges="${existing_ranges},${r}"
+                            fi
+                        done
+                        preview_ranges="${existing_ranges},${normalized}"
+                    fi
+                    
+                    local preview
+                    preview=$(format_ranges_human "${preview_ranges}" "${day_name}")
+                    
+                    local confirm_text
+                    if [ ${#collected_ranges[@]} -eq 0 ]; then
+                        confirm_text="You selected: ${range_input}\n\nThis means:\n${preview}\n\nIs this correct?"
+                    else
+                        confirm_text="You selected: ${range_input}\n\nAll time ranges for ${day_name}:\n${preview}\n\nIs this correct?"
+                    fi
+                    
+                    if show_question_dialog "Confirm Time Range" "${confirm_text}" "Yes" "No, Edit" 600 350; then
+                        # Range confirmed - add to collection
+                        collected_ranges+=("${normalized}")
+                        range_confirmed=true
+                    fi
+                    # If not confirmed, loop back to get new input
+                fi
+            done
+            
+            # After confirming a range, ask if user wants to add another, remove last, or done
+            if [ ${#collected_ranges[@]} -gt 0 ]; then
+                local add_another_text
+                if [ ${#collected_ranges[@]} -eq 1 ]; then
+                    add_another_text="Add another time range for ${day_name}?"
+                else
+                    local current_preview
+                    local current_ranges=""
+                    local first=true
+                    for r in "${collected_ranges[@]}"; do
+                        if [ "${first}" = "true" ]; then
+                            current_ranges="${r}"
+                            first=false
+                        else
+                            current_ranges="${current_ranges},${r}"
+                        fi
+                    done
+                    current_preview=$(format_ranges_human "${current_ranges}" "${day_name}")
+                    add_another_text="Current ranges for ${day_name}:\n${current_preview}\n\nAdd another time range?"
+                fi
+                
+                local next_choice
+                next_choice=$(show_list_dialog "Add Another Range?" "${add_another_text}" 600 350 "Yes, Add Another" "No, Done" "Remove last range")
+                local list_exit=$?
+                if [ ${list_exit} -ne 0 ] || [ -z "${next_choice}" ]; then
+                    # Cancelled - treat as done, return current ranges
+                    local result=""
+                    local first=true
+                    for r in "${collected_ranges[@]}"; do
+                        if [ "${first}" = "true" ]; then
+                            result="${r}"
+                            first=false
+                        else
+                            result="${result},${r}"
+                        fi
+                    done
+                    echo "${result}"
+                    return 0
+                fi
+                case "${next_choice}" in
+                    "No, Done")
+                        local result=""
+                        local first=true
+                        for r in "${collected_ranges[@]}"; do
+                            if [ "${first}" = "true" ]; then
+                                result="${r}"
+                                first=false
+                            else
+                                result="${result},${r}"
+                            fi
+                        done
+                        echo "${result}"
+                        return 0
+                        ;;
+                    "Remove last range")
+                        # Remove last element (portable for bash 4.2 and earlier)
+                        local new_len=$((${#collected_ranges[@]} - 1))
+                        if [ "${new_len}" -le 0 ]; then
+                            collected_ranges=()
+                        else
+                            collected_ranges=("${collected_ranges[@]:0:${new_len}}")
+                        fi
+                        # Continue outer loop: will ask for next range (or "Add another?" again with fewer ranges)
+                        ;;
+                    *)
+                        # "Yes, Add Another" - continue outer loop to collect next range
+                        ;;
+                esac
+            fi
+        done
+    else
+        # Text mode
+        echo "" >&2
+        echo "=== Configuring ${day_name} ===" >&2
+        echo "Format options: 11:30pm-5:30am or 23:30-05:30" >&2
+        
+        while true; do
+            local range_input
+            read -p "Time range(s) for ${day_name} (or 's' to skip): " range_input
+            
+            case "${range_input}" in
+                skip|s|S|"")
+                    if confirm_skip_day "${day_name}" "${use_gui}"; then echo "skip"; return 0; fi
+                    continue ;;
+                back)
+                    if [ "${allow_back}" = "true" ]; then echo "back"; return 2; fi
+                    echo "Cannot go back." >&2; continue ;;
+                cancel)
+                    if [ "${allow_cancel}" = "true" ] && confirm_cancel "${use_gui}"; then echo "CANCELLED"; return 2; fi
+                    continue ;;
+                help) show_help_dialog "${use_gui}"; continue ;;
+            esac
+            
+            if ! validate_time_range "${range_input}"; then
+                echo "Error: Invalid format. Examples: 11pm-5am, 23:30-05:30, 0-5,22-23" >&2
+                continue
+            fi
+            
+            local normalized
+            normalized=$(normalize_time_range "${range_input}")
+            local preview
+            preview=$(format_ranges_human "${normalized}" "${day_name}")
+            
+            echo "Preview: ${preview}" >&2
+            read -p "Is this correct? [Y/n]: " confirm
+            [[ "${confirm:-y}" =~ ^[yY] ]] && { echo "${normalized}"; return 0; }
+        done
+    fi
+}

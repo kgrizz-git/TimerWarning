@@ -22,6 +22,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
 SCRIPT_LIB_DIR="${SCRIPT_DIR}/lib"
 INSTALLED_LIB_DIR="${HOME}/.local/lib/sleep-warning"
 
+for _bootstrap_lib in \
+    "${INSTALLED_LIB_DIR}/_bootstrap-bash4.sh" \
+    "${SCRIPT_LIB_DIR}/_bootstrap-bash4.sh"; do
+    if [ -f "${_bootstrap_lib}" ]; then
+        # shellcheck disable=SC1090
+        source "${_bootstrap_lib}"
+        _bootstrap_bash4 "${BASH_SOURCE[0]}" "$@"
+        break
+    fi
+done
+unset _bootstrap_lib
+
 # Load shared library loader helper
 LIB_HELPER_PATH=""
 for candidate in \

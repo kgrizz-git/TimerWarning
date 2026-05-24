@@ -63,10 +63,18 @@ if [ -z "${SERVICE_CONFIG_DARWIN_LOADED:-}" ]; then
         fi
 
         _ensure_log_dir || return 1
-        local plist_path script_path log_dir
+        local plist_path script_path log_dir bash_path
         plist_path="$(launch_agent_plist_path)"
         script_path="$(sleep_warning_script_path)"
         log_dir="$(sleep_warning_log_dir)"
+        bash_path="$(command -v bash)"
+        local _sc_dir
+        _sc_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        if [ -f "${_sc_dir}/ensure-bash4.sh" ]; then
+            # shellcheck disable=SC1091
+            source "${_sc_dir}/ensure-bash4.sh"
+            bash_path="$(resolve_bash4_path 2>/dev/null || echo "${bash_path}")"
+        fi
         mkdir -p "$(dirname "${plist_path}")" 2>/dev/null || return 1
 
         cat > "${plist_path}" <<EOF
@@ -78,6 +86,7 @@ if [ -z "${SERVICE_CONFIG_DARWIN_LOADED:-}" ]; then
     <string>${LAUNCH_AGENT_LABEL}</string>
     <key>ProgramArguments</key>
     <array>
+        <string>${bash_path}</string>
         <string>${script_path}</string>
     </array>
     <key>StartInterval</key>

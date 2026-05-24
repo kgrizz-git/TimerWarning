@@ -20,6 +20,56 @@
 # - time-calculations.sh (for calculate_range_duration, calculate_total_day_duration)
 ###############################################################################
 
+# Menu after user cancels time entry (GUI). stdout: skip|back|CANCELLED; exit 0/2/3.
+_handle_day_hours_cancel_menu() {
+    local day_name="$1"
+    local use_gui="$2"
+    local allow_back="$3"
+    local allow_cancel="$4"
+    local menu_prompt="${5:-You cancelled or left ${day_name} empty. What would you like to do?}"
+
+    while true; do
+        local menu_options=("Skip this day")
+        [ "${allow_back}" = "true" ] && menu_options+=("Go back to previous day")
+        [ "${allow_cancel}" = "true" ] && menu_options+=("Cancel configuration")
+        menu_options+=("Continue configuring")
+
+        local choice
+        choice=$(show_list_dialog "What would you like to do?" "${menu_prompt}" 500 300 "${menu_options[@]}")
+        local list_exit=$?
+        # If the cancel menu itself is dismissed, treat it as "Continue configuring"
+        # so the user is never trapped in an infinite loop.
+        if [ ${list_exit} -ne 0 ] || [ -z "${choice}" ]; then
+            return 3
+        fi
+
+        case "${choice}" in
+            "Skip this day")
+                if confirm_skip_day "${day_name}" "${use_gui}"; then
+                    echo "skip"
+                    return 0
+                fi
+                ;;
+            "Go back to previous day")
+                echo "back"
+                return 2
+                ;;
+            "Cancel configuration")
+                # User explicitly chose "Cancel configuration" from the cancel menu —
+                # that selection IS the confirmation; no second dialog needed.
+                echo "CANCELLED"
+                return 2
+                ;;
+            "Continue configuring")
+                return 3
+                ;;
+            *)
+                return 3
+                ;;
+        esac
+    done
+}
+
 get_check_interval() {
     local use_gui="$1"
     local default_interval="10"
@@ -146,42 +196,30 @@ get_day_hours() {
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode - support multiple ranges (Enhancement #16c Phase 1 & 2)
         
-        # Phase 2: If editing existing day with ranges, use manage ranges dialog
+        # Phase 2: If editing existing day with ranges, use manage ranges dialog.
+        # Loop keeps the user in the manage dialog on "Continue configuring".
         if [ -n "${existing_ranges}" ]; then
-            local managed_ranges
-            managed_ranges=$(manage_ranges_dialog "${day_name}" "${existing_ranges}")
-            local manage_exit=$?
-            
-            if [ ${manage_exit} -eq 0 ]; then
-                # User completed management (may be empty string if all ranges removed)
-                echo "${managed_ranges}"
-                return 0
-            else
-                # User cancelled - return empty to indicate cancellation
-                # Check if we should show skip/back/cancel menu
-                local menu_options=("Skip this day")
-                [ "${allow_back}" = "true" ] && menu_options+=("Go back to previous day")
-                [ "${allow_cancel}" = "true" ] && menu_options+=("Cancel configuration")
-                menu_options+=("Continue configuring")
-                
-                local choice
-                choice=$(show_list_dialog "What would you like to do?" "You cancelled editing ${day_name}. What would you like to do?" 500 300 "${menu_options[@]}")
-                
-                case "${choice}" in
-                    "Skip this day")
-                        if confirm_skip_day "${day_name}" "${use_gui}"; then echo "skip"; return 0; fi
-                        # Continue to Phase 1 loop
-                        ;;
-                    "Go back to previous day") echo "back"; return 2 ;;
-                    "Cancel configuration")
-                        if confirm_cancel "${use_gui}"; then echo "CANCELLED"; return 2; fi
-                        # Continue to Phase 1 loop
-                        ;;
-                    *) 
-                        # Continue to Phase 1 loop
-                        ;;
+            while true; do
+                local managed_ranges
+                managed_ranges=$(manage_ranges_dialog "${day_name}" "${existing_ranges}")
+                local manage_exit=$?
+
+                if [ ${manage_exit} -eq 0 ]; then
+                    # User completed management (may be empty string if all ranges removed)
+                    echo "${managed_ranges}"
+                    return 0
+                fi
+
+                # User cancelled manage dialog — ask what to do
+                local menu_result
+                menu_result=$(_handle_day_hours_cancel_menu "${day_name}" "${use_gui}" "${allow_back}" "${allow_cancel}" "You cancelled editing ${day_name}. What would you like to do?")
+                local menu_exit=$?
+                case ${menu_exit} in
+                    0|2) echo "${menu_result}"; return "${menu_exit}" ;;
+                    3) continue ;;  # "Continue configuring" → re-show manage dialog
+                    *) continue ;;
                 esac
-            fi
+            done
         fi
         
         # Phase 1: "Add another?" loop for new days or fallback
@@ -197,26 +235,14 @@ get_day_hours() {
                 range_input=$(show_time_selection_dialog "Sleep Warning Configuration - ${day_name}" "" "" "${day_name}" "Press Cancel to skip this day.")
                 local exit_code=$?
                 
-                if [ ${exit_code} -ne 0 ] || [ -z "${range_input}" ]; then
+                if [ ${exit_code} -ne 0 ] || [ -z "${range_input}" ] || [ "${range_input}" = "CANCELLED" ]; then
                     # User cancelled or left empty
                     if [ ${#collected_ranges[@]} -eq 0 ]; then
-                        # No ranges collected yet - show skip/back/cancel menu
-                        local menu_options=("Skip this day")
-                        [ "${allow_back}" = "true" ] && menu_options+=("Go back to previous day")
-                        [ "${allow_cancel}" = "true" ] && menu_options+=("Cancel configuration")
-                        menu_options+=("Continue configuring")
-                        
-                        local choice
-                        choice=$(show_list_dialog "What would you like to do?" "You cancelled or left ${day_name} empty. What would you like to do?" 500 300 "${menu_options[@]}")
-                        
-                        case "${choice}" in
-                            "Skip this day")
-                                if confirm_skip_day "${day_name}" "${use_gui}"; then echo "skip"; return 0; fi
-                                continue ;;
-                            "Go back to previous day") echo "back"; return 2 ;;
-                            "Cancel configuration")
-                                if confirm_cancel "${use_gui}"; then echo "CANCELLED"; return 2; fi
-                                continue ;;
+                        local menu_result
+                        menu_result=$(_handle_day_hours_cancel_menu "${day_name}" "${use_gui}" "${allow_back}" "${allow_cancel}")
+                        local menu_exit=$?
+                        case ${menu_exit} in
+                            0|2) echo "${menu_result}"; return "${menu_exit}" ;;
                             *) continue ;;
                         esac
                     else
@@ -237,6 +263,9 @@ get_day_hours() {
                     fi
                 else
                     # User entered a range - validate, normalize and confirm
+                    if [ "${range_input}" = "CANCELLED" ]; then
+                        continue
+                    fi
                     # Validate the input range first
                     if ! validate_time_range "${range_input}"; then
                         show_error_dialog "Invalid Time Range" "The time range format is invalid. Please enter a valid range (e.g., 11:30pm-5:30am or 23:30-05:30)."

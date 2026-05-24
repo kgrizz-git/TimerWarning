@@ -31,6 +31,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_LIB_DIR="${SCRIPT_DIR}/lib"
 INSTALLED_LIB_DIR="${HOME}/.local/lib/sleep-warning"
 
+for _bootstrap_lib in \
+    "${INSTALLED_LIB_DIR}/_bootstrap-bash4.sh" \
+    "${SCRIPT_LIB_DIR}/_bootstrap-bash4.sh"; do
+    if [ -f "${_bootstrap_lib}" ]; then
+        # shellcheck disable=SC1090
+        source "${_bootstrap_lib}"
+        _bootstrap_bash4 "${BASH_SOURCE[0]}" "$@"
+        break
+    fi
+done
+unset _bootstrap_lib
+
 # Source shared library loader helper
 LIB_HELPER_PATH=""
 for candidate in \
@@ -339,13 +351,17 @@ main() {
                     fi
                     case "${sub_choice}" in
                         1)
-                            local new_size_mode
+                            local new_size_mode size_rc
                             new_size_mode=$(get_popup_size_mode_config "${use_gui}")
-                            if [ "${new_size_mode}" = "CANCELLED" ]; then exit 0; fi
+                            size_rc=$?
+                            if [ "${new_size_mode}" = "CANCELLED" ] || [ ${size_rc} -eq 2 ]; then exit 0; fi
+                            if [ "${new_size_mode}" = "BACK" ] || [ ${size_rc} -eq 1 ]; then continue; fi
                             popup_size_mode="${new_size_mode}"
-                            local new_size
+                            local new_size new_size_rc
                             new_size=$(get_popup_size_config "${use_gui}" "${popup_size_mode}")
-                            if [ "${new_size}" = "CANCELLED" ]; then exit 0; fi
+                            new_size_rc=$?
+                            if [ "${new_size}" = "CANCELLED" ] || [ ${new_size_rc} -eq 2 ]; then exit 0; fi
+                            if [ "${new_size}" = "BACK" ] || [ ${new_size_rc} -eq 1 ]; then continue; fi
                             if echo "${new_size}" | grep -qE '^custom\|'; then
                                 popup_size="custom"
                                 popup_size_custom=$(echo "${new_size}" | cut -d'|' -f2)
@@ -362,27 +378,35 @@ main() {
                             fi
                             ;;
                         2)
-                            local new_position
+                            local new_position pos_rc
                             new_position=$(get_popup_position_config "${use_gui}")
-                            if [ "${new_position}" = "CANCELLED" ]; then exit 0; fi
+                            pos_rc=$?
+                            if [ "${new_position}" = "CANCELLED" ] || [ ${pos_rc} -eq 2 ]; then exit 0; fi
+                            if [ "${new_position}" = "BACK" ] || [ ${pos_rc} -eq 1 ]; then continue; fi
                             popup_position="${new_position}"
                             ;;
                         3)
-                            local new_time
+                            local new_time time_rc
                             new_time=$(get_min_display_time_config "${use_gui}")
-                            if [ "${new_time}" = "CANCELLED" ]; then exit 0; fi
+                            time_rc=$?
+                            if [ "${new_time}" = "CANCELLED" ] || [ ${time_rc} -eq 2 ]; then exit 0; fi
+                            if [ "${new_time}" = "BACK" ] || [ ${time_rc} -eq 1 ]; then continue; fi
                             min_display_time="${new_time}"
                             ;;
                         4)
-                            local new_immovable
+                            local new_immovable imm_rc
                             new_immovable=$(get_popup_immovable_config "${use_gui}")
-                            if [ "${new_immovable}" = "CANCELLED" ]; then exit 0; fi
+                            imm_rc=$?
+                            if [ "${new_immovable}" = "CANCELLED" ] || [ ${imm_rc} -eq 2 ]; then exit 0; fi
+                            if [ "${new_immovable}" = "BACK" ] || [ ${imm_rc} -eq 1 ]; then continue; fi
                             popup_immovable="${new_immovable}"
                             ;;
                         5)
-                            local new_auto_close
+                            local new_auto_close ac_rc
                             new_auto_close=$(get_popup_auto_close_config "${use_gui}")
-                            if [ "${new_auto_close}" = "CANCELLED" ]; then exit 0; fi
+                            ac_rc=$?
+                            if [ "${new_auto_close}" = "CANCELLED" ] || [ ${ac_rc} -eq 2 ]; then exit 0; fi
+                            if [ "${new_auto_close}" = "BACK" ] || [ ${ac_rc} -eq 1 ]; then continue; fi
                             popup_auto_close="${new_auto_close}"
                             ;;
                         *) break ;;
@@ -458,7 +482,8 @@ main() {
                     configure_day_from_grid "${day_index}" "${use_gui}" config_lines summary_lines lock_hours_lines uninstall_lock_hours_lines
                     local config_exit=$?
                     if [ "${config_exit}" -eq 2 ]; then
-                        break
+                        # User confirmed cancellation from within grid — exit wizard like other sections
+                        exit 0
                     fi
                 done
                 ;;

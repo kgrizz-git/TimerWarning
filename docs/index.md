@@ -24,6 +24,7 @@ This directory is the **system of record** for humans and coding agents working 
 | [architecture/map.md](architecture/map.md) | Module layout, platform adapters (Linux systemd vs macOS launchd) |
 | [architecture/platforms.md](architecture/platforms.md) | Linux vs macOS file matrix |
 | [development/testing.md](development/testing.md) | Safe test practices (temp HOME, timeouts, no live config during blocked hours) |
+| [../dev-docs/CONFIGURE_GUI_FLOW.md](../dev-docs/CONFIGURE_GUI_FLOW.md) | Configure GUI dialog paths, cancel semantics, immovable prompt trap |
 
 ## User-facing docs
 

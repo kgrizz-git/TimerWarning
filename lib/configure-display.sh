@@ -343,18 +343,19 @@ show_main_menu() {
         fi
         
         if [ "${exit_code}" -ne 0 ]; then
-            # User cancelled - ask if they want to cancel whole config
-            if confirm_cancel "${use_gui}"; then
+            local cancel_action
+            cancel_action=$(handle_main_menu_cancel_menu "${use_gui}" "You closed the configuration menu. What would you like to do?")
+            local cancel_rc=$?
+            if [ "${cancel_action}" = "CANCELLED" ] || [ ${cancel_rc} -eq 2 ]; then
                 echo "CANCELLED"
                 return 2
-            else
-                return 1  # Return to show menu again
             fi
+            return 1
         fi
-        
-        # If OK was clicked but no item selected, default to "Review and Save" (option 13)
+
+        # OK with no selection: re-show menu (do not default to Review and Save)
         if [ -z "${choice}" ]; then
-            choice="13"
+            return 1
         fi
         
         echo "${choice}"
@@ -530,6 +531,9 @@ show_window_behavior_submenu() {
         desc_3="Min display time — ${min_display_time}s"
     fi
     local desc_4="Immovable — $([ "${popup_immovable}" = "true" ] && echo "On" || echo "Off")"
+    if type is_darwin >/dev/null 2>&1 && is_darwin; then
+        desc_4="${desc_4} (Linux only)"
+    fi
     local desc_5="Auto-close — $([ "${popup_auto_close}" = "true" ] && echo "On" || echo "Off")"
 
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
@@ -1069,18 +1073,44 @@ show_summary() {
         summary="${summary}\n(Overlaps are harmless - only one warning shown)\n"
     fi
     
-    summary="${summary}\n\nSave this configuration?"
-    
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        local summary_display
+        summary_display=$(printf '%b' "${summary}")
+
+        # macOS: one tkinter window with Yes, Save / Back (osascript after tkinter often fails silently)
+        if type show_summary_save_dialog_darwin >/dev/null 2>&1; then
+            show_summary_save_dialog_darwin \
+                "Configuration Summary" \
+                "${summary_display}" \
+                700 \
+                520
+            return $?
+        fi
+
+        if type show_text_info_dialog >/dev/null 2>&1; then
+            show_text_info_dialog \
+                "Configuration Summary" \
+                "${summary_display}" \
+                700 \
+                500
+        else
+            show_info_dialog \
+                "Configuration Summary" \
+                "${summary_display}" \
+                700 \
+                500
+        fi
+
         show_question_dialog \
-            "Sleep Warning Configuration" \
-            "${summary}" \
+            "Save Configuration?" \
+            "Save this configuration to disk?" \
             "Yes, Save" \
-            "Cancel" \
-            700 \
-            500
+            "Back to Main Menu" \
+            520 \
+            220
         return $?
     else
+        summary="${summary}\n"
         echo ""
         echo "=== Configuration Summary ==="
         echo ""

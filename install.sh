@@ -36,6 +36,10 @@ set -e  # Exit on error
 
 # Script configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/_bootstrap-bash4.sh
+source "${SCRIPT_DIR}/lib/_bootstrap-bash4.sh"
+_bootstrap_bash4 "${BASH_SOURCE[0]}" "$@"
+
 INSTALL_DIR="${HOME}/.local/bin"
 LIB_DIR="${HOME}/.local/lib/sleep-warning"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
@@ -651,6 +655,10 @@ install_files() {
 
         cp "$SCRIPT_DIR/lib"/*.sh "$LIB_DIR/"
         chmod +x "$LIB_DIR"/*.sh
+        if compgen -G "$SCRIPT_DIR/lib"/*.py > /dev/null; then
+            cp "$SCRIPT_DIR/lib"/*.py "$LIB_DIR/"
+            chmod +x "$LIB_DIR"/*.py 2>/dev/null || true
+        fi
         print_success "Library modules installed (${module_count} modules)"
     else
         print_error "Library directory not found"

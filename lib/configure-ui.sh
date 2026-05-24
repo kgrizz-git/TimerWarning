@@ -7,6 +7,8 @@
 # GUI (YAD/Zenity/KDialog) and text modes.
 #
 # Functions:
+# - handle_main_menu_cancel_menu() - Exit vs continue after main menu list cancel (GUI)
+# - handle_window_behavior_cancel_menu() - Exit vs back vs continue after Window Behavior cancel
 # - confirm_cancel()              - Confirm cancellation dialog
 # - confirm_skip_day()            - Confirm skipping a day
 # - show_help_dialog()            - Display configuration help
@@ -26,11 +28,128 @@
 # - configure-dialogs.sh (for dialog abstraction functions)
 ###############################################################################
 
-# Confirm cancellation with user
+# Menu after user cancels the main configuration list (GUI).
+# stdout: CANCELLED when exiting the wizard
+# return 1 = stay in / return to main menu
+# return 2 = exit entire wizard (stdout CANCELLED)
+handle_main_menu_cancel_menu() {
+    local use_gui="$1"
+    local menu_prompt="${2:-You closed the configuration menu. What would you like to do?}"
+
+    if [ "${use_gui}" != "true" ] || ! has_dialog_tool; then
+        if confirm_cancel "${use_gui}"; then
+            echo "CANCELLED"
+            return 2
+        fi
+        return 1
+    fi
+
+    while true; do
+        local choice
+        choice=$(show_list_dialog \
+            "Sleep Warning Configuration" \
+            "${menu_prompt}" \
+            520 \
+            280 \
+            "Exit without saving" \
+            "Continue configuring")
+        local list_exit=$?
+        # If the cancel menu itself is dismissed (Cancel / window close), treat it as
+        # "Continue configuring" so the user is never trapped in an infinite loop.
+        if [ ${list_exit} -ne 0 ] || [ -z "${choice}" ]; then
+            return 1
+        fi
+
+        case "${choice}" in
+            "Exit without saving")
+                # User explicitly chose "Exit without saving" from the cancel menu —
+                # that selection IS the confirmation; no second dialog needed.
+                echo "CANCELLED"
+                return 2
+                ;;
+            "Continue configuring")
+                return 1
+                ;;
+        esac
+    done
+}
+
+# Menu after user cancels a Window Behavior sub-prompt (GUI).
+# stdout: BACK | CANCELLED
+# return 1 = back to Window Behavior submenu
+# return 2 = cancel entire wizard (stdout CANCELLED)
+# return 3 = retry the same sub-prompt
+handle_window_behavior_cancel_menu() {
+    local use_gui="$1"
+    local menu_prompt="${2:-What would you like to do?}"
+
+    if [ "${use_gui}" != "true" ] || ! has_dialog_tool; then
+        echo "BACK"
+        return 1
+    fi
+
+    while true; do
+        local choice
+        choice=$(show_list_dialog \
+            "Window Behavior" \
+            "${menu_prompt}" \
+            520 \
+            280 \
+            "Return to Window Behavior menu" \
+            "Cancel configuration" \
+            "Continue configuring")
+        local list_exit=$?
+        # If the cancel menu itself is dismissed, treat it as "Return to Window Behavior menu"
+        # so the user is never trapped in an infinite loop.
+        if [ ${list_exit} -ne 0 ] || [ -z "${choice}" ]; then
+            echo "BACK"
+            return 1
+        fi
+
+        case "${choice}" in
+            "Return to Window Behavior menu")
+                echo "BACK"
+                return 1
+                ;;
+            "Cancel configuration")
+                # User explicitly chose "Cancel configuration" from the cancel menu —
+                # that selection IS the confirmation; no second dialog needed.
+                echo "CANCELLED"
+                return 2
+                ;;
+            "Continue configuring")
+                return 3
+                ;;
+        esac
+    done
+}
+
+# Confirm cancellation with user.
+#
+# On macOS, osascript `display alert` appears behind the terminal after a
+# `choose from list` window closes (z-order regression on macOS 13+). We use
+# `show_list_dialog` (which wraps `choose from list`) on darwin so the prompt
+# always appears in front.  Linux keeps the original `show_question_dialog`.
 confirm_cancel() {
     local use_gui="$1"
-    
+
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        if type is_darwin >/dev/null 2>&1 && is_darwin; then
+            local choice
+            choice=$(show_list_dialog \
+                "Cancel Configuration?" \
+                "Exit the wizard? All unsaved changes will be lost." \
+                520 \
+                250 \
+                "Yes, Exit without saving" \
+                "No, Continue configuring")
+            local list_exit=$?
+            if [ "${list_exit}" -ne 0 ] || [ -z "${choice}" ]; then
+                return 1  # Dismissed → treat as "continue"
+            fi
+            [ "${choice}" = "Yes, Exit without saving" ]
+            return $?
+        fi
         show_question_dialog \
             "Cancel Configuration?" \
             "Are you sure you want to cancel?\n\nAll unsaved changes will be lost." \

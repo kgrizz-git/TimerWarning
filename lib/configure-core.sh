@@ -91,6 +91,21 @@ readonly MAX_HOUR=23
 # Time range constants (for minimum display time validation)
 readonly MIN_DISPLAY_TIME=0
 readonly MAX_DISPLAY_TIME=300
+# macOS safety cap for POPUP_MIN_DISPLAY_TIME (see lib/popup-safety.sh)
+readonly DARWIN_MAX_MIN_DISPLAY_TIME="${DARWIN_MAX_MIN_DISPLAY_TIME:-60}"
+
+# Maximum POPUP_MIN_DISPLAY_TIME allowed in the configure wizard (platform-aware).
+get_max_min_display_time_limit() {
+    if type is_darwin >/dev/null 2>&1 && is_darwin; then
+        echo "${DARWIN_MAX_MIN_DISPLAY_TIME}"
+        return 0
+    fi
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        echo "${DARWIN_MAX_MIN_DISPLAY_TIME}"
+        return 0
+    fi
+    echo "${MAX_DISPLAY_TIME}"
+}
 
 # Check interval constants (for validation)
 readonly MIN_CHECK_INTERVAL=1

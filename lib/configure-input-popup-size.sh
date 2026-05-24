@@ -91,12 +91,13 @@ get_popup_size_config() {
             
             # User cancelled
             if [ ${exit_code} -ne 0 ] || [ -z "${size_result}" ]; then
-                if confirm_cancel "${use_gui}"; then
-                    echo "CANCELLED"
-                    return 2  # Special return code for cancellation
-                else
-                    continue  # User wants to continue, re-prompt
-                fi
+                local cancel_action cancel_rc
+                cancel_action=$(_handle_window_behavior_gui_cancel "${use_gui}" "You cancelled popup size setup.")
+                cancel_rc=$?
+                case ${cancel_rc} in
+                    1|2) echo "${cancel_action}"; return "${cancel_rc}" ;;
+                    3) continue ;;
+                esac
             fi
             
             # Normalize selection back to canonical size keys
@@ -115,14 +116,22 @@ get_popup_size_config() {
                 custom_result=$(get_custom_popup_size_config "${use_gui}")
                 local custom_exit=$?
                 
-                if [ ${custom_exit} -eq 2 ]; then
-                    # User cancelled custom size configuration
-                    if confirm_cancel "${use_gui}"; then
+                if [ ${custom_exit} -eq 2 ] || [ "${custom_result}" = "BACK" ] || [ "${custom_result}" = "CANCELLED" ]; then
+                    local cancel_action cancel_rc
+                    if [ "${custom_result}" = "CANCELLED" ]; then
                         echo "CANCELLED"
                         return 2
-                    else
-                        continue  # Re-prompt for size selection
                     fi
+                    if [ "${custom_result}" = "BACK" ]; then
+                        echo "BACK"
+                        return 1
+                    fi
+                    cancel_action=$(_handle_window_behavior_gui_cancel "${use_gui}" "You cancelled custom popup size setup.")
+                    cancel_rc=$?
+                    case ${cancel_rc} in
+                        1|2) echo "${cancel_action}"; return "${cancel_rc}" ;;
+                        3) continue ;;
+                    esac
                 elif [ ${custom_exit} -eq 0 ] && [ -n "${custom_result}" ]; then
                     # Custom size configured successfully
                     # Return both "custom" and the dimensions, separated by | for parsing
@@ -238,12 +247,13 @@ get_custom_popup_size_config() {
             local format_exit=$?
             
             if [ ${format_exit} -ne 0 ] || [ -z "${format_result}" ]; then
-                if confirm_cancel "${use_gui}"; then
-                    echo "CANCELLED"
-                    return 2
-                else
-                    continue
-                fi
+                local cancel_action cancel_rc
+                cancel_action=$(_handle_window_behavior_gui_cancel "${use_gui}" "You cancelled custom size format selection.")
+                cancel_rc=$?
+                case ${cancel_rc} in
+                    1|2) echo "${cancel_action}"; return "${cancel_rc}" ;;
+                    3) continue ;;
+                esac
             fi
             
             # Step 2: Ask for dimensions
@@ -265,12 +275,13 @@ get_custom_popup_size_config() {
             local dim_exit=$?
             
             if [ ${dim_exit} -ne 0 ] || [ -z "${dimensions}" ]; then
-                if confirm_cancel "${use_gui}"; then
-                    echo "CANCELLED"
-                    return 2
-                else
-                    continue
-                fi
+                local cancel_action cancel_rc
+                cancel_action=$(_handle_window_behavior_gui_cancel "${use_gui}" "You cancelled custom size entry.")
+                cancel_rc=$?
+                case ${cancel_rc} in
+                    1|2) echo "${cancel_action}"; return "${cancel_rc}" ;;
+                    3) continue ;;
+                esac
             fi
             
             # Validate input
