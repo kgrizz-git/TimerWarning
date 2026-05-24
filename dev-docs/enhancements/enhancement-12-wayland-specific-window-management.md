@@ -5,4 +5,4 @@
 - **Files Affected**: `sleep-warning.sh`
 - **Priority**: Medium (improves Wayland/gamescope compatibility)
 - **Status**: Not implemented (requires research into Wayland protocols)
-- **Related**: See [STEAMOS_GAMING_MODE.md](../STEAMOS_GAMING_MODE.md) for Wayland/gamescope considerations and [plan-phase-1-setup-and-scripts.md](../plan-phase-1-setup-and-scripts.md#checklist-14b-waylandgamescope-popup-behavior) for current popup behavior expectations/limitations.
+- **Related**: See [STEAMOS_GAMING_MODE.md](../STEAMOS_GAMING_MODE.md) for Wayland/gamescope considerations and [plan-phase-1-setup-and-scripts.md](../plans/phases/plan-phase-1-setup-and-scripts.md#checklist-14b-waylandgamescope-popup-behavior) for current popup behavior expectations/limitations.

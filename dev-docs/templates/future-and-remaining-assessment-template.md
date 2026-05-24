@@ -63,8 +63,7 @@ This approach ensures:
 ### Assessment Process
 
 1. **Review the target documents**:
-   - Read `dev-docs/FUTURE_ENHANCEMENTS.md` thoroughly
-   - Read `dev-docs/REMAINING_WORK_SUMMARY.md` thoroughly
+   - Read `dev-docs/TO_DO.md`, `dev-docs/FUTURE_ENHANCEMENTS.md`, and `dev-docs/REMAINING_WORK_SUMMARY.md` thoroughly
    - Note all links to enhancement documents
 
 2. **Identify all enhancement documents**:

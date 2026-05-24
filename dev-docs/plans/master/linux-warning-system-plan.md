@@ -1,10 +1,11 @@
 # Sleep Warning System - Implementation Plan
 
 **Related Documents**:
-- [TECHNICAL_DETAILS.md](TECHNICAL_DETAILS.md) - Detailed technical specifications and implementation details
-- [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md) - SteamOS Gaming Mode compatibility and effectiveness assessment
-- [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) - Future enhancements and alternative approaches
-- [info/DISTRIBUTION_OPTIONS.md](info/DISTRIBUTION_OPTIONS.md) - Distribution and packaging options
+- [TECHNICAL_DETAILS.md](../../TECHNICAL_DETAILS.md) - Detailed technical specifications and implementation details
+- [STEAMOS_GAMING_MODE.md](../../STEAMOS_GAMING_MODE.md) - SteamOS Gaming Mode compatibility and effectiveness assessment
+- [FUTURE_ENHANCEMENTS.md](../../FUTURE_ENHANCEMENTS.md) - Future enhancements and alternative approaches
+- [TO_DO.md](../../TO_DO.md) - Active priority queue
+- [info/DISTRIBUTION_OPTIONS.md](../../info/DISTRIBUTION_OPTIONS.md) - Distribution and packaging options
 
 ## High-Level Description
 
@@ -88,18 +89,18 @@ This master plan provides high-level phase summaries and overall checklists.
 Detailed checklists and implementation notes are split into phase-specific plan files.
 
 **Detailed Plans**:
-- [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md)
-- [plan-phase-2-systemd.md](plan-phase-2-systemd.md)
-- [plan-phase-3-installation.md](plan-phase-3-installation.md)
-- [plan-phase-4-testing.md](plan-phase-4-testing.md)
-- [plan-phase-5-documentation.md](plan-phase-5-documentation.md)
-- [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md)
+- [plan-phase-1-setup-and-scripts.md](../phases/plan-phase-1-setup-and-scripts.md)
+- [plan-phase-2-systemd.md](../phases/plan-phase-2-systemd.md)
+- [plan-phase-3-installation.md](../phases/plan-phase-3-installation.md)
+- [plan-phase-4-testing.md](../phases/plan-phase-4-testing.md)
+- [plan-phase-5-documentation.md](../phases/plan-phase-5-documentation.md)
+- [FUTURE_ENHANCEMENTS.md](../../FUTURE_ENHANCEMENTS.md)
 
 ## Phase 1: Project Setup and Script Development
 
 **Summary**: Build core scripts, configuration system, and popup behavior. Ensure display detection and logging are robust.
 
-**Detailed Checklist**: See [plan-phase-1-setup-and-scripts.md](plan-phase-1-setup-and-scripts.md)
+**Detailed Checklist**: See [plan-phase-1-setup-and-scripts.md](../phases/plan-phase-1-setup-and-scripts.md)
 
 ### Implementation Checklist
 - [x] Core bash script (`sleep-warning.sh`) - Configuration parsing, time checking, popup display
@@ -114,7 +115,7 @@ Detailed checklists and implementation notes are split into phase-specific plan 
 
 **Summary**: Define user service + timer units. Ensure user-session compatibility.
 
-**Detailed Checklist**: See [plan-phase-2-systemd.md](plan-phase-2-systemd.md)
+**Detailed Checklist**: See [plan-phase-2-systemd.md](../phases/plan-phase-2-systemd.md)
 
 ### Implementation Checklist
 - [x] Systemd service unit - Service definition, environment handling, user service configuration
@@ -127,7 +128,7 @@ Detailed checklists and implementation notes are split into phase-specific plan 
 
 **Summary**: Installation/uninstall scripts and manual steps. Distribution-specific support.
 
-**Detailed Checklist**: See [plan-phase-3-installation.md](plan-phase-3-installation.md)
+**Detailed Checklist**: See [plan-phase-3-installation.md](../phases/plan-phase-3-installation.md)
 
 ### Implementation Checklist
 - [x] Installation script (`install.sh`) - Distribution detection, dependency management, file installation, systemd setup
@@ -143,7 +144,7 @@ Detailed checklists and implementation notes are split into phase-specific plan 
 
 **Summary**: Functional, edge-case, install/uninstall, and integration testing. SteamOS Gaming Mode validation.
 
-**Detailed Checklist**: See [plan-phase-4-testing.md](plan-phase-4-testing.md)
+**Detailed Checklist**: See [plan-phase-4-testing.md](../phases/plan-phase-4-testing.md)
 
 ### Testing Checklist
 - [-] Functional testing - Basic functionality tested, some edge cases pending
@@ -158,7 +159,7 @@ Detailed checklists and implementation notes are split into phase-specific plan 
 
 **Summary**: User docs, technical docs, maintenance guidance. Licensing and donation considerations.
 
-**Detailed Checklist**: See [plan-phase-5-documentation.md](plan-phase-5-documentation.md)
+**Detailed Checklist**: See [plan-phase-5-documentation.md](../phases/plan-phase-5-documentation.md)
 
 ### Documentation Checklist
 - [x] User documentation - README.md, GETTING_STARTED.md, USER_GUIDE.md, CONFIGURATION.md

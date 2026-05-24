@@ -10,7 +10,7 @@
   - Day name conversion: 1-2 hours
   - Magic numbers extraction: 1-2 hours
 - **Related**: [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#code-quality-improvements)
-- **Reference**: [Quality Assessment](../code-assessments/qi-assessment-2026-01-23-003550.md)
+- **Reference**: [Quality Assessment](../../code-assessments/qi-assessment-2026-01-23-003550.md)
 
 ## Executive Summary
 

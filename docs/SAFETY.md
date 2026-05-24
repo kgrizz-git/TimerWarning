@@ -95,3 +95,7 @@ When changing behavior, review these files together:
 ## If safety and features conflict
 
 **Safety wins.** Ship a smaller feature rather than risk lockout.
+
+## Further reading
+
+- [safety-linux-macos-analysis.md](safety-linux-macos-analysis.md) — how Linux safety patterns map to macOS, gaps, and documentation drift

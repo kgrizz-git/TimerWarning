@@ -7,6 +7,7 @@ This directory is the **system of record** for humans and coding agents working 
 | Doc | Why |
 |-----|-----|
 | [SAFETY.md](SAFETY.md) | **#1 priority:** avoid user lockout, stuck modals, 24/7 warnings, unrecoverable config |
+| [safety-linux-macos-analysis.md](safety-linux-macos-analysis.md) | Deep dive: Linux heritage vs macOS reproduction, gaps, and doc drift |
 | [core-beliefs.md](core-beliefs.md) | Operating principles including safety and agent-first norms |
 
 ## Harness engineering (agent-first workflow)
@@ -31,6 +32,15 @@ This directory is the **system of record** for humans and coding agents working 
 | [../user-docs/MACOS.md](../user-docs/MACOS.md) | macOS install, troubleshooting, emergency stop |
 | [../user-docs/CONFIGURATION.md](../user-docs/CONFIGURATION.md) | Config file reference |
 | [../README.md](../README.md) | Project overview and quick start |
+
+## Developer backlog (`dev-docs/`)
+
+| Doc | Why |
+|-----|-----|
+| [../dev-docs/README.md](../dev-docs/README.md) | Map of plans, enhancements, templates, audits |
+| [../dev-docs/TO_DO.md](../dev-docs/TO_DO.md) | Short active priority queue |
+| [../dev-docs/FUTURE_ENHANCEMENTS.md](../dev-docs/FUTURE_ENHANCEMENTS.md) | Numbered enhancement catalog |
+| [../dev-docs/REMAINING_WORK_SUMMARY.md](../dev-docs/REMAINING_WORK_SUMMARY.md) | Detailed backlog (testing, phases, docs) |
 
 ## Maintenance
 

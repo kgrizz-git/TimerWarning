@@ -22,7 +22,7 @@
   - **Phase 3: Additional Payment Methods** (Optional Future):
     - Additional platforms (Ko-fi, Patreon, cryptocurrency) may be considered in the future
     - No plan created for Phase 3 at this time
-- **Related**: See [plan-phase-5-documentation.md](../plan-phase-5-documentation.md) for original checklist
+- **Related**: See [plan-phase-5-documentation.md](../plans/phases/plan-phase-5-documentation.md) for original checklist
 
 ---
 

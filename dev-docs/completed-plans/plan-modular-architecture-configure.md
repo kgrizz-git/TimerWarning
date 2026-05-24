@@ -573,7 +573,7 @@ Potential improvements to consider:
 
 ## References
 
-- Main system plan: [dev-docs/linux-warning-system-plan.md](../linux-warning-system-plan.md)
+- Main system plan: [dev-docs/linux-warning-system-plan.md](../plans/master/linux-warning-system-plan.md)
 - Sleep warning modular architecture: [plan-modular-architecture-sleep-warning.md](plan-modular-architecture-sleep-warning.md)
 - Technical details: [dev-docs/TECHNICAL_DETAILS.md](../TECHNICAL_DETAILS.md)
 - User documentation: [user-docs/CONFIGURATION.md](../../user-docs/CONFIGURATION.md)

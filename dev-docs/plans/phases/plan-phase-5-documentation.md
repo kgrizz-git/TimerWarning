@@ -121,7 +121,7 @@
 - [ ] **Document license choice** - Note in info/LICENSE_OPTIONS.md which license was chosen and why
 
 #### Checklist 5.5: PayPal Donation Links
-- **Status**: Moved to Enhancement #27 - See [enhancements/enhancement-27-paypal-donation-links.md](enhancements/enhancement-27-paypal-donation-links.md) for details
+- **Status**: Moved to Enhancement #27 - See [enhancements/enhancement-27-paypal-donation-links.md](../../enhancements/enhancement-27-paypal-donation-links.md) for details
 
 ## File Structure
 
@@ -239,7 +239,7 @@ The system requires a **graphical desktop environment** with GTK support:
 
 ## Technical Details and Implementation Specifications
 
-For detailed technical implementation specifications, see [TECHNICAL_DETAILS.md](TECHNICAL_DETAILS.md). This includes:
+For detailed technical implementation specifications, see [TECHNICAL_DETAILS.md](../../TECHNICAL_DETAILS.md). This includes:
 - Configuration file format
 - Time checking logic
 - Display access and detection strategies
@@ -260,7 +260,7 @@ Key testing approaches:
 4. **Log Monitoring**: Check `journalctl --user -u sleep-warning.service` for errors
 5. **Multi-Distribution Testing**: Test on different Linux distributions if possible (or document known compatibility)
 6. **Desktop Environment Testing**: Test on different desktop environments (GNOME, KDE, XFCE) if available
-7. **SteamOS Gaming Mode Testing**: **CRITICAL** - See [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md) for comprehensive testing requirements
+7. **SteamOS Gaming Mode Testing**: **CRITICAL** - See [STEAMOS_GAMING_MODE.md](../../STEAMOS_GAMING_MODE.md) for comprehensive testing requirements
 8. **Display Protocol Testing**: Test on both X11 and Wayland environments
 9. **Edge Case Testing**: Test boundary conditions, missing dependencies, invalid configurations
 10. **Cross-Mode Testing**: Test behavior when switching between different modes (Desktop/Gaming, X11/Wayland)
@@ -277,7 +277,7 @@ For detailed portability considerations and cross-distribution compatibility str
 
 ## SteamOS Gaming Mode Compatibility
 
-For comprehensive SteamOS Gaming Mode compatibility information, including challenges, implementation strategies, effectiveness assessment, and testing requirements, see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md).
+For comprehensive SteamOS Gaming Mode compatibility information, including challenges, implementation strategies, effectiveness assessment, and testing requirements, see [STEAMOS_GAMING_MODE.md](../../STEAMOS_GAMING_MODE.md).
 
 **Quick Summary**:
 - **Current Status**: ⚠️ Partially Compatible - Requires Testing
@@ -292,7 +292,7 @@ For implementation checklists related to Gaming Mode, see:
 
 ## Future Enhancements and Alternatives
 
-For comprehensive information about potential future enhancements and alternative approaches, see [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). This includes:
+For comprehensive information about potential future enhancements and alternative approaches, see [FUTURE_ENHANCEMENTS.md](../../FUTURE_ENHANCEMENTS.md). This includes:
 - Complementary enhancements (can be added to current system)
 - Alternative approaches (require different implementation)
 - Recommended implementation priorities
