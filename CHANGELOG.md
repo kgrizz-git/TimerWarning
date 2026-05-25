@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Configure wizard: `printf: 30PM: invalid number` on macOS:** `format_range_human()` parsed `11:30PM` with a naive `cut` on `:`, leaving `30PM` as the minute. It now uses `parse_time_token_to_24h_hm()` so 12-hour tokens from the macOS picker or config (e.g. `11:30PM-5:30AM`) format without shell errors. `normalize_time_range()` fallback also converts 12-hour parts instead of passing them through unchanged.
+- **Configure wizard: `printf: 01 00: invalid octal number`:** `format_ranges_human()` sets `IFS=','` before calling `format_range_human()`, so a `read` on space-separated `01 00` left the hour as `01 00`. Splitting now uses `_split_24h_hm_parts()` (parameter expansion, IFS-safe). `24hour_to_12hour()` also uses `10#` arithmetic for leading-zero hours.
+
+- **macOS GUI: remove range appeared to do nothing:** After selecting a range to remove, the confirmation step used `display alert`, which on macOS 13+ opens behind the terminal following a `choose from list` dialog — so the user never saw the prompt and removal never ran. New `show_confirm_dialog()` uses `choose from list` on macOS (same pattern as `confirm_cancel`). Applied to range removal and time-range confirmation in the configure wizard.
+
 ### Changed — weekly-average lockout thresholds tightened (2026-05-24, evening pass)
 
 - `lib/configure-core.sh`: `HOURS_PER_DAY_BLOCK` lowered from **24 → 16** and `HOURS_PER_DAY_WARN` lowered from **16 → 12**. Comparison in `check_restriction_coverage` switched to strict `>` so configurations that exactly max the per-day 16-hour cap on every day (= 6720 min/week) still pass at the weekly check — the per-day cap (`lib/daily-caps.sh`) remains the primary hard enforcer; the weekly check is a defense-in-depth backstop.

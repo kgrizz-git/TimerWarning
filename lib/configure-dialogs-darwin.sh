@@ -354,6 +354,24 @@ APPLESCRIPT
         [ "${result}" = "${yes_label}" ]
     }
 
+    # macOS-safe confirmation after list/time dialogs (display alert z-order bug).
+    show_confirm_dialog() {
+        local title="$1"
+        local message="$2"
+        local yes_label="${3:-Yes}"
+        local no_label="${4:-No}"
+        local _w="${5:-520}"
+        local _h="${6:-250}"
+        local choice
+        message=$(_cd_darwin_preprocess_message "${message}")
+        choice=$(show_list_dialog "${title}" "${message}" "${_w}" "${_h}" "${yes_label}" "${no_label}")
+        local list_rc=$?
+        if [ ${list_rc} -ne 0 ] || [ -z "${choice}" ]; then
+            return 1
+        fi
+        [ "${choice}" = "${yes_label}" ]
+    }
+
     show_entry_dialog() {
         local title="$1"
         local message="$2"

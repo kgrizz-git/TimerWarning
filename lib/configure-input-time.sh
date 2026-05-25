@@ -308,7 +308,7 @@ get_day_hours() {
                         confirm_text="You selected: ${range_input}\n\nAll time ranges for ${day_name}:\n${preview}\n\nIs this correct?"
                     fi
                     
-                    if show_question_dialog "Confirm Time Range" "${confirm_text}" "Yes" "No, Edit" 600 350; then
+                    if show_confirm_dialog "Confirm Time Range" "${confirm_text}" "Yes" "No, Edit" 600 350; then
                         # Range confirmed - add to collection
                         collected_ranges+=("${normalized}")
                         range_confirmed=true

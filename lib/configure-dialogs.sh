@@ -13,6 +13,7 @@
 # Functions:
 #   - show_info_dialog()      - Information message
 #   - show_question_dialog()  - Yes/No question
+#   - show_confirm_dialog()   - Yes/No after a list/time dialog (macOS z-order safe)
 #   - show_entry_dialog()     - Text input
 #   - show_list_dialog()      - Selection from list
 #   - show_text_info_dialog() - Display text file/content
@@ -167,6 +168,19 @@ show_question_dialog() {
             return 1
             ;;
     esac
+}
+
+# Show a yes/no confirmation dialog that stays in front on macOS.
+#
+# On macOS 13+, osascript `display alert` (used by show_question_dialog) often
+# opens BEHIND the terminal after a `choose from list` or tkinter dialog closes.
+# Call this instead of show_question_dialog whenever the user just dismissed a
+# list or time picker and must confirm the next action (e.g. remove a range).
+#
+# Parameters: title, message, yes_label, no_label, [width], [height]
+# Returns 0 if user chose yes_label, 1 otherwise.
+show_confirm_dialog() {
+    show_question_dialog "$@"
 }
 
 # Show text entry dialog
@@ -859,8 +873,9 @@ manage_ranges_dialog() {
                     local formatted_remove
                     formatted_remove=$(format_range_human "${range_to_remove}" "${display_day}")
                     
-                    # Confirm removal
-                    if show_question_dialog "Confirm Removal" "Remove this range?\n\n${formatted_remove}" "Yes, Remove" "Cancel" 500 200; then
+                    # Confirm removal (use show_confirm_dialog — display alert hides behind
+                    # the terminal on macOS after choose-from-list; see configure-ui.sh).
+                    if show_confirm_dialog "Confirm Removal" "Remove this range?\n\n${formatted_remove}" "Yes, Remove" "Cancel" 500 200; then
                         # Remove from array (create new array without this element)
                         local new_array=()
                         local i=0

@@ -62,6 +62,10 @@ test_human_format() {
     echo "Testing human format..."
     format_range_human "23:30-05:30" "Monday"
     format_range_human "11:00-13:00" "Tuesday"
+    # macOS tkinter picker format (no space before AM/PM)
+    format_range_human "11:30PM-5:30AM" "Wednesday" 2>&1
+    # format_ranges_human sets IFS=',' — must not break hour/minute split
+    format_ranges_human "01:00-05:00" "Thursday" 2>&1
 }
 
 test_normalization
