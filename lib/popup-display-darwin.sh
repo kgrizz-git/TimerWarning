@@ -39,6 +39,7 @@ show_warning_darwin() {
     interval_text="$(_popup_get_interval_text "${check_interval}")"
     next_unrestricted_time=$(get_next_unrestricted_time)
     base_message="$(_popup_build_base_message "${next_unrestricted_time}" "${interval_text}")"
+    base_message="$(dialog_safe_text "${base_message}")"
     countdown_msg="$(_popup_build_initial_countdown_suffix "${min_display_time}" "${popup_auto_close}")"
     message="${base_message}${countdown_msg}"
     message="$(dialog_safe_text "${message}")"
@@ -70,7 +71,7 @@ show_warning_darwin() {
     watchdog_seconds=$(popup_compute_watchdog_seconds "${min_display_time}" "${popup_auto_close}")
 
     _popup_spawn_warning_dialog() {
-        _popup_spawn_warning_dialog_darwin "${message}"
+        _popup_spawn_warning_dialog_darwin "${message}" "${base_message}"
     }
 
     popup_run_with_watchdog _popup_spawn_warning_dialog "${watchdog_seconds}"

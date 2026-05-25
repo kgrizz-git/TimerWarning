@@ -10,6 +10,7 @@ Short queue of open work. For full status per enhancement, see [FUTURE_ENHANCEME
 
 ## Features and safety
 
+- [ ] **macOS Accessibility API blocking** — Grant Accessibility permission via `System Settings → Privacy & Security → Accessibility` to intercept Cmd+Tab, Mission Control, and Spotlight during restricted hours. Install script should prompt and open the correct pane. See [dev-docs/POPUP_BLOCKING_MACOS.md](POPUP_BLOCKING_MACOS.md) §Option D for implementation sketch. **Deferred** — current fullscreen tkinter overlay (+ optional pyobjc boost) is the primary blocking path.
 - [ ] **Linux popup watchdog (hard process kill)** — Wire `lib/popup-safety.sh` into `lib/popup-display.sh` so Linux warnings get the same bounded lifetime as macOS (`popup_run_with_watchdog`, `POPUP_ABSOLUTE_MAX_SECONDS`, default 120s). macOS already uses this in `lib/popup-display-darwin.sh`; Linux still relies on min-display + auto-close only. **Defer implementation until on a Linux machine** — add `tests/test-popup-safety-linux.sh` (or extend darwin test pattern) and verify with yad/zenity/kdialog. See [docs/safety-linux-macos-analysis.md](../docs/safety-linux-macos-analysis.md) §5.1.
 - [ ] **#30** — Separate timer check interval from popup display frequency → [enhancement-30](enhancements/enhancement-30-separate-timer-check-interval-from-popup-display-frequency.md)
 - [ ] **Additional hours on unrestricted days** — Lock/uninstall hours should not apply when a day has no restrictions (opt-in override) → [plan](plans/plan-additional-hours-no-restrictions.md)
