@@ -259,17 +259,19 @@ disable_service() {
         esac
     fi
     
+    # Phase 3.2: surface real stop/disable status — no || true masking
+    local _disable_ok=true
     if type scheduler_stop_and_disable >/dev/null 2>&1 && scheduler_is_darwin; then
-        scheduler_stop_and_disable
+        scheduler_stop_and_disable || _disable_ok=false
     else
-        systemctl --user stop "${TIMER_NAME}" 2>/dev/null
-        systemctl --user disable "${TIMER_NAME}" 2>/dev/null
+        systemctl --user stop "${TIMER_NAME}" 2>/dev/null || true  # stop may fail if already stopped
+        systemctl --user disable "${TIMER_NAME}" 2>/dev/null || _disable_ok=false
     fi
-    
-    if [ $? -eq 0 ]; then
+
+    if [ "${_disable_ok}" = "true" ]; then
         show_message "Disable Service" "Service disabled successfully.\n\nThe sleep warning system will no longer check for restricted hours." "info" "${use_gui}"
     else
-        show_message "Disable Service" "Error: Failed to disable service." "error" "${use_gui}"
+        show_message "Disable Service" "Error: Failed to disable service.\n\nYou can disable it directly with:\n  systemctl --user disable sleep-warning.timer\n  launchctl bootout gui/\$(id -u)/com.sleep-warning  (macOS)" "error" "${use_gui}"
         return 1
     fi
 }
@@ -300,18 +302,20 @@ enable_service() {
         esac
     fi
     
+    # Phase 3.2: surface real enable/start status — no || true masking
+    local _enable_ok=true
     if type scheduler_enable_start >/dev/null 2>&1 && scheduler_is_darwin; then
-        scheduler_enable_start
+        scheduler_enable_start || _enable_ok=false
     else
-        systemctl --user daemon-reload 2>/dev/null
-        systemctl --user enable "${TIMER_NAME}" 2>/dev/null
-        systemctl --user start "${TIMER_NAME}" 2>/dev/null
+        systemctl --user daemon-reload 2>/dev/null || true
+        systemctl --user enable "${TIMER_NAME}" 2>/dev/null || _enable_ok=false
+        systemctl --user start "${TIMER_NAME}" 2>/dev/null || _enable_ok=false
     fi
-    
-    if [ $? -eq 0 ]; then
+
+    if [ "${_enable_ok}" = "true" ]; then
         show_message "Enable Service" "Service enabled successfully.\n\nThe sleep warning system is now active." "info" "${use_gui}"
     else
-        show_message "Enable Service" "Error: Failed to enable service." "error" "${use_gui}"
+        show_message "Enable Service" "Error: Failed to enable service.\n\nYou can enable it directly with:\n  systemctl --user enable sleep-warning.timer && systemctl --user start sleep-warning.timer" "error" "${use_gui}"
         return 1
     fi
 }
@@ -567,13 +571,14 @@ main() {
         use_gui="true"
     fi
     
-    # Check if configuration is locked due to restricted hours
+    # Phase 3.3: Check configure-block lock.  Some actions (Disable Service, status
+    # viewing, logs) are still allowed during lock hours because they are escape hatches.
+    # "Configure Restricted Hours" is the only action that must be blocked.
+    local _config_locked=false
     if ! check_config_lock_time 2>/dev/null; then
-        # Configuration is locked - show error and exit
-        show_config_locked_error "${use_gui}" "Management interface"
-        exit 1
+        _config_locked=true
     fi
-    
+
     # Check if installed
     if ! is_installed; then
         show_message "Not Installed" "The Sleep Warning System is not installed.\n\nPlease run install.sh to install it first." "error" "${use_gui}"
@@ -602,9 +607,15 @@ main() {
                 view_config "${use_gui}"
                 ;;
             "Configure Restricted Hours"|3)
-                launch_configure "${use_gui}"
+                # Phase 3.3: block configure wizard during lock hours
+                if [ "${_config_locked}" = "true" ]; then
+                    show_config_locked_error "${use_gui}" "Configuration"
+                else
+                    launch_configure "${use_gui}"
+                fi
                 ;;
             "Temporarily Disable Service"|4)
+                # Phase 3.3: Disable Service is ALWAYS allowed — it's an escape hatch
                 disable_service "${use_gui}"
                 ;;
             "Re-enable Service"|5)

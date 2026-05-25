@@ -75,8 +75,11 @@ ensure_day_vars() {
 # These define when to warn or block configuration based on total restricted minutes per week
 # Calculated as: hours_per_day × 60 minutes × 7 days
 # To change thresholds, modify HOURS_PER_DAY_WARN or HOURS_PER_DAY_BLOCK
-HOURS_PER_DAY_WARN=16      # Warning threshold: > 16 hours/day
-HOURS_PER_DAY_BLOCK=24     # Block threshold: >= 24 hours/day (24/7 restrictions)
+HOURS_PER_DAY_WARN=12      # Warning threshold: > 12 hours/day weekly average
+HOURS_PER_DAY_BLOCK=16     # Block threshold: > 16 hours/day weekly average
+                           # (Mirrors per-day hard cap in lib/daily-caps.sh; comparison
+                           #  uses strict ">" so configs that max 16 h every day
+                           #  still pass — the per-day cap is the primary enforcer.)
 readonly MINUTES_PER_HOUR=60
 readonly DAYS_PER_WEEK=7
 readonly MINUTES_PER_DAY=$((MINUTES_PER_HOUR * 24))      # 1440 minutes per day

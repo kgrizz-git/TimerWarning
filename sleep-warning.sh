@@ -90,53 +90,102 @@ fi
 source_required_lib "resolution-detection.sh" || exit 1  # Enhancement #3: Display resolution detection
 source_required_lib "popup-display.sh" || exit 1
 
-# Validate configuration file to prevent 24/7 restrictions
-# This function checks if manual config file editing created 24/7 restrictions
-# Returns 0 if config is safe, 1 if 24/7 restrictions detected
+# Validate configuration file safety at runtime.
+# Enforces the per-day per-category 16-hour cap and falls back to safe
+# defaults if any violation is found in any of the three categories
+# (restriction, configure_block, uninstall_block).
+# Returns 0 if config is safe, 1 if any cap violation detected.
 validate_config_safety() {
-    # Check if config file exists
+    # No config file → use defaults (safe)
     if [ ! -f "${CONFIG_FILE}" ]; then
-        # No config file, use defaults (safe)
         return 0
     fi
-    
-    # Read all day configurations from config file
-    # Format expected by check_restriction_coverage(): array of "DAYVAR=RANGE" strings
+
+    local _day_vars=("SUNDAY" "MONDAY" "TUESDAY" "WEDNESDAY" "THURSDAY" "FRIDAY" "SATURDAY")
+    local _lock_prefixes=("CONFIG_LOCK_HOURS_" "UNINSTALL_LOCK_HOURS_")
+
+    # Helper: read the LAST occurrence of a key from the config file (tail wins on dupes).
+    _read_config_value() {
+        local key="$1"
+        grep -E "^[[:space:]]*${key}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null \
+            | tail -n1 | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+    }
+
+    # Build restriction lines ("DAYVAR=RANGE")
     local config_lines=()
-    local i
+    local i day_var val
     for i in 0 1 2 3 4 5 6; do
-        local day_var="${DAY_VARS[${i}]}"
-        
-        # Check if day line exists in config file
-        local day_line_exists
-        day_line_exists=$(grep -E "^[[:space:]]*${day_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
-        
-        if [ -n "${day_line_exists}" ]; then
-            # Day line exists - extract value (may be empty if explicitly skipped)
-            local day_config
-            day_config=$(echo "${day_line_exists}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            
-            if [ -n "${day_config}" ]; then
-                # Has a value - configured with restrictions
-                config_lines[${i}]="${day_var}=${day_config}"
-            else
-                # Line exists but is empty - explicitly skipped, no restrictions
-                config_lines[${i}]="${day_var}="
-            fi
+        day_var="${_day_vars[${i}]}"
+        if grep -qE "^[[:space:]]*${day_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null; then
+            val=$(_read_config_value "${day_var}")
+            config_lines[${i}]="${day_var}=${val}"
         fi
-        # If day line doesn't exist, don't add to array (will be treated as empty by check_restriction_coverage)
     done
-    
-    # Check total restriction coverage
-    local validation_result
-    validation_result=$(check_restriction_coverage "${config_lines[@]}")
-    
-    # If 24/7 restrictions detected, this is unsafe
-    if [ "${validation_result}" = "block" ]; then
-        return 1
+
+    # Build lock-hours lines ("CONFIG_LOCK_HOURS_DAYVAR=RANGE")
+    local lock_hours_lines=()
+    for i in 0 1 2 3 4 5 6; do
+        day_var="${_day_vars[${i}]}"
+        local lock_key="CONFIG_LOCK_HOURS_${day_var}"
+        if grep -qE "^[[:space:]]*${lock_key}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null; then
+            val=$(_read_config_value "${lock_key}")
+            lock_hours_lines[${i}]="${lock_key}=${val}"
+        fi
+    done
+
+    # Build uninstall-lock-hours lines
+    local uninstall_lock_hours_lines=()
+    for i in 0 1 2 3 4 5 6; do
+        day_var="${_day_vars[${i}]}"
+        local un_key="UNINSTALL_LOCK_HOURS_${day_var}"
+        if grep -qE "^[[:space:]]*${un_key}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null; then
+            val=$(_read_config_value "${un_key}")
+            uninstall_lock_hours_lines[${i}]="${un_key}=${val}"
+        fi
+    done
+
+    # Read feature-enable flags from config file
+    local configure_block_enabled
+    configure_block_enabled=$(_read_config_value "CONFIGURE_BLOCK_ENABLED")
+    [ -z "${configure_block_enabled}" ] && configure_block_enabled="false"
+
+    local uninstall_protection_mode
+    uninstall_protection_mode=$(_read_config_value "UNINSTALL_PROTECTION_MODE")
+    [ -z "${uninstall_protection_mode}" ] && uninstall_protection_mode="none"
+
+    # Warn about duplicate day lines (both head-n1 and tail-n1 agree on last-wins,
+    # but duplicates suggest a manual edit worth flagging).
+    for i in 0 1 2 3 4 5 6; do
+        day_var="${_day_vars[${i}]}"
+        local count
+        count=$(grep -cE "^[[:space:]]*${day_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null || echo 0)
+        if [ "${count}" -gt 1 ]; then
+            log_to_file "WARNING" "validate_config_safety: duplicate '${day_var}=' lines in config (using last occurrence)"
+        fi
+    done
+
+    # Apply the per-day per-category 16-hour cap check.
+    if type check_daily_caps >/dev/null 2>&1; then
+        local violations
+        violations=$(check_daily_caps \
+            "${configure_block_enabled}" \
+            "${uninstall_protection_mode}" \
+            "${config_lines[@]}" \
+            "${lock_hours_lines[@]}" \
+            "${uninstall_lock_hours_lines[@]}")
+        if [ -n "${violations}" ]; then
+            log_to_file "ERROR" "validate_config_safety: per-day cap violations detected:\n${violations}"
+            return 1
+        fi
+    else
+        # Fallback to the legacy weekly-total check if daily-caps unavailable.
+        local validation_result
+        validation_result=$(check_restriction_coverage "${config_lines[@]}")
+        if [ "${validation_result}" = "block" ]; then
+            return 1
+        fi
     fi
-    
-    # Config is safe (ok or warn)
+
     return 0
 }
 
@@ -215,75 +264,70 @@ main() {
         restricted_range=$(parse_config "${current_day}")
     fi
     
-    # Check if current time is within restricted range for current day
+    # Check if current time is within restricted range for current day.
+    # The previous-day overnight carry is ALWAYS evaluated regardless of whether
+    # the current day has its own ranges (Phase 1.8 fix).
     local is_restricted=false
     local matched_range="${restricted_range}"
-    
+
+    # Calculate previous day index (handle Sunday wrap-around)
+    local prev_day
+    if [ "${current_day}" -eq 0 ]; then
+        prev_day=6
+    else
+        prev_day=$((current_day - 1))
+    fi
+
+    # Get previous day's restriction range for overnight carry check
+    local prev_day_range
+    if [ "${use_defaults}" = "true" ]; then
+        case "${prev_day}" in
+            0) prev_day_range="1-5" ;;
+            6) prev_day_range="1-5" ;;
+            *) prev_day_range="0-5" ;;
+        esac
+    else
+        prev_day_range=$(parse_config "${prev_day}")
+    fi
+
+    # Helper: normalise a range component to HHMM integer for numeric comparison
+    _norm_to_hhmm() {
+        local part="$1"
+        if [[ "${part}" =~ : ]]; then
+            echo "${part}" | tr -d ':'
+        else
+            printf "%02d00" "${part}"
+        fi
+    }
+
+    # Check current day's own restricted range first
     if is_restricted_time "${current_time_hhmm}" "${restricted_range}"; then
         is_restricted=true
-    elif [ -z "${restricted_range}" ]; then
-        # Current day is empty/skipped (no restrictions for this day)
-        # Check if previous day has an overnight range that extends into current day
-        # Calculate previous day (handle wrap-around: Sunday (0) -> Saturday (6))
-        local prev_day
-        if [ "${current_day}" -eq 0 ]; then
-            prev_day=6  # Sunday -> Saturday
-        else
-            prev_day=$((current_day - 1))
-        fi
-        
-        # Get previous day's configuration
-        # If we're using defaults due to 24/7 restrictions, use defaults for previous day too
-        local prev_day_range
-        if [ "${use_defaults}" = "true" ]; then
-            # Use default restrictions for previous day
-            case "${prev_day}" in
-                0) prev_day_range="1-5" ;;  # Sunday: 1:00 AM to 4:59 AM
-                6) prev_day_range="1-5" ;;  # Saturday: 1:00 AM to 4:59 AM
-                *) prev_day_range="0-5" ;; # Monday-Friday: Midnight to 4:59 AM
-            esac
-        else
-            # Config is safe, read from file
-            prev_day_range=$(parse_config "${prev_day}")
-        fi
-        
-        # Check if previous day has overnight ranges that extend into current day
-        if [ -n "${prev_day_range}" ]; then
-            # Check each range in previous day's configuration
-            local IFS=','
-            for range in ${prev_day_range}; do
-                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                
-                # Normalize range to HHMM format for comparison
-                local start_time end_time
-                local start_part="${range%%-*}"
-                local end_part="${range##*-}"
-                
-                if [[ "${start_part}" =~ : ]]; then
-                    start_time=$(echo "${start_part}" | tr -d ':')
-                else
-                    start_time=$(printf "%02d00" "${start_part}")
-                fi
-                
-                if [[ "${end_part}" =~ : ]]; then
-                    end_time=$(echo "${end_part}" | tr -d ':')
-                else
-                    end_time=$(printf "%02d00" "${end_part}")
-                fi
-                
-                # Check if this is an overnight range (start > end) that extends into current day
-                if [ "${start_time}" -gt "${end_time}" ]; then
-                    # Overnight range: check if current time falls within the end portion (before end_time)
-                    if [ "${current_time_hhmm}" -lt "${end_time}" ]; then
-                        is_restricted=true
-                        matched_range="${range} (from previous day)"
-                        break
-                    fi
-                fi
-            done
-        fi
     fi
-    
+
+    # Always check previous day for overnight carry (runs even when current day has ranges).
+    if [ "${is_restricted}" = "false" ] && [ -n "${prev_day_range}" ]; then
+        local IFS=','
+        for range in ${prev_day_range}; do
+            range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+            local start_part="${range%%-*}"
+            local end_part="${range##*-}"
+            local start_time end_time
+            start_time=$(_norm_to_hhmm "${start_part}")
+            end_time=$(_norm_to_hhmm "${end_part}")
+
+            # Only overnight ranges carry to the next day
+            if [ "${start_time}" -gt "${end_time}" ]; then
+                if [ "${current_time_hhmm}" -lt "${end_time}" ]; then
+                    is_restricted=true
+                    matched_range="${range} (from previous day)"
+                    break
+                fi
+            fi
+        done
+    fi
+
     if [ "${is_restricted}" = "true" ]; then
         # Check if pause is currently active (Enhancement #21)
         # Pause only suppresses warning popups, not restrictions

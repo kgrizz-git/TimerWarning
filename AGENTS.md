@@ -6,7 +6,7 @@
 
 | Priority | Document |
 |----------|----------|
-| **#1** | [**docs/SAFETY.md**](docs/SAFETY.md) — avoid user lockout, stuck modals, 24/7 warnings; **required before popup/scheduler/config changes** |
+| **#1** | [**docs/SAFETY.md**](docs/SAFETY.md) — per-day 16 h cap (per category), finite popup lifetime, always-available escape hatch; **required before popup/scheduler/config changes** |
 | #2 | [docs/core-beliefs.md](docs/core-beliefs.md) |
 | #3 | [docs/harness-engineering.md](docs/harness-engineering.md) — OpenAI harness patterns in this repo |
 
@@ -27,6 +27,7 @@ Bash sleep-warning system: scheduled checks during restricted hours → modal wa
 | Popups | `lib/popup-display.sh`, `lib/popup-safety.sh`, `lib/popup-*-darwin.sh` |
 | Configure wizard | `configure.sh`, `lib/configure-*.sh` |
 | Tests | [docs/development/testing.md](docs/development/testing.md), `tests/README.md` |
+| Versioning / releases | [docs/development/versioning.md](docs/development/versioning.md) |
 | Backlog / enhancements | [dev-docs/README.md](dev-docs/README.md), [dev-docs/TO_DO.md](dev-docs/TO_DO.md) |
 | macOS users | [user-docs/MACOS.md](user-docs/MACOS.md) |
 | Agent workflow | [docs/agent-workflow.md](docs/agent-workflow.md) |
@@ -54,10 +55,11 @@ Source platform-specific libs from `sleep-warning.sh` / facades—do not assume 
 
 ## Safety code (do not bypass)
 
-- `lib/popup-safety.sh` — watchdog, caps, forced auto-close (darwin)
-- `lib/configure-validation.sh` — blocks 24/7 configure saves
-- `sleep-warning.sh` — `validate_config_safety()` runtime fallback
+- `lib/popup-safety.sh` — absolute watchdog (must wrap every spawn path); cap value may grow but is always finite
+- `lib/configure-validation.sh` — per-day per-category 16 h cap (hard block, no override)
+- `sleep-warning.sh` — `validate_config_safety()` runtime fallback enforcing the same per-day per-category cap
 - `lib/popup-pid-management.sh` — no stacked modals
+- Intentional lockout behaviors (focus stealing, topmost, fullscreen blocker, respawn-on-dismiss during min-display) are **features**, not bugs — see [docs/SAFETY.md](docs/SAFETY.md) "What is *not* a safety bug"
 
 ## Testing quick reference
 
@@ -73,7 +75,7 @@ We follow [OpenAI harness engineering](https://openai.com/index/harness-engineer
 ## After you ship a change
 
 1. Run targeted tests.
-2. Update `docs/` + [CHANGELOG.md](CHANGELOG.md) if behavior changed.
+2. Update `docs/` + [CHANGELOG.md](CHANGELOG.md) if behavior changed ([versioning guide](docs/development/versioning.md)).
 3. Confirm [SAFETY.md](docs/SAFETY.md) checklist still passes.
 
 ## Git hooks (local)

@@ -126,8 +126,14 @@ JSON
     }
 
     # ── Legacy osascript alert spawn ─────────────────────────────────────────
-    # Uses variables from the caller scope: pause_available, pause_duration,
-    # POPUP_DARWIN_RESULT_FILE.
+    # Phase 2.3: Enforces min_display_time and auto-close for the osascript
+    # fallback path by running a re-spawn loop inside a background subshell.
+    # The outer popup_run_with_watchdog in show_warning_darwin provides the
+    # absolute POPUP_ABSOLUTE_MAX_SECONDS ceiling.
+    #
+    # Uses variables from the caller scope:
+    #   min_display_time, popup_auto_close, POPUP_AUTO_CLOSE_DELAY_SECONDS,
+    #   pause_available, pause_duration, POPUP_DARWIN_RESULT_FILE.
     #
     # Args:
     #   $1 — full_message (message with countdown suffix, used by osascript)
@@ -147,23 +153,65 @@ JSON
         POPUP_DARWIN_RESULT_FILE="${POPUP_DARWIN_RESULT_FILE:-$(mktemp)}"
         : > "${POPUP_DARWIN_RESULT_FILE}"
 
-        local applescript
-        if [ "${pause_available:-false}" = "true" ] && [ -n "${pause_duration:-}" ]; then
-            local pause_button_label="Pause ${pause_duration} min"
-            applescript=$(cat <<APPLESCRIPT
-set dialogResult to button returned of (display alert "${safe_text}" with title "${safe_title}" buttons {"OK", "${pause_button_label}"} default button "OK" as warning)
-do shell script "echo " & quoted form of dialogResult & " > " & quoted form of "${POPUP_DARWIN_RESULT_FILE}"
-APPLESCRIPT
-)
+        # Capture timing settings from outer scope into local vars for subshell
+        local _min_disp="${min_display_time:-0}"
+        local _auto_close="${popup_auto_close:-false}"
+        local _ac_delay="${POPUP_AUTO_CLOSE_DELAY_SECONDS:-10}"
+        local _pa="${pause_available:-false}"
+        local _pd="${pause_duration:-}"
+        local _result_file="${POPUP_DARWIN_RESULT_FILE}"
+
+        # Build buttons fragment (reused across re-spawns)
+        local _buttons_fragment
+        if [ "${_pa}" = "true" ] && [ -n "${_pd}" ]; then
+            _buttons_fragment="buttons {\"OK\", \"Pause ${_pd} min\"} default button \"OK\""
         else
-            applescript=$(cat <<APPLESCRIPT
-set dialogResult to button returned of (display alert "${safe_text}" with title "${safe_title}" buttons {"OK"} default button "OK" as warning)
-do shell script "echo " & quoted form of dialogResult & " > " & quoted form of "${POPUP_DARWIN_RESULT_FILE}"
-APPLESCRIPT
-)
+            _buttons_fragment="buttons {\"OK\"} default button \"OK\""
         fi
 
-        osascript -e "${applescript}" >/dev/null 2>&1 &
+        # Background subshell: re-opens osascript until min_display_time is met,
+        # then applies auto-close (giving up after) on the final presentation.
+        # SIGTERM from the watchdog will stop the loop and kill the current dialog.
+        (
+            _inner_osc_pid=""
+            trap '
+                [ -n "${_inner_osc_pid}" ] && kill "${_inner_osc_pid}" 2>/dev/null
+                exit 0
+            ' TERM INT
+
+            _start_epoch=$(date +%s)
+
+            while true; do
+                _now=$(date +%s)
+                _elapsed=$((_now - _start_epoch))
+                _remaining=$((_min_disp - _elapsed))
+
+                # On this round, has min-display elapsed yet?
+                if [ "${_remaining}" -le 0 ] && [ "${_auto_close}" = "true" ]; then
+                    # Final dialog: auto-closes after delay
+                    _giving_up=" giving up after ${_ac_delay}"
+                else
+                    _giving_up=""
+                fi
+
+                _applescript="set dialogResult to button returned of (display alert \"${safe_text}\" with title \"${safe_title}\" ${_buttons_fragment} as warning${_giving_up})
+do shell script \"echo \" & quoted form of dialogResult & \" > \" & quoted form of \"${_result_file}\""
+
+                osascript -e "${_applescript}" >/dev/null 2>&1 &
+                _inner_osc_pid=$!
+                wait "${_inner_osc_pid}" 2>/dev/null
+                _inner_osc_pid=""
+
+                _now=$(date +%s)
+                _elapsed=$((_now - _start_epoch))
+
+                # If min-display satisfied (or auto-close fired), exit loop
+                if [ "${_elapsed}" -ge "${_min_disp}" ]; then
+                    break
+                fi
+                # User dismissed before min-display — re-open immediately
+            done
+        ) &
         popup_pid=$!
         return 0
     }
@@ -183,7 +231,21 @@ APPLESCRIPT
         if _popup_darwin_has_blocker; then
             _popup_spawn_blocker_darwin "${base_msg}"
             if [ -n "${popup_pid}" ] && [[ "${popup_pid}" =~ ^[0-9]+$ ]]; then
-                return 0
+                # Phase 2.2: Give the process 0.3 s to start then verify it is still alive.
+                # python3 exits immediately if tkinter/pyobjc is missing or JSON is bad.
+                sleep 0.3
+                if kill -0 "${popup_pid}" 2>/dev/null; then
+                    return 0
+                fi
+                # Process died — capture exit code and log for diagnosis
+                local _blocker_exit=0
+                wait "${popup_pid}" 2>/dev/null
+                _blocker_exit=$?
+                if type log_to_file >/dev/null 2>&1; then
+                    log_to_file "WARNING" \
+                        "macOS: Python blocker (PID ${popup_pid}) exited immediately (code ${_blocker_exit}); falling back to osascript"
+                fi
+                popup_pid=""
             fi
             if type log_to_file >/dev/null 2>&1; then
                 log_to_file "WARNING" "macOS: blocker failed to spawn, falling back to osascript"

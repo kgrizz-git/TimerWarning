@@ -467,7 +467,24 @@ verify_removal() {
         still_installed=true
         print_warning "Some systemd files are still present"
     fi
-    
+
+    # Phase 3.1: macOS — verify LaunchAgent plist is gone AND agent is unloaded
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        local _la_plist="${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
+        if [ -f "${_la_plist}" ]; then
+            still_installed=true
+            print_warning "macOS LaunchAgent plist still present: ${_la_plist}"
+        fi
+        if command -v launchctl >/dev/null 2>&1; then
+            local _agent_domain="gui/$(id -u)"
+            if launchctl print "${_agent_domain}/com.sleep-warning" >/dev/null 2>&1; then
+                still_installed=true
+                print_warning "macOS LaunchAgent com.sleep-warning is still loaded in launchctl"
+                print_warning "  Manual fix: launchctl bootout ${_agent_domain}/com.sleep-warning"
+            fi
+        fi
+    fi
+
     if [ "$still_installed" = false ]; then
         print_success "All files removed successfully"
     fi
@@ -533,9 +550,11 @@ main() {
         fi
     fi
     
-    # Check if installed
+    # Check if installed (Phase 3.1: include macOS LaunchAgent plist check)
+    local _la_plist="${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
     if [ ! -f "$INSTALL_DIR/sleep-warning.sh" ] && \
-       [ ! -f "$SYSTEMD_USER_DIR/sleep-warning.service" ]; then
+       [ ! -f "$SYSTEMD_USER_DIR/sleep-warning.service" ] && \
+       [ ! -f "${_la_plist}" ]; then
         print_warning "Sleep Warning System does not appear to be installed"
         exit 0
     fi

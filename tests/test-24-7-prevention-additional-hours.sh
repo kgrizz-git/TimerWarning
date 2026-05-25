@@ -98,8 +98,8 @@ test_validation \
     "SATURDAY=0-8"
 
 test_validation \
-    "Restriction hours only - high restriction (18 hours/day)" \
-    "warn" \
+    "Restriction hours only - high restriction (18 hours/day, 7560 min/week)" \
+    "block" \
     "SUNDAY=0-18" \
     "MONDAY=0-18" \
     "TUESDAY=0-18" \
@@ -122,8 +122,8 @@ test_validation \
 # Test 2: Restriction + Lock Hours
 echo -e "\n${BLUE}=== Test 2: Restriction Hours + Lock Hours ===${NC}"
 test_validation \
-    "Restriction (8h) + Lock (8h) = 16h/day (valid)" \
-    "ok" \
+    "Restriction (8h) + Lock (8h) = 16h/day (6720 min/week, == BLOCK boundary, warn)" \
+    "warn" \
     "SUNDAY=0-8" \
     "MONDAY=0-8" \
     "TUESDAY=0-8" \
@@ -140,8 +140,8 @@ test_validation \
     "CONFIG_LOCK_HOURS_SATURDAY=8-16"
 
 test_validation \
-    "Restriction (8h) + Lock (10h) = 18h/day (warn)" \
-    "warn" \
+    "Restriction (8h) + Lock (10h) = 18h/day (7560 min/week, block)" \
+    "block" \
     "SUNDAY=0-8" \
     "MONDAY=0-8" \
     "TUESDAY=0-8" \
@@ -178,8 +178,8 @@ test_validation \
 # Test 3: Restriction + Uninstall Lock Hours
 echo -e "\n${BLUE}=== Test 3: Restriction Hours + Uninstall Lock Hours ===${NC}"
 test_validation \
-    "Restriction (8h) + Uninstall Lock (8h) = 16h/day (valid)" \
-    "ok" \
+    "Restriction (8h) + Uninstall Lock (8h) = 16h/day (6720 min/week, == BLOCK boundary, warn)" \
+    "warn" \
     "SUNDAY=0-8" \
     "MONDAY=0-8" \
     "TUESDAY=0-8" \
@@ -196,8 +196,8 @@ test_validation \
     "UNINSTALL_LOCK_HOURS_SATURDAY=8-16"
 
 test_validation \
-    "Restriction (8h) + Uninstall Lock (10h) = 18h/day (warn)" \
-    "warn" \
+    "Restriction (8h) + Uninstall Lock (10h) = 18h/day (7560 min/week, block)" \
+    "block" \
     "SUNDAY=0-8" \
     "MONDAY=0-8" \
     "TUESDAY=0-8" \
@@ -234,8 +234,8 @@ test_validation \
 # Test 4: All Three Types Together
 echo -e "\n${BLUE}=== Test 4: All Three Types Together ===${NC}"
 test_validation \
-    "Restriction (6h) + Lock (6h) + Uninstall (6h) = 18h/day (warn)" \
-    "warn" \
+    "Restriction (6h) + Lock (6h) + Uninstall (6h) = 18h/day (7560 min/week, block)" \
+    "block" \
     "SUNDAY=0-6" \
     "MONDAY=0-6" \
     "TUESDAY=0-6" \
@@ -292,8 +292,8 @@ test_validation \
     "CONFIG_LOCK_HOURS_MONDAY=7-15"
 
 test_validation \
-    "Overlapping: Restriction (0-8) + Lock (7-15) + Uninstall (10-18) = merged to 0-18 (18h/day, warn)" \
-    "warn" \
+    "Overlapping: Restriction (0-8) + Lock (7-15) + Uninstall (10-18) = merged to 0-18 (18h/day, 7560 min/week, block)" \
+    "block" \
     "SUNDAY=0-8" \
     "MONDAY=0-8" \
     "TUESDAY=0-8" \
@@ -317,8 +317,8 @@ test_validation \
     "UNINSTALL_LOCK_HOURS_SATURDAY=10-18"
 
 test_validation \
-    "Overlapping all days: Restriction (0-8) + Lock (7-15) + Uninstall (10-18) = 18h/day (warn)" \
-    "warn" \
+    "Overlapping all days: Restriction (0-8) + Lock (7-15) + Uninstall (10-18) = 18h/day (7560 min/week, block)" \
+    "block" \
     "SUNDAY=0-8" \
     "MONDAY=0-8" \
     "TUESDAY=0-8" \
@@ -350,8 +350,8 @@ test_validation \
     "CONFIG_LOCK_HOURS_MONDAY=22-5"
 
 test_validation \
-    "Overnight: Restriction (23-6) + Lock (6-14) + Uninstall (14-22) = 18h/day (warn)" \
-    "warn" \
+    "Overnight: Restriction (23-6) + Lock (6-14) + Uninstall (14-22) = 18h/day (7560 min/week, block)" \
+    "block" \
     "SUNDAY=23-6" \
     "MONDAY=23-6" \
     "TUESDAY=23-6" \
@@ -422,8 +422,8 @@ test_validation \
 # Test 9: Boundary Conditions
 echo -e "\n${BLUE}=== Test 9: Boundary Conditions ===${NC}"
 test_validation \
-    "Exactly 6720 minutes (16h/day) - should be ok" \
-    "ok" \
+    "Exactly 6720 minutes (16h/day, == BLOCK boundary, strict > so allowed but warn) — warn" \
+    "warn" \
     "SUNDAY=0-16" \
     "MONDAY=0-16" \
     "TUESDAY=0-16" \
@@ -433,8 +433,8 @@ test_validation \
     "SATURDAY=0-16"
 
 test_validation \
-    "Exactly 6721 minutes (just over 16h/day) - should warn" \
-    "warn" \
+    "Exactly 6721 minutes (just over BLOCK, 6720) - should block" \
+    "block" \
     "SUNDAY=0-16" \
     "MONDAY=0-16" \
     "TUESDAY=0-16" \
@@ -444,8 +444,8 @@ test_validation \
     "SATURDAY=0-16,16-17"
 
 test_validation \
-    "Exactly 10079 minutes (just under 24/7) - should warn" \
-    "warn" \
+    "Exactly 10079 minutes (just under 24/7) — block under new thresholds" \
+    "block" \
     "SUNDAY=0-12,12-0" \
     "MONDAY=0-12,12-0" \
     "TUESDAY=0-12,12-0" \
@@ -468,8 +468,8 @@ test_validation \
 # Test 10: Complex Overlapping Scenarios
 echo -e "\n${BLUE}=== Test 10: Complex Overlapping Scenarios ===${NC}"
 test_validation \
-    "Complex: Multiple overlaps within and across types" \
-    "warn" \
+    "Complex: Multiple overlaps within and across types (>6720 min/week, block)" \
+    "block" \
     "SUNDAY=0-5,10-15" \
     "MONDAY=0-5,10-15" \
     "TUESDAY=0-5,10-15" \
@@ -491,6 +491,100 @@ test_validation \
     "UNINSTALL_LOCK_HOURS_THURSDAY=9-16,19-23" \
     "UNINSTALL_LOCK_HOURS_FRIDAY=9-16,19-23" \
     "UNINSTALL_LOCK_HOURS_SATURDAY=9-16,19-23"
+
+# Phase 4.4 / weekly-threshold-lowering: HH:MM format and split-range fixtures.
+# After 2026-05-24 threshold lowering, check_restriction_coverage uses:
+#   WARN  > 5040 min/week  (>12 h/day avg)
+#   BLOCK > 6720 min/week  (>16 h/day avg, strict >)
+# The per-day 16-h cap in lib/daily-caps.sh is the primary hard enforcer;
+# this weekly check is a defense-in-depth backstop.
+echo -e "\n${BLUE}=== Test 11: HH:MM Format (Phase 4.4) ===${NC}"
+
+# Single day with 16 h in HH:MM — weekly total 960 min → "ok"
+test_validation \
+    "HH:MM: MONDAY=00:00-16:00 (16 h, 960 min/week) — ok" \
+    "ok" \
+    "MONDAY=00:00-16:00"
+
+# All 7 days 8 h in HH:MM — weekly total 3360 min → "ok"
+test_validation \
+    "HH:MM: all days 08:00-16:00 (8 h each, 3360 min/week) — ok" \
+    "ok" \
+    "SUNDAY=08:00-16:00" \
+    "MONDAY=08:00-16:00" \
+    "TUESDAY=08:00-16:00" \
+    "WEDNESDAY=08:00-16:00" \
+    "THURSDAY=08:00-16:00" \
+    "FRIDAY=08:00-16:00" \
+    "SATURDAY=08:00-16:00"
+
+# HH:MM all days 17 h — weekly total 7140 min > 6720 → "block" (under new threshold)
+test_validation \
+    "HH:MM: all days 06:00-23:00 (17 h each, 7140 min/week) — block" \
+    "block" \
+    "SUNDAY=06:00-23:00" \
+    "MONDAY=06:00-23:00" \
+    "TUESDAY=06:00-23:00" \
+    "WEDNESDAY=06:00-23:00" \
+    "THURSDAY=06:00-23:00" \
+    "FRIDAY=06:00-23:00" \
+    "SATURDAY=06:00-23:00"
+
+# HH:MM full 24/7 using two contiguous 12-h ranges — weekly total 10080 min → "block"
+# (00:00-24:00 is invalid since hour 24 > 23; use 00:00-12:00,12:00-00:00 instead)
+test_validation \
+    "HH:MM: all days 00:00-12:00,12:00-00:00 (24 h each = 24/7) — block" \
+    "block" \
+    "SUNDAY=00:00-12:00,12:00-00:00" \
+    "MONDAY=00:00-12:00,12:00-00:00" \
+    "TUESDAY=00:00-12:00,12:00-00:00" \
+    "WEDNESDAY=00:00-12:00,12:00-00:00" \
+    "THURSDAY=00:00-12:00,12:00-00:00" \
+    "FRIDAY=00:00-12:00,12:00-00:00" \
+    "SATURDAY=00:00-12:00,12:00-00:00"
+
+# HH:MM overnight range — 3 h/week → "ok"
+test_validation \
+    "HH:MM: SUNDAY=23:00-02:00 overnight (3 h/week) — ok" \
+    "ok" \
+    "SUNDAY=23:00-02:00"
+
+# Split-range on one day covers 24 h on that day — weekly total 1440 min → "ok"
+# (weekly-average check does not block single-day full coverage)
+test_validation \
+    "Split-range: MONDAY=00:00-12:00,12:00-00:00 (24 h Mon, 1440 min/week) — ok" \
+    "ok" \
+    "MONDAY=00:00-12:00,12:00-00:00"
+
+# HH:MM split-range all 7 days 24 h → block
+test_validation \
+    "Split-range: all days 00:00-12:00,12:00-00:00 (24/7) — block" \
+    "block" \
+    "SUNDAY=00:00-12:00,12:00-00:00" \
+    "MONDAY=00:00-12:00,12:00-00:00" \
+    "TUESDAY=00:00-12:00,12:00-00:00" \
+    "WEDNESDAY=00:00-12:00,12:00-00:00" \
+    "THURSDAY=00:00-12:00,12:00-00:00" \
+    "FRIDAY=00:00-12:00,12:00-00:00" \
+    "SATURDAY=00:00-12:00,12:00-00:00"
+
+# HH:MM lock hours + restriction on single day → weekly total still small → "ok"
+test_validation \
+    "HH:MM lock+restriction: MONDAY=08:00-16:00 + lock 16:00-24:00 (960 min/week) — ok" \
+    "ok" \
+    "MONDAY=08:00-16:00" \
+    "CONFIG_LOCK_HOURS_MONDAY=16:00-24:00"
+
+# Leading-zero hours (octal trap): 08-17 and 09-17 should parse correctly → "ok"
+test_validation \
+    "Octal-safe: MONDAY=08-17 (9 h/week) — ok" \
+    "ok" \
+    "MONDAY=08-17"
+
+test_validation \
+    "Octal-safe: MONDAY=09-17 (8 h/week) — ok" \
+    "ok" \
+    "MONDAY=09-17"
 
 # Print summary
 echo -e "\n${BLUE}=== Test Summary ===${NC}"

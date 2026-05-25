@@ -19,7 +19,7 @@ Steps for AI agents (Cursor, Codex, etc.) working in this repository.
 
 1. Run relevant tests ([development/testing.md](development/testing.md)).
 2. Update `docs/` if behavior or safety rules changed.
-3. Add CHANGELOG entry under `[Unreleased]` if user-visible.
+3. Add CHANGELOG entry under `[Unreleased]` if user-visible ([versioning.md](development/versioning.md)).
 4. Self-review using checklist in [SAFETY.md](SAFETY.md#review-checklist-pr--agent-self-review).
 
 ## If stuck

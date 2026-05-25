@@ -27,7 +27,7 @@ We are not an agent-only repo; we still write and review shell code directly. Th
 2. Open the relevant `docs/architecture/` or `docs/development/` page.
 3. Make the smallest change that satisfies the task.
 4. Run targeted tests ([development/testing.md](development/testing.md)).
-5. Update docs and CHANGELOG if behavior changed.
+5. Update docs and CHANGELOG if behavior changed ([development/versioning.md](development/versioning.md)).
 
 See [agent-workflow.md](agent-workflow.md).
 

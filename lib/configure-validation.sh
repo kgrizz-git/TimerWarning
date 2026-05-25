@@ -18,6 +18,14 @@
 #   source lib/configure-validation.sh
 ###############################################################################
 
+## Source the shared daily-caps helpers (check_daily_caps, _compute_day_merged_minutes, etc.)
+_CONFIGURE_VALIDATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090
+if [ -f "${_CONFIGURE_VALIDATION_DIR}/daily-caps.sh" ]; then
+    source "${_CONFIGURE_VALIDATION_DIR}/daily-caps.sh"
+fi
+unset _CONFIGURE_VALIDATION_DIR
+
 ###############################################################################
 # Merge Overlapping/Adjacent Time Intervals
 #
@@ -173,26 +181,45 @@ process_hours_array() {
             [ -z "${r}" ] && continue
             
             # Parse range: "START-END"
-            local start_hour="${r%%-*}"
-            local end_hour="${r##*-}"
-            
-            # Validate hour values (should already be validated, but check for safety)
-            if ! [[ "${start_hour}" =~ ^[0-9]+$ ]] || ! [[ "${end_hour}" =~ ^[0-9]+$ ]]; then
-                continue  # Skip invalid range
+            # Supports both integer ("7") and HH:MM ("07:00") formats.
+            local start_part="${r%%-*}"
+            local end_part="${r##*-}"
+
+            local start_hour start_min_offset end_hour end_min_offset
+            if [[ "${start_part}" =~ ^([0-9]{1,2}):([0-9]{2})$ ]]; then
+                start_hour="${BASH_REMATCH[1]}"
+                start_min_offset="${BASH_REMATCH[2]}"
+            elif [[ "${start_part}" =~ ^([0-9]{1,2})$ ]]; then
+                start_hour="${start_part}"
+                start_min_offset="0"
+            else
+                continue  # Unrecognised format
             fi
-            
-            if [ "${start_hour}" -lt 0 ] || [ "${start_hour}" -gt 23 ] || \
-               [ "${end_hour}" -lt 0 ] || [ "${end_hour}" -gt 23 ]; then
-                continue  # Skip invalid hour values
+
+            if [[ "${end_part}" =~ ^([0-9]{1,2}):([0-9]{2})$ ]]; then
+                end_hour="${BASH_REMATCH[1]}"
+                end_min_offset="${BASH_REMATCH[2]}"
+            elif [[ "${end_part}" =~ ^([0-9]{1,2})$ ]]; then
+                end_hour="${end_part}"
+                end_min_offset="0"
+            else
+                continue  # Unrecognised format
             fi
+
+            # Validate using 10# prefix to avoid octal interpretation of 08, 09.
+            local _sh=$((10#${start_hour})) _sm=$((10#${start_min_offset}))
+            local _eh=$((10#${end_hour}))   _em=$((10#${end_min_offset}))
+            if [ "${_sh}" -gt 23 ] || [ "${_eh}" -gt 23 ] || \
+               [ "${_sm}" -gt 59 ] || [ "${_em}" -gt 59 ]; then
+                continue  # Out-of-range, skip
+            fi
+
+            # Convert to minutes within the day (using validated base-10 values)
+            local start_minute=$(( _sh * MINUTES_PER_HOUR + _sm ))
+            local end_minute=$(( _eh * MINUTES_PER_HOUR + _em ))
             
-            # Convert hours to minutes
-            # Note: MINUTES_PER_HOUR is defined globally in configure-core.sh
-            local start_minute=$((start_hour * MINUTES_PER_HOUR))
-            local end_minute=$((end_hour * MINUTES_PER_HOUR))
-            
-            if [ "${start_hour}" -gt "${end_hour}" ]; then
-                # Overnight range detected: start hour > end hour (e.g., "23-6")
+            if [ "${_sh}" -gt "${_eh}" ] || ([ "${_sh}" -eq "${_eh}" ] && [ "${_sm}" -gt "${_em}" ]); then
+                # Overnight range detected: start time > end time (e.g., "23-6", "23:30-06:00")
                 # Split into two segments that span midnight
                 
                 # Segment 1: From start hour to end of current day
@@ -256,9 +283,9 @@ process_hours_array() {
 #
 # Output:
 #   Returns one of three strings via stdout:
-#   - "ok"    : Valid configuration (<= 6720 minutes, <= 16 hours/day)
-#   - "warn"  : High restriction level (> 6720 minutes, > 16 hours/day, but < 10080)
-#   - "block" : 24/7 restrictions detected (>= 10080 minutes, all 24 hours × 7 days)
+#   - "ok"    : Valid configuration (<= 5040 minutes/week ≈ ≤12 hours/day avg)
+#   - "warn"  : High restriction level (> 5040 and <= 6720 minutes/week, ≈ 12-16 h/day avg)
+#   - "block" : Excessive restrictions (> 6720 minutes/week, > 16 hours/day avg)
 #
 # Usage:
 #   # Pass all three arrays (backward compatible if only config_lines passed)
@@ -443,24 +470,25 @@ check_restriction_coverage() {
         total=$((total + length))
     done <<< "${final_intervals}"
     
-    # Determine validation result based on thresholds
-    # Note: Thresholds are defined globally in configure-core.sh:
-    # - THRESHOLD_BLOCK = HOURS_PER_DAY_BLOCK × 60 × 7 (default: 24 hours/day = 10080 minutes)
-    # - THRESHOLD_WARN = HOURS_PER_DAY_WARN × 60 × 7 (default: 16 hours/day = 6720 minutes)
+    # Determine validation result based on weekly-average thresholds.
+    # Thresholds are defined globally in configure-core.sh:
+    #   THRESHOLD_BLOCK = HOURS_PER_DAY_BLOCK × 60 × 7 (default: 16 h/day avg = 6720 min)
+    #   THRESHOLD_WARN  = HOURS_PER_DAY_WARN  × 60 × 7 (default: 12 h/day avg = 5040 min)
+    #
+    # Comparison semantics use strict ">" so that a config which exactly hits
+    # the per-day 16-hour cap on every day (= 6720 min/week) is still allowed.
+    # The per-day cap in lib/daily-caps.sh is the primary safety enforcer; this
+    # weekly check is a defense-in-depth backstop.
+    #
     # Boundary cases:
-    # - Exactly THRESHOLD_WARN minutes: returns "ok" (no warning)
-    # - Exactly THRESHOLD_BLOCK minutes: returns "block" (prevents saving)
-    if [ "${total}" -ge "${THRESHOLD_BLOCK}" ]; then
-        # 24/7 restrictions detected: total >= THRESHOLD_BLOCK minutes
-        # Configuration must be blocked to prevent accidental lockout
+    #   total == THRESHOLD_WARN  → "ok"
+    #   total >  THRESHOLD_WARN and  ≤ THRESHOLD_BLOCK  → "warn"
+    #   total >  THRESHOLD_BLOCK → "block"
+    if [ "${total}" -gt "${THRESHOLD_BLOCK}" ]; then
         echo "block"
     elif [ "${total}" -gt "${THRESHOLD_WARN}" ]; then
-        # High restriction level: total > THRESHOLD_WARN but < THRESHOLD_BLOCK minutes
-        # Show warning dialog, allow user to confirm or modify
         echo "warn"
     else
-        # Valid configuration: total <= THRESHOLD_WARN minutes
-        # Proceed with normal save flow
         echo "ok"
     fi
 }

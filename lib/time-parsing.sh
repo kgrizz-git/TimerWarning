@@ -180,10 +180,14 @@ convert_time_range_to_24hour() {
             end_h="${end_str}"
             end_m=0
         fi
-        # Ensure numeric and in range (basic)
+        # Ensure numeric and within valid bounds (use 10# to avoid octal trap)
         if ! [[ "${start_h}" =~ ^[0-9]+$ ]] || ! [[ "${start_m}" =~ ^[0-9]+$ ]] ||
-           ! [[ "${end_h}" =~ ^[0-9]+$ ]] || ! [[ "${end_m}" =~ ^[0-9]+$ ]]; then
+           ! [[ "${end_h}" =~ ^[0-9]+$ ]]   || ! [[ "${end_m}" =~ ^[0-9]+$ ]]; then
             return 1
+        fi
+        if [ "$(( 10#${start_h} ))" -gt 23 ] || [ "$(( 10#${start_m} ))" -gt 59 ] || \
+           [ "$(( 10#${end_h} ))"   -gt 23 ] || [ "$(( 10#${end_m} ))"   -gt 59 ]; then
+            return 1  # Reject hours > 23 or minutes > 59
         fi
         printf "%02d:%02d-%02d:%02d" "${start_h}" "${start_m}" "${end_h}" "${end_m}"
         return 0

@@ -1,5 +1,5 @@
 ---
-description: Safety guardrails — highest priority; prevents user lockout and stuck modals
+description: Safety guardrails — highest priority; per-day 16 h cap, finite popup lifetime, escape hatch
 alwaysApply: true
 ---
 
@@ -7,18 +7,34 @@ alwaysApply: true
 
 **Read:** [docs/SAFETY.md](../../docs/SAFETY.md) before any change to popups, schedulers, config validation, or install defaults.
 
-## Non-negotiable
+## The three invariants (non-negotiable)
 
-1. **No user lockout** — user must always be able to stop checks, dismiss UI, and fix config (see emergency paths in docs/SAFETY.md and user-docs/MACOS.md).
-2. **No 24/7 warnings** — preserve configure `block` and runtime fallback in `sleep-warning.sh`.
-3. **Bounded popups** — use `lib/popup-safety.sh`; never unbounded blocking dialogs in `sleep-warning.sh`.
-4. **Development** — do not modify installed `~/.config/sleep-warning/` during restricted/blocked hours; use temp `HOME` for tests (see config-file-edits.mdc).
+1. **Per-day 16 h cap, per category, mechanical.** For every calendar day, none of these merged totals may exceed 16 hours:
+   - Restriction hours (popup hours).
+   - Configure-block hours = `CONFIG_LOCK_HOURS_*` ∪ (restriction hours when `CONFIGURE_BLOCK_ENABLED=true`).
+   - Uninstall-block hours = `UNINSTALL_LOCK_HOURS_*` ∪ (restriction hours when uninstall protection is enabled).
 
-## Before merging popup/scheduler work
+   Enforced at configure-time (hard block, no override) **and** runtime (fallback to safe defaults).
+
+2. **Popups must always end.** Every spawn path (Linux yad/zenity/kdialog, macOS Python blocker, macOS osascript fallback) must go through an absolute watchdog. The cap value may grow over time — `POPUP_ABSOLUTE_MAX_SECONDS=120` on macOS today is a temporary limit, not a permanent rule — but it is always finite.
+
+3. **Always-available escape hatch.** Documented `launchctl bootout` (macOS) and `systemctl --user stop/disable` (Linux) must always work. `sleep-warning-uninstall` must work for ≥ 8 hours/day (consequence of invariant #1).
+
+## Lockout is a feature, within those bounds
+
+- Focus stealing, `--topmost`, fullscreen blocker overlays, periodic `focus_force`, respawn-on-dismiss during min-display — all **intentional**.
+- Do not weaken popup intrusiveness in the name of "safety." Strengthen invariants 1–3 instead.
+
+## Before merging popup/scheduler/validation work
 
 - Run `tests/test-popup-safety-darwin.sh` (and relevant Linux tests on Linux).
-- Complete the PR checklist in docs/SAFETY.md.
+- Verify the per-day cap holds for both integer-hour (`7-23`) and HH:MM (`07:00-23:00`) configs.
+- Complete the PR checklist in `docs/SAFETY.md`.
 
-## If safety conflicts with a feature
+## Development
 
-**Safety wins.**
+- Do not modify installed `~/.config/sleep-warning/` during restricted/blocked hours; use temp `HOME` (see `config-file-edits.mdc`).
+
+## If a feature request conflicts with the three invariants
+
+**The invariants win.** Lockout intensity within the invariants is a feature; violating the cap, popup-lifetime ceiling, or escape hatch is not.

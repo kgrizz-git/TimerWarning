@@ -695,6 +695,63 @@ calculate_restriction_end_time() {
     return 1  # Not in any range
 }
 
+# Show hard-block error when a per-day per-category cap violation is detected.
+# Parameters:
+#   $1 - use_gui (true/false)
+#   $2 - violation_text: multi-line "day|category|minutes" lines from check_daily_caps
+show_cap_violation_error() {
+    local use_gui="$1"
+    local violation_text="$2"
+
+    local title="ERROR: Per-Day 16-Hour Cap Exceeded"
+
+    # Build human-readable violation list
+    local details=""
+    local line day cat mins
+    while IFS='|' read -r day cat mins; do
+        [ -z "${day}" ] && continue
+        local hours=$(( mins / 60 ))
+        local rem=$(( mins % 60 ))
+        local cat_label
+        case "${cat}" in
+            restriction)     cat_label="Restriction hours" ;;
+            configure_block) cat_label="Configure-block hours" ;;
+            uninstall_block) cat_label="Uninstall-block hours" ;;
+            *)               cat_label="${cat}" ;;
+        esac
+        details="${details}  • ${day}: ${cat_label} = ${hours}h ${rem}m (limit: 16h 0m)\n"
+    done <<< "${violation_text}"
+
+    local message="🚫 Configuration cannot be saved.
+
+The following day/category pairs exceed the 16-hour per-day cap:
+
+${details}
+Each restriction category may cover at most 16 hours on any single calendar day.
+
+Categories:
+  • Restriction hours — popup warning schedule
+  • Configure-block hours — configure/manage lock (restriction + lock hours when enabled)
+  • Uninstall-block hours — uninstall protection (restriction + uninstall-lock hours when enabled)
+
+Please reduce the configured hours to fix this before saving."
+
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_info_dialog "${title}" "${message}" 720 480
+    else
+        echo "" >&2
+        echo "========================================" >&2
+        echo "ERROR: Per-Day 16-Hour Cap Exceeded" >&2
+        echo "========================================" >&2
+        echo "" >&2
+        echo "${details}" | sed 's/\\n/\n/g' >&2
+        echo "Each category may cover at most 16 hours per calendar day." >&2
+        echo "Please reduce hours before saving." >&2
+        echo "" >&2
+        read -rp "Press Enter to continue..."
+    fi
+}
+
 # Show error message when configure.sh or manage.sh is blocked during restricted hours or lock hours
 # This is for Enhancement #19 (Prevent configure.sh and manage.sh Execution)
 # Phase 2: Also checks lock hours in addition to restriction hours

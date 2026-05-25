@@ -333,21 +333,25 @@ APPLESCRIPT
         local _h="${6:-400}"
         local result
         message=$(_cd_darwin_preprocess_message "${message}")
-        result=$(_cd_darwin_run_applescript "${title}" "${message}" <<'APPLESCRIPT'
+        # Phase 4.1: pass yes_label/no_label as argv items 3 and 4 so AppleScript
+        # renders the custom button text instead of hardcoded "Yes"/"No".
+        result=$(_cd_darwin_run_applescript "${title}" "${message}" "${yes_label}" "${no_label}" <<'APPLESCRIPT'
 on run argv
     set theTitle to item 1 of argv
     set theMessage to item 2 of argv
+    set yesBtn to item 3 of argv
+    set noBtn to item 4 of argv
     try
-        set btn to button returned of (display alert theMessage with title theTitle buttons {"No", "Yes"} default button "Yes" cancel button "No")
+        set btn to button returned of (display alert theMessage with title theTitle buttons {noBtn, yesBtn} default button yesBtn cancel button noBtn)
         return btn
     on error number -128
-        return "No"
+        return noBtn
     end try
 end run
 APPLESCRIPT
 )
         result=$(_cd_darwin_trim "${result}")
-        [ "${result}" = "Yes" ]
+        [ "${result}" = "${yes_label}" ]
     }
 
     show_entry_dialog() {

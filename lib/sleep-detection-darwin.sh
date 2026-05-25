@@ -19,24 +19,78 @@ if [ -z "${SLEEP_DETECTION_DARWIN_LOADED:-}" ]; then
         echo ""
     }
 
-    check_system_resume() {
-        local boot_ts last_boot stored_boot
-        boot_ts=$(_darwin_get_boot_timestamp)
-        if [ -z "${boot_ts}" ]; then
+    # Phase 3.5: parse pmset log for the most recent "Wake" event timestamp (epoch).
+    # Returns epoch seconds or empty string if not found / pmset unavailable.
+    _darwin_get_last_wake_timestamp() {
+        if ! command -v pmset >/dev/null 2>&1; then
+            echo ""
             return 1
         fi
+        # "pmset -g log" can be verbose; limit scan to the last 200 lines for speed.
+        # Typical wake line: "2026-05-24 09:00:00 +0000 Wake  [...]"
+        local wake_line
+        wake_line=$(pmset -g log 2>/dev/null | tail -200 \
+            | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} .*Wake' \
+            | tail -1)
+        if [ -z "${wake_line}" ]; then
+            echo ""
+            return 1
+        fi
+        # Extract date/time portion (first two fields) and convert to epoch
+        local wake_dt wake_tz
+        wake_dt=$(echo "${wake_line}" | awk '{print $1, $2}')
+        wake_tz=$(echo "${wake_line}" | awk '{print $3}')
+        # date -j -f on macOS; use UTC offset from log if present
+        local wake_epoch
+        wake_epoch=$(date -j -f "%Y-%m-%d %H:%M:%S" "${wake_dt}" +%s 2>/dev/null) || {
+            echo ""
+            return 1
+        }
+        echo "${wake_epoch}"
+        return 0
+    }
 
-        if [ -f "${LAST_UPTIME_FILE:-}" ]; then
-            stored_boot=$(grep -E '^LAST_BOOT_TIMESTAMP=' "${LAST_UPTIME_FILE}" 2>/dev/null | cut -d= -f2 | tr -d ' ')
-            if [ -n "${stored_boot}" ] && [ "${stored_boot}" != "${boot_ts}" ]; then
+    # Phase 3.5: check_system_resume now EMITS the resume epoch timestamp to stdout
+    # (in addition to returning 0/1), so callers can compare against current time.
+    # Detects both reboots (boot time change) and sleep/wake events (pmset log).
+    check_system_resume() {
+        local boot_ts
+        boot_ts=$(_darwin_get_boot_timestamp)
+
+        # --- Detect reboot: boot timestamp changed since last check ---
+        if [ -n "${boot_ts}" ]; then
+            if [ -f "${LAST_UPTIME_FILE:-}" ]; then
+                local stored_boot
+                stored_boot=$(grep -E '^LAST_BOOT_TIMESTAMP=' "${LAST_UPTIME_FILE}" 2>/dev/null \
+                    | cut -d= -f2 | tr -d ' ')
+                if [ -n "${stored_boot}" ] && [ "${stored_boot}" != "${boot_ts}" ]; then
+                    echo "${boot_ts}"   # emit timestamp
+                    return 0
+                fi
+            fi
+        fi
+
+        # --- Detect sleep/wake: check pmset log for a recent Wake event ---
+        local wake_ts
+        wake_ts=$(_darwin_get_last_wake_timestamp)
+        if [ -n "${wake_ts}" ]; then
+            # Only count as a new wake if it happened after the last stored check time
+            local stored_check
+            stored_check=$(grep -E '^LAST_CHECK_TIMESTAMP=' "${LAST_UPTIME_FILE:-/dev/null}" 2>/dev/null \
+                | cut -d= -f2 | tr -d ' ')
+            if [ -z "${stored_check}" ] || [ "${wake_ts}" -gt "${stored_check}" ]; then
+                echo "${wake_ts}"   # emit timestamp
                 return 0
             fi
         fi
+
         return 1
     }
 
     get_last_resume_time() {
-        _darwin_get_boot_timestamp
+        # Returns the most recent resume timestamp (reboot or sleep/wake)
+        local _ts
+        _ts=$(check_system_resume) && echo "${_ts}"
     }
 
     update_uptime_tracking() {

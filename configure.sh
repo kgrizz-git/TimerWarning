@@ -135,6 +135,12 @@ ensure_utf8_locale() {
 
 # Main function
 main() {
+    # Clean up any temp files this session created if the wizard is interrupted.
+    _configure_cleanup_tmp() {
+        rm -f "${CONFIG_DIR}"/*.tmp.* 2>/dev/null || true
+    }
+    trap '_configure_cleanup_tmp; exit 130' INT TERM
+
     ensure_utf8_locale
 
     local use_gui="false"
@@ -555,88 +561,49 @@ main() {
                         fi
                     fi
                     
-                    # Validate restriction coverage before saving
-                    # Pass all three arrays: restriction hours, lock hours, and uninstall lock hours
-                    # The validation function will combine all three types and check the total
+                    # Validate per-day per-category 16-hour caps before saving (hard block — no override).
+                    # Also run the legacy 24/7 check as a safety backstop.
+                    local cap_violations=""
+                    if type check_daily_caps >/dev/null 2>&1; then
+                        cap_violations=$(check_daily_caps \
+                            "${configure_block_enabled:-false}" \
+                            "${uninstall_protection_mode:-none}" \
+                            "${config_lines[@]}" \
+                            "${lock_hours_lines[@]}" \
+                            "${uninstall_lock_hours_lines[@]}")
+                        if [ -n "${cap_violations}" ]; then
+                            # Hard block — no "save anyway" path for cap violations.
+                            show_cap_violation_error "${use_gui}" "${cap_violations}"
+                            continue  # Return to menu, do NOT call write_config
+                        fi
+                    fi
+
+                    # Legacy 24/7 (full-week) check as backstop for any gaps.
                     local validation_result
                     validation_result=$(check_restriction_coverage \
                         "${config_lines[@]}" \
                         "${lock_hours_lines[@]}" \
                         "${uninstall_lock_hours_lines[@]}")
-                    
-                    # Track whether safety overrides were applied (for config file comments)
+                    if [ "${validation_result}" = "block" ]; then
+                        show_24_7_error "${use_gui}"
+                        continue
+                    fi
+
+                    # Track safety-override flags (used for config-file comments only; no longer
+                    # applied as part of the "warn" path — that path is removed).
                     local popup_size_overridden=""
                     local configure_block_overridden=""
                     local lock_hours_cleared=""
                     local uninstall_lock_hours_cleared=""
                     
-                    case "${validation_result}" in
-                        "block")
-                            # 24/7 restrictions detected - show error and block saving
-                            show_24_7_error "${use_gui}"
-                            continue  # Return to menu, don't call write_config
-                            ;;
-                        "warn")
-                            # High restrictions detected - show warning and get confirmation
-                            if ! show_high_restriction_warning "${use_gui}"; then
-                                # User cancelled - return to menu
-                                continue
-                            fi
-                            # User confirmed - apply safety overrides before saving
-                            # Safety override 1: Restrict popup size to xsmall/small/medium only (Enhancement #3)
-                            # This prevents overly intrusive popups when user has very limited unrestricted time
-                            local original_popup_size="${popup_size}"
-                            if [ "${popup_size}" = "large" ] || [ "${popup_size}" = "xlarge" ] || [ "${popup_size}" = "max" ] || [ "${popup_size}" = "fullscreen" ]; then
-                                popup_size="medium"
-                                popup_size_overridden="true"
-                            elif [ "${popup_size}" = "custom" ]; then
-                                # Check if custom size exceeds medium - if so, clamp to medium
-                                # For now, we'll change to medium if custom is selected (can be enhanced later to check actual dimensions)
-                                popup_size="medium"
-                                popup_size_overridden="true"
-                            fi
-                            
-                            # Safety override 2: Disable configure.sh blocking (Enhancement #19)
-                            # This prevents accidental lockout when user has very limited unrestricted time
-                            # Conditional check: Only disable if the feature is enabled (not empty and not already false)
-                            local original_configure_block="${configure_block_enabled}"
-                            if [ -n "${configure_block_enabled}" ] && [ "${configure_block_enabled}" != "false" ]; then
-                                configure_block_enabled="false"
-                                configure_block_overridden="true"
-                            fi
-                            
-                            # Safety override 3: Disable config file locking (Enhancement #18)
-                            # This prevents accidental lockout when user has very limited unrestricted time
-                            # Conditional check: Only disable if the feature is enabled (not empty and not already false)
-                            if [ -n "${config_lock_enabled}" ] && [ "${config_lock_enabled}" != "false" ]; then
-                                config_lock_enabled="false"
-                                # Note: Enhancement #22 integration - automatically disable if restrictions > 6720 minutes
-                                # This is a safety measure to prevent lockout scenarios
-                            fi
-                            
-                            # Safety override 4: Clear additional lock hours completely (Enhancement #20)
-                            # This prevents accidental lockout when combined with restriction hours
-                            # Decision: Clear completely (set all to empty) - safest approach
-                            for i in 0 1 2 3 4 5 6; do
-                                if [ -n "${lock_hours_lines[$i]:-}" ]; then
-                                    lock_hours_lines[$i]=""
-                                    lock_hours_cleared="true"
-                                fi
-                            done
-                            
-                            # Safety override 5: Clear additional uninstall lock hours completely (Enhancement #26 Phase 2)
-                            # This prevents accidental lockout when combined with restriction hours
-                            # Decision: Clear completely (set all to empty) - safest approach
-                            for i in 0 1 2 3 4 5 6; do
-                                if [ -n "${uninstall_lock_hours_lines[$i]:-}" ]; then
-                                    uninstall_lock_hours_lines[$i]=""
-                                    uninstall_lock_hours_cleared="true"
-                                fi
-                            done
-                            ;;
-                        # "ok" - proceed normally with saving (no overrides)
-                    esac
-                    
+                    # Phase 1.5: Re-check the configure-block lock immediately before writing.
+                    # The user may have started the wizard outside a lock window and spent
+                    # enough time that the clock has now crossed into a locked period.
+                    if ! check_config_lock_time; then
+                        show_config_locked_error "${use_gui}" "Configuration"
+                        continue  # Return to menu, do NOT write config
+                    fi
+
                     # Write configuration (with possibly modified values after safety overrides)
                     # Pass restriction config_lines, lock_hours_lines (Phase 2), and uninstall_lock_hours_lines (Enhancement #26 Phase 2),
                     # followed by optional safety override flags so write_config can add comments.

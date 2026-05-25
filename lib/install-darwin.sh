@@ -85,6 +85,61 @@ install_darwin_ensure_path() {
     print_success "Created ~/.zprofile with PATH entry"
 }
 
+# Phase 3.4: detect whether the LaunchAgent is currently unloaded ("disabled").
+# Returns 0 if disabled (plist exists but agent not loaded), 1 otherwise.
+install_darwin_is_launch_agent_disabled() {
+    local _plist="${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
+    [ ! -f "${_plist}" ] && return 1
+    if ! command -v launchctl >/dev/null 2>&1; then
+        return 1
+    fi
+    local _domain="gui/$(id -u)"
+    if launchctl print "${_domain}/com.sleep-warning" >/dev/null 2>&1; then
+        return 1   # loaded → not disabled
+    fi
+    return 0
+}
+
+# Phase 3.4: prompt user before re-loading a previously unloaded LaunchAgent
+# during --force reinstall. Honors --re-enable / --no-re-enable for scripting.
+install_darwin_prompt_reenable() {
+    [ "${FORCE_INSTALL}" = false ] && { RE_ENABLE_SCHEDULER="true"; return 0; }
+    if [ -n "${RE_ENABLE_SCHEDULER}" ]; then
+        return 0
+    fi
+    if [ ! -f "${HOME}/Library/LaunchAgents/com.sleep-warning.plist" ]; then
+        RE_ENABLE_SCHEDULER="true"
+        return 0
+    fi
+    if install_darwin_is_launch_agent_disabled; then
+        print_warning "LaunchAgent (com.sleep-warning) is currently unloaded (disabled)."
+        echo "  You previously stopped it via sleep-warning-manage or launchctl bootout."
+        echo "  Reinstalling with --force will overwrite the plist but will NOT"
+        echo "  re-load the agent unless you say so."
+        echo ""
+        if [ "${AUTO_YES}" = true ]; then
+            echo "  --yes was passed → leaving LaunchAgent unloaded."
+            echo "  (Pass --re-enable to override.)"
+            RE_ENABLE_SCHEDULER="false"
+            return 0
+        fi
+        local reply
+        read -r -p "  Re-load LaunchAgent on install? [y/N]: " reply
+        case "${reply}" in
+            y|Y|yes|YES)
+                RE_ENABLE_SCHEDULER="true"
+                ;;
+            *)
+                RE_ENABLE_SCHEDULER="false"
+                print_info "LaunchAgent will remain unloaded. Re-load later with:"
+                echo "  launchctl bootstrap gui/\$(id -u) ${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
+                ;;
+        esac
+    else
+        RE_ENABLE_SCHEDULER="true"
+    fi
+}
+
 install_darwin_install_files() {
     print_info "Installing files..."
     mkdir -p "${LIB_DIR}"
@@ -119,11 +174,41 @@ install_darwin_install_files() {
     interval=$(get_check_interval)
     # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/lib/service-config-darwin.sh"
-    install_launch_agent "${interval}" || {
-        print_error "Failed to install LaunchAgent"
-        exit 1
-    }
-    print_success "LaunchAgent installed (interval: ${interval} minutes)"
+
+    # Phase 3.4: prompt before re-loading a previously unloaded agent
+    install_darwin_prompt_reenable
+
+    if [ "${RE_ENABLE_SCHEDULER}" = "false" ]; then
+        # Just write the plist; do not bootstrap the agent.
+        print_warning "Writing LaunchAgent plist but NOT loading it (per user choice)."
+        # service-config-darwin's install_launch_agent both writes AND loads.
+        # Since we want write-only, fall back to write_launch_agent_plist if available;
+        # otherwise call install_launch_agent and immediately bootout.
+        if type write_launch_agent_plist >/dev/null 2>&1; then
+            write_launch_agent_plist "${interval}" || {
+                print_error "Failed to write LaunchAgent plist"
+                exit 1
+            }
+        else
+            install_launch_agent "${interval}" || {
+                print_error "Failed to install LaunchAgent"
+                exit 1
+            }
+            # Unload so the user-chosen disabled state is preserved
+            if type remove_launch_agent >/dev/null 2>&1; then
+                # remove_launch_agent also deletes the plist; we want it kept.
+                # Use launchctl bootout directly instead.
+                launchctl bootout "gui/$(id -u)/com.sleep-warning" 2>/dev/null || true
+            fi
+        fi
+        print_info "To load LaunchAgent later: launchctl bootstrap gui/\$(id -u) ${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
+    else
+        install_launch_agent "${interval}" || {
+            print_error "Failed to install LaunchAgent"
+            exit 1
+        }
+        print_success "LaunchAgent installed (interval: ${interval} minutes)"
+    fi
 }
 
 install_darwin_verify() {
