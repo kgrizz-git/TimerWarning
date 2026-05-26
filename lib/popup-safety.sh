@@ -12,9 +12,16 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
 
     # Hard ceiling per popup invocation (seconds)
     POPUP_ABSOLUTE_MAX_SECONDS="${POPUP_ABSOLUTE_MAX_SECONDS:-120}"
-    DARWIN_MAX_MIN_DISPLAY_TIME="${DARWIN_MAX_MIN_DISPLAY_TIME:-60}"
+    # configure-core.sh may already define this as readonly; do not reassign.
+    if [ -z "${DARWIN_MAX_MIN_DISPLAY_TIME+x}" ]; then
+        DARWIN_MAX_MIN_DISPLAY_TIME=60
+    fi
     DARWIN_FORCE_AUTO_CLOSE="${DARWIN_FORCE_AUTO_CLOSE:-true}"
     POPUP_AUTO_CLOSE_DELAY_SECONDS="${POPUP_AUTO_CLOSE_DELAY_SECONDS:-10}"
+
+    _popup_darwin_max_min_cap() {
+        echo "${DARWIN_MAX_MIN_DISPLAY_TIME:-60}"
+    }
 
     popup_is_darwin() {
         if type is_darwin >/dev/null 2>&1; then
@@ -30,8 +37,10 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
         local auto_close="$2"
 
         if popup_is_darwin; then
-            if [ "${min_display}" -gt "${DARWIN_MAX_MIN_DISPLAY_TIME}" ]; then
-                min_display="${DARWIN_MAX_MIN_DISPLAY_TIME}"
+            local _max_min
+            _max_min=$(_popup_darwin_max_min_cap)
+            if [ "${min_display}" -gt "${_max_min}" ]; then
+                min_display="${_max_min}"
             fi
             if [ "${DARWIN_FORCE_AUTO_CLOSE}" = "true" ]; then
                 auto_close="true"
@@ -106,8 +115,12 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
         else
             min_time=30
         fi
-        if popup_is_darwin && [ "${min_time}" -gt "${DARWIN_MAX_MIN_DISPLAY_TIME}" ]; then
-            min_time="${DARWIN_MAX_MIN_DISPLAY_TIME}"
+        if popup_is_darwin; then
+            local _max_min
+            _max_min=$(_popup_darwin_max_min_cap)
+            if [ "${min_time}" -gt "${_max_min}" ]; then
+                min_time="${_max_min}"
+            fi
         fi
         echo "${min_time}"
     }
