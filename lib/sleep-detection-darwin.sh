@@ -19,33 +19,61 @@ if [ -z "${SLEEP_DETECTION_DARWIN_LOADED:-}" ]; then
         echo ""
     }
 
-    # Phase 3.5: parse pmset log for the most recent "Wake" event timestamp (epoch).
+    # True when a pmset log line is a user-visible sleep/wake resume (not MaintenanceWake,
+    # Wake Requests, "Delays to Wake notifications", etc.).
+    _darwin_pmset_line_is_user_sleep_wake() {
+        local line="$1"
+        # Event type is field 4 after "YYYY-MM-DD HH:MM:SS TZ".
+        # Real resume: "2026-05-26 13:03:49 -0400 Wake  Wake from Deep Idle ..."
+        # False positive: "... Assertions  ... MaintenanceWake ..."
+        # False positive: "... Wake Requests  ..."
+        echo "${line}" | awk '
+            /^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/ {
+                if ($4 == "Wake" && $5 != "Requests") {
+                    exit 0
+                }
+                exit 1
+            }
+            { exit 1 }
+        '
+    }
+
+    _darwin_epoch_from_pmset_line() {
+        local line="$1"
+        local wake_dt
+        wake_dt=$(echo "${line}" | awk '{print $1, $2}')
+        date -j -f "%Y-%m-%d %H:%M:%S" "${wake_dt}" +%s 2>/dev/null
+    }
+
+    # Phase 3.5: parse pmset log for the most recent user sleep/wake timestamp (epoch).
     # Returns epoch seconds or empty string if not found / pmset unavailable.
     _darwin_get_last_wake_timestamp() {
         if ! command -v pmset >/dev/null 2>&1; then
             echo ""
             return 1
         fi
-        # "pmset -g log" can be verbose; limit scan to the last 200 lines for speed.
-        # Typical wake line: "2026-05-24 09:00:00 +0000 Wake  [...]"
-        local wake_line
-        wake_line=$(pmset -g log 2>/dev/null | tail -200 \
-            | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} .*Wake' \
-            | tail -1)
-        if [ -z "${wake_line}" ]; then
+        # "pmset -g log" can be verbose; limit scan to the last 500 lines for speed.
+        local wake_line line
+        while IFS= read -r line; do
+            if _darwin_pmset_line_is_user_sleep_wake "${line}"; then
+                wake_line="${line}"
+            fi
+        done < <(pmset -g log 2>/dev/null | tail -500)
+
+        if [ -z "${wake_line:-}" ]; then
             echo ""
             return 1
         fi
-        # Extract date/time portion (first two fields) and convert to epoch
-        local wake_dt wake_tz
-        wake_dt=$(echo "${wake_line}" | awk '{print $1, $2}')
-        wake_tz=$(echo "${wake_line}" | awk '{print $3}')
-        # date -j -f on macOS; use UTC offset from log if present
+
         local wake_epoch
-        wake_epoch=$(date -j -f "%Y-%m-%d %H:%M:%S" "${wake_dt}" +%s 2>/dev/null) || {
+        wake_epoch=$(_darwin_epoch_from_pmset_line "${wake_line}") || {
             echo ""
             return 1
         }
+        if [ -z "${wake_epoch}" ] || ! [[ "${wake_epoch}" =~ ^[0-9]+$ ]]; then
+            echo ""
+            return 1
+        fi
         echo "${wake_epoch}"
         return 0
     }
