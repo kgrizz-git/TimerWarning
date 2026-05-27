@@ -89,7 +89,8 @@ show_warning_darwin() {
     fi
 
     save_popup_pid "${popup_pid}"
-    log_to_file "INFO" "macOS popup displayed (PID ${popup_pid}), watchdog=${watchdog_seconds}s, min_display=${min_display_time}s"
+    log_to_file "INFO" \
+        "macOS popup session ended: ui=${POPUP_DARWIN_UI_PATH:-unknown}, reason=${POPUP_DARWIN_UI_REASON:-unknown}, PID=${popup_pid}, watchdog=${watchdog_seconds}s, min_display=${min_display_time}s, rc=${watchdog_rc}"
 
     # Wait for dialog process (bounded by watchdog in popup_run_with_watchdog)
     if kill -0 "${popup_pid}" 2>/dev/null; then

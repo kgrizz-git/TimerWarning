@@ -22,8 +22,13 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
+
 import tkinter as tk
 from tkinter import ttk
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import configure_dialogs_darwin_window as _cd_window  # noqa: E402
 
 
 def _fail(message: str, code: int = 1) -> None:
@@ -56,9 +61,7 @@ def main() -> None:
     root.title(title)
     root.geometry(f"{width}x{height}")
     root.minsize(min(width, 640), min(height, 320))
-
-    # Briefly stay on top so the dialog is noticed, then allow normal stacking.
-    root.attributes("-topmost", True)
+    _cd_window.apply_initial_frontmost(root)
 
     main_frame = ttk.Frame(root, padding=12)
     main_frame.pack(fill=tk.BOTH, expand=True)
@@ -123,7 +126,6 @@ def main() -> None:
         tree.selection_set("0")
         tree.focus("0")
 
-    root.after(150, lambda: root.attributes("-topmost", False))
     root.protocol("WM_DELETE_WINDOW", cancel)
     root.mainloop()
 

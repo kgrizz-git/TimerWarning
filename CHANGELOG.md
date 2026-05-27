@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **macOS configure wizard: dialogs open in front:** Tk windows use shared `configure_dialogs_darwin_window.apply_initial_frontmost()` (topmost + focus on open, drop topmost when focus leaves). AppleScript dialogs call `tell current application to activate` before `display alert`, `display dialog`, and `choose from list`.
+
+- **macOS LaunchAgent fullscreen popup:** LaunchAgent plist now sets `LimitLoadToSessionType=Aqua` and a usable `PATH` so Tk can attach to the GUI session. `popup-blocker-darwin.py` falls back to borderless full-screen geometry (and Cocoa frame resize when pyobjc is available) when `-fullscreen` is ignored under launchd. Blocker uses `~/.config/sleep-warning/blocker-python.path` from install/configure.
+
+- **macOS popup UI path logging:** Each popup now logs `macOS popup UI: fullscreen-blocker` or `osascript-alert` at open time (with `reason=` and PID verification). Session end logs include `ui=` and `reason=`. Python blocker stderr is appended to `~/.config/sleep-warning/logs/popup-blocker-stderr.log` for LaunchAgent diagnosis when logs showed success but the movable alert appeared.
+
 ### Fixed
 
 - **Popup "next unrestricted time: now (no restrictions configured)" with HH:MM config:** `build_weekly_restricted_intervals()` only accepted integer-hour ranges (`7-23`), so configure-wizard `HH:MM` values (e.g. `17:00-17:30`) were skipped and `get_next_unrestricted_time()` thought no restrictions existed. Endpoints now parse `HH:MM` as well as `HH`. Shared helpers `range_endpoint_to_day_minutes()`, `range_is_overnight()`, and `range_overnight_tail_active_for_hour()` live in `lib/time-parsing.sh`; `lib/configure-ui.sh` overnight/carry checks use them instead of raw `cut -d'-'` integer comparisons.

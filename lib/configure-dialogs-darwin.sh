@@ -3,9 +3,9 @@
 ###############################################################################
 # Sleep Warning System - macOS Configuration Dialogs (osascript + tkinter)
 #
-# Simple prompts use AppleScript. Multi-column lists use a tkinter table when
-# three or more columns are requested (weekly hours grid); two-column menus use
-# choose from list with "Option — Description" formatting.
+# Simple prompts use AppleScript (activate before each dialog so it opens in
+# front). Multi-column lists use tkinter when available; all tkinter windows use
+# configure_dialogs_darwin_window.apply_initial_frontmost() on open.
 ###############################################################################
 
 if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
@@ -312,6 +312,7 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         message=$(_cd_darwin_preprocess_message "${message}")
         _cd_darwin_run_applescript "${title}" "${message}" <<'APPLESCRIPT'
 on run argv
+    tell current application to activate
     set theTitle to item 1 of argv
     set theMessage to item 2 of argv
     display alert theMessage with title theTitle buttons {"OK"} default button "OK"
@@ -337,6 +338,7 @@ APPLESCRIPT
         # renders the custom button text instead of hardcoded "Yes"/"No".
         result=$(_cd_darwin_run_applescript "${title}" "${message}" "${yes_label}" "${no_label}" <<'APPLESCRIPT'
 on run argv
+    tell current application to activate
     set theTitle to item 1 of argv
     set theMessage to item 2 of argv
     set yesBtn to item 3 of argv
@@ -380,6 +382,7 @@ APPLESCRIPT
         message=$(_cd_darwin_preprocess_message "${message}")
         result=$(_cd_darwin_run_applescript "${title}" "${message}" "${default_value}" <<'APPLESCRIPT'
 on run argv
+    tell current application to activate
     set theTitle to item 1 of argv
     set theMessage to item 2 of argv
     set defaultVal to item 3 of argv
@@ -411,6 +414,7 @@ APPLESCRIPT
         local result
         result=$(_cd_darwin_run_applescript "${title}" "${message}" "${items[@]}" <<'APPLESCRIPT'
 on run argv
+    tell current application to activate
     set theTitle to item 1 of argv
     set thePrompt to item 2 of argv
     set theItems to {}

@@ -23,8 +23,14 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
+
 import tkinter as tk
 from tkinter import ttk
+
+# Shared initial topmost/focus helper (same directory as this script).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import configure_dialogs_darwin_window as _cd_window  # noqa: E402
 
 
 def _fail(message: str, code: int = 1) -> None:
@@ -57,7 +63,7 @@ def main() -> None:
     root.title(title)
     root.geometry(f"{width}x{height}")
     root.minsize(min(width, 480), min(height, 320))
-    root.attributes("-topmost", True)
+    _cd_window.apply_initial_frontmost(root)
 
     main_frame = ttk.Frame(root, padding=12)
     main_frame.pack(fill=tk.BOTH, expand=True)
@@ -128,7 +134,6 @@ def main() -> None:
         root.protocol("WM_DELETE_WINDOW", on_close)
         root.bind("<Escape>", lambda _e: on_close())
 
-    root.after(150, lambda: root.attributes("-topmost", False))
     root.mainloop()
     raise SystemExit(0)
 

@@ -52,13 +52,85 @@ if [ -z "${POPUP_DIALOG_DARWIN_LOADED:-}" ]; then
         printf '%s' "${s}"
     }
 
+    # ── Popup UI path logging (fullscreen blocker vs osascript fallback) ─────
+    # POPUP_DARWIN_UI_PATH / POPUP_DARWIN_UI_REASON are set when a popup opens.
+    _popup_darwin_stderr_log_path() {
+        if type sleep_warning_log_dir >/dev/null 2>&1; then
+            echo "$(sleep_warning_log_dir)/popup-blocker-stderr.log"
+        else
+            echo "${HOME}/.config/sleep-warning/logs/popup-blocker-stderr.log"
+        fi
+    }
+
+    # Classify a popup PID (or its child) as fullscreen-blocker or osascript-alert.
+    _popup_darwin_classify_pid() {
+        local pid="$1"
+        local cmd child child_cmd
+        cmd=$(ps -p "${pid}" -o command= 2>/dev/null | head -1 || true)
+        if [[ "${cmd}" == *popup-blocker-darwin.py* ]]; then
+            printf '%s' "fullscreen-blocker"
+            return 0
+        fi
+        child=$(pgrep -P "${pid}" 2>/dev/null | head -1 || true)
+        if [ -n "${child}" ]; then
+            child_cmd=$(ps -p "${child}" -o command= 2>/dev/null | head -1 || true)
+            if [[ "${child_cmd}" == *popup-blocker-darwin.py* ]]; then
+                printf '%s' "fullscreen-blocker"
+                return 0
+            fi
+            if [[ "${child_cmd}" == *osascript* ]]; then
+                printf '%s' "osascript-alert"
+                return 0
+            fi
+        fi
+        if [[ "${cmd}" == *osascript* ]]; then
+            printf '%s' "osascript-alert"
+            return 0
+        fi
+        printf '%s' "unknown"
+    }
+
+    # Log which UI opened; verify PID matches expected path (catches silent fallbacks).
+    _popup_darwin_log_ui_opened() {
+        local path="$1" reason="$2" pid="$3"
+        POPUP_DARWIN_UI_PATH="${path}"
+        POPUP_DARWIN_UI_REASON="${reason}"
+        local verified extra=""
+        verified="$(_popup_darwin_classify_pid "${pid}")"
+        if [ "${verified}" != "${path}" ] && [ "${verified}" != "unknown" ]; then
+            extra=", VERIFY_MISMATCH(expected=${path},actual=${verified})"
+        elif [ "${verified}" = "unknown" ]; then
+            extra=", verify=unknown"
+        else
+            extra=", verify=${verified}"
+        fi
+        if type log_to_file >/dev/null 2>&1; then
+            log_to_file "INFO" \
+                "macOS popup UI: ${path} (PID ${pid}, reason=${reason}${extra})"
+        fi
+    }
+
     # ── Blocker availability check ───────────────────────────────────────────
     # Returns 0 (true) when popup-blocker-darwin.py and python3 are available.
+    # Prefer python3 path recorded at install/configure (same as interactive shell).
+    _popup_darwin_blocker_python() {
+        local path_file="${HOME}/.config/sleep-warning/blocker-python.path"
+        local py=""
+        if [ -f "${path_file}" ]; then
+            py="$(head -n1 "${path_file}" 2>/dev/null | tr -d '\n')"
+            if [ -n "${py}" ] && [ -x "${py}" ]; then
+                printf '%s' "${py}"
+                return 0
+            fi
+        fi
+        command -v python3 2>/dev/null
+    }
+
     _popup_darwin_has_blocker() {
         local script_dir
         script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
         [ -f "${script_dir}/popup-blocker-darwin.py" ] \
-            && command -v python3 >/dev/null 2>&1
+            && [ -n "$(_popup_darwin_blocker_python)" ]
     }
 
     # ── Fullscreen blocker spawn ─────────────────────────────────────────────
@@ -120,7 +192,15 @@ if [ -z "${POPUP_DIALOG_DARWIN_LOADED:-}" ]; then
 JSON
 )
 
-        echo "${json_payload}" | python3 "${blocker}" >/dev/null 2>&1 &
+        local _stderr_log
+        _stderr_log="$(_popup_darwin_stderr_log_path)"
+        mkdir -p "$(dirname "${_stderr_log}")" 2>/dev/null || true
+        {
+            echo "=== $(date '+%Y-%m-%d %H:%M:%S') popup-blocker spawn ==="
+        } >>"${_stderr_log}" 2>/dev/null || true
+        local _python
+        _python="$(_popup_darwin_blocker_python)"
+        echo "${json_payload}" | "${_python}" "${blocker}" >>"${_stderr_log}" 2>&1 &
         popup_pid=$!
         return 0
     }
@@ -227,6 +307,9 @@ do shell script \"echo \" & quoted form of dialogResult & \" > \" & quoted form 
         local full_msg="$1"
         local base_msg="${2:-${full_msg}}"
         popup_pid=""
+        POPUP_DARWIN_UI_PATH=""
+        POPUP_DARWIN_UI_REASON=""
+        local _ui_reason="primary"
 
         if _popup_darwin_has_blocker; then
             _popup_spawn_blocker_darwin "${base_msg}"
@@ -235,24 +318,39 @@ do shell script \"echo \" & quoted form of dialogResult & \" > \" & quoted form 
                 # python3 exits immediately if tkinter/pyobjc is missing or JSON is bad.
                 sleep 0.3
                 if kill -0 "${popup_pid}" 2>/dev/null; then
+                    _popup_darwin_log_ui_opened "fullscreen-blocker" "primary" "${popup_pid}"
                     return 0
                 fi
                 # Process died — capture exit code and log for diagnosis
                 local _blocker_exit=0
                 wait "${popup_pid}" 2>/dev/null
                 _blocker_exit=$?
+                _ui_reason="blocker-exit-${_blocker_exit}"
                 if type log_to_file >/dev/null 2>&1; then
                     log_to_file "WARNING" \
                         "macOS: Python blocker (PID ${popup_pid}) exited immediately (code ${_blocker_exit}); falling back to osascript"
                 fi
                 popup_pid=""
+            else
+                _ui_reason="blocker-spawn-failed"
+                if type log_to_file >/dev/null 2>&1; then
+                    log_to_file "WARNING" \
+                        "macOS: blocker failed to spawn, falling back to osascript"
+                fi
             fi
+        else
+            _ui_reason="blocker-unavailable"
             if type log_to_file >/dev/null 2>&1; then
-                log_to_file "WARNING" "macOS: blocker failed to spawn, falling back to osascript"
+                log_to_file "INFO" \
+                    "macOS: Python fullscreen blocker unavailable; using osascript alert"
             fi
         fi
 
         _popup_spawn_osascript_darwin "${full_msg}"
+        if [ -n "${popup_pid}" ] && [[ "${popup_pid}" =~ ^[0-9]+$ ]]; then
+            sleep 0.3
+            _popup_darwin_log_ui_opened "osascript-alert" "${_ui_reason}" "${popup_pid}"
+        fi
     }
 
     # ── Pause result handler ─────────────────────────────────────────────────

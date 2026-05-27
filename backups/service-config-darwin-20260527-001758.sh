@@ -106,9 +106,11 @@ EOF
         if ! command -v launchctl >/dev/null 2>&1; then
             return 0
         fi
+        # Try domain/label form first (preferred on macOS 10.13+), fall back to plist path.
+        # Ignore errors when the agent is simply not loaded (that is a normal state).
         launchctl bootout "$(_launchd_domain)/${LAUNCH_AGENT_LABEL}" 2>/dev/null \
             || launchctl bootout "$(_launchd_domain)" "$(launch_agent_plist_path)" 2>/dev/null \
-            || true
+            || true   # "not found" is OK here; remove_launch_agent() checks more strictly
     }
 
     launch_agent_bootstrap() {
@@ -141,9 +143,33 @@ EOF
         return 0
     }
 
+    # Phase 3.1: surface bootout failures instead of masking them with || true
     remove_launch_agent() {
-        launch_agent_bootout
-        rm -f "$(launch_agent_plist_path)" 2>/dev/null
+        local _plist_path
+        _plist_path="$(launch_agent_plist_path)"
+        local _bootout_ok=true
+
+        if command -v launchctl >/dev/null 2>&1; then
+            local _domain
+            _domain="$(_launchd_domain)"
+            # Try domain/label form first (macOS 10.13+), then plist form
+            if ! launchctl bootout "${_domain}/${LAUNCH_AGENT_LABEL}" 2>/dev/null; then
+                if ! launchctl bootout "${_domain}" "${_plist_path}" 2>/dev/null; then
+                    # Agent may simply not be loaded — that is acceptable
+                    if launchctl print "${_domain}/${LAUNCH_AGENT_LABEL}" >/dev/null 2>&1; then
+                        # It IS loaded but we couldn't bootout — this is an error
+                        echo "ERROR: launchctl bootout failed for ${LAUNCH_AGENT_LABEL}" >&2
+                        _bootout_ok=false
+                    fi
+                fi
+            fi
+        fi
+
+        rm -f "${_plist_path}" 2>/dev/null
+
+        if [ "${_bootout_ok}" = "false" ]; then
+            return 1
+        fi
         return 0
     }
 

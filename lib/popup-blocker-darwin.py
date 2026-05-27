@@ -79,6 +79,86 @@ def _write_result(path: str, label: str) -> None:
         pass
 
 
+def _screen_pixels(root: "Any") -> tuple[int, int]:
+    """
+    Return main display size in points. Prefer NSScreen (reliable under launchd);
+    fall back to tk screen metrics, then a safe default if GUI session is broken.
+    """
+    if _HAS_PYOBJC:
+        try:
+            screen = AppKit.NSScreen.mainScreen()
+            if screen is not None:
+                frame = screen.frame()
+                w, h = int(frame.size.width), int(frame.size.height)
+                if w >= 200 and h >= 200:
+                    return w, h
+        except Exception:
+            pass
+    import tkinter as tk
+
+    w = int(root.winfo_screenwidth())
+    h = int(root.winfo_screenheight())
+    if w >= 200 and h >= 200:
+        return w, h
+    print(
+        f"popup-blocker: tk screen size unusable ({w}x{h}); using 1728x1117 fallback",
+        file=sys.stderr,
+    )
+    return 1728, 1117
+
+
+def _nswindow_fill_screen(title: str, width: int, height: int) -> None:
+    """Resize the Cocoa window backing this tk root to cover the main display."""
+    if not _HAS_PYOBJC:
+        return
+    try:
+        for win in AppKit.NSApplication.sharedApplication().windows():
+            if win.title() == title:
+                # NSScreen frame origin is bottom-left; y=0 base fills primary display.
+                win.setFrame_display_(
+                    AppKit.NSMakeRect(0, 0, width, height),
+                    True,
+                )
+                win.setLevel_(AppKit.NSScreenSaverWindowLevel)
+                win.makeKeyAndOrderFront_(None)
+                return
+    except Exception:
+        pass
+
+
+def _apply_fullscreen(root: "Any", title: str, screen_w: int, screen_h: int) -> str:
+    """
+    Force a true full-screen overlay. Tk -fullscreen is ignored in some LaunchAgent
+    contexts; fall back to borderless geometry + Cocoa frame when needed.
+    Returns a short mode tag for stderr diagnostics.
+    """
+    import tkinter as tk
+
+    root.geometry(f"{screen_w}x{screen_h}+0+0")
+    try:
+        root.attributes("-fullscreen", True)
+        root.attributes("-topmost", True)
+    except tk.TclError:
+        pass
+    root.update_idletasks()
+    rw, rh = root.winfo_width(), root.winfo_height()
+    if rw >= int(screen_w * 0.85) and rh >= int(screen_h * 0.85):
+        return "native-fullscreen"
+
+    try:
+        root.attributes("-fullscreen", False)
+    except tk.TclError:
+        pass
+    try:
+        root.overrideredirect(True)
+    except tk.TclError:
+        pass
+    root.geometry(f"{screen_w}x{screen_h}+0+0")
+    root.update_idletasks()
+    _nswindow_fill_screen(title, screen_w, screen_h)
+    return "geometry-fullscreen"
+
+
 def _boost_window_level(title: str) -> None:
     """
     Find the tkinter NSWindow by title and raise it to NSScreenSaverWindowLevel
@@ -129,8 +209,15 @@ def run_blocker(payload: dict[str, Any]) -> int:
     root = tk.Tk()
     root.title(title)
     root.configure(bg=_BG_OVERLAY)
-    root.attributes("-fullscreen", True)
-    root.attributes("-topmost", True)
+
+    screen_w, screen_h = _screen_pixels(root)
+    fs_mode = _apply_fullscreen(root, title, screen_w, screen_h)
+    print(
+        f"popup-blocker: display={screen_w}x{screen_h} fullscreen_mode={fs_mode} "
+        f"pyobjc={_HAS_PYOBJC}",
+        file=sys.stderr,
+    )
+
     root.focus_force()
     try:
         root.grab_set()
@@ -140,9 +227,7 @@ def run_blocker(payload: dict[str, Any]) -> int:
     # Prevent the OS close button from bypassing the min-display lock
     root.protocol("WM_DELETE_WINDOW", lambda: None)
 
-    screen_w = root.winfo_screenwidth()
-    screen_h = root.winfo_screenheight()
-    panel_w  = min(720, screen_w - 80)
+    panel_w = max(400, min(720, screen_w - 80))
 
     # ── finish helper ─────────────────────────────────────────────────────────
     def _finish(label: str, code: int = 0) -> None:
@@ -316,9 +401,13 @@ def run_blocker(payload: dict[str, Any]) -> int:
 
     root.after(300, _tick)
 
-    # ── pyobjc boost after initial render ─────────────────────────────────────
+    # ── pyobjc boost after initial render (level + frame again post-layout) ───
     if _HAS_PYOBJC:
-        root.after(250, lambda: _boost_window_level(title))
+        def _post_render_boost() -> None:
+            _nswindow_fill_screen(title, screen_w, screen_h)
+            _boost_window_level(title)
+
+        root.after(250, _post_render_boost)
 
     root.mainloop()
     return exit_code[0]

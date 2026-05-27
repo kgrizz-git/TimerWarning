@@ -52,6 +52,17 @@ if [ -z "${SERVICE_CONFIG_DARWIN_LOADED:-}" ]; then
         mkdir -p "$(sleep_warning_log_dir)" 2>/dev/null || return 1
     }
 
+    # Record the python3 used for fullscreen popups (install/configure time).
+    write_blocker_python_path() {
+        local path_file="${HOME}/.config/sleep-warning/blocker-python.path"
+        local py=""
+        mkdir -p "${HOME}/.config/sleep-warning" 2>/dev/null || return 0
+        py="$(command -v python3 2>/dev/null || true)"
+        if [ -n "${py}" ]; then
+            printf '%s\n' "${py}" >"${path_file}"
+        fi
+    }
+
     # Write LaunchAgent plist with StartInterval in seconds
     write_launch_agent_plist() {
         local interval_minutes="$1"
@@ -76,6 +87,11 @@ if [ -z "${SERVICE_CONFIG_DARWIN_LOADED:-}" ]; then
             bash_path="$(resolve_bash4_path 2>/dev/null || echo "${bash_path}")"
         fi
         mkdir -p "$(dirname "${plist_path}")" 2>/dev/null || return 1
+        write_blocker_python_path || true
+
+        local path_env="/usr/bin:/bin"
+        [ -d "/usr/local/bin" ] && path_env="/usr/local/bin:${path_env}"
+        [ -d "/opt/homebrew/bin" ] && path_env="/opt/homebrew/bin:${path_env}"
 
         cat > "${plist_path}" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -93,6 +109,17 @@ if [ -z "${SERVICE_CONFIG_DARWIN_LOADED:-}" ]; then
     <integer>${interval_seconds}</integer>
     <key>RunAtLoad</key>
     <false/>
+    <key>LimitLoadToSessionType</key>
+    <array>
+        <string>Aqua</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>${path_env}</string>
+        <key>HOME</key>
+        <string>${HOME}</string>
+    </dict>
     <key>StandardOutPath</key>
     <string>${log_dir}/launchd-stdout.log</string>
     <key>StandardErrorPath</key>
