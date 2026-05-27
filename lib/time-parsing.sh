@@ -16,6 +16,9 @@
 # - parse_time_token_to_24h_hm()   - Parse one time token to 24h hour + minute
 # - convert_time_range_to_24hour() - Convert any range to 24h format
 # - normalize_time_range()         - Normalize range to HH:MM-HH:MM
+# - range_endpoint_to_day_minutes()- Parse HH or HH:MM endpoint to minutes (0-1439)
+# - range_is_overnight()           - True when start > end (minute precision)
+# - range_overnight_tail_active_for_hour() - Prev-day overnight carry (hour API)
 ###############################################################################
 
 # Normalize time input string (remove extra spaces, handle case-insensitive AM/PM)
@@ -364,4 +367,65 @@ normalize_time_range() {
         fi
     done
     echo "${result}"
+}
+
+# Convert one range endpoint (HH or HH:MM) to minutes from midnight (0-1439).
+# Prints minutes on stdout; returns 1 if invalid.
+range_endpoint_to_day_minutes() {
+    local part="$1"
+    local minutes_per_hour="${MINUTES_PER_HOUR:-60}"
+
+    part=$(echo "${part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    [ -z "${part}" ] && return 1
+
+    if [[ "${part}" =~ : ]]; then
+        local h m
+        h=$(echo "${part}" | cut -d: -f1)
+        m=$(echo "${part}" | cut -d: -f2)
+        if ! [[ "${h}" =~ ^[0-9]+$ ]] || ! [[ "${m}" =~ ^[0-9]+$ ]]; then
+            return 1
+        fi
+        h=$((10#${h}))
+        m=$((10#${m}))
+        if [ "${h}" -lt 0 ] || [ "${h}" -gt 23 ] || [ "${m}" -lt 0 ] || [ "${m}" -gt 59 ]; then
+            return 1
+        fi
+        echo $((h * minutes_per_hour + m))
+        return 0
+    fi
+
+    if ! [[ "${part}" =~ ^[0-9]+$ ]]; then
+        return 1
+    fi
+    local h=$((10#${part}))
+    if [ "${h}" -lt 0 ] || [ "${h}" -gt 23 ]; then
+        return 1
+    fi
+    echo $((h * minutes_per_hour))
+    return 0
+}
+
+# True when range crosses midnight (start minute > end minute).
+range_is_overnight() {
+    local start_part="$1"
+    local end_part="$2"
+    local start_m end_m
+
+    start_m=$(range_endpoint_to_day_minutes "${start_part}") || return 1
+    end_m=$(range_endpoint_to_day_minutes "${end_part}") || return 1
+    [ "${start_m}" -gt "${end_m}" ]
+}
+
+# For hour-granular callers: true if current hour overlaps the morning tail of an
+# overnight range from the previous day (e.g. Monday 23:00-05:30, now Tuesday 03:xx).
+range_overnight_tail_active_for_hour() {
+    local current_hour="$1"
+    local start_part="$2"
+    local end_part="$3"
+    local start_m end_m hour_start
+
+    range_is_overnight "${start_part}" "${end_part}" || return 1
+    end_m=$(range_endpoint_to_day_minutes "${end_part}") || return 1
+    hour_start=$((10#${current_hour} * 60))
+    [ "${hour_start}" -lt "${end_m}" ]
 }

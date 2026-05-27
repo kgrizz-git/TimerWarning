@@ -270,6 +270,19 @@ calculate_total_day_duration() {
 #
 # Note: This function does NOT merge intervals - that's done separately
 ###############################################################################
+
+# Convert one range endpoint (HH or HH:MM) to minutes from midnight (0-1439).
+# Prints minutes on stdout; returns 1 if invalid.
+_range_part_to_day_minutes() {
+    if ! type range_endpoint_to_day_minutes >/dev/null 2>&1; then
+        local _tc_dir
+        _tc_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        # shellcheck disable=SC1091
+        [ -f "${_tc_dir}/time-parsing.sh" ] && source "${_tc_dir}/time-parsing.sh"
+    fi
+    range_endpoint_to_day_minutes "$1"
+}
+
 build_weekly_restricted_intervals() {
     local all_intervals=()
     
@@ -309,26 +322,16 @@ build_weekly_restricted_intervals() {
             # Skip empty ranges
             [ -z "${r}" ] && continue
             
-            # Parse range: "START-END"
-            local start_hour="${r%%-*}"
-            local end_hour="${r##*-}"
-            
-            # Validate hour values
-            if ! [[ "${start_hour}" =~ ^[0-9]+$ ]] || ! [[ "${end_hour}" =~ ^[0-9]+$ ]]; then
-                continue  # Skip invalid range
-            fi
-            
-            if [ "${start_hour}" -lt 0 ] || [ "${start_hour}" -gt 23 ] || \
-               [ "${end_hour}" -lt 0 ] || [ "${end_hour}" -gt 23 ]; then
-                continue  # Skip invalid hour values
-            fi
-            
-            # Convert hours to minutes
-            local start_minute=$((start_hour * minutes_per_hour))
-            local end_minute=$((end_hour * minutes_per_hour))
-            
-            if [ "${start_hour}" -gt "${end_hour}" ]; then
-                # Overnight range detected: start hour > end hour (e.g., "23-6")
+            # Parse range: "START-END" (HH-HH or HH:MM-HH:MM)
+            local start_part="${r%%-*}"
+            local end_part="${r##*-}"
+            local start_minute end_minute
+
+            start_minute=$(_range_part_to_day_minutes "${start_part}") || continue
+            end_minute=$(_range_part_to_day_minutes "${end_part}") || continue
+
+            if [ "${start_minute}" -gt "${end_minute}" ]; then
+                # Overnight range detected (e.g., "23-6" or "23:30-06:00")
                 # Split into two segments that span midnight
                 
                 # Segment 1: From start hour to end of current day

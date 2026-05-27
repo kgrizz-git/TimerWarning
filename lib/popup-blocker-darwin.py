@@ -61,7 +61,10 @@ _CLR_WARN    = "#FF453A"   # countdown / alert text (red)
 _CLR_OK_OFF  = "#3A3A3C"   # OK button while locked
 _CLR_OK_ON   = "#34C759"   # OK button when enabled (green)
 _CLR_PAUSE   = "#FF9500"   # pause button (orange)
-_CLR_BTN_TXT = "#FFFFFF"
+# Use dark text for both enabled and disabled button labels so they remain
+# readable against the light native button chrome on macOS (including dark mode).
+_CLR_BTN_TXT = "#111111"
+_CLR_BTN_TXT_DISABLED = "#555555"
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -219,11 +222,13 @@ def run_blocker(payload: dict[str, Any]) -> int:
         font=("Helvetica Neue", 15, "bold"),
         fg=_CLR_BTN_TXT,
         activeforeground=_CLR_BTN_TXT,
+        disabledforeground=_CLR_BTN_TXT_DISABLED,
         bd=0,
         padx=26,
         pady=12,
         cursor="arrow",
         relief=tk.FLAT,
+        highlightthickness=0,
     )
 
     if pause_available and pause_duration > 0:

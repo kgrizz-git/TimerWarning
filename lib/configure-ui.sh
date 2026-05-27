@@ -26,7 +26,18 @@
 # Dependencies:
 # - configure-core.sh (for has_dialog_tool, CONFIG_FILE)
 # - configure-dialogs.sh (for dialog abstraction functions)
+# - time-parsing.sh (range_endpoint_to_day_minutes, range_is_overnight, range_overnight_tail_active_for_hour)
 ###############################################################################
+
+_configure_ui_ensure_time_parsing() {
+    if type range_endpoint_to_day_minutes >/dev/null 2>&1; then
+        return 0
+    fi
+    local _tp_dir
+    _tp_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # shellcheck disable=SC1091
+    [ -f "${_tp_dir}/time-parsing.sh" ] && source "${_tp_dir}/time-parsing.sh"
+}
 
 # Menu after user cancels the main configuration list (GUI).
 # stdout: CANCELLED when exiting the wizard
@@ -579,6 +590,8 @@ calculate_restriction_end_time() {
     local current_day="$2"
     local restricted_range="$3"
     
+    _configure_ui_ensure_time_parsing
+    
     # Source required modules if not already sourced
     if ! type format_hour_12h >/dev/null 2>&1 || [ -z "${DAY_NAMES}" ]; then
         local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -606,21 +619,18 @@ calculate_restriction_end_time() {
         local IFS=','
         for range in ${prev_day_range}; do
             range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            local start_hour end_hour
-            start_hour=$(echo "${range}" | cut -d'-' -f1)
-            end_hour=$(echo "${range}" | cut -d'-' -f2)
-            
-            # Check if this is an overnight range that extends to current day
-            if [ "${start_hour}" -gt "${end_hour}" ]; then
-                # Overnight range: check if current hour falls within the end portion (before end_hour)
-                if [ "${current_hour}" -lt "${end_hour}" ]; then
-                    # We're in the overnight range from previous day
-                    local end_12h
-                    end_12h=$(format_hour_12h "${end_hour}")
-                    local current_day_name="${DAY_NAMES[${current_day}]}"
-                    echo "${end_12h}|${current_day_name}|true"
-                    return 0
-                fi
+            local start_part end_part
+            start_part="${range%%-*}"
+            end_part="${range##*-}"
+            start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+            if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
+                local end_12h
+                end_12h=$(format_hour_12h "${end_part}")
+                local current_day_name="${DAY_NAMES[${current_day}]}"
+                echo "${end_12h}|${current_day_name}|true"
+                return 0
             fi
         done
     fi
@@ -637,17 +647,16 @@ calculate_restriction_end_time() {
         # Check if current hour is in this range
         if type is_hour_in_single_range >/dev/null 2>&1; then
             if is_hour_in_single_range "${current_hour}" "${range}"; then
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                
-                local end_12h
-                end_12h=$(format_hour_12h "${end_hour}")
+                local start_part end_part end_12h
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+                end_12h=$(format_hour_12h "${end_part}")
                 local current_day_name="${DAY_NAMES[${current_day}]}"
-                
-                # Check if overnight range
-                if [ "${start_hour}" -gt "${end_hour}" ]; then
-                    # Get next day name
+
+                if range_is_overnight "${start_part}" "${end_part}"; then
                     local next_day_index=$(( (current_day + 1) % 7 ))
                     local next_day_name="${DAY_NAMES[${next_day_index}]}"
                     echo "${end_12h}|${next_day_name}|true"
@@ -657,7 +666,29 @@ calculate_restriction_end_time() {
                 return 0
             fi
         else
-            # Fallback: simple check
+            # Fallback: use minute-aware restricted check when available
+            if type is_restricted_time >/dev/null 2>&1; then
+                local current_time_hhmm
+                current_time_hhmm=$(printf "%02d00" "${current_hour}")
+                if is_restricted_time "${current_time_hhmm}" "${range}"; then
+                    local start_part end_part end_12h
+                    start_part="${range%%-*}"
+                    end_part="${range##*-}"
+                    start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    end_12h=$(format_hour_12h "${end_part}")
+                    local current_day_name="${DAY_NAMES[${current_day}]}"
+                    if range_is_overnight "${start_part}" "${end_part}"; then
+                        local next_day_index=$(( (current_day + 1) % 7 ))
+                        local next_day_name="${DAY_NAMES[${next_day_index}]}"
+                        echo "${end_12h}|${next_day_name}|true"
+                    else
+                        echo "${end_12h}|${current_day_name}|false"
+                    fi
+                    return 0
+                fi
+            else
+            # Legacy integer-hour fallback
             local start_hour end_hour
             start_hour=$(echo "${range}" | cut -d'-' -f1)
             end_hour=$(echo "${range}" | cut -d'-' -f2)
@@ -688,6 +719,7 @@ calculate_restriction_end_time() {
                     echo "${end_12h}|${current_day_name}|false"
                 fi
                 return 0
+            fi
             fi
         fi
     done
@@ -762,6 +794,8 @@ Please reduce the configured hours to fix this before saving."
 show_config_locked_error() {
     local use_gui="$1"
     local script_name="${2:-Configuration}"
+    
+    _configure_ui_ensure_time_parsing
     
     # Get current time information
     local current_day current_hour
@@ -917,10 +951,12 @@ show_config_locked_error() {
             local IFS=','
             for range in ${prev_day_range}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                local start_part end_part
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local prev_day_name="${DAY_NAMES[${prev_day}]}"
                     restriction_formatted=$(format_range_human "${range}" "${prev_day_name}" 2>/dev/null || echo "")
                     break
@@ -939,10 +975,12 @@ show_config_locked_error() {
             local IFS=','
             for range in ${prev_day_lock_hours}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                local start_part end_part
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local prev_day_name="${DAY_NAMES[${prev_day}]}"
                     lock_formatted=$(format_range_human "${range}" "${prev_day_name}" 2>/dev/null || echo "")
                     break
@@ -975,12 +1013,14 @@ show_config_locked_error() {
             local IFS=','
             for range in ${prev_day_lock_hours}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                local start_part end_part
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local end_12h
-                    end_12h=$(format_hour_12h "${end_hour}")
+                    end_12h=$(format_hour_12h "${end_part}")
                     lock_end="${end_12h}|${day_name}|true"
                     break
                 fi
@@ -1007,10 +1047,12 @@ show_config_locked_error() {
             local IFS=','
             for range in ${prev_day_range}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                local start_part end_part
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local prev_day_name="${DAY_NAMES[${prev_day}]}"
                     active_range_formatted=$(format_range_human "${range}" "${prev_day_name}" 2>/dev/null || echo "")
                     break
@@ -1035,10 +1077,12 @@ show_config_locked_error() {
             local IFS=','
             for range in ${prev_day_lock_hours}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                local start_part end_part
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local prev_day_name="${DAY_NAMES[${prev_day}]}"
                     active_range_formatted=$(format_range_human "${range}" "${prev_day_name}" 2>/dev/null || echo "")
                     break
@@ -1056,12 +1100,14 @@ show_config_locked_error() {
             local IFS=','
             for range in ${prev_day_lock_hours}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                local start_part end_part
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local end_12h
-                    end_12h=$(format_hour_12h "${end_hour}")
+                    end_12h=$(format_hour_12h "${end_part}")
                     end_info="${end_12h}|${day_name}|true"
                     break
                 fi

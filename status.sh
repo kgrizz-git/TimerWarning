@@ -317,6 +317,25 @@ check_service_status() {
         while IFS= read -r line; do
             print_status "Scheduler" "${line}" ""
         done < <(scheduler_status_lines)
+
+        # Derive last run time from warnings.log (macOS has no systemd timers).
+        local warnings_log="${CONFIG_DIR}/warnings.log"
+        if [ -f "${warnings_log}" ]; then
+            # Prefer the most recent restricted-time entry; fall back to any log line.
+            local last_line=""
+            last_line=$(grep -E "\\[WARNING\\] Restricted time detected" "${warnings_log}" 2>/dev/null | tail -n1)
+            if [ -z "${last_line}" ]; then
+                last_line=$(tail -n1 "${warnings_log}" 2>/dev/null)
+            fi
+            if [ -n "${last_line}" ]; then
+                # Extract leading timestamp: [YYYY-MM-DD HH:MM:SS]
+                local last_ts
+                last_ts=$(echo "${last_line}" | sed -n 's/^\[\([0-9-]\+ [0-9:]\+\)\].*/\1/p')
+                if [ -n "${last_ts}" ]; then
+                    print_status "Last Run" "${last_ts}"
+                fi
+            fi
+        fi
         return 0
     fi
     

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Popup "next unrestricted time: now (no restrictions configured)" with HH:MM config:** `build_weekly_restricted_intervals()` only accepted integer-hour ranges (`7-23`), so configure-wizard `HH:MM` values (e.g. `17:00-17:30`) were skipped and `get_next_unrestricted_time()` thought no restrictions existed. Endpoints now parse `HH:MM` as well as `HH`. Shared helpers `range_endpoint_to_day_minutes()`, `range_is_overnight()`, and `range_overnight_tail_active_for_hour()` live in `lib/time-parsing.sh`; `lib/configure-ui.sh` overnight/carry checks use them instead of raw `cut -d'-'` integer comparisons.
+
+- **macOS fullscreen popup: unreadable disabled OK button:** Tk on macOS drew disabled buttons with light chrome and white label text. Set `disabledforeground` and explicit `fg` when the OK button is locked during min-display time.
+
 - **macOS resume grace period: MaintenanceWake false positive:** `pmset -g log` parsing matched any line containing `Wake`, including routine `MaintenanceWake` assertion churn (~every 90s while idle). That suppressed scheduled popups for 60s after background power events even when the user had not slept or rebooted. Wake detection now only treats pmset event type `Wake` (excluding `Wake Requests`) as a user sleep/wake resume.
 
 - **Configure wizard: `printf: 30PM: invalid number` on macOS:** `format_range_human()` parsed `11:30PM` with a naive `cut` on `:`, leaving `30PM` as the minute. It now uses `parse_time_token_to_24h_hm()` so 12-hour tokens from the macOS picker or config (e.g. `11:30PM-5:30AM`) format without shell errors. `normalize_time_range()` fallback also converts 12-hour parts instead of passing them through unchanged.
