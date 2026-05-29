@@ -50,7 +50,7 @@ Integrated into the current bash/systemd (or launchd on macOS) design. Full spec
 | 27 | Donation links | Phase 1 partial | [#27 PayPal](enhancements/enhancement-27-paypal-donation-links.md) · [#27 Phase 2](enhancements/enhancement-27-phase-2-github-sponsors.md) |
 | 28 | SteamOS newbie install guide | Not started | [#28](enhancements/enhancement-28-steamos-newbie-installation-guide.md) |
 | 29 | kdialog window size | Not started | [#29](enhancements/enhancement-29-kdialog-window-size-control.md) |
-| 30 | Timer interval vs popup frequency | Not started | [#30](enhancements/enhancement-30-separate-timer-check-interval-from-popup-display-frequency.md) |
+| 30 | Timer interval vs popup frequency | Done (2026-02-09) | [#30](enhancements/enhancement-30-separate-timer-check-interval-from-popup-display-frequency.md) |
 
 **Status key:** *Done* = shipped; *Mostly done* / *Partial* / *In progress* = code largely in place, testing or polish remains; *Not started* = spec only; *Moved* = tracked in a plan file.
 
@@ -76,7 +76,6 @@ Major architecture changes. Specs under [`alternatives/`](alternatives/).
 1. **Safety and lockout prevention** — #22, #18, #19 (finish testing).
 2. **Gaming Mode reliability** — display detection, popups, phase 4 testing; see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md).
 3. **Configure UX** — #16c, dialog-tool coverage, GUI fallback without display.
-4. **Timing accuracy** — #30 (interval vs display frequency).
 
 For day-to-day tasks, use [TO_DO.md](TO_DO.md). Testing checklists: [plan-phase-4-testing.md](plans/phases/plan-phase-4-testing.md).
 
@@ -88,4 +87,4 @@ For day-to-day tasks, use [TO_DO.md](TO_DO.md). Testing checklists: [plan-phase-
 - Steam Overlay (#alt-1) is the strongest Gaming Mode full-screen path but highest effort; see [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#path-to-maximum-effectiveness).
 - Completed one-off fixes: [`fixes/`](fixes/).
 
-**Last updated:** 2026-05-23 (restructured catalog; paths under `plans/`, `alternatives/`)
+**Last updated:** 2026-05-28 (#30 marked Done)

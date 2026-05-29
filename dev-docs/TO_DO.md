@@ -13,7 +13,6 @@ Short queue of open work. For full status per enhancement, see [FUTURE_ENHANCEME
 - [ ] **Per-day 16 h cap + popup lifetime + escape-hatch bug fixes (2026-05-24 audit)** — Multi-phase plan covering critical lockout-math bypasses (HH:MM parser, head/tail mismatch, lock-hours ignored at runtime), popup lifetime gaps (Linux watchdog, macOS Python-blocker silent failure, osascript min-display), and macOS uninstall/manage escape-hatch fixes. See [plans/plan-real-bugs-fix-2026-05-24.md](plans/plan-real-bugs-fix-2026-05-24.md). Source audit: [code-assessments/bug-and-lockout-review-2026-05-24-203354.md](code-assessments/bug-and-lockout-review-2026-05-24-203354.md). **High priority — these are real bugs that violate the invariants in [docs/SAFETY.md](../docs/SAFETY.md).**
 - [ ] **macOS Accessibility API blocking** — Grant Accessibility permission via `System Settings → Privacy & Security → Accessibility` to intercept Cmd+Tab, Mission Control, and Spotlight during restricted hours. Install script should prompt and open the correct pane. See [dev-docs/POPUP_BLOCKING_MACOS.md](POPUP_BLOCKING_MACOS.md) §Option D for implementation sketch. **Deferred** — current fullscreen tkinter overlay (+ optional pyobjc boost) is the primary blocking path.
 - [ ] **Linux popup watchdog (hard process kill)** — Wire `lib/popup-safety.sh` into `lib/popup-display.sh` so Linux warnings get the same bounded lifetime as macOS (`popup_run_with_watchdog`, `POPUP_ABSOLUTE_MAX_SECONDS`, default 120s). macOS already uses this in `lib/popup-display-darwin.sh`; Linux still relies on min-display + auto-close only. **Defer implementation until on a Linux machine** — add `tests/test-popup-safety-linux.sh` (or extend darwin test pattern) and verify with yad/zenity/kdialog. See [docs/safety-linux-macos-analysis.md](../docs/safety-linux-macos-analysis.md) §5.1.
-- [ ] **#30** — Separate timer check interval from popup display frequency → [enhancement-30](enhancements/enhancement-30-separate-timer-check-interval-from-popup-display-frequency.md)
 - [ ] **Additional hours on unrestricted days** — Lock/uninstall hours should not apply when a day has no restrictions (opt-in override) → [plan](plans/plan-additional-hours-no-restrictions.md)
 - [ ] **#29** — kdialog window size via `--textbox` + `--geometry` → [enhancement-29](enhancements/enhancement-29-kdialog-window-size-control.md)
 - [ ] **#10** — Audio alerts → [enhancement-10](enhancements/enhancement-10-audio-alerts.md)
@@ -39,8 +38,12 @@ Short queue of open work. For full status per enhancement, see [FUTURE_ENHANCEME
 
 Track detail in [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#mostly-implemented-enhancements): #2a, #3, #4, #9, #18, #20, #22, #24, #25, #26, 24/7 + additional hours plan testing.
 
+## Recently completed
+
+- [x] **#30** — Separate timer check interval from popup display frequency (`POPUP_DISPLAY_FREQUENCY`, derived run interval, last-popup-time throttling). Implemented 2026-02-09 → [enhancement-30](enhancements/enhancement-30-separate-timer-check-interval-from-popup-display-frequency.md)
+
 ---
 
 **Plans index:** [Master plan](plans/master/linux-warning-system-plan.md) · [Active plans](plans/) · [Completed plans](completed-plans/)
 
-**Last updated:** 2026-05-24
+**Last updated:** 2026-05-28
