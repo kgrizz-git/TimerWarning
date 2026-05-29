@@ -58,7 +58,7 @@ configure_weekdays_section() {
         weekday_range=$(get_day_hours "Weekdays (Monday-Friday)" 1 "${use_gui}" "false" "true")
         local exit_code=$?
         
-        if [ "${weekday_range}" = "CANCELLED" ]; then
+        if [ "${weekday_range}" = "CANCELLED" ] || [ ${exit_code} -eq 2 ]; then
             return 2  # Cancelled
         fi
 
@@ -78,7 +78,9 @@ configure_weekdays_section() {
         # Configure each weekday separately
         local i=1  # Start with Monday
         while [ "${i}" -le 5 ]; do  # Monday through Friday
-            local allow_back="true"  # Allow user to return to menu from any day
+            # No previous weekday before Monday; hide "Go back to previous day" on first day
+            local allow_back="false"
+            [ "${i}" -gt 1 ] && allow_back="true"
             
             local range
             range=$(get_day_hours "${DAY_NAMES[${i}]}" "${i}" "${use_gui}" "${allow_back}" "true")
@@ -316,7 +318,9 @@ configure_weekends_section() {
         # Configure Saturday and Sunday separately
         local weekend_day=6  # Start with Saturday
         while true; do
-            local allow_back="true"
+            # No previous day before Saturday; hide "Go back to previous day" on first day
+            local allow_back="false"
+            [ "${weekend_day}" -eq 0 ] && allow_back="true"
             
             local range
             range=$(get_day_hours "${DAY_NAMES[${weekend_day}]}" "${weekend_day}" "${use_gui}" "${allow_back}" "true")

@@ -541,7 +541,7 @@ For detailed information on parallel development strategies, codebase organizati
 
 ## Executable/Binary Distribution Options
 
-For information on distributing the project as executable binaries or packaged applications where end-users would not have direct access to the source code, see [alternative-06-executable-binary-distribution.md](../enhancements/alternative-06-executable-binary-distribution.md).
+For information on distributing the project as executable binaries or packaged applications where end-users would not have direct access to the source code, see [alternative-06-executable-binary-distribution.md](../alternatives/alternative-06-executable-binary-distribution.md).
 
 This document covers:
 - Self-extracting installer (easiest, no source protection)

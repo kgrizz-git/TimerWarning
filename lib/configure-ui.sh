@@ -7,6 +7,8 @@
 # GUI (YAD/Zenity/KDialog) and text modes.
 #
 # Functions:
+# - handle_main_menu_cancel_menu() - Exit vs continue after main menu list cancel (GUI)
+# - handle_window_behavior_cancel_menu() - Exit vs back vs continue after Window Behavior cancel
 # - confirm_cancel()              - Confirm cancellation dialog
 # - confirm_skip_day()            - Confirm skipping a day
 # - show_help_dialog()            - Display configuration help
@@ -24,13 +26,141 @@
 # Dependencies:
 # - configure-core.sh (for has_dialog_tool, CONFIG_FILE)
 # - configure-dialogs.sh (for dialog abstraction functions)
+# - time-parsing.sh (range_endpoint_to_day_minutes, range_is_overnight, range_overnight_tail_active_for_hour)
 ###############################################################################
 
-# Confirm cancellation with user
+_configure_ui_ensure_time_parsing() {
+    if type range_endpoint_to_day_minutes >/dev/null 2>&1; then
+        return 0
+    fi
+    local _tp_dir
+    _tp_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # shellcheck disable=SC1091
+    [ -f "${_tp_dir}/time-parsing.sh" ] && source "${_tp_dir}/time-parsing.sh"
+}
+
+# Menu after user cancels the main configuration list (GUI).
+# stdout: CANCELLED when exiting the wizard
+# return 1 = stay in / return to main menu
+# return 2 = exit entire wizard (stdout CANCELLED)
+handle_main_menu_cancel_menu() {
+    local use_gui="$1"
+    local menu_prompt="${2:-You closed the configuration menu. What would you like to do?}"
+
+    if [ "${use_gui}" != "true" ] || ! has_dialog_tool; then
+        if confirm_cancel "${use_gui}"; then
+            echo "CANCELLED"
+            return 2
+        fi
+        return 1
+    fi
+
+    while true; do
+        local choice
+        choice=$(show_list_dialog \
+            "Sleep Warning Configuration" \
+            "${menu_prompt}" \
+            520 \
+            280 \
+            "Exit without saving" \
+            "Continue configuring")
+        local list_exit=$?
+        # If the cancel menu itself is dismissed (Cancel / window close), treat it as
+        # "Continue configuring" so the user is never trapped in an infinite loop.
+        if [ ${list_exit} -ne 0 ] || [ -z "${choice}" ]; then
+            return 1
+        fi
+
+        case "${choice}" in
+            "Exit without saving")
+                # User explicitly chose "Exit without saving" from the cancel menu —
+                # that selection IS the confirmation; no second dialog needed.
+                echo "CANCELLED"
+                return 2
+                ;;
+            "Continue configuring")
+                return 1
+                ;;
+        esac
+    done
+}
+
+# Menu after user cancels a Window Behavior sub-prompt (GUI).
+# stdout: BACK | CANCELLED
+# return 1 = back to Window Behavior submenu
+# return 2 = cancel entire wizard (stdout CANCELLED)
+# return 3 = retry the same sub-prompt
+handle_window_behavior_cancel_menu() {
+    local use_gui="$1"
+    local menu_prompt="${2:-What would you like to do?}"
+
+    if [ "${use_gui}" != "true" ] || ! has_dialog_tool; then
+        echo "BACK"
+        return 1
+    fi
+
+    while true; do
+        local choice
+        choice=$(show_list_dialog \
+            "Window Behavior" \
+            "${menu_prompt}" \
+            520 \
+            280 \
+            "Return to Window Behavior menu" \
+            "Cancel configuration" \
+            "Continue configuring")
+        local list_exit=$?
+        # If the cancel menu itself is dismissed, treat it as "Return to Window Behavior menu"
+        # so the user is never trapped in an infinite loop.
+        if [ ${list_exit} -ne 0 ] || [ -z "${choice}" ]; then
+            echo "BACK"
+            return 1
+        fi
+
+        case "${choice}" in
+            "Return to Window Behavior menu")
+                echo "BACK"
+                return 1
+                ;;
+            "Cancel configuration")
+                # User explicitly chose "Cancel configuration" from the cancel menu —
+                # that selection IS the confirmation; no second dialog needed.
+                echo "CANCELLED"
+                return 2
+                ;;
+            "Continue configuring")
+                return 3
+                ;;
+        esac
+    done
+}
+
+# Confirm cancellation with user.
+#
+# On macOS, osascript `display alert` appears behind the terminal after a
+# `choose from list` window closes (z-order regression on macOS 13+). We use
+# `show_list_dialog` (which wraps `choose from list`) on darwin so the prompt
+# always appears in front.  Linux keeps the original `show_question_dialog`.
 confirm_cancel() {
     local use_gui="$1"
-    
+
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        if type is_darwin >/dev/null 2>&1 && is_darwin; then
+            local choice
+            choice=$(show_list_dialog \
+                "Cancel Configuration?" \
+                "Exit the wizard? All unsaved changes will be lost." \
+                520 \
+                250 \
+                "Yes, Exit without saving" \
+                "No, Continue configuring")
+            local list_exit=$?
+            if [ "${list_exit}" -ne 0 ] || [ -z "${choice}" ]; then
+                return 1  # Dismissed → treat as "continue"
+            fi
+            [ "${choice}" = "Yes, Exit without saving" ]
+            return $?
+        fi
         show_question_dialog \
             "Cancel Configuration?" \
             "Are you sure you want to cancel?\n\nAll unsaved changes will be lost." \
@@ -460,6 +590,8 @@ calculate_restriction_end_time() {
     local current_day="$2"
     local restricted_range="$3"
     
+    _configure_ui_ensure_time_parsing
+    
     # Source required modules if not already sourced
     if ! type format_hour_12h >/dev/null 2>&1 || [ -z "${DAY_NAMES}" ]; then
         local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -487,21 +619,18 @@ calculate_restriction_end_time() {
         local IFS=','
         for range in ${prev_day_range}; do
             range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            local start_hour end_hour
-            start_hour=$(echo "${range}" | cut -d'-' -f1)
-            end_hour=$(echo "${range}" | cut -d'-' -f2)
-            
-            # Check if this is an overnight range that extends to current day
-            if [ "${start_hour}" -gt "${end_hour}" ]; then
-                # Overnight range: check if current hour falls within the end portion (before end_hour)
-                if [ "${current_hour}" -lt "${end_hour}" ]; then
-                    # We're in the overnight range from previous day
-                    local end_12h
-                    end_12h=$(format_hour_12h "${end_hour}")
-                    local current_day_name="${DAY_NAMES[${current_day}]}"
-                    echo "${end_12h}|${current_day_name}|true"
-                    return 0
-                fi
+            local start_part end_part
+            start_part="${range%%-*}"
+            end_part="${range##*-}"
+            start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+            if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
+                local end_12h
+                end_12h=$(format_hour_12h "${end_part}")
+                local current_day_name="${DAY_NAMES[${current_day}]}"
+                echo "${end_12h}|${current_day_name}|true"
+                return 0
             fi
         done
     fi
@@ -518,17 +647,16 @@ calculate_restriction_end_time() {
         # Check if current hour is in this range
         if type is_hour_in_single_range >/dev/null 2>&1; then
             if is_hour_in_single_range "${current_hour}" "${range}"; then
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                
-                local end_12h
-                end_12h=$(format_hour_12h "${end_hour}")
+                local start_part end_part end_12h
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+                end_12h=$(format_hour_12h "${end_part}")
                 local current_day_name="${DAY_NAMES[${current_day}]}"
-                
-                # Check if overnight range
-                if [ "${start_hour}" -gt "${end_hour}" ]; then
-                    # Get next day name
+
+                if range_is_overnight "${start_part}" "${end_part}"; then
                     local next_day_index=$(( (current_day + 1) % 7 ))
                     local next_day_name="${DAY_NAMES[${next_day_index}]}"
                     echo "${end_12h}|${next_day_name}|true"
@@ -538,7 +666,29 @@ calculate_restriction_end_time() {
                 return 0
             fi
         else
-            # Fallback: simple check
+            # Fallback: use minute-aware restricted check when available
+            if type is_restricted_time >/dev/null 2>&1; then
+                local current_time_hhmm
+                current_time_hhmm=$(printf "%02d00" "${current_hour}")
+                if is_restricted_time "${current_time_hhmm}" "${range}"; then
+                    local start_part end_part end_12h
+                    start_part="${range%%-*}"
+                    end_part="${range##*-}"
+                    start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    end_12h=$(format_hour_12h "${end_part}")
+                    local current_day_name="${DAY_NAMES[${current_day}]}"
+                    if range_is_overnight "${start_part}" "${end_part}"; then
+                        local next_day_index=$(( (current_day + 1) % 7 ))
+                        local next_day_name="${DAY_NAMES[${next_day_index}]}"
+                        echo "${end_12h}|${next_day_name}|true"
+                    else
+                        echo "${end_12h}|${current_day_name}|false"
+                    fi
+                    return 0
+                fi
+            else
+            # Legacy integer-hour fallback
             local start_hour end_hour
             start_hour=$(echo "${range}" | cut -d'-' -f1)
             end_hour=$(echo "${range}" | cut -d'-' -f2)
@@ -570,10 +720,68 @@ calculate_restriction_end_time() {
                 fi
                 return 0
             fi
+            fi
         fi
     done
     
     return 1  # Not in any range
+}
+
+# Show hard-block error when a per-day per-category cap violation is detected.
+# Parameters:
+#   $1 - use_gui (true/false)
+#   $2 - violation_text: multi-line "day|category|minutes" lines from check_daily_caps
+show_cap_violation_error() {
+    local use_gui="$1"
+    local violation_text="$2"
+
+    local title="ERROR: Per-Day 16-Hour Cap Exceeded"
+
+    # Build human-readable violation list
+    local details=""
+    local line day cat mins
+    while IFS='|' read -r day cat mins; do
+        [ -z "${day}" ] && continue
+        local hours=$(( mins / 60 ))
+        local rem=$(( mins % 60 ))
+        local cat_label
+        case "${cat}" in
+            restriction)     cat_label="Restriction hours" ;;
+            configure_block) cat_label="Configure-block hours" ;;
+            uninstall_block) cat_label="Uninstall-block hours" ;;
+            *)               cat_label="${cat}" ;;
+        esac
+        details="${details}  • ${day}: ${cat_label} = ${hours}h ${rem}m (limit: 16h 0m)\n"
+    done <<< "${violation_text}"
+
+    local message="🚫 Configuration cannot be saved.
+
+The following day/category pairs exceed the 16-hour per-day cap:
+
+${details}
+Each restriction category may cover at most 16 hours on any single calendar day.
+
+Categories:
+  • Restriction hours — popup warning schedule
+  • Configure-block hours — configure/manage lock (restriction + lock hours when enabled)
+  • Uninstall-block hours — uninstall protection (restriction + uninstall-lock hours when enabled)
+
+Please reduce the configured hours to fix this before saving."
+
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_info_dialog "${title}" "${message}" 720 480
+    else
+        echo "" >&2
+        echo "========================================" >&2
+        echo "ERROR: Per-Day 16-Hour Cap Exceeded" >&2
+        echo "========================================" >&2
+        echo "" >&2
+        echo "${details}" | sed 's/\\n/\n/g' >&2
+        echo "Each category may cover at most 16 hours per calendar day." >&2
+        echo "Please reduce hours before saving." >&2
+        echo "" >&2
+        read -rp "Press Enter to continue..."
+    fi
 }
 
 # Show error message when configure.sh or manage.sh is blocked during restricted hours or lock hours
@@ -586,6 +794,8 @@ calculate_restriction_end_time() {
 show_config_locked_error() {
     local use_gui="$1"
     local script_name="${2:-Configuration}"
+    
+    _configure_ui_ensure_time_parsing
     
     # Get current time information
     local current_day current_hour
@@ -741,10 +951,12 @@ show_config_locked_error() {
             local IFS=','
             for range in ${prev_day_range}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                local start_part end_part
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local prev_day_name="${DAY_NAMES[${prev_day}]}"
                     restriction_formatted=$(format_range_human "${range}" "${prev_day_name}" 2>/dev/null || echo "")
                     break
@@ -763,10 +975,12 @@ show_config_locked_error() {
             local IFS=','
             for range in ${prev_day_lock_hours}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                local start_part end_part
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local prev_day_name="${DAY_NAMES[${prev_day}]}"
                     lock_formatted=$(format_range_human "${range}" "${prev_day_name}" 2>/dev/null || echo "")
                     break
@@ -799,12 +1013,14 @@ show_config_locked_error() {
             local IFS=','
             for range in ${prev_day_lock_hours}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                local start_part end_part
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local end_12h
-                    end_12h=$(format_hour_12h "${end_hour}")
+                    end_12h=$(format_hour_12h "${end_part}")
                     lock_end="${end_12h}|${day_name}|true"
                     break
                 fi
@@ -831,10 +1047,12 @@ show_config_locked_error() {
             local IFS=','
             for range in ${prev_day_range}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                local start_part end_part
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local prev_day_name="${DAY_NAMES[${prev_day}]}"
                     active_range_formatted=$(format_range_human "${range}" "${prev_day_name}" 2>/dev/null || echo "")
                     break
@@ -859,10 +1077,12 @@ show_config_locked_error() {
             local IFS=','
             for range in ${prev_day_lock_hours}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                local start_part end_part
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local prev_day_name="${DAY_NAMES[${prev_day}]}"
                     active_range_formatted=$(format_range_human "${range}" "${prev_day_name}" 2>/dev/null || echo "")
                     break
@@ -880,12 +1100,14 @@ show_config_locked_error() {
             local IFS=','
             for range in ${prev_day_lock_hours}; do
                 range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                local start_hour end_hour
-                start_hour=$(echo "${range}" | cut -d'-' -f1)
-                end_hour=$(echo "${range}" | cut -d'-' -f2)
-                if [ "${start_hour}" -gt "${end_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                local start_part end_part
+                start_part="${range%%-*}"
+                end_part="${range##*-}"
+                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local end_12h
-                    end_12h=$(format_hour_12h "${end_hour}")
+                    end_12h=$(format_hour_12h "${end_part}")
                     end_info="${end_12h}|${day_name}|true"
                     break
                 fi

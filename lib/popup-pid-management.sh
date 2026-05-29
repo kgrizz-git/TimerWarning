@@ -160,7 +160,7 @@ is_popup_running() {
         fi
     fi
     
-    # Final fallback: Process tree checking
+    # Final fallback: Process tree checking (Linux dialog tools)
     local dialog_pids
     dialog_pids=$(pgrep -f "zenity.*ALERT: Restricted time window\\|yad.*ALERT: Restricted time window\\|kdialog.*ALERT: Restricted time window" 2>/dev/null | head -n1)
     
@@ -170,7 +170,28 @@ is_popup_running() {
         echo "${dialog_pids}|${age}"
         return 0
     fi
-    
+
+    # Phase 2.6: macOS secondary detection — covers python3 blocker and osascript
+    # paths so a stale/removed PID file does not allow popup stacking.
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && command -v pgrep >/dev/null 2>&1; then
+        local _macos_pid=""
+
+        # Check for python3 running popup-blocker-darwin.py
+        _macos_pid=$(pgrep -f "python3.*popup-blocker-darwin\.py" 2>/dev/null | head -n1)
+
+        # If not found, check for osascript display alert (our warning title)
+        if [ -z "${_macos_pid}" ]; then
+            _macos_pid=$(pgrep -f "osascript.*ALERT" 2>/dev/null | head -n1)
+        fi
+
+        if [ -n "${_macos_pid}" ] && [[ "${_macos_pid}" =~ ^[0-9]+$ ]] && kill -0 "${_macos_pid}" 2>/dev/null; then
+            local age
+            age=$(get_popup_age "${_macos_pid}")
+            echo "${_macos_pid}|${age}"
+            return 0
+        fi
+    fi
+
     return 1
 }
 

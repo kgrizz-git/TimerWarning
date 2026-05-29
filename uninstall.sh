@@ -39,6 +39,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_LIB_DIR="${SCRIPT_DIR}/lib"
 INSTALLED_LIB_DIR="${LIB_DIR}"
 
+for _bootstrap_lib in \
+    "${INSTALLED_LIB_DIR}/_bootstrap-bash4.sh" \
+    "${SCRIPT_LIB_DIR}/_bootstrap-bash4.sh"; do
+    if [ -f "${_bootstrap_lib}" ]; then
+        # shellcheck disable=SC1090
+        source "${_bootstrap_lib}"
+        _bootstrap_bash4 "${BASH_SOURCE[0]}" "$@"
+        break
+    fi
+done
+unset _bootstrap_lib
+
 # Load shared library loader helper
 LIB_HELPER_PATH=""
 for candidate in \
@@ -76,6 +88,7 @@ source_optional_lib "configure-core.sh" || true
 source_optional_lib "configure-dialogs.sh" || true
 source_optional_lib "configure-ui.sh" || true
 source_optional_lib "uninstall-verification.sh" || true
+source_optional_lib "scheduler-platform.sh" || true
 
 # Enable exit on error after library sourcing (for backward compatibility, libraries may not exist)
 set -e
@@ -197,12 +210,17 @@ restore_config_permissions() {
 
 # Function to stop and disable timer
 stop_timer() {
+    if type scheduler_stop_and_disable >/dev/null 2>&1 && scheduler_is_darwin; then
+        print_info "Stopping LaunchAgent..."
+        scheduler_stop_and_disable
+        print_success "LaunchAgent stopped"
+        return 0
+    fi
     print_info "Stopping systemd timer..."
     
     if systemctl --user is-active --quiet sleep-warning.timer 2>/dev/null; then
         if systemctl --user stop sleep-warning.timer; then
             print_success "Timer stopped"
-            # Wait briefly for service to exit (prevents re-locking)
             sleep 2
         else
             print_warning "Failed to stop timer (may not be running)"
@@ -224,6 +242,12 @@ stop_timer() {
 
 # Function to remove systemd files
 remove_systemd_files() {
+    if type scheduler_remove_files >/dev/null 2>&1 && scheduler_is_darwin; then
+        print_info "Removing LaunchAgent plist..."
+        scheduler_remove_files
+        print_success "LaunchAgent removed"
+        return 0
+    fi
     print_info "Removing systemd service and timer files..."
     
     local removed=false
@@ -409,6 +433,10 @@ remove_config() {
 
 # Function to reload systemd
 reload_systemd() {
+    if type scheduler_is_darwin >/dev/null 2>&1 && scheduler_is_darwin; then
+        print_info "LaunchAgent removed (no daemon reload needed on macOS)"
+        return 0
+    fi
     print_info "Reloading systemd user daemon..."
     
     if systemctl --user daemon-reload; then
@@ -439,7 +467,24 @@ verify_removal() {
         still_installed=true
         print_warning "Some systemd files are still present"
     fi
-    
+
+    # Phase 3.1: macOS — verify LaunchAgent plist is gone AND agent is unloaded
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        local _la_plist="${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
+        if [ -f "${_la_plist}" ]; then
+            still_installed=true
+            print_warning "macOS LaunchAgent plist still present: ${_la_plist}"
+        fi
+        if command -v launchctl >/dev/null 2>&1; then
+            local _agent_domain="gui/$(id -u)"
+            if launchctl print "${_agent_domain}/com.sleep-warning" >/dev/null 2>&1; then
+                still_installed=true
+                print_warning "macOS LaunchAgent com.sleep-warning is still loaded in launchctl"
+                print_warning "  Manual fix: launchctl bootout ${_agent_domain}/com.sleep-warning"
+            fi
+        fi
+    fi
+
     if [ "$still_installed" = false ]; then
         print_success "All files removed successfully"
     fi
@@ -505,9 +550,11 @@ main() {
         fi
     fi
     
-    # Check if installed
+    # Check if installed (Phase 3.1: include macOS LaunchAgent plist check)
+    local _la_plist="${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
     if [ ! -f "$INSTALL_DIR/sleep-warning.sh" ] && \
-       [ ! -f "$SYSTEMD_USER_DIR/sleep-warning.service" ]; then
+       [ ! -f "$SYSTEMD_USER_DIR/sleep-warning.service" ] && \
+       [ ! -f "${_la_plist}" ]; then
         print_warning "Sleep Warning System does not appear to be installed"
         exit 0
     fi

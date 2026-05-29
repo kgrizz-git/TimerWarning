@@ -36,6 +36,10 @@ set -e  # Exit on error
 
 # Script configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/_bootstrap-bash4.sh
+source "${SCRIPT_DIR}/lib/_bootstrap-bash4.sh"
+_bootstrap_bash4 "${BASH_SOURCE[0]}" "$@"
+
 INSTALL_DIR="${HOME}/.local/bin"
 LIB_DIR="${HOME}/.local/lib/sleep-warning"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
@@ -59,6 +63,7 @@ fi
 # Flags
 AUTO_YES=false
 FORCE_INSTALL=false
+RE_ENABLE_SCHEDULER=""   # "" = ask, "true" = re-enable, "false" = leave disabled
 
 # Parse command line arguments
 for arg in "$@"; do
@@ -69,10 +74,20 @@ for arg in "$@"; do
         --force)
             FORCE_INSTALL=true
             ;;
+        --re-enable)
+            # Phase 3.4: explicit consent to re-enable a previously disabled scheduler
+            RE_ENABLE_SCHEDULER="true"
+            ;;
+        --no-re-enable)
+            # Phase 3.4: explicit decline — leave scheduler disabled on reinstall
+            RE_ENABLE_SCHEDULER="false"
+            ;;
         -h|--help)
-            echo "Usage: $0 [--yes] [--force]"
-            echo "  --yes    Auto-confirm dependency installation"
-            echo "  --force  Force reinstallation over existing installation"
+            echo "Usage: $0 [--yes] [--force] [--re-enable|--no-re-enable]"
+            echo "  --yes            Auto-confirm dependency installation"
+            echo "  --force          Force reinstallation over existing installation"
+            echo "  --re-enable      On reinstall: re-enable scheduler even if it was disabled"
+            echo "  --no-re-enable   On reinstall: do not re-enable scheduler if it was disabled"
             exit 0
             ;;
         *)
@@ -115,7 +130,11 @@ show_disclaimer() {
     echo "  - You use this software at your own risk"
     echo "  - The developers are not responsible for any errors, data loss, or system"
     echo "    instability resulting from the use of this software"
-    echo "  - This software modifies systemd user services and system configuration"
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        echo "  - This software installs a LaunchAgent and configuration under your home directory"
+    else
+        echo "  - This software modifies systemd user services and system configuration"
+    fi
     echo "  - Compatibility cannot be guaranteed for all systems"
     echo "  - Support is provided on a best-effort basis"
     echo ""
@@ -657,6 +676,10 @@ install_files() {
 
         cp "$SCRIPT_DIR/lib"/*.sh "$LIB_DIR/"
         chmod +x "$LIB_DIR"/*.sh
+        if compgen -G "$SCRIPT_DIR/lib"/*.py > /dev/null; then
+            cp "$SCRIPT_DIR/lib"/*.py "$LIB_DIR/"
+            chmod +x "$LIB_DIR"/*.py 2>/dev/null || true
+        fi
         print_success "Library modules installed (${module_count} modules)"
     else
         print_error "Library directory not found"
@@ -749,17 +772,89 @@ reload_systemd() {
     fi
 }
 
+# Phase 3.4: detect whether the systemd timer is currently disabled.
+# Returns 0 if disabled, 1 if enabled or unknown.
+is_systemd_timer_disabled() {
+    if ! command -v systemctl >/dev/null 2>&1; then
+        return 1
+    fi
+    local state
+    state=$(systemctl --user is-enabled sleep-warning.timer 2>/dev/null)
+    case "${state}" in
+        disabled|masked)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Phase 3.4: prompt user before re-enabling a previously disabled scheduler on
+# --force reinstall. Respects --re-enable / --no-re-enable for scripted use.
+# Sets RE_ENABLE_SCHEDULER to "true" or "false" if not already set.
+prompt_reenable_if_disabled() {
+    # Only relevant on --force reinstall
+    [ "$FORCE_INSTALL" = false ] && { RE_ENABLE_SCHEDULER="true"; return 0; }
+
+    # Caller forced an answer via flag
+    if [ -n "$RE_ENABLE_SCHEDULER" ]; then
+        return 0
+    fi
+
+    # Fresh install (no existing timer file) → nothing was disabled, just enable
+    if [ ! -f "$SYSTEMD_USER_DIR/sleep-warning.timer" ]; then
+        RE_ENABLE_SCHEDULER="true"
+        return 0
+    fi
+
+    if is_systemd_timer_disabled; then
+        print_warning "Scheduler (sleep-warning.timer) is currently DISABLED."
+        echo "  You previously stopped it via sleep-warning-manage or systemctl."
+        echo "  Reinstalling with --force will overwrite the timer file but"
+        echo "  will NOT re-enable it unless you say so."
+        echo ""
+        if [ "$AUTO_YES" = true ]; then
+            echo "  --yes was passed → leaving scheduler disabled."
+            echo "  (Pass --re-enable to override.)"
+            RE_ENABLE_SCHEDULER="false"
+            return 0
+        fi
+        local reply
+        read -r -p "  Re-enable scheduler on install? [y/N]: " reply
+        case "${reply}" in
+            y|Y|yes|YES)
+                RE_ENABLE_SCHEDULER="true"
+                ;;
+            *)
+                RE_ENABLE_SCHEDULER="false"
+                print_info "Scheduler will remain disabled. Re-enable later with:"
+                echo "  systemctl --user enable --now sleep-warning.timer"
+                ;;
+        esac
+    else
+        RE_ENABLE_SCHEDULER="true"
+    fi
+}
+
 # Function to enable and start timer
 enable_timer() {
+    # Phase 3.4: honor RE_ENABLE_SCHEDULER. If user declined re-enable, skip.
+    if [ "${RE_ENABLE_SCHEDULER}" = "false" ]; then
+        print_warning "Skipping timer enable/start per user choice (--no-re-enable)."
+        print_info "To enable later: systemctl --user enable --now sleep-warning.timer"
+        return 0
+    fi
+
     print_info "Enabling and starting systemd timer..."
-    
+
     if systemctl --user enable sleep-warning.timer; then
         print_success "Timer enabled"
     else
         print_error "Failed to enable timer"
         exit 1
     fi
-    
+
     if systemctl --user start sleep-warning.timer; then
         print_success "Timer started"
     else
@@ -828,8 +923,8 @@ print_summary() {
     echo ""
 }
 
-# Main installation function
-main() {
+# Main installation function (Linux)
+main_linux() {
     echo -e "${BLUE}Sleep Warning System - Installation${NC}"
     
     # Show disclaimer and get user confirmation
@@ -935,8 +1030,11 @@ main() {
     
     # Reload systemd
     reload_systemd
-    
-    # Enable and start timer
+
+    # Phase 3.4: if --force reinstall and scheduler was disabled, prompt
+    prompt_reenable_if_disabled
+
+    # Enable and start timer (honors RE_ENABLE_SCHEDULER set above)
     enable_timer
     
     # Verify installation
@@ -944,6 +1042,16 @@ main() {
     
     # Print summary
     print_summary
+}
+
+main() {
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        # shellcheck disable=SC1091
+        source "${SCRIPT_DIR}/lib/install-darwin.sh"
+        main_darwin "$@"
+    else
+        main_linux "$@"
+    fi
 }
 
 # Run main function

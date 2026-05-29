@@ -1,6 +1,18 @@
 # Linux Sleep Warning System
 
-A systemd-based monitoring system that displays interactive warning popups when your Linux system is being used during configurable restricted hours (e.g., late night/early morning).
+A monitoring system that displays interactive warning popups when your computer is used during configurable restricted hours (e.g., late night/early morning). **Linux:** systemd timer. **macOS:** LaunchAgent — see [user-docs/MACOS.md](user-docs/MACOS.md).
+
+## 🛡️ Safety first (read before install or development)
+
+**This software can block normal use if misconfigured or broken.** We treat safety as the top priority—especially during development and AI-assisted changes.
+
+| Audience | Start here |
+|----------|------------|
+| **Everyone** | [**docs/SAFETY.md**](docs/SAFETY.md) — no 24/7 warnings, popups must end, emergency stop |
+| **Developers / agents** | [AGENTS.md](AGENTS.md) → [docs/index.md](docs/index.md) |
+| **macOS users** | [user-docs/MACOS.md](user-docs/MACOS.md) (troubleshooting + `launchctl bootout` / `killall osascript`) |
+
+Do not save schedules that cover the entire week. If a popup will not dismiss, use the emergency steps in **docs/SAFETY.md** before changing code.
 
 ## ⚠️ Disclaimer
 
@@ -240,6 +252,12 @@ systemctl --user daemon-reload
 ```
 
 ## Supported Systems
+
+### macOS
+
+- ✅ **macOS 13 (Ventura)** and later (Apple Silicon and Intel)
+- Uses a per-user **LaunchAgent** and **osascript** dialogs (not systemd/GTK)
+- See [user-docs/MACOS.md](user-docs/MACOS.md) for install, safety guardrails, and troubleshooting
 
 ### Linux Distributions
 - ✅ Steam OS (Arch-based)

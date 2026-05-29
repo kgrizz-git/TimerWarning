@@ -4,6 +4,22 @@
 
 Comprehensive automated test suite for `configure.sh --text` mode using `expect` for interactive testing.
 
+## macOS tests
+
+These run on macOS (and Linux for platform detection branches) without GUI or modifying your installed config:
+
+| Script | Purpose |
+|--------|---------|
+| `tests/test-platform-darwin.sh` | Platform detection, plist `StartInterval`, watchdog math |
+| `tests/test-popup-safety-darwin.sh` | Popup watchdog kills hung child processes |
+
+```bash
+bash tests/test-platform-darwin.sh
+bash tests/test-popup-safety-darwin.sh
+```
+
+Linux-only tests (systemd, xrandr, zenity, `expect` GUI suites) should be run on a Linux host. See [user-docs/MACOS.md](../user-docs/MACOS.md) for manual GUI verification on Mac.
+
 ## ⚠️  IMPORTANT: Tests That Modify Your Configuration File
 
 **Several tests run `configure.sh` (or related scripts) in a way that writes a config file under `${HOME}`.**

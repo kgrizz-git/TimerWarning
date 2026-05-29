@@ -22,6 +22,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
 SCRIPT_LIB_DIR="${SCRIPT_DIR}/lib"
 INSTALLED_LIB_DIR="${HOME}/.local/lib/sleep-warning"
 
+for _bootstrap_lib in \
+    "${INSTALLED_LIB_DIR}/_bootstrap-bash4.sh" \
+    "${SCRIPT_LIB_DIR}/_bootstrap-bash4.sh"; do
+    if [ -f "${_bootstrap_lib}" ]; then
+        # shellcheck disable=SC1090
+        source "${_bootstrap_lib}"
+        _bootstrap_bash4 "${BASH_SOURCE[0]}" "$@"
+        break
+    fi
+done
+unset _bootstrap_lib
+
 # Load shared library loader helper
 LIB_HELPER_PATH=""
 for candidate in \
@@ -77,6 +89,11 @@ source_required_lib "configure-core.sh" || exit 1
 source_required_lib "configure-time.sh" || exit 1
 source_required_lib "configure-ui.sh" || exit 1
 source_required_lib "configure-dialogs.sh" || exit 1
+source_optional_lib "scheduler-platform.sh" || true
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+    TIMER_FILE="${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
+    SERVICE_FILE="${TIMER_FILE}"
+fi
 
 # Check if any dialog tool is available (uses get_dialog_tool which respects user preference)
 # This replaces the old has_zenity() function to support all dialog tools
@@ -92,11 +109,19 @@ has_zenity() {
 
 # Check if GUI is available
 has_gui() {
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        command -v osascript >/dev/null 2>&1 && osascript -e 'return "ok"' >/dev/null 2>&1
+        return $?
+    fi
     [ -n "${DISPLAY}" ] || [ -S "/tmp/.X11-unix/X0" ] || command -v loginctl >/dev/null 2>&1
 }
 
 # Check if service is installed
 is_installed() {
+    if type scheduler_is_installed >/dev/null 2>&1; then
+        scheduler_is_installed
+        return $?
+    fi
     [ -f "${SCRIPT_PATH}" ] && [ -f "${SERVICE_FILE}" ] && [ -f "${TIMER_FILE}" ]
 }
 
@@ -154,21 +179,15 @@ get_service_status() {
         echo "Not installed"
         return
     fi
-    
+    if type scheduler_status_lines >/dev/null 2>&1; then
+        scheduler_status_lines
+        return
+    fi
     local enabled active
     enabled=$(systemctl --user is-enabled "${TIMER_NAME}" 2>/dev/null)
     active=$(systemctl --user is-active "${TIMER_NAME}" 2>/dev/null)
-    
     echo "Enabled: ${enabled:-unknown}"
     echo "Active: ${active:-unknown}"
-    
-    if [ "${active}" = "active" ]; then
-        local next_trigger
-        next_trigger=$(systemctl --user list-timers "${TIMER_NAME}" --no-pager --no-legend 2>/dev/null | awk '{print $1, $2, $3, $4, $5}')
-        if [ -n "${next_trigger}" ]; then
-            echo "Next trigger: ${next_trigger}"
-        fi
-    fi
 }
 
 # View service status
@@ -240,13 +259,19 @@ disable_service() {
         esac
     fi
     
-    systemctl --user stop "${TIMER_NAME}" 2>/dev/null
-    systemctl --user disable "${TIMER_NAME}" 2>/dev/null
-    
-    if [ $? -eq 0 ]; then
+    # Phase 3.2: surface real stop/disable status — no || true masking
+    local _disable_ok=true
+    if type scheduler_stop_and_disable >/dev/null 2>&1 && scheduler_is_darwin; then
+        scheduler_stop_and_disable || _disable_ok=false
+    else
+        systemctl --user stop "${TIMER_NAME}" 2>/dev/null || true  # stop may fail if already stopped
+        systemctl --user disable "${TIMER_NAME}" 2>/dev/null || _disable_ok=false
+    fi
+
+    if [ "${_disable_ok}" = "true" ]; then
         show_message "Disable Service" "Service disabled successfully.\n\nThe sleep warning system will no longer check for restricted hours." "info" "${use_gui}"
     else
-        show_message "Disable Service" "Error: Failed to disable service." "error" "${use_gui}"
+        show_message "Disable Service" "Error: Failed to disable service.\n\nYou can disable it directly with:\n  systemctl --user disable sleep-warning.timer\n  launchctl bootout gui/\$(id -u)/com.sleep-warning  (macOS)" "error" "${use_gui}"
         return 1
     fi
 }
@@ -277,14 +302,20 @@ enable_service() {
         esac
     fi
     
-    systemctl --user daemon-reload 2>/dev/null
-    systemctl --user enable "${TIMER_NAME}" 2>/dev/null
-    systemctl --user start "${TIMER_NAME}" 2>/dev/null
-    
-    if [ $? -eq 0 ]; then
+    # Phase 3.2: surface real enable/start status — no || true masking
+    local _enable_ok=true
+    if type scheduler_enable_start >/dev/null 2>&1 && scheduler_is_darwin; then
+        scheduler_enable_start || _enable_ok=false
+    else
+        systemctl --user daemon-reload 2>/dev/null || true
+        systemctl --user enable "${TIMER_NAME}" 2>/dev/null || _enable_ok=false
+        systemctl --user start "${TIMER_NAME}" 2>/dev/null || _enable_ok=false
+    fi
+
+    if [ "${_enable_ok}" = "true" ]; then
         show_message "Enable Service" "Service enabled successfully.\n\nThe sleep warning system is now active." "info" "${use_gui}"
     else
-        show_message "Enable Service" "Error: Failed to enable service." "error" "${use_gui}"
+        show_message "Enable Service" "Error: Failed to enable service.\n\nYou can enable it directly with:\n  systemctl --user enable sleep-warning.timer && systemctl --user start sleep-warning.timer" "error" "${use_gui}"
         return 1
     fi
 }
@@ -540,13 +571,14 @@ main() {
         use_gui="true"
     fi
     
-    # Check if configuration is locked due to restricted hours
+    # Phase 3.3: Check configure-block lock.  Some actions (Disable Service, status
+    # viewing, logs) are still allowed during lock hours because they are escape hatches.
+    # "Configure Restricted Hours" is the only action that must be blocked.
+    local _config_locked=false
     if ! check_config_lock_time 2>/dev/null; then
-        # Configuration is locked - show error and exit
-        show_config_locked_error "${use_gui}" "Management interface"
-        exit 1
+        _config_locked=true
     fi
-    
+
     # Check if installed
     if ! is_installed; then
         show_message "Not Installed" "The Sleep Warning System is not installed.\n\nPlease run install.sh to install it first." "error" "${use_gui}"
@@ -575,9 +607,15 @@ main() {
                 view_config "${use_gui}"
                 ;;
             "Configure Restricted Hours"|3)
-                launch_configure "${use_gui}"
+                # Phase 3.3: block configure wizard during lock hours
+                if [ "${_config_locked}" = "true" ]; then
+                    show_config_locked_error "${use_gui}" "Configuration"
+                else
+                    launch_configure "${use_gui}"
+                fi
                 ;;
             "Temporarily Disable Service"|4)
+                # Phase 3.3: Disable Service is ALWAYS allowed — it's an escape hatch
                 disable_service "${use_gui}"
                 ;;
             "Re-enable Service"|5)

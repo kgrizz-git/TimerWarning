@@ -97,6 +97,9 @@ _POPUP_DIALOGS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "${_POPUP_DIALOGS_DIR}/popup-dialog-implementations.sh" ]; then
     source "${_POPUP_DIALOGS_DIR}/popup-dialog-implementations.sh"
 fi
+if [ -f "${_POPUP_DIALOGS_DIR}/popup-display-darwin.sh" ]; then
+    source "${_POPUP_DIALOGS_DIR}/popup-display-darwin.sh"
+fi
 unset _POPUP_DIALOGS_DIR
 
 # Close popup process using process termination
@@ -242,6 +245,11 @@ _popup_build_initial_countdown_suffix() {
 
 # Display warning popup
 show_warning() {
+    if type is_darwin >/dev/null 2>&1 && is_darwin && type show_warning_darwin >/dev/null 2>&1; then
+        show_warning_darwin
+        return $?
+    fi
+
     local dialog_tool
     local display_env
     local env_type
@@ -377,6 +385,22 @@ show_warning() {
     local window_tool
     window_tool=$(check_window_tools)
     
+    # Phase 2.4: Acquire a per-process-group lock so concurrent scheduler instances
+    # serialize the is_popup_running → spawn → save_popup_pid triplet, preventing
+    # duplicate popups.  flock is Linux-only; the macOS path never reaches this code.
+    local _popup_lock_file="${CONFIG_DIR}/.popup.lock"
+    local _popup_lock_fd=""
+    if command -v flock >/dev/null 2>&1; then
+        exec {_popup_lock_fd}>"${_popup_lock_file}" 2>/dev/null || true
+        if [ -n "${_popup_lock_fd}" ]; then
+            if ! flock -w 5 "${_popup_lock_fd}" 2>/dev/null; then
+                log_to_file "WARNING" "Popup lock timed out after 5s — another instance may be active; proceeding without lock"
+                exec {_popup_lock_fd}>&- 2>/dev/null
+                _popup_lock_fd=""
+            fi
+        fi
+    fi
+
     # Check for existing popup before spawning new one (Enhancement #9)
     local existing_popup_info
     existing_popup_info=$(is_popup_running)
@@ -399,6 +423,11 @@ show_warning() {
         else
             # Existing popup has been open less than display frequency, skip showing new popup
             log_to_file "INFO" "Skipping new popup: Existing popup (PID ${existing_pid}) has been open ${existing_age}s (less than display frequency ${popup_freq_seconds}s)"
+            # Release flock before returning
+            if [ -n "${_popup_lock_fd:-}" ]; then
+                flock -u "${_popup_lock_fd}" 2>/dev/null
+                exec {_popup_lock_fd}>&- 2>/dev/null
+            fi
             return 0
         fi
     fi
@@ -406,6 +435,7 @@ show_warning() {
     # Display popup based on available tool
     # Note: Window title is set to a specific string to avoid matching unrelated windows.
     local popup_pid
+    local _popup_watchdog_pid=""   # Phase 2.1: background absolute watchdog (Linux)
     # Used by zenity to capture which extra button was clicked (Enhancement #21).
     local zenity_output_file
     local window_title="ALERT: Restricted time window"
@@ -427,8 +457,45 @@ show_warning() {
         
         # Save popup PID to file (Enhancement #9)
         save_popup_pid "${popup_pid}"
+
+        # Release the spawn lock now that PID is recorded (Phase 2.4)
+        if [ -n "${_popup_lock_fd:-}" ]; then
+            flock -u "${_popup_lock_fd}" 2>/dev/null
+            exec {_popup_lock_fd}>&- 2>/dev/null
+            _popup_lock_fd=""
+        fi
+
+        # Phase 2.1: Absolute watchdog for Linux — kills whatever PID is current in
+        # POPUP_PID_FILE after POPUP_ABSOLUTE_MAX_SECONDS.  Reads the file each second
+        # so it correctly follows PID changes from update_popup_countdown() re-spawns.
+        local _popup_abs_max_secs="${POPUP_ABSOLUTE_MAX_SECONDS:-120}"
+        (
+            local _waited=0
+            while [ "${_waited}" -lt "${_popup_abs_max_secs}" ]; do
+                sleep 1
+                _waited=$(( _waited + 1 ))
+            done
+            if [ -f "${POPUP_PID_FILE}" ]; then
+                local _wd_pid
+                _wd_pid=$(cat "${POPUP_PID_FILE}" 2>/dev/null | tr -d '\n')
+                if [[ "${_wd_pid}" =~ ^[0-9]+$ ]] && kill -0 "${_wd_pid}" 2>/dev/null; then
+                    log_to_file "WARNING" \
+                        "Linux popup absolute watchdog fired after ${_popup_abs_max_secs}s; killing PID ${_wd_pid}"
+                    kill -TERM "${_wd_pid}" 2>/dev/null
+                    sleep 1
+                    kill -KILL "${_wd_pid}" 2>/dev/null
+                fi
+            fi
+        ) &
+        _popup_watchdog_pid=$!
     else
         log_to_file "ERROR" "Failed to display popup, Dialog tool: ${dialog_tool}"
+        # Release lock on failure path (Phase 2.4)
+        if [ -n "${_popup_lock_fd:-}" ]; then
+            flock -u "${_popup_lock_fd}" 2>/dev/null
+            exec {_popup_lock_fd}>&- 2>/dev/null
+            _popup_lock_fd=""
+        fi
         if command -v notify-send >/dev/null 2>&1; then
             notify-send "ALERT: Restricted time window" "You are using your computer during restricted hours. Please consider resting." >/dev/null 2>&1
             log_to_file "WARNING" "notify-send fallback used (non-modal)"
@@ -633,6 +700,12 @@ show_warning() {
             
             # Clean up PID file when popup closes (Enhancement #9)
             cleanup_popup_pid "${popup_pid}"
+            # Cancel the absolute watchdog now that popup has closed naturally
+            if [ -n "${_popup_watchdog_pid:-}" ] && kill -0 "${_popup_watchdog_pid}" 2>/dev/null; then
+                kill "${_popup_watchdog_pid}" 2>/dev/null
+                wait "${_popup_watchdog_pid}" 2>/dev/null || true
+                _popup_watchdog_pid=""
+            fi
         else
             log_to_file "WARNING" "Popup process (PID ${popup_pid}) already exited before wait"
         fi
@@ -678,11 +751,23 @@ show_warning() {
                 
                 # Clean up PID file when popup closes (Enhancement #9)
                 cleanup_popup_pid "${popup_pid}"
+                # Cancel the absolute watchdog now that popup has closed naturally
+                if [ -n "${_popup_watchdog_pid:-}" ] && kill -0 "${_popup_watchdog_pid}" 2>/dev/null; then
+                    kill "${_popup_watchdog_pid}" 2>/dev/null
+                    wait "${_popup_watchdog_pid}" 2>/dev/null || true
+                    _popup_watchdog_pid=""
+                fi
             else
                 log_to_file "WARNING" "Popup process (PID ${popup_pid}) already exited before wait"
             fi
         fi
     fi
-    
+
+    # Fallback: ensure watchdog is cancelled if still running (e.g. popup was already gone)
+    if [ -n "${_popup_watchdog_pid:-}" ] && kill -0 "${_popup_watchdog_pid}" 2>/dev/null; then
+        kill "${_popup_watchdog_pid}" 2>/dev/null
+        wait "${_popup_watchdog_pid}" 2>/dev/null || true
+    fi
+
     return $?
 }

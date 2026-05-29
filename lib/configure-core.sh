@@ -46,8 +46,13 @@ CONFIG_DIR="${HOME}/.config/sleep-warning"
 # Enhancement #18: Config file is now in subdirectory
 CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
-TIMER_FILE="${SYSTEMD_USER_DIR}/sleep-warning.timer"
 SERVICE_NAME="sleep-warning"
+# Platform-aware timer config path (systemd timer or LaunchAgent plist)
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+    TIMER_FILE="${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
+else
+    TIMER_FILE="${SYSTEMD_USER_DIR}/sleep-warning.timer"
+fi
 
 # Day names array
 declare -a DAY_NAMES=("Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday")
@@ -70,8 +75,11 @@ ensure_day_vars() {
 # These define when to warn or block configuration based on total restricted minutes per week
 # Calculated as: hours_per_day × 60 minutes × 7 days
 # To change thresholds, modify HOURS_PER_DAY_WARN or HOURS_PER_DAY_BLOCK
-HOURS_PER_DAY_WARN=16      # Warning threshold: > 16 hours/day
-HOURS_PER_DAY_BLOCK=24     # Block threshold: >= 24 hours/day (24/7 restrictions)
+HOURS_PER_DAY_WARN=12      # Warning threshold: > 12 hours/day weekly average
+HOURS_PER_DAY_BLOCK=16     # Block threshold: > 16 hours/day weekly average
+                           # (Mirrors per-day hard cap in lib/daily-caps.sh; comparison
+                           #  uses strict ">" so configs that max 16 h every day
+                           #  still pass — the per-day cap is the primary enforcer.)
 readonly MINUTES_PER_HOUR=60
 readonly DAYS_PER_WEEK=7
 readonly MINUTES_PER_DAY=$((MINUTES_PER_HOUR * 24))      # 1440 minutes per day
@@ -86,6 +94,21 @@ readonly MAX_HOUR=23
 # Time range constants (for minimum display time validation)
 readonly MIN_DISPLAY_TIME=0
 readonly MAX_DISPLAY_TIME=300
+# macOS safety cap for POPUP_MIN_DISPLAY_TIME (see lib/popup-safety.sh)
+readonly DARWIN_MAX_MIN_DISPLAY_TIME="${DARWIN_MAX_MIN_DISPLAY_TIME:-60}"
+
+# Maximum POPUP_MIN_DISPLAY_TIME allowed in the configure wizard (platform-aware).
+get_max_min_display_time_limit() {
+    if type is_darwin >/dev/null 2>&1 && is_darwin; then
+        echo "${DARWIN_MAX_MIN_DISPLAY_TIME}"
+        return 0
+    fi
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        echo "${DARWIN_MAX_MIN_DISPLAY_TIME}"
+        return 0
+    fi
+    echo "${MAX_DISPLAY_TIME}"
+}
 
 # Check interval constants (for validation)
 readonly MIN_CHECK_INTERVAL=1
@@ -149,6 +172,10 @@ has_zenity() {
 # Check if GUI is available
 # Now checks both DISPLAY and dialog tool availability
 has_gui() {
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        command -v osascript >/dev/null 2>&1 && osascript -e 'return "ok"' >/dev/null 2>&1
+        return $?
+    fi
     # Check for display
     if [ -z "${DISPLAY}" ] && [ ! -S "/tmp/.X11-unix/X0" ] && ! command -v loginctl >/dev/null 2>&1; then
         return 1

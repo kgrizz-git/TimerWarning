@@ -1,6 +1,6 @@
 # Technical Implementation Details
 
-This document provides detailed technical specifications for the Sleep Warning System implementation. For the master plan and detailed checklists, see [linux-warning-system-plan.md](linux-warning-system-plan.md) and the phase plans linked from it.
+This document provides detailed technical specifications for the Sleep Warning System implementation. For the master plan and detailed checklists, see [linux-warning-system-plan.md](plans/master/linux-warning-system-plan.md) and the [phase plans](plans/phases/) linked from it.
 
 ## Code Architecture
 

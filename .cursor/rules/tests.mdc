@@ -5,4 +5,6 @@ alwaysApply: false
 
 # Overview
 
+**Safety:** [docs/SAFETY.md](../../docs/SAFETY.md) and [docs/development/testing.md](../../docs/development/testing.md). Do not modify the live installed config during restricted/blocked hours ([config-file-edits.mdc](config-file-edits.mdc)).
+
 When running tests on this project, make sure any configurations you set for restricted times, frequencies, and minimum popup times are restriced to no more than 6 hours per day, no more frequent than every 5 minutes, and no longer than 60 seconds. Document tests run in dev-docs/testing-assessments/test-history.md following the format there. Write comments in test scripts indicating their purpose and when they were last updated.

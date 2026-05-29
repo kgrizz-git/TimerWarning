@@ -73,7 +73,7 @@ This approach ensures:
    - Note any broken or flaky tests that need attention
 
 2. **Extract test requirements from documentation**:
-   - Read `dev-docs/plan-phase-4-testing.md` to identify pending tests
+   - Read `dev-docs/plans/phases/plan-phase-4-testing.md` to identify pending tests
    - Read `dev-docs/TECHNICAL_DETAILS.md` to extract test requirements for features
    - Review `dev-docs/STEAMOS_GAMING_MODE.md` for Gaming Mode-specific test needs
    - Check enhancement documents in `dev-docs/enhancements/` for feature-specific test requirements
@@ -389,7 +389,7 @@ This approach ensures:
 
 #### 1.1: Extract Test Requirements from Phase 4 Testing Plan
 
-**Location**: `dev-docs/plan-phase-4-testing.md`
+**Location**: `dev-docs/plans/phases/plan-phase-4-testing.md`
 
 **Purpose**: Identify specific tests that are documented as needed but not yet implemented or completed.
 

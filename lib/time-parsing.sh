@@ -13,8 +13,12 @@
 # - parse_time_range()             - Parse a time range string
 # - 12hour_to_24hour()             - Convert 12h to 24h format
 # - 24hour_to_12hour()             - Convert 24h to 12h format
+# - parse_time_token_to_24h_hm()   - Parse one time token to 24h hour + minute
 # - convert_time_range_to_24hour() - Convert any range to 24h format
 # - normalize_time_range()         - Normalize range to HH:MM-HH:MM
+# - range_endpoint_to_day_minutes()- Parse HH or HH:MM endpoint to minutes (0-1439)
+# - range_is_overnight()           - True when start > end (minute precision)
+# - range_overnight_tail_active_for_hour() - Prev-day overnight carry (hour API)
 ###############################################################################
 
 # Normalize time input string (remove extra spaces, handle case-insensitive AM/PM)
@@ -118,18 +122,83 @@ parse_single_time() {
     local h12="${hour}"
     local ampm="am"
     
-    if [ "${hour}" -ge 12 ]; then
+    if [ "$((10#${hour}))" -ge 12 ]; then
         ampm="pm"
-        if [ "${hour}" -gt 12 ]; then
-            h12=$((hour - 12))
+        if [ "$((10#${hour}))" -gt 12 ]; then
+            h12=$((10#${hour} - 12))
         fi
     fi
-    
-    if [ "${h12}" -eq 0 ]; then
+
+    if [ "$((10#${h12}))" -eq 0 ]; then
         h12=12
     fi
-    
-    printf "%d:%02d%s" "${h12}" "${minute}" "${ampm}"
+
+    printf "%d:%02d%s" "$((10#${h12}))" "$((10#${minute}))" "${ampm}"
+}
+
+# Split "hour minute" output from parse_time_token_to_24h_hm (IFS-safe; use instead of read).
+# Outputs: hour minute on stdout. Returns 1 if parts are empty or non-numeric.
+_split_24h_hm_parts() {
+    local parts="$1"
+    local h m
+
+    if [[ "${parts}" == *" "* ]]; then
+        h="${parts%% *}"
+        m="${parts#* }"
+    else
+        h="${parts}"
+        m=0
+    fi
+
+    if ! [[ "${h}" =~ ^[0-9]+$ ]] || ! [[ "${m}" =~ ^[0-9]+$ ]]; then
+        return 1
+    fi
+    echo "${h} ${m}"
+    return 0
+}
+
+# Parse one time token (12h or 24h) into 24-hour hour and minute integers.
+# Outputs: hour minute (space-separated). Returns 1 on failure.
+parse_time_token_to_24h_hm() {
+    local input="$1"
+    if [ -z "${input}" ]; then
+        return 1
+    fi
+
+    local format
+    format=$(detect_time_format "${input}")
+
+    if [ "${format}" = "12hour" ]; then
+        local data h m is_pm h24
+        if ! data=$(parse_single_time "${input}"); then
+            return 1
+        fi
+        h="${data%% *}"
+        data="${data#* }"
+        m="${data%% *}"
+        is_pm="${data##* }"
+        h24=$(12hour_to_24hour "${h}" "${m}" "${is_pm}")
+        h="${h24%%:*}"
+        m="${h24##*:}"
+        echo "${h} ${m}"
+        return 0
+    fi
+
+    local norm h m
+    norm=$(normalize_time_input "${input}")
+    if [[ "${norm}" =~ : ]]; then
+        h="${norm%%:*}"
+        m="${norm##*:}"
+    else
+        h="${norm}"
+        m=0
+    fi
+
+    if ! [[ "${h}" =~ ^[0-9]+$ ]] || ! [[ "${m}" =~ ^[0-9]+$ ]]; then
+        return 1
+    fi
+    echo "${h} ${m}"
+    return 0
 }
 
 # Parse a time range string (e.g., "11:30pm-5:30am")
@@ -180,10 +249,14 @@ convert_time_range_to_24hour() {
             end_h="${end_str}"
             end_m=0
         fi
-        # Ensure numeric and in range (basic)
+        # Ensure numeric and within valid bounds (use 10# to avoid octal trap)
         if ! [[ "${start_h}" =~ ^[0-9]+$ ]] || ! [[ "${start_m}" =~ ^[0-9]+$ ]] ||
-           ! [[ "${end_h}" =~ ^[0-9]+$ ]] || ! [[ "${end_m}" =~ ^[0-9]+$ ]]; then
+           ! [[ "${end_h}" =~ ^[0-9]+$ ]]   || ! [[ "${end_m}" =~ ^[0-9]+$ ]]; then
             return 1
+        fi
+        if [ "$(( 10#${start_h} ))" -gt 23 ] || [ "$(( 10#${start_m} ))" -gt 59 ] || \
+           [ "$(( 10#${end_h} ))"   -gt 23 ] || [ "$(( 10#${end_m} ))"   -gt 59 ]; then
+            return 1  # Reject hours > 23 or minutes > 59
         fi
         printf "%02d:%02d-%02d:%02d" "${start_h}" "${start_m}" "${end_h}" "${end_m}"
         return 0
@@ -236,22 +309,42 @@ normalize_time_range() {
                 local end_part="${range##*-}"
                 
                 local start_norm end_norm
-                if [[ "${start_part}" =~ ^[0-9]+$ ]]; then 
-                    start_norm=$(printf "%02d:00" "${start_part}")
+                if [[ "${start_part}" =~ ^[0-9]+$ ]]; then
+                    start_norm=$(printf "%02d:00" "$((10#${start_part}))")
+                elif start_norm=$(parse_time_token_to_24h_hm "${start_part}"); then
+                    local sh sm _hm
+                    if _hm=$(_split_24h_hm_parts "${start_norm}"); then
+                        sh="${_hm%% *}"
+                        sm="${_hm#* }"
+                        start_norm=$(printf "%02d:%02d" "$((10#${sh}))" "$((10#${sm}))")
+                    else
+                        start_norm="${start_part}"
+                    fi
                 elif [[ "${start_part}" =~ ^[0-9]{1,2}:[0-9]{2}$ ]]; then
-                    local h=$(echo "${start_part}" | cut -d':' -f1)
-                    local m=$(echo "${start_part}" | cut -d':' -f2)
-                    start_norm=$(printf "%02d:%02d" "${h}" "${m}")
+                    local h m
+                    h=$(echo "${start_part}" | cut -d':' -f1)
+                    m=$(echo "${start_part}" | cut -d':' -f2)
+                    start_norm=$(printf "%02d:%02d" "$((10#${h}))" "$((10#${m}))")
                 else
                     start_norm="${start_part}"
                 fi
-                
-                if [[ "${end_part}" =~ ^[0-9]+$ ]]; then 
-                    end_norm=$(printf "%02d:00" "${end_part}")
+
+                if [[ "${end_part}" =~ ^[0-9]+$ ]]; then
+                    end_norm=$(printf "%02d:00" "$((10#${end_part}))")
+                elif end_norm=$(parse_time_token_to_24h_hm "${end_part}"); then
+                    local eh em _hm
+                    if _hm=$(_split_24h_hm_parts "${end_norm}"); then
+                        eh="${_hm%% *}"
+                        em="${_hm#* }"
+                        end_norm=$(printf "%02d:%02d" "$((10#${eh}))" "$((10#${em}))")
+                    else
+                        end_norm="${end_part}"
+                    fi
                 elif [[ "${end_part}" =~ ^[0-9]{1,2}:[0-9]{2}$ ]]; then
-                    local h=$(echo "${end_part}" | cut -d':' -f1)
-                    local m=$(echo "${end_part}" | cut -d':' -f2)
-                    end_norm=$(printf "%02d:%02d" "${h}" "${m}")
+                    local h m
+                    h=$(echo "${end_part}" | cut -d':' -f1)
+                    m=$(echo "${end_part}" | cut -d':' -f2)
+                    end_norm=$(printf "%02d:%02d" "$((10#${h}))" "$((10#${m}))")
                 else
                     end_norm="${end_part}"
                 fi
@@ -274,4 +367,65 @@ normalize_time_range() {
         fi
     done
     echo "${result}"
+}
+
+# Convert one range endpoint (HH or HH:MM) to minutes from midnight (0-1439).
+# Prints minutes on stdout; returns 1 if invalid.
+range_endpoint_to_day_minutes() {
+    local part="$1"
+    local minutes_per_hour="${MINUTES_PER_HOUR:-60}"
+
+    part=$(echo "${part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    [ -z "${part}" ] && return 1
+
+    if [[ "${part}" =~ : ]]; then
+        local h m
+        h=$(echo "${part}" | cut -d: -f1)
+        m=$(echo "${part}" | cut -d: -f2)
+        if ! [[ "${h}" =~ ^[0-9]+$ ]] || ! [[ "${m}" =~ ^[0-9]+$ ]]; then
+            return 1
+        fi
+        h=$((10#${h}))
+        m=$((10#${m}))
+        if [ "${h}" -lt 0 ] || [ "${h}" -gt 23 ] || [ "${m}" -lt 0 ] || [ "${m}" -gt 59 ]; then
+            return 1
+        fi
+        echo $((h * minutes_per_hour + m))
+        return 0
+    fi
+
+    if ! [[ "${part}" =~ ^[0-9]+$ ]]; then
+        return 1
+    fi
+    local h=$((10#${part}))
+    if [ "${h}" -lt 0 ] || [ "${h}" -gt 23 ]; then
+        return 1
+    fi
+    echo $((h * minutes_per_hour))
+    return 0
+}
+
+# True when range crosses midnight (start minute > end minute).
+range_is_overnight() {
+    local start_part="$1"
+    local end_part="$2"
+    local start_m end_m
+
+    start_m=$(range_endpoint_to_day_minutes "${start_part}") || return 1
+    end_m=$(range_endpoint_to_day_minutes "${end_part}") || return 1
+    [ "${start_m}" -gt "${end_m}" ]
+}
+
+# For hour-granular callers: true if current hour overlaps the morning tail of an
+# overnight range from the previous day (e.g. Monday 23:00-05:30, now Tuesday 03:xx).
+range_overnight_tail_active_for_hour() {
+    local current_hour="$1"
+    local start_part="$2"
+    local end_part="$3"
+    local start_m end_m hour_start
+
+    range_is_overnight "${start_part}" "${end_part}" || return 1
+    end_m=$(range_endpoint_to_day_minutes "${end_part}") || return 1
+    hour_start=$((10#${current_hour} * 60))
+    [ "${hour_start}" -lt "${end_m}" ]
 }

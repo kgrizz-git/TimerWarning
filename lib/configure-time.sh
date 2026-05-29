@@ -47,26 +47,51 @@ format_range_human() {
         fi
     fi
     
-    # Extract start and end times (handles HH:MM-HH:MM and HH-HH)
+    # Extract start and end times (handles HH:MM-HH:MM, HH-HH, and 12h with am/pm)
     local start_str end_str
     start_str=$(echo "${range}" | cut -d'-' -f1)
     end_str=$(echo "${range}" | cut -d'-' -f2)
-    
+
     local start_h start_m end_h end_m
-    if [[ "${start_str}" =~ : ]]; then
-        start_h=$(echo "${start_str}" | cut -d':' -f1)
-        start_m=$(echo "${start_str}" | cut -d':' -f2)
+    if type parse_time_token_to_24h_hm >/dev/null 2>&1; then
+        local start_parts end_parts
+        if ! start_parts=$(parse_time_token_to_24h_hm "${start_str}") ||
+           ! end_parts=$(parse_time_token_to_24h_hm "${end_str}"); then
+            echo "${range}"
+            return 0
+        fi
+        local _hm
+        if type _split_24h_hm_parts >/dev/null 2>&1; then
+            _hm=$(_split_24h_hm_parts "${start_parts}") || { echo "${range}"; return 0; }
+            start_h="${_hm%% *}"
+            start_m="${_hm#* }"
+            _hm=$(_split_24h_hm_parts "${end_parts}") || { echo "${range}"; return 0; }
+            end_h="${_hm%% *}"
+            end_m="${_hm#* }"
+        else
+            start_h="${start_parts%% *}"
+            start_m="${start_parts#* }"
+            end_h="${end_parts%% *}"
+            end_m="${end_parts#* }"
+            if [ "${start_h}" = "${start_m}" ]; then start_m=0; fi
+            if [ "${end_h}" = "${end_m}" ]; then end_m=0; fi
+        fi
     else
-        start_h="${start_str}"
-        start_m=0
-    fi
-    
-    if [[ "${end_str}" =~ : ]]; then
-        end_h=$(echo "${end_str}" | cut -d':' -f1)
-        end_m=$(echo "${end_str}" | cut -d':' -f2)
-    else
-        end_h="${end_str}"
-        end_m=0
+        if [[ "${start_str}" =~ : ]]; then
+            start_h=$(echo "${start_str}" | cut -d':' -f1)
+            start_m=$(echo "${start_str}" | cut -d':' -f2 | sed 's/[ap]m$//')
+        else
+            start_h="${start_str}"
+            start_m=0
+        fi
+
+        if [[ "${end_str}" =~ : ]]; then
+            end_h=$(echo "${end_str}" | cut -d':' -f1)
+            end_m=$(echo "${end_str}" | cut -d':' -f2 | sed 's/[ap]m$//')
+        else
+            end_h="${end_str}"
+            end_m=0
+        fi
     fi
     
     # Get display format preference
@@ -75,15 +100,16 @@ format_range_human() {
     
     local start_display end_display
     if [ "${display_format}" = "24hour" ]; then
-        start_display=$(printf "%02d:%02d" "${start_h}" "${start_m}")
-        end_display=$(printf "%02d:%02d" "${end_h}" "${end_m}")
+        start_display=$(printf "%02d:%02d" "$((10#${start_h}))" "$((10#${start_m}))")
+        end_display=$(printf "%02d:%02d" "$((10#${end_h}))" "$((10#${end_m}))")
     else
         start_display=$(24hour_to_12hour "${start_h}" "${start_m}")
         end_display=$(24hour_to_12hour "${end_h}" "${end_m}")
     fi
     
     # Handle overnight ranges
-    if [ "${start_h}" -gt "${end_h}" ] || ([ "${start_h}" -eq "${end_h}" ] && [ "${start_m}" -gt "${end_m}" ]); then
+    if [ "$((10#${start_h}))" -gt "$((10#${end_h}))" ] ||
+       { [ "$((10#${start_h}))" -eq "$((10#${end_h}))" ] && [ "$((10#${start_m}))" -gt "$((10#${end_m}))" ]; }; then
         # Get next day name
         local next_day
         case "${day_name}" in

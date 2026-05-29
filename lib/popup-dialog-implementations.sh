@@ -157,12 +157,23 @@ _popup_spawn_warning_dialog() {
             ;;
 
         kdialog)
-            # kdialog --geometry is not supported for --sorry dialogs (only works for --textbox and --textinputbox)
-            # Note: kdialog doesn't support --warning, use --sorry for warning messages
-            # kdialog doesn't support custom buttons on --sorry, so we'll show menu after warning closes
-            kdialog --title "${window_title}" \
-                --sorry "${popup_text}" \
-                2>/dev/null &
+            # Phase 4.2: use --warningyesno so kdialog shows a Pause button in addition
+            # to the Dismiss (No) button.  Yes = "Pause N min", No = "Dismiss".
+            # If pause is not available, fall back to --sorry (OK only).
+            if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
+                local _kd_pause_label="Pause ${pause_duration} min"
+                # --warningyesno: Yes button = left, No button = right
+                # kdialog returns 0 for Yes (Pause), 1 for No (Dismiss)
+                kdialog --title "${window_title}" \
+                    --warningyesno "${popup_text}" \
+                    --yes-label "${_kd_pause_label}" \
+                    --no-label "Dismiss" \
+                    2>/dev/null &
+            else
+                kdialog --title "${window_title}" \
+                    --sorry "${popup_text}" \
+                    2>/dev/null &
+            fi
             popup_pid=$!
             # Give kdialog a moment to start
             sleep 0.2
@@ -272,33 +283,22 @@ _popup_maybe_handle_pause_click() {
             ;;
 
         kdialog)
-            # kdialog: show menu dialog after warning closes
-            if can_pause_today; then
-                local pause_choice
-                pause_choice=$(timeout 30 kdialog --title "Pause Warnings" \
-                    --menu "Pause warning popups for:" \
-                    "5" "5 minutes" \
-                    "10" "10 minutes" \
-                    "cancel" "Cancel" \
-                    2>/dev/null || echo "")
-
-                if [ -n "${pause_choice}" ] && [ "${pause_choice}" != "cancel" ]; then
-                    if [ "${pause_choice}" = "5" ] || [ "${pause_choice}" = "10" ]; then
-                        if activate_pause "${pause_choice}"; then
-                            local pause_end_timestamp
-                            pause_end_timestamp=$(get_pause_end_timestamp)
-                            local pause_end_time
-                            pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
-
-                            kdialog --passivepopup "Warning popups paused until ${pause_end_time}" 30 \
-                                2>/dev/null
-
-                            if [ -n "${popup_pid}" ]; then
-                                cleanup_popup_pid "${popup_pid}"
-                            fi
-                            return 0
-                        fi
+            # Phase 4.2: --warningyesno exit code 0 = "Pause N min" button was clicked.
+            # Use configured pause_duration from config rather than hardcoded 5/10.
+            if can_pause_today && [ ${popup_exit_code} -eq 0 ]; then
+                if activate_pause "${pause_duration}"; then
+                    local pause_end_timestamp
+                    pause_end_timestamp=$(get_pause_end_timestamp)
+                    local pause_end_time
+                    pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null \
+                        || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null \
+                        || echo "unknown")
+                    kdialog --passivepopup \
+                        "Warning popups paused until ${pause_end_time}" 30 2>/dev/null
+                    if [ -n "${popup_pid}" ]; then
+                        cleanup_popup_pid "${popup_pid}"
                     fi
+                    return 0
                 fi
             fi
             ;;

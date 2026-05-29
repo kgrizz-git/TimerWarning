@@ -35,6 +35,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_LIB_DIR="${SCRIPT_DIR}/lib"
 INSTALLED_LIB_DIR="${HOME}/.local/lib/sleep-warning"
 
+for _bootstrap_lib in \
+    "${INSTALLED_LIB_DIR}/_bootstrap-bash4.sh" \
+    "${SCRIPT_LIB_DIR}/_bootstrap-bash4.sh"; do
+    if [ -f "${_bootstrap_lib}" ]; then
+        # shellcheck disable=SC1090
+        source "${_bootstrap_lib}"
+        _bootstrap_bash4 "${BASH_SOURCE[0]}" "$@"
+        break
+    fi
+done
+unset _bootstrap_lib
+
 # Load shared library loader helper
 LIB_HELPER_PATH=""
 for candidate in \
@@ -75,6 +87,12 @@ source_optional_lib "desktop-environment.sh" || true
 
 # Source pause state library if available (for pause status display - Enhancement #21)
 source_optional_lib "pause-state.sh" || true
+source_optional_lib "scheduler-platform.sh" || true
+
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+    TIMER_FILE="${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
+    SERVICE_FILE="${TIMER_FILE}"
+fi
 
 # ANSI color codes
 COLOR_RESET="\033[0m"
@@ -249,23 +267,34 @@ format_ranges_human() {
 # Check installation status
 check_installation() {
     print_header "INSTALLATION STATUS"
-    
-    # Check if service file exists
-    if [ -f "${SERVICE_FILE}" ]; then
-        print_status "Service File" "Installed" "good"
+
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        if [ -f "${TIMER_FILE}" ]; then
+            print_status "LaunchAgent" "Installed" "good"
+        else
+            print_status "LaunchAgent" "Not Installed" "error"
+            echo ""
+            echo -e "${COLOR_YELLOW}  → Run './install.sh' to install${COLOR_RESET}"
+            return 1
+        fi
     else
-        print_status "Service File" "Not Installed" "error"
-        echo ""
-        echo -e "${COLOR_YELLOW}  → Run './install.sh' to install the service${COLOR_RESET}"
-        return 1
-    fi
-    
-    # Check if timer file exists
-    if [ -f "${TIMER_FILE}" ]; then
-        print_status "Timer File" "Installed" "good"
-    else
-        print_status "Timer File" "Not Installed" "error"
-        return 1
+        # Check if service file exists
+        if [ -f "${SERVICE_FILE}" ]; then
+            print_status "Service File" "Installed" "good"
+        else
+            print_status "Service File" "Not Installed" "error"
+            echo ""
+            echo -e "${COLOR_YELLOW}  → Run './install.sh' to install the service${COLOR_RESET}"
+            return 1
+        fi
+        
+        # Check if timer file exists
+        if [ -f "${TIMER_FILE}" ]; then
+            print_status "Timer File" "Installed" "good"
+        else
+            print_status "Timer File" "Not Installed" "error"
+            return 1
+        fi
     fi
     
     # Check if config file exists
@@ -283,6 +312,32 @@ check_installation() {
 # Check service/timer status
 check_service_status() {
     print_header "SERVICE STATUS"
+
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && type scheduler_status_lines >/dev/null 2>&1; then
+        while IFS= read -r line; do
+            print_status "Scheduler" "${line}" ""
+        done < <(scheduler_status_lines)
+
+        # Derive last run time from warnings.log (macOS has no systemd timers).
+        local warnings_log="${CONFIG_DIR}/warnings.log"
+        if [ -f "${warnings_log}" ]; then
+            # Prefer the most recent restricted-time entry; fall back to any log line.
+            local last_line=""
+            last_line=$(grep -E "\\[WARNING\\] Restricted time detected" "${warnings_log}" 2>/dev/null | tail -n1)
+            if [ -z "${last_line}" ]; then
+                last_line=$(tail -n1 "${warnings_log}" 2>/dev/null)
+            fi
+            if [ -n "${last_line}" ]; then
+                # Extract leading timestamp: [YYYY-MM-DD HH:MM:SS]
+                local last_ts
+                last_ts=$(echo "${last_line}" | sed -n 's/^\[\([0-9-]\+ [0-9:]\+\)\].*/\1/p')
+                if [ -n "${last_ts}" ]; then
+                    print_status "Last Run" "${last_ts}"
+                fi
+            fi
+        fi
+        return 0
+    fi
     
     # Check if timer is enabled
     if systemctl --user is-enabled "${SERVICE_NAME}.timer" >/dev/null 2>&1; then

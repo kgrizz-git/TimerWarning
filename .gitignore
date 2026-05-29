@@ -4,9 +4,6 @@ env/
 ENV/
 .venv/
 
-# AGENTS.md (per user preference)
-AGENTS.md
-
 # Python cache
 __pycache__/
 *.py[cod]

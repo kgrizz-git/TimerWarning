@@ -43,6 +43,15 @@ is_kde() {
 check_dialog_tool() {
     local env_type="$1"
     local user_preference="${2:-}"  # Optional: "auto", "zenity", "yad", "kdialog"
+
+    # macOS: osascript only
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        if command -v osascript >/dev/null 2>&1; then
+            echo "osascript"
+            return 0
+        fi
+        return 1
+    fi
     
     # If user preference is set and tool is installed, use it
     if [ -n "${user_preference}" ] && [ "${user_preference}" != "auto" ]; then

@@ -30,10 +30,46 @@ if [ -f "${_CONFIGURE_INPUT_POPUP_DIR}/configure-input-popup-size.sh" ]; then
 fi
 unset _CONFIGURE_INPUT_POPUP_DIR
 
+# Handle GUI cancel on a Window Behavior sub-prompt. return 3 = retry caller loop.
+_handle_window_behavior_gui_cancel() {
+    local use_gui="$1"
+    local menu_prompt="${2:-What would you like to do?}"
+    local menu_result
+    menu_result=$(handle_window_behavior_cancel_menu "${use_gui}" "${menu_prompt}")
+    local menu_exit=$?
+    case ${menu_exit} in
+        1)
+            echo "${menu_result}"
+            return 1
+            ;;
+        2)
+            echo "${menu_result}"
+            return 2
+            ;;
+        3)
+            return 3
+            ;;
+    esac
+}
+
+# Map friendly on/off list labels to true/false config values.
+_map_on_off_list_to_bool() {
+    case "$1" in
+        "Yes, prevent movement"|"Yes, enable auto-close") echo "true" ;;
+        "No, allow movement"|"No, disable auto-close") echo "false" ;;
+        "true"|"false") echo "$1" ;;
+        *) echo "" ;;
+    esac
+}
+
 # Get minimum display time from user
 get_min_display_time_config() {
     local use_gui="$1"
-    local default_time="30"
+    local default_time="${DEFAULT_MIN_DISPLAY_TIME:-30}"
+    local max_display_limit
+    max_display_limit=$(get_max_min_display_time_limit)
+    local min_display_prompt
+    min_display_prompt=$'Minimum time popup must be visible before it can be closed:\n\n'"Enter time in seconds (${MIN_DISPLAY_TIME}-${max_display_limit}):"$'\n'"(${MIN_DISPLAY_TIME} = disabled, ${default_time} = default)"
     
     # Try to get existing time from config
     if [ -f "${CONFIG_FILE}" ]; then
@@ -50,25 +86,26 @@ get_min_display_time_config() {
             local time
             time=$(show_entry_dialog \
                 "Sleep Warning Configuration" \
-                "Minimum time popup must be visible before it can be closed:\n\nEnter time in seconds (${MIN_DISPLAY_TIME}-${MAX_DISPLAY_TIME}):\n(${MIN_DISPLAY_TIME} = disabled, 30 = default)" \
+                "${min_display_prompt}" \
                 "${default_time}")
             local exit_code=$?
             
             # User cancelled
             if [ "${exit_code}" -ne 0 ] || [ -z "${time}" ]; then
-                if confirm_cancel "${use_gui}"; then
-                    echo "CANCELLED"
-                    return 2  # Special return code for cancellation
-                else
-                    continue  # User wants to continue, re-prompt
-                fi
+                local cancel_action cancel_rc
+                cancel_action=$(_handle_window_behavior_gui_cancel "${use_gui}" "You cancelled minimum display time setup.")
+                cancel_rc=$?
+                case ${cancel_rc} in
+                    1|2) echo "${cancel_action}"; return "${cancel_rc}" ;;
+                    3) continue ;;
+                esac
             fi
             
             # Validate time
-            if ! [[ "${time}" =~ ^[0-9]+$ ]] || [ "${time}" -lt "${MIN_DISPLAY_TIME}" ] || [ "${time}" -gt "${MAX_DISPLAY_TIME}" ]; then
+            if ! [[ "${time}" =~ ^[0-9]+$ ]] || [ "${time}" -lt "${MIN_DISPLAY_TIME}" ] || [ "${time}" -gt "${max_display_limit}" ]; then
                 show_info_dialog \
                     "Invalid Time" \
-                    "Invalid time. Please enter a number between ${MIN_DISPLAY_TIME} and ${MAX_DISPLAY_TIME} seconds."
+                    "Invalid time. Please enter a number between ${MIN_DISPLAY_TIME} and ${max_display_limit} seconds."
                 continue
             fi
             
@@ -106,10 +143,10 @@ get_min_display_time_config() {
     else
         # Text mode
         while true; do
-            read -p "Minimum display time in seconds (${MIN_DISPLAY_TIME}-${MAX_DISPLAY_TIME}, ${MIN_DISPLAY_TIME}=disabled) [${default_time}]: " time
+            read -p "Minimum display time in seconds (${MIN_DISPLAY_TIME}-${max_display_limit}, ${MIN_DISPLAY_TIME}=disabled) [${default_time}]: " time
             time=${time:-${default_time}}
             
-            if [[ "${time}" =~ ^[0-9]+$ ]] && [ "${time}" -ge "${MIN_DISPLAY_TIME}" ] && [ "${time}" -le "${MAX_DISPLAY_TIME}" ]; then
+            if [[ "${time}" =~ ^[0-9]+$ ]] && [ "${time}" -ge "${MIN_DISPLAY_TIME}" ] && [ "${time}" -le "${max_display_limit}" ]; then
                 # Validate timing configuration (Enhancement #9); use popup display frequency (Enhancement #30)
                 local current_check_interval
                 current_check_interval="${check_interval:-}"
@@ -141,7 +178,7 @@ get_min_display_time_config() {
                 echo "${time}"
                 return 0
             else
-                echo "Invalid time. Please enter a number between ${MIN_DISPLAY_TIME} and ${MAX_DISPLAY_TIME}." >&2
+                echo "Invalid time. Please enter a number between ${MIN_DISPLAY_TIME} and ${max_display_limit}." >&2
             fi
         done
     fi
@@ -167,43 +204,52 @@ get_popup_immovable_config() {
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
+        local default_label="Off"
+        [ "${default_immovable}" = "true" ] && default_label="On"
+        local darwin_note=""
+        if type is_darwin >/dev/null 2>&1 && is_darwin; then
+            darwin_note=$'\n\nNote: On macOS this is saved for config compatibility but window movement is not enforced (Linux only).'
+        fi
+        local immovable_message
+        immovable_message="Prevent popup window from being moved during minimum display time?${darwin_note}"$'\n\n'"Current setting: ${default_label}"
+
         while true; do
-            local immovable
-            local tmpfile
-            tmpfile=$(mktemp)
-            
-            local immovable_result
+            local immovable_result immovable
             immovable_result=$(show_list_dialog \
                 "Sleep Warning Configuration" \
-                "Prevent popup window from being moved during minimum display time?\n(Current: ${default_immovable})" \
-                600 \
-                300 \
-                "true" "false")
+                "${immovable_message}" \
+                620 \
+                340 \
+                "Yes, prevent movement" "No, allow movement")
             local exit_code=$?
-            
+
             if [ ${exit_code} -eq 0 ] && [ -n "${immovable_result}" ]; then
-                immovable="${immovable_result}"
+                immovable=$(_map_on_off_list_to_bool "${immovable_result}")
             else
                 immovable=""
             fi
-            
-            # User cancelled
-            if [ "${exit_code}" -ne 0 ] || [ -z "${immovable}" ]; then
-                if confirm_cancel "${use_gui}"; then
-                    echo "CANCELLED"
-                    return 2  # Special return code for cancellation
-                else
-                    continue  # User wants to continue, re-prompt
-                fi
+
+            if [ -n "${immovable}" ]; then
+                echo "${immovable}"
+                return 0
             fi
-            
-            echo "${immovable}"
-            return 0
+
+            local cancel_action cancel_rc
+            cancel_action=$(_handle_window_behavior_gui_cancel "${use_gui}" "You cancelled immovable window setup.")
+            cancel_rc=$?
+            case ${cancel_rc} in
+                1|2) echo "${cancel_action}"; return "${cancel_rc}" ;;
+                3) continue ;;
+            esac
         done
     else
         # Text mode
         echo "" >&2
-        echo "Popup Immovable Setting:" >&2
+        local darwin_note=""
+        if type is_darwin >/dev/null 2>&1 && is_darwin; then
+            darwin_note=$'\n\nNote: On macOS this is saved for config compatibility but window movement is not enforced (Linux only).'
+        fi
+        echo "Popup Immovable Setting:${darwin_note}" >&2
         echo "  Prevents the popup window from being moved during minimum display time" >&2
         echo "  by monitoring and restoring its position if moved." >&2
         echo "" >&2
@@ -250,10 +296,12 @@ get_popup_auto_close_config() {
     
     # Get minimum display time for reference
     local min_display_time="0"
+    local max_display_limit
+    max_display_limit=$(get_max_min_display_time_limit)
     if [ -f "${CONFIG_FILE}" ]; then
         local existing_time
         existing_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-        if [ -n "${existing_time}" ] && [[ "${existing_time}" =~ ^[0-9]+$ ]] && [ "${existing_time}" -ge "${MIN_DISPLAY_TIME}" ] && [ "${existing_time}" -le "${MAX_DISPLAY_TIME}" ]; then
+        if [ -n "${existing_time}" ] && [[ "${existing_time}" =~ ^[0-9]+$ ]] && [ "${existing_time}" -ge "${MIN_DISPLAY_TIME}" ] && [ "${existing_time}" -le "${max_display_limit}" ]; then
             min_display_time="${existing_time}"
         fi
     fi
@@ -261,41 +309,42 @@ get_popup_auto_close_config() {
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
-            local auto_close
+            local auto_close auto_close_result
             local message
+            local default_label="Off"
+            [ "${default_auto_close}" = "true" ] && default_label="On"
             if [ "${min_display_time}" -gt 0 ]; then
-                message="Automatically close popup window 10 seconds after minimum display time completes?\n\nCurrent minimum display time: ${min_display_time} seconds\nAuto-close will happen after ${min_display_time} + 10 = $((min_display_time + 10)) seconds total\n\n(Current setting: ${default_auto_close})"
+                message=$'Automatically close popup window 10 seconds after minimum display time completes?\n\n'"Current minimum display time: ${min_display_time} seconds"$'\n'"Auto-close will happen after ${min_display_time} + 10 = $((min_display_time + 10)) seconds total"$'\n\n'"Current setting: ${default_label}"
             else
-                message="Automatically close popup window 10 seconds after it appears?\n\nCurrent minimum display time: 0 seconds (disabled)\nAuto-close will happen after 10 seconds\n\n(Current setting: ${default_auto_close})"
+                message=$'Automatically close popup window 10 seconds after it appears?\n\n'"Current minimum display time: 0 seconds (disabled)"$'\n'"Auto-close will happen after 10 seconds"$'\n\n'"Current setting: ${default_label}"
             fi
-            
-            local auto_close_result
+
             auto_close_result=$(show_list_dialog \
                 "Sleep Warning Configuration" \
                 "${message}" \
-                600 \
-                350 \
-                "true" "false")
+                620 \
+                360 \
+                "Yes, enable auto-close" "No, disable auto-close")
             local exit_code=$?
-            
+
             if [ ${exit_code} -eq 0 ] && [ -n "${auto_close_result}" ]; then
-                auto_close="${auto_close_result}"
+                auto_close=$(_map_on_off_list_to_bool "${auto_close_result}")
             else
                 auto_close=""
             fi
-            
-            # User cancelled
-            if [ "${exit_code}" -ne 0 ] || [ -z "${auto_close}" ]; then
-                if confirm_cancel "${use_gui}"; then
-                    echo "CANCELLED"
-                    return 2  # Special return code for cancellation
-                else
-                    continue  # User wants to continue, re-prompt
-                fi
+
+            if [ -n "${auto_close}" ]; then
+                echo "${auto_close}"
+                return 0
             fi
-            
-            echo "${auto_close}"
-            return 0
+
+            local cancel_action cancel_rc
+            cancel_action=$(_handle_window_behavior_gui_cancel "${use_gui}" "You cancelled auto-close setup.")
+            cancel_rc=$?
+            case ${cancel_rc} in
+                1|2) echo "${cancel_action}"; return "${cancel_rc}" ;;
+                3) continue ;;
+            esac
         done
     else
         # Text mode
@@ -362,12 +411,13 @@ get_popup_size_mode_config() {
             local exit_code=$?
             
             if [ ${exit_code} -ne 0 ] || [ -z "${mode_result}" ]; then
-                if confirm_cancel "${use_gui}"; then
-                    echo "CANCELLED"
-                    return 2
-                else
-                    continue
-                fi
+                local cancel_action cancel_rc
+                cancel_action=$(_handle_window_behavior_gui_cancel "${use_gui}" "You cancelled popup size mode setup.")
+                cancel_rc=$?
+                case ${cancel_rc} in
+                    1|2) echo "${cancel_action}"; return "${cancel_rc}" ;;
+                    3) continue ;;
+                esac
             fi
             
             # Extract mode from result
@@ -442,11 +492,7 @@ get_popup_position_config() {
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
-            local position
-            local tmpfile
-            tmpfile=$(mktemp)
-            
-            local position_result
+            local position position_result
             position_result=$(show_list_dialog \
                 "Sleep Warning Configuration" \
                 "Select popup position on screen:\n(Current: ${default_position})" \
@@ -454,25 +500,19 @@ get_popup_position_config() {
                 300 \
                 "center" "top-left")
             local exit_code=$?
-            
+
             if [ ${exit_code} -eq 0 ] && [ -n "${position_result}" ]; then
-                position="${position_result}"
-            else
-                position=""
+                echo "${position_result}"
+                return 0
             fi
-            
-            # User cancelled
-            if [ "${exit_code}" -ne 0 ] || [ -z "${position}" ]; then
-                if confirm_cancel "${use_gui}"; then
-                    echo "CANCELLED"
-                    return 2  # Special return code for cancellation
-                else
-                    continue  # User wants to continue, re-prompt
-                fi
-            fi
-            
-            echo "${position}"
-            return 0
+
+            local cancel_action cancel_rc
+            cancel_action=$(_handle_window_behavior_gui_cancel "${use_gui}" "You cancelled popup position setup.")
+            cancel_rc=$?
+            case ${cancel_rc} in
+                1|2) echo "${cancel_action}"; return "${cancel_rc}" ;;
+                3) continue ;;
+            esac
         done
     else
         # Text mode

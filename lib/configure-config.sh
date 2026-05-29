@@ -293,31 +293,39 @@ load_existing_config() {
     done
 }
 
-# Update systemd timer file from popup display frequency (Enhancement #30).
-# Argument: popup_display_frequency (1-60 minutes). Run interval is derived: 5 min if freq>=5, else freq.
+# Update timer / LaunchAgent from popup display frequency (Enhancement #30).
+# Argument: popup_display_frequency (1-60 minutes). Run interval derived: 5 min if freq>=5, else freq.
 update_timer_file() {
     local popup_freq="${1:-}"
     local run_interval
     run_interval=$(get_timer_run_interval "${popup_freq}")
-    
-    # Check if timer file exists
+    local _lib_dir
+    _lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    if [ -f "${_lib_dir}/platform.sh" ]; then
+        # shellcheck disable=SC1091
+        source "${_lib_dir}/platform.sh"
+    fi
+    if [ -f "${_lib_dir}/service-config.sh" ]; then
+        # shellcheck disable=SC1091
+        source "${_lib_dir}/service-config.sh"
+    fi
+
+    if type update_timer_file_platform >/dev/null 2>&1; then
+        update_timer_file_platform "${run_interval}"
+        return $?
+    fi
+
+    # Legacy fallback (Linux systemd)
     if [ ! -f "${TIMER_FILE}" ]; then
-        # Timer not installed yet, skip
         return 0
     fi
-    
-    # Convert run interval to OnCalendar format
     local oncalendar
     oncalendar=$(minutes_to_oncalendar "${run_interval}")
-    
-    # Create backup of timer file
     local backup_file="${TIMER_FILE}.bak"
     cp "${TIMER_FILE}" "${backup_file}" 2>/dev/null
-    
-    # Update timer file (use run_interval; do not expose to user)
     local temp_file
     temp_file=$(mktemp)
-    
     {
         echo "[Unit]"
         echo "Description=Sleep Warning System Timer - Triggers warning check every ${run_interval} minutes"
@@ -327,31 +335,20 @@ update_timer_file() {
         echo "[Timer]"
         echo "# Run every ${run_interval} minutes (derived from popup display frequency)"
         echo "OnCalendar=${oncalendar}"
-        echo "# Start immediately if missed"
         echo "Persistent=true"
-        echo "# Timer accuracy (can be adjusted)"
         echo "AccuracySec=1min"
         echo ""
         echo "[Install]"
         echo "WantedBy=timers.target"
     } > "${temp_file}"
-    
-    # Replace timer file
     if mv "${temp_file}" "${TIMER_FILE}" 2>/dev/null; then
-        # Always reload systemd daemon to pick up timer file changes
         systemctl --user daemon-reload >/dev/null 2>&1
-        
-        # Restart timer if it's active to pick up the new schedule
-        if systemctl --user is-active "${SERVICE_NAME}.timer" >/dev/null 2>&1; then
-            systemctl --user restart "${SERVICE_NAME}.timer" >/dev/null 2>&1
-        fi
+        systemctl --user restart "${SERVICE_NAME}.timer" >/dev/null 2>&1 || true
         rm -f "${backup_file}" 2>/dev/null
         return 0
-    else
-        # Restore backup on failure
-        mv "${backup_file}" "${TIMER_FILE}" 2>/dev/null
-        return 1
     fi
+    mv "${backup_file}" "${TIMER_FILE}" 2>/dev/null
+    return 1
 }
 
 # Write configuration file
