@@ -147,6 +147,9 @@ run_safety_tests() {
   if [ -f "${ROOT}/tests/test-configure-partial-lock.sh" ]; then
     bash "${ROOT}/tests/test-configure-partial-lock.sh" || failed=1
   fi
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -f "${ROOT}/tests/test-darwin-configure-gui.sh" ]; then
+    bash "${ROOT}/tests/test-darwin-configure-gui.sh" || failed=1
+  fi
   return "${failed}"
 }
 

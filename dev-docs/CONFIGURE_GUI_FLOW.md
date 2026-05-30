@@ -280,3 +280,15 @@ flowchart TD
 7. **Grid cancel exits wizard** — `configure_day_from_grid` return 2 now calls `exit 0` (not `break`), matching options 3/4/6/7/8.
 8. **`get_day_hours` Phase 2 loop** — "Continue configuring" after manage_ranges cancel re-shows the manage dialog instead of falling into the Phase 1 fresh-entry loop.
 9. **Review and Save (macOS)** — Summary and save prompt combined in one tkinter window (avoids silent osascript failure after tkinter).
+
+---
+
+## macOS performance (2026-05)
+
+| Mechanism | File | Behavior |
+|-----------|------|----------|
+| Dialog tool cache | `configure-core.sh` | `has_dialog_tool` / `get_dialog_tool` cached per session; Darwin uses `osascript` only (no `detect_display_environment`). |
+| Grid string cache | `configure-display.sh` | `_configure_build_grid_cache` rebuilds weekly grid labels only when `configure_hours_data_changed` invalidates. |
+| Tk dialog daemon | `configure-dialogs-darwin-daemon.py` | Started from `configure.sh` when GUI mode on macOS; table/time/text dialogs reuse one hidden Tk root. Stopped on EXIT/INT/TERM. |
+| One-shot fallback | `configure-dialogs-darwin.sh` | If daemon start or request fails, falls back to `python3 configure-dialogs-darwin-{table,time,text}.py`. |
+| Profiling | `CONFIGURE_PROFILE=1` | stderr lines: `CONFIGURE_PROFILE dialog=table prep_ms=… ui_ms=…` from `_cd_darwin_profile_log`. |

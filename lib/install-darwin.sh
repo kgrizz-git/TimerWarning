@@ -38,8 +38,14 @@ install_darwin_check_existing() {
     fi
     if [ "${installed}" = true ] && [ "${FORCE_INSTALL}" = false ]; then
         print_warning "Sleep Warning System appears to be already installed on macOS"
-        echo "Use --force to reinstall."
+        echo "Use --force to reinstall programs and scheduler files."
+        echo "  Your existing sleep-warning.conf settings are preserved."
         exit 1
+    fi
+    if [ "${installed}" = true ] && [ "${FORCE_INSTALL}" = true ]; then
+        print_warning "Force reinstalling over existing macOS installation"
+        echo "Programs and LaunchAgent files will be updated."
+        install_report_config_handling
     fi
 }
 
@@ -168,10 +174,21 @@ install_darwin_install_files() {
             echo "POPUP_AUTO_CLOSE=true" >> "${new_config}"
         fi
         print_success "Default configuration installed"
+    elif [ -f "${new_config}" ]; then
+        install_report_config_handling
     fi
 
-    local interval
-    interval=$(get_check_interval)
+    local interval=10
+    export CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"
+    if [ -f "${SCRIPT_DIR}/lib/config.sh" ]; then
+        # shellcheck disable=SC1091
+        source "${SCRIPT_DIR}/lib/config.sh"
+        if type get_popup_display_frequency >/dev/null 2>&1; then
+            interval=$(get_popup_display_frequency)
+        elif type get_check_interval >/dev/null 2>&1; then
+            interval=$(get_check_interval)
+        fi
+    fi
     # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/lib/service-config-darwin.sh"
 

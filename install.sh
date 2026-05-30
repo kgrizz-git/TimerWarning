@@ -85,7 +85,8 @@ for arg in "$@"; do
         -h|--help)
             echo "Usage: $0 [--yes] [--force] [--re-enable|--no-re-enable]"
             echo "  --yes            Auto-confirm dependency installation"
-            echo "  --force          Force reinstallation over existing installation"
+            echo "  --force          Reinstall programs and scheduler files (existing"
+            echo "                   sleep-warning.conf settings are preserved)"
             echo "  --re-enable      On reinstall: re-enable scheduler even if it was disabled"
             echo "  --no-re-enable   On reinstall: do not re-enable scheduler if it was disabled"
             exit 0
@@ -113,6 +114,22 @@ print_warning() {
 
 print_info() {
     echo -e "${BLUE}ℹ${NC} $1"
+}
+
+# Explain whether install/--force will touch the user's configuration file.
+install_report_config_handling() {
+    local new_config="${CONFIG_DIR}/config/sleep-warning.conf"
+    local legacy_config="${CONFIG_DIR}/sleep-warning.conf"
+
+    if [ -f "${new_config}" ]; then
+        print_info "Configuration: keeping your existing settings at ${new_config}"
+        print_info "  (--force reinstalls programs and scheduler files; it does not reset this file.)"
+    elif [ -f "${legacy_config}" ]; then
+        print_info "Configuration: keeping your existing settings at ${legacy_config}"
+        print_info "  (will migrate to config/sleep-warning.conf if needed; settings are not reset.)"
+    else
+        print_info "Configuration: none found yet — a default sleep-warning.conf will be installed"
+    fi
 }
 
 # Function to display disclaimer and get user confirmation
@@ -353,18 +370,20 @@ check_existing_installation() {
                 echo "  - $file"
             done
         fi
-        echo "Use --force to reinstall over existing installation"
+        echo "Use --force to reinstall programs and scheduler files."
+        echo "  Your existing sleep-warning.conf settings are preserved."
         exit 1
     fi
     
     if [ "$installed" = true ] && [ "$FORCE_INSTALL" = true ]; then
         print_warning "Force reinstalling over existing installation"
         if [ ${#existing_files[@]} -gt 0 ]; then
-            echo "Existing files that will be overwritten or reused:"
+            echo "Programs and service files that will be updated:"
             for file in "${existing_files[@]}"; do
                 echo "  - $file"
             done
         fi
+        install_report_config_handling
     fi
 }
 
@@ -744,7 +763,7 @@ install_files() {
             print_success "Default configuration file installed"
         fi
     else
-        print_info "Configuration file already exists, preserving existing configuration"
+        install_report_config_handling
     fi
     
     # Copy service file

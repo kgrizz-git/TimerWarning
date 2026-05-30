@@ -12,10 +12,12 @@ These run on macOS (and Linux for platform detection branches) without GUI or mo
 |--------|---------|
 | `tests/test-platform-darwin.sh` | Platform detection, plist `StartInterval`, watchdog math |
 | `tests/test-popup-safety-darwin.sh` | Popup watchdog kills hung child processes |
+| `tests/test-darwin-configure-gui.sh` | macOS configure GUI regressions (grid cache, table JSON, daemon protocol, modal dialog wiring) — headless |
 
 ```bash
 bash tests/test-platform-darwin.sh
 bash tests/test-popup-safety-darwin.sh
+bash tests/test-darwin-configure-gui.sh
 ```
 
 Linux-only tests (systemd, xrandr, zenity, `expect` GUI suites) should be run on a Linux host. See [user-docs/MACOS.md](../user-docs/MACOS.md) for manual GUI verification on Mac.

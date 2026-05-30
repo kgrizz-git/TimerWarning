@@ -16,6 +16,45 @@ import tkinter as tk
 _GRACE_MS = 400
 
 
+def close_modal(window: tk.Misc) -> None:
+    """
+    Dismiss a dialog started by run_modal().
+
+    Toplevel (daemon): destroy the window so wait_window() returns.
+    Tk root (one-shot CLI): quit the mainloop.
+    """
+    if isinstance(window, tk.Toplevel):
+        window.destroy()
+    else:
+        window.quit()
+
+
+def run_modal(window: tk.Misc) -> None:
+    """
+    Block until the dialog closes.
+
+    Daemon mode passes a Toplevel on a hidden root; mainloop() on Toplevel
+    leaves an empty window on macOS. wait_window() keeps the root event loop
+    alive so widgets render. One-shot CLIs pass Tk() and use mainloop().
+    """
+    window.update_idletasks()
+    if isinstance(window, tk.Toplevel):
+        window.wait_window()
+    else:
+        window.mainloop()
+
+
+def cleanup_modal_window(window: tk.Misc) -> None:
+    """Remove child widgets when reusing a window, or no-op if already destroyed."""
+    try:
+        if not window.winfo_exists():
+            return
+    except tk.TclError:
+        return
+    for child in window.winfo_children():
+        child.destroy()
+
+
 def apply_initial_frontmost(root: tk.Tk) -> None:
     """
     Raise *root* above other windows and request keyboard focus.

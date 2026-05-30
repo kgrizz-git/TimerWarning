@@ -66,7 +66,7 @@ _get_effective_popup_size_mode() {
 
     if [ -n "${popup_size_mode_override}" ]; then
         size_mode="${popup_size_mode_override}"
-    elif [ -f "${CONFIG_FILE}" ]; then
+    elif [ "${CONFIGURE_ALLOW_DISK_FALLBACK:-}" = "1" ] && [ -f "${CONFIG_FILE}" ]; then
         local existing_mode
         existing_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [ "${existing_mode}" = "display-based" ]; then
@@ -115,7 +115,7 @@ format_popup_size_display() {
                 local custom_size=""
                 if [ -n "${popup_size_custom_override}" ]; then
                     custom_size="${popup_size_custom_override}"
-                elif [ -f "${CONFIG_FILE}" ]; then
+                elif [ "${CONFIGURE_ALLOW_DISK_FALLBACK:-}" = "1" ] && [ -f "${CONFIG_FILE}" ]; then
                     custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
                 fi
                 if [ -n "${custom_size}" ]; then
@@ -157,7 +157,7 @@ format_popup_size_display() {
                 local custom_absolute=""
                 if [ -n "${popup_size_custom_absolute_override}" ] && echo "${popup_size_custom_absolute_override}" | grep -qE '^[0-9]+x[0-9]+$'; then
                     custom_absolute="${popup_size_custom_absolute_override}"
-                elif [ -f "${CONFIG_FILE}" ]; then
+                elif [ "${CONFIGURE_ALLOW_DISK_FALLBACK:-}" = "1" ] && [ -f "${CONFIG_FILE}" ]; then
                     custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
                 fi
                 if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
@@ -182,6 +182,95 @@ format_popup_size_display() {
     fi
 
     echo "${popup_size_display}"
+}
+
+# Build or reuse cached weekly grid row data for show_visual_grid.
+# Populates global _CONFIGURE_GRID_* arrays (including Back row).
+_configure_build_grid_cache() {
+    # Use distinct nameref names; $1 may be "summary_lines_ref" (already a nameref upstream).
+    local -n _cg_summary="$1"
+    local -n _cg_lock="$2"
+    local -n _cg_uninstall="$3"
+
+    if [ "${_CONFIGURE_GRID_CACHE_VALID}" = "true" ]; then
+        return 0
+    fi
+
+    _CONFIGURE_GRID_DAY_NAMES=()
+    _CONFIGURE_GRID_RESTRICTED=()
+    _CONFIGURE_GRID_LOCK=()
+    _CONFIGURE_GRID_UNINSTALL=()
+
+    local day_index day_name restricted_hours lock_hours uninstall_lock_hours
+    for day_index in 0 1 2 3 4 5 6; do
+        day_name="${DAY_NAMES[${day_index}]}"
+        restricted_hours=""
+        lock_hours=""
+
+        if [ -n "${_cg_summary[${day_index}]}" ]; then
+            local line="${_cg_summary[${day_index}]}"
+            local range
+            range=$(echo "${line}" | cut -d':' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+            if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
+                local inherited
+                inherited=$(get_inherited_restrictions "${day_index}" "$1" || true)
+                if [ -n "${inherited}" ]; then
+                    restricted_hours="${inherited}"
+                else
+                    restricted_hours="[no restrictions]"
+                fi
+            else
+                restricted_hours=$(format_ranges_human "${range}" "${day_name}")
+            fi
+        else
+            local inherited
+            inherited=$(get_inherited_restrictions "${day_index}" "$1" || true)
+            if [ -n "${inherited}" ]; then
+                restricted_hours="${inherited}"
+            else
+                restricted_hours="[no restrictions]"
+            fi
+        fi
+
+        if [ -n "${_cg_lock[${day_index}]:-}" ]; then
+            local lock_entry="${_cg_lock[${day_index}]}"
+            local lock_range
+            lock_range=$(echo "${lock_entry}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [ -n "${lock_range}" ]; then
+                lock_hours=$(format_ranges_human "${lock_range}" "${day_name}")
+            else
+                lock_hours="[no lock hours]"
+            fi
+        else
+            lock_hours="[no lock hours]"
+        fi
+
+        if [ -n "${_cg_uninstall[${day_index}]:-}" ]; then
+            local uninstall_lock_entry="${_cg_uninstall[${day_index}]}"
+            local uninstall_lock_range
+            uninstall_lock_range=$(echo "${uninstall_lock_entry}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [ -n "${uninstall_lock_range}" ]; then
+                uninstall_lock_hours=$(format_ranges_human "${uninstall_lock_range}" "${day_name}")
+            else
+                uninstall_lock_hours="[no uninstall lock hours]"
+            fi
+        else
+            uninstall_lock_hours="[no uninstall lock hours]"
+        fi
+
+        _CONFIGURE_GRID_DAY_NAMES+=("${day_name}")
+        _CONFIGURE_GRID_RESTRICTED+=("${restricted_hours}")
+        _CONFIGURE_GRID_LOCK+=("${lock_hours}")
+        _CONFIGURE_GRID_UNINSTALL+=("${uninstall_lock_hours}")
+    done
+
+    _CONFIGURE_GRID_DAY_NAMES+=("[Back]")
+    _CONFIGURE_GRID_RESTRICTED+=("Return to Main Menu")
+    _CONFIGURE_GRID_LOCK+=("")
+    _CONFIGURE_GRID_UNINSTALL+=("")
+
+    _CONFIGURE_GRID_CACHE_VALID=true
 }
 
 # Show main navigation menu
@@ -232,9 +321,6 @@ show_main_menu() {
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
-        local tmpfile
-        tmpfile=$(mktemp)
-        
         # Build window behavior description with all attributes
         # This is for Enhancement #3 (Enhanced Window Size Options)
         local window_desc="Size: $(format_popup_size_display "${popup_size}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "x" "menu")"
@@ -495,8 +581,8 @@ show_window_behavior_submenu() {
     local popup_immovable="${8:-}"
     local popup_auto_close="${9:-}"
 
-    # Fallback to config file when params are empty
-    if [ -f "${CONFIG_FILE}" ]; then
+    # Fallback to config file when params are empty (tests only; wizard passes memory values).
+    if [ "${CONFIGURE_ALLOW_DISK_FALLBACK:-}" = "1" ] && [ -f "${CONFIG_FILE}" ]; then
         [ -z "${popup_size}" ] && popup_size=$(grep -E "^[[:space:]]*POPUP_SIZE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
         [ -z "${popup_size_mode}" ] && popup_size_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         [ -z "${popup_size_custom}" ] && popup_size_custom=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
@@ -602,110 +688,17 @@ show_visual_grid() {
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
         while true; do
-            # Build grid data for multi-column list
-            # Store day names, restricted hours, lock hours, and uninstall lock hours separately for alternating format
-            local day_names=()
-            local restricted_hours_list=()
-            local lock_hours_list=()
-            local uninstall_lock_hours_list=()
+            _configure_build_grid_cache summary_lines_ref lock_hours_lines_ref uninstall_lock_hours_lines_ref
 
-            if [ -n "${DEBUG_CONFIG_WRITE:-}" ]; then
-                echo "DEBUG: show_visual_grid local day_names(before)=${day_names[*]}" >&2
-            fi
-            
-            for day_index in 0 1 2 3 4 5 6; do
-                local day_name="${DAY_NAMES[${day_index}]}"
-                local restricted_hours=""
-                local lock_hours=""
-                
-                # Get restricted hours
-                if [ -n "${summary_lines_ref[${day_index}]}" ]; then
-                    # Day has configuration (may be restricted or explicitly skipped)
-                    local line="${summary_lines_ref[${day_index}]}"
-                    local range
-                    # Use -f2- to preserve HH:MM-HH:MM after the first colon
-                    range=$(echo "${line}" | cut -d':' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                    
-                    if [ "${range}" = "(no restrictions)" ] || [ -z "${range}" ]; then
-                        # No explicit restrictions - check for inherited overnight restrictions
-                        local inherited
-                        inherited=$(get_inherited_restrictions "${day_index}" summary_lines_ref)
-                        if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
-                            restricted_hours="${inherited}"
-                        else
-                            restricted_hours="[no restrictions]"
-                        fi
-                    else
-                        # Has restrictions - show formatted time ranges
-                        restricted_hours=$(format_ranges_human "${range}" "${day_name}")
-                    fi
-                else
-                    # Day has no configuration - check for inherited overnight restrictions
-                    local inherited
-                    inherited=$(get_inherited_restrictions "${day_index}" summary_lines_ref)
-                    if [ $? -eq 0 ] && [ -n "${inherited}" ]; then
-                        restricted_hours="${inherited}"
-                    else
-                        restricted_hours="[no restrictions]"
-                    fi
-                fi
-                
-                # Get lock hours (Enhancement #19 Phase 2)
-                if [ -n "${lock_hours_lines_ref[${day_index}]:-}" ]; then
-                    # Lock hours line exists - extract value
-                    local lock_entry="${lock_hours_lines_ref[${day_index}]}"
-                    local lock_range
-                    lock_range=$(echo "${lock_entry}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                    
-                    if [ -n "${lock_range}" ]; then
-                        # Has lock hours - show formatted time ranges
-                        lock_hours=$(format_ranges_human "${lock_range}" "${day_name}")
-                    else
-                        # Explicitly disabled (empty value)
-                        lock_hours="[no lock hours]"
-                    fi
-                else
-                    # No lock hours configured
-                    lock_hours="[no lock hours]"
-                fi
-                
-                # Get uninstall lock hours (Enhancement #26 Phase 2)
-                if [ -n "${uninstall_lock_hours_lines_ref[${day_index}]:-}" ]; then
-                    # Uninstall lock hours line exists - extract value
-                    local uninstall_lock_entry="${uninstall_lock_hours_lines_ref[${day_index}]}"
-                    local uninstall_lock_range
-                    uninstall_lock_range=$(echo "${uninstall_lock_entry}" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                    
-                    if [ -n "${uninstall_lock_range}" ]; then
-                        # Has uninstall lock hours - show formatted time ranges
-                        uninstall_lock_hours=$(format_ranges_human "${uninstall_lock_range}" "${day_name}")
-                    else
-                        # Explicitly disabled (empty value)
-                        uninstall_lock_hours="[no uninstall lock hours]"
-                    fi
-                else
-                    # No uninstall lock hours configured
-                    uninstall_lock_hours="[no uninstall lock hours]"
-                fi
-                
-                # Store separately
-                day_names+=("${day_name}")
-                restricted_hours_list+=("${restricted_hours}")
-                lock_hours_list+=("${lock_hours}")
-                uninstall_lock_hours_list+=("${uninstall_lock_hours}")
-            done
+            local day_names=("${_CONFIGURE_GRID_DAY_NAMES[@]}")
+            local restricted_hours_list=("${_CONFIGURE_GRID_RESTRICTED[@]}")
+            local lock_hours_list=("${_CONFIGURE_GRID_LOCK[@]}")
+            local uninstall_lock_hours_list=("${_CONFIGURE_GRID_UNINSTALL[@]}")
 
             if [ -n "${DEBUG_CONFIG_WRITE:-}" ]; then
                 echo "DEBUG: show_visual_grid local day_names(after)=${day_names[*]}" >&2
             fi
-            
-            # Add "Back to Menu" option
-            # Note: Use plain text for display (YAD interprets << as Pango markup)
-            day_names+=("[Back]")
-            restricted_hours_list+=("Return to Main Menu")
-            lock_hours_list+=("")
-            uninstall_lock_hours_list+=("")
-            
+
             # Build data array in alternating format for multi-column dialog
             # Format: col1_row1, col2_row1, col3_row1, col4_row1, col1_row2, col2_row2, col3_row2, col4_row2, ...
             local grid_data=()

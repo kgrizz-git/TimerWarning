@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **macOS configure wizard performance:** Session cache for `has_dialog_tool` / `get_dialog_tool` (Darwin skips X11/Wayland display probing). Main menu no longer re-greps config or leaks temp files; weekly grid caches formatted hour strings until hour arrays change. Long-lived `configure-dialogs-darwin-daemon.py` keeps one tkinter root for table/time/text dialogs (one-shot Python fallback if daemon fails). Set `CONFIGURE_PROFILE=1` for per-dialog `prep_ms` / `ui_ms` on stderr. Fix circular nameref warnings in `_configure_build_grid_cache`.
+
+- **macOS install:** `install-darwin.sh` sources `config.sh` before reading popup interval for LaunchAgent setup (fixes `get_check_interval: command not found`). `--force` messaging now states explicitly that `sleep-warning.conf` is preserved (programs and scheduler files are updated).
+
 - **`tests/test-configure-blocking.sh`:** Integration test updated for partial-lock behavior (limited-mode banner, loosening rejected, tightening save allowed) instead of expecting immediate exit. New portable watchdog helper `tests/lib/test-run-timeout.sh` (GNU `timeout` / `gtimeout` when present, bash fallback otherwise).
 - **`scripts/pre-commit-checks.sh`:** ShellCheck now matches CI (`-S error`, skips `backups/` and `tests/`) so commits are not blocked by style/info findings in snapshot backups or test helpers.
 
@@ -27,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **macOS popup UI path logging:** Each popup now logs `macOS popup UI: fullscreen-blocker` or `osascript-alert` at open time (with `reason=` and PID verification). Session end logs include `ui=` and `reason=`. Python blocker stderr is appended to `~/.config/sleep-warning/logs/popup-blocker-stderr.log` for LaunchAgent diagnosis when logs showed success but the movable alert appeared.
 
 ### Fixed
+
+- **macOS configure GUI regression tests:** Headless suite `tests/test-darwin-configure-gui.sh` — weekly grid cache (nameref, invalidation, inherited hours), table JSON payload (non-empty rows), daemon stdin/stdout protocol, and static/runtime checks that tkinter dialogs use `wait_window()` on daemon `Toplevel` (not `mainloop()`, which caused blank windows).
+
+- **macOS configure daemon empty dialogs:** Tkinter table/time/text dialogs in `configure-dialogs-darwin-daemon.py` now use `wait_window()` on `Toplevel` windows instead of `mainloop()` (which showed blank windows on macOS when the hidden root was withdrawn). One-shot CLI dialogs still use `mainloop()` on `Tk()`.
 
 - **Safety scan follow-up (2026-05-30):** Linux popup path now sources `lib/popup-safety.sh` and uses `popup_compute_watchdog_seconds` with shared `popup_start_pid_file_watchdog` (PID-file kill policy). Tests: portable `tests/lib/test-stat-mode.sh` for config-locking and uninstall-lock-hours; `test-manual-uninstall-guide.sh` resolves paths from repo root; `tests/test-popup-safety-linux.sh` alias. Plan: [dev-docs/plans/plan-safety-scan-fixes-2026-05-30.md](dev-docs/plans/plan-safety-scan-fixes-2026-05-30.md).
 

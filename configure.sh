@@ -141,7 +141,14 @@ main() {
     _configure_cleanup_tmp() {
         rm -f "${CONFIG_DIR}"/*.tmp.* 2>/dev/null || true
     }
-    trap '_configure_cleanup_tmp; exit 130' INT TERM
+    _configure_session_cleanup() {
+        _configure_cleanup_tmp
+        if type _cd_darwin_daemon_stop >/dev/null 2>&1; then
+            _cd_darwin_daemon_stop
+        fi
+    }
+    trap '_configure_session_cleanup; exit 130' INT TERM
+    trap '_configure_session_cleanup' EXIT
 
     ensure_utf8_locale
 
@@ -233,12 +240,21 @@ main() {
     # Function sets global variables and populates global arrays directly
     load_existing_config
 
+    if type configure_hours_data_changed >/dev/null 2>&1; then
+        configure_hours_data_changed
+    fi
+
     if [ "${CONFIGURE_PARTIAL_LOCK_MODE}" = "true" ] && type configure_partial_lock_capture_baseline >/dev/null 2>&1; then
         configure_partial_lock_capture_baseline
     fi
     
     # Ensure dialog_tool is initialized (set by load_existing_config(), but provide fallback)
     dialog_tool="${dialog_tool:-auto}"
+
+    # macOS: start long-lived tkinter dialog helper for faster screen switches.
+    if [ "${use_gui}" = "true" ] && is_darwin && type _cd_darwin_daemon_start >/dev/null 2>&1; then
+        _cd_darwin_daemon_start || true
+    fi
     
     # Main configuration loop
     while true; do
@@ -248,53 +264,18 @@ main() {
         local weekdays_status weekends_status
         IFS='|' read -r weekdays_status weekends_status <<< "${status_data}"
         
-        # Determine lock hours status for display in main menu (Phase 2)
-        # If any day has lock hours configured, show as "Configured"
-        # Note: Must check if the VALUE after = is non-empty, not just if the array element exists
-        # (Empty values like "CONFIG_LOCK_HOURS_MONDAY=" should not count as configured)
-        local lock_hours_status="[None]"
-        local i
-        for i in 0 1 2 3 4 5 6; do
-            if [ -n "${lock_hours_lines[${i}]:-}" ]; then
-                # Extract the value after the = sign
-                local lock_value
-                lock_value=$(echo "${lock_hours_lines[${i}]}" | cut -d'=' -f2- | tr -d '[:space:]')
-                if [ -n "${lock_value}" ]; then
-                    lock_hours_status="[Configured]"
-                    break
-                fi
-            fi
-        done
-        
-        # Determine uninstall lock hours status for display in main menu (Enhancement #26 Phase 2)
-        # If any day has uninstall lock hours configured, show as "[Configured]"
-        local uninstall_lock_hours_status="[None]"
-        for i in 0 1 2 3 4 5 6; do
-            if [ -n "${uninstall_lock_hours_lines[${i}]:-}" ]; then
-                # Extract the value after the = sign
-                local uninstall_lock_value
-                uninstall_lock_value=$(echo "${uninstall_lock_hours_lines[${i}]}" | cut -d'=' -f2- | tr -d '[:space:]')
-                if [ -n "${uninstall_lock_value}" ]; then
-                    uninstall_lock_hours_status="[Configured]"
-                    break
-                fi
-            fi
-        done
+        # Lock / uninstall lock status (refreshed when hour arrays change)
+        local lock_hours_status="${CONFIGURE_LOCK_HOURS_STATUS:-[None]}"
+        local uninstall_lock_hours_status="${CONFIGURE_UNINSTALL_LOCK_HOURS_STATUS:-[None]}"
         
         # Get current service mode for menu display (option 12)
         local current_service_mode
         current_service_mode=$(get_current_service_mode)
         local service_mode_status="[${current_service_mode}]"
         
-        # Calculate dialog tool status for menu display
+        # Calculate dialog tool status for menu display (in-memory dialog_tool)
         local dialog_tool_status=""
-        local current_dialog_tool
-        if type get_dialog_tool_config >/dev/null 2>&1; then
-            current_dialog_tool=$(get_dialog_tool_config 2>/dev/null || echo "auto")
-        else
-            # Fallback to variable (should be set from load_existing_config())
-            current_dialog_tool="${dialog_tool:-auto}"
-        fi
+        local current_dialog_tool="${dialog_tool:-auto}"
         
         if [ "${current_dialog_tool}" = "auto" ]; then
             dialog_tool_status="[Automatic]"
@@ -418,6 +399,7 @@ main() {
                     # User cancelled
                     exit 0
                 fi
+                configure_hours_data_changed
                 ;;
             4)
                 # Weekends Configuration
@@ -427,6 +409,7 @@ main() {
                     # User cancelled
                     exit 0
                 fi
+                configure_hours_data_changed
                 ;;
             5)
                 # Configuration Lock (Tighten-Only) and Config File Locking
@@ -446,6 +429,7 @@ main() {
                 if [ "${lock_exit}" -eq 2 ]; then
                     exit 0
                 fi
+                configure_hours_data_changed
                 ;;
             7)
                 # Uninstall Protection Configuration (Enhancement #26)
@@ -464,6 +448,7 @@ main() {
                 if [ "${uninstall_lock_exit}" -eq 2 ]; then
                     exit 0
                 fi
+                configure_hours_data_changed
                 ;;
             9)
                 # View Weekly Hours Settings
@@ -482,6 +467,7 @@ main() {
                         # User confirmed cancellation from within grid — exit wizard like other sections
                         exit 0
                     fi
+                    configure_hours_data_changed
                 done
                 ;;
             10)
@@ -520,6 +506,7 @@ main() {
                 elif [ ${selection_exit} -eq 0 ]; then
                     # Valid selection made (including "auto" if user cancelled without confirming)
                     dialog_tool="${new_dialog_tool}"
+                    configure_invalidate_dialog_tool_cache
                 fi
                 # If exit code is 1, function will have already re-prompted, so we continue the loop
                 ;;

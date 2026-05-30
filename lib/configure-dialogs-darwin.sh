@@ -129,6 +129,146 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         [ -f "${_CD_DARWIN_DIR}/configure-dialogs-darwin-text.py" ] && _cd_darwin_has_tkinter
     }
 
+    _CD_DARWIN_DAEMON_ACTIVE=""
+    _CD_DARWIN_DAEMON_PID=""
+    _CD_DARWIN_DAEMON_RFD=""
+    _CD_DARWIN_DAEMON_WFD=""
+    _CD_DARWIN_DAEMON_LAST_RESPONSE=""
+
+    _cd_darwin_now_ms() {
+        if [ -n "${EPOCHREALTIME:-}" ]; then
+            awk -v t="${EPOCHREALTIME}" 'BEGIN{printf "%.0f", t * 1000}'
+        else
+            echo $(($(date +%s) * 1000))
+        fi
+    }
+
+    _cd_darwin_profile_log() {
+        [ "${CONFIGURE_PROFILE:-}" = "1" ] || return 0
+        echo "CONFIGURE_PROFILE dialog=${1} prep_ms=${2} ui_ms=${3}" >&2
+    }
+
+    _cd_darwin_response_extract_value() {
+        python3 -c 'import json,sys; d=json.load(sys.stdin); v=d.get("value"); print("" if v is None else v)' \
+            <<< "${_CD_DARWIN_DAEMON_LAST_RESPONSE}" 2>/dev/null
+    }
+
+    _cd_darwin_response_is_ok() {
+        python3 -c 'import json,sys; d=json.load(sys.stdin); print("yes" if d.get("ok") else "no")' \
+            <<< "${_CD_DARWIN_DAEMON_LAST_RESPONSE}" 2>/dev/null | grep -q '^yes$'
+    }
+
+    _cd_darwin_response_is_cancelled() {
+        python3 -c 'import json,sys; d=json.load(sys.stdin); print("yes" if d.get("cancelled") else "no")' \
+            <<< "${_CD_DARWIN_DAEMON_LAST_RESPONSE}" 2>/dev/null | grep -q '^yes$'
+    }
+
+    _cd_darwin_daemon_stop() {
+        if [ "${_CD_DARWIN_DAEMON_ACTIVE:-}" != "yes" ]; then
+            return 0
+        fi
+        if [ -n "${_CD_DARWIN_DAEMON_WFD:-}" ]; then
+            { printf '{"op":"quit"}\n' >&"${_CD_DARWIN_DAEMON_WFD}"; } 2>/dev/null || true
+            read -r -t 3 -u "${_CD_DARWIN_DAEMON_RFD}" _ 2>/dev/null || true
+        fi
+        if [ -n "${_CD_DARWIN_DAEMON_PID:-}" ]; then
+            kill "${_CD_DARWIN_DAEMON_PID}" 2>/dev/null || true
+            wait "${_CD_DARWIN_DAEMON_PID}" 2>/dev/null || true
+        fi
+        _CD_DARWIN_DAEMON_ACTIVE=""
+        _CD_DARWIN_DAEMON_PID=""
+        _CD_DARWIN_DAEMON_RFD=""
+        _CD_DARWIN_DAEMON_WFD=""
+    }
+
+    _cd_darwin_daemon_start() {
+        if [ "${_CD_DARWIN_DAEMON_ACTIVE:-}" = "yes" ]; then
+            return 0
+        fi
+        if ! _cd_darwin_has_tkinter; then
+            return 1
+        fi
+        local py_script="${_CD_DARWIN_DIR}/configure-dialogs-darwin-daemon.py"
+        if [ ! -f "${py_script}" ]; then
+            return 1
+        fi
+
+        coproc _CD_DARWIN_CP { python3 "${py_script}"; }
+        _CD_DARWIN_DAEMON_RFD=${_CD_DARWIN_CP[0]}
+        _CD_DARWIN_DAEMON_WFD=${_CD_DARWIN_CP[1]}
+        _CD_DARWIN_DAEMON_PID=${_CD_DARWIN_CP_PID}
+
+        local ready=""
+        if ! read -r -t 30 -u "${_CD_DARWIN_DAEMON_RFD}" ready; then
+            _cd_darwin_daemon_stop
+            return 1
+        fi
+        if ! printf '%s' "${ready}" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("ready") else 1)' 2>/dev/null; then
+            _cd_darwin_daemon_stop
+            return 1
+        fi
+        _CD_DARWIN_DAEMON_ACTIVE="yes"
+        return 0
+    }
+
+    _cd_darwin_daemon_request() {
+        local json_line="$1"
+        if [ "${_CD_DARWIN_DAEMON_ACTIVE:-}" != "yes" ]; then
+            return 1
+        fi
+        if ! printf '%s\n' "${json_line}" >&"${_CD_DARWIN_DAEMON_WFD}"; then
+            _cd_darwin_daemon_stop
+            return 1
+        fi
+        _CD_DARWIN_DAEMON_LAST_RESPONSE=""
+        if ! read -r -t 600 -u "${_CD_DARWIN_DAEMON_RFD}" _CD_DARWIN_DAEMON_LAST_RESPONSE; then
+            _cd_darwin_daemon_stop
+            return 1
+        fi
+        return 0
+    }
+
+    _cd_darwin_build_table_json() {
+        local title="$1"
+        local message="$2"
+        local width="$3"
+        local height="$4"
+        local print_column="$5"
+
+        printf '{'
+        printf '"title":%s,' "$(_cd_darwin_json_escape "${title}")"
+        printf '"message":%s,' "$(_cd_darwin_json_escape "${message}")"
+        printf '"width":%s,' "${width:-900}"
+        printf '"height":%s,' "${height:-500}"
+        printf '"print_column":%s,' "${print_column:-1}"
+        printf '"columns":['
+        local col first_col=1
+        for col in "${_cd_column_names[@]}"; do
+            [ "${first_col}" -eq 1 ] || printf ','
+            first_col=0
+            printf '%s' "$(_cd_darwin_json_escape "${col}")"
+        done
+        printf '],'
+        printf '"rows":['
+        local i=0 num_data="${#_cd_data[@]}" first_row=1
+        while [ "${i}" -lt "${num_data}" ]; do
+            [ "${first_row}" -eq 1 ] || printf ','
+            first_row=0
+            printf '['
+            local c=0 first_cell=1
+            while [ "${c}" -lt "${_cd_num_columns}" ] && [ $((i + c)) -lt "${num_data}" ]; do
+                [ "${first_cell}" -eq 1 ] || printf ','
+                first_cell=0
+                printf '%s' "$(_cd_darwin_json_escape "${_cd_data[$((i + c))]}")"
+                c=$((c + 1))
+            done
+            printf ']'
+            i=$((i + _cd_num_columns))
+        done
+        printf ']'
+        printf '}'
+    }
+
     _cd_darwin_show_text_dialog() {
         local title="$1"
         local text="$2"
@@ -136,11 +276,10 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         local height="${4:-500}"
         local with_buttons="${5:-}"
 
-        local json_file py_script choice="" rc=1
-        json_file=$(mktemp "${TMPDIR:-/tmp}/sw-darwin-text.XXXXXX.json")
-        py_script="${_CD_DARWIN_DIR}/configure-dialogs-darwin-text.py"
+        local prep_start prep_end ui_start ui_end json_payload
+        prep_start=$(_cd_darwin_now_ms)
 
-        {
+        json_payload=$(
             printf '{'
             printf '"title":%s,' "$(_cd_darwin_json_escape "${title}")"
             printf '"width":%s,' "${width}"
@@ -153,14 +292,35 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
                     "$(_cd_darwin_json_escape "Yes, Save")" \
                     "$(_cd_darwin_json_escape "Back to Main Menu")"
             fi
-            printf '}\n'
-        } >"${json_file}"
+            printf '}'
+        )
+        prep_end=$(_cd_darwin_now_ms)
+        ui_start=${prep_end}
 
-        if [ -f "${py_script}" ]; then
-            choice=$(python3 "${py_script}" <"${json_file}" 2>/dev/null)
-            rc=$?
+        local choice="" rc=1
+        if _cd_darwin_daemon_start && _cd_darwin_daemon_request "{\"op\":\"text\",${json_payload:1}"; then
+            if _cd_darwin_response_is_ok && ! _cd_darwin_response_is_cancelled; then
+                choice=$(_cd_darwin_response_extract_value)
+                rc=0
+                if [ "${with_buttons}" = "save" ] && [ "${choice}" != "Yes, Save" ]; then
+                    rc=1
+                fi
+            fi
+        else
+            local json_file py_script
+            json_file=$(mktemp "${TMPDIR:-/tmp}/sw-darwin-text.XXXXXX.json")
+            py_script="${_CD_DARWIN_DIR}/configure-dialogs-darwin-text.py"
+            printf '%s\n' "${json_payload}" >"${json_file}"
+            if [ -f "${py_script}" ]; then
+                choice=$(python3 "${py_script}" <"${json_file}" 2>/dev/null)
+                rc=$?
+            fi
+            rm -f "${json_file}"
         fi
-        rm -f "${json_file}"
+
+        ui_end=$(_cd_darwin_now_ms)
+        _cd_darwin_profile_log "text" "$((prep_end - prep_start))" "$((ui_end - ui_start))"
+
         if [ -n "${choice}" ]; then
             printf '%s\n' "${choice}"
         fi
@@ -192,56 +352,31 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         local print_column="$5"
         # Uses _cd_column_names[], _cd_data[], _cd_num_columns from _cd_darwin_parse_multi_column_args.
 
-        local json_file
-        json_file=$(mktemp "${TMPDIR:-/tmp}/sw-darwin-table.XXXXXX.json")
-        local py_script="${_CD_DARWIN_DIR}/configure-dialogs-darwin-table.py"
-        local result=""
-        local rc=1
+        local prep_start prep_end ui_start ui_end json_payload result="" rc=1
+        prep_start=$(_cd_darwin_now_ms)
+        json_payload=$(_cd_darwin_build_table_json "${title}" "${message}" "${width}" "${height}" "${print_column}")
+        prep_end=$(_cd_darwin_now_ms)
+        ui_start=${prep_end}
 
-        {
-            printf '{'
-            printf '"title":%s,' "$(_cd_darwin_json_escape "${title}")"
-            printf '"message":%s,' "$(_cd_darwin_json_escape "${message}")"
-            printf '"width":%s,' "${width:-900}"
-            printf '"height":%s,' "${height:-500}"
-            printf '"print_column":%s,' "${print_column:-1}"
-            printf '"columns":['
-            local col
-            local first_col=1
-            for col in "${_cd_column_names[@]}"; do
-                [ "${first_col}" -eq 1 ] || printf ','
-                first_col=0
-                printf '%s' "$(_cd_darwin_json_escape "${col}")"
-            done
-            printf '],'
-            printf '"rows":['
-            local i=0
-            local num_data="${#_cd_data[@]}"
-            local first_row=1
-            while [ "${i}" -lt "${num_data}" ]; do
-                [ "${first_row}" -eq 1 ] || printf ','
-                first_row=0
-                printf '['
-                local c=0
-                local first_cell=1
-                while [ "${c}" -lt "${_cd_num_columns}" ] && [ $((i + c)) -lt "${num_data}" ]; do
-                    [ "${first_cell}" -eq 1 ] || printf ','
-                    first_cell=0
-                    printf '%s' "$(_cd_darwin_json_escape "${_cd_data[$((i + c))]}")"
-                    c=$((c + 1))
-                done
-                printf ']'
-                i=$((i + _cd_num_columns))
-            done
-            printf ']'
-            printf '}\n'
-        } >"${json_file}"
-
-        if [ -f "${py_script}" ]; then
-            result=$(python3 "${py_script}" <"${json_file}" 2>/dev/null)
-            rc=$?
+        if _cd_darwin_daemon_start && _cd_darwin_daemon_request "{\"op\":\"table\",${json_payload:1}"; then
+            if _cd_darwin_response_is_ok && ! _cd_darwin_response_is_cancelled; then
+                result=$(_cd_darwin_response_extract_value)
+                rc=0
+            fi
+        else
+            local json_file py_script
+            json_file=$(mktemp "${TMPDIR:-/tmp}/sw-darwin-table.XXXXXX.json")
+            py_script="${_CD_DARWIN_DIR}/configure-dialogs-darwin-table.py"
+            printf '%s\n' "${json_payload}" >"${json_file}"
+            if [ -f "${py_script}" ]; then
+                result=$(python3 "${py_script}" <"${json_file}" 2>/dev/null)
+                rc=$?
+            fi
+            rm -f "${json_file}"
         fi
-        rm -f "${json_file}"
+
+        ui_end=$(_cd_darwin_now_ms)
+        _cd_darwin_profile_log "table" "$((prep_end - prep_start))" "$((ui_end - ui_start))"
 
         if [ ${rc} -eq 0 ] && [ -n "${result}" ]; then
             echo "${result}"
@@ -276,11 +411,9 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         em=$(echo "${end_data}" | cut -d' ' -f2)
         eap=$(echo "${end_data}" | cut -d' ' -f3)
 
-        local json_file py_script result rc=1
-        json_file=$(mktemp "${TMPDIR:-/tmp}/sw-darwin-time.XXXXXX.json")
-        py_script="${_CD_DARWIN_DIR}/configure-dialogs-darwin-time.py"
-
-        {
+        local prep_start prep_end ui_start ui_end json_payload result rc=1
+        prep_start=$(_cd_darwin_now_ms)
+        json_payload=$(
             printf '{'
             printf '"title":%s,' "$(_cd_darwin_json_escape "${title}")"
             printf '"day_name":%s,' "$(_cd_darwin_json_escape "${day_name}")"
@@ -288,14 +421,30 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
             printf '"width":520,"height":360,'
             printf '"start":{"hour":%s,"minute":%s,"ampm":%s},' "${sh}" "$(_cd_darwin_json_escape "${sm}")" "$(_cd_darwin_json_escape "${sap}")"
             printf '"end":{"hour":%s,"minute":%s,"ampm":%s}' "${eh}" "$(_cd_darwin_json_escape "${em}")" "$(_cd_darwin_json_escape "${eap}")"
-            printf '}\n'
-        } >"${json_file}"
+            printf '}'
+        )
+        prep_end=$(_cd_darwin_now_ms)
+        ui_start=${prep_end}
 
-        if [ -f "${py_script}" ]; then
-            result=$(python3 "${py_script}" <"${json_file}" 2>/dev/null)
-            rc=$?
+        if _cd_darwin_daemon_start && _cd_darwin_daemon_request "{\"op\":\"time\",${json_payload:1}"; then
+            if _cd_darwin_response_is_ok && ! _cd_darwin_response_is_cancelled; then
+                result=$(_cd_darwin_response_extract_value)
+                rc=0
+            fi
+        else
+            local json_file py_script
+            json_file=$(mktemp "${TMPDIR:-/tmp}/sw-darwin-time.XXXXXX.json")
+            py_script="${_CD_DARWIN_DIR}/configure-dialogs-darwin-time.py"
+            printf '%s\n' "${json_payload}" >"${json_file}"
+            if [ -f "${py_script}" ]; then
+                result=$(python3 "${py_script}" <"${json_file}" 2>/dev/null)
+                rc=$?
+            fi
+            rm -f "${json_file}"
         fi
-        rm -f "${json_file}"
+
+        ui_end=$(_cd_darwin_now_ms)
+        _cd_darwin_profile_log "time" "$((prep_end - prep_start))" "$((ui_end - ui_start))"
 
         if [ ${rc} -eq 0 ] && [ -n "${result}" ]; then
             echo "${result}"

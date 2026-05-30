@@ -114,50 +114,159 @@ get_max_min_display_time_limit() {
 readonly MIN_CHECK_INTERVAL=1
 readonly MAX_CHECK_INTERVAL=60
 
+# Session cache for dialog tool detection (invalidated when DIALOG_TOOL changes on Linux).
+_CONFIGURE_CACHED_HAS_DIALOG_TOOL=""
+_CONFIGURE_CACHED_DIALOG_TOOL=""
+
+configure_invalidate_dialog_tool_cache() {
+    _CONFIGURE_CACHED_HAS_DIALOG_TOOL=""
+    _CONFIGURE_CACHED_DIALOG_TOOL=""
+}
+
+# Refresh main-menu lock-hour status flags from in-memory arrays.
+configure_refresh_lock_status_flags() {
+    CONFIGURE_LOCK_HOURS_STATUS="[None]"
+    CONFIGURE_UNINSTALL_LOCK_HOURS_STATUS="[None]"
+    local i lock_value uninstall_lock_value
+    for i in 0 1 2 3 4 5 6; do
+        if [ -n "${lock_hours_lines[${i}]:-}" ]; then
+            lock_value="${lock_hours_lines[${i}]#*=}"
+            lock_value="${lock_value//[[:space:]]/}"
+            if [ -n "${lock_value}" ]; then
+                CONFIGURE_LOCK_HOURS_STATUS="[Configured]"
+                break
+            fi
+        fi
+    done
+    for i in 0 1 2 3 4 5 6; do
+        if [ -n "${uninstall_lock_hours_lines[${i}]:-}" ]; then
+            uninstall_lock_value="${uninstall_lock_hours_lines[${i}]#*=}"
+            uninstall_lock_value="${uninstall_lock_value//[[:space:]]/}"
+            if [ -n "${uninstall_lock_value}" ]; then
+                CONFIGURE_UNINSTALL_LOCK_HOURS_STATUS="[Configured]"
+                break
+            fi
+        fi
+    done
+}
+
+# Weekly grid display cache (invalidated when hour arrays change).
+_CONFIGURE_GRID_CACHE_VALID=false
+declare -g -a _CONFIGURE_GRID_DAY_NAMES=()
+declare -g -a _CONFIGURE_GRID_RESTRICTED=()
+declare -g -a _CONFIGURE_GRID_LOCK=()
+declare -g -a _CONFIGURE_GRID_UNINSTALL=()
+
+configure_invalidate_grid_cache() {
+    _CONFIGURE_GRID_CACHE_VALID=false
+}
+
+configure_hours_data_changed() {
+    configure_invalidate_grid_cache
+    configure_refresh_lock_status_flags
+}
+
 # Check if any dialog tool is available
 # Requires desktop-environment.sh to be sourced
 has_dialog_tool() {
+    if [ -n "${_CONFIGURE_CACHED_HAS_DIALOG_TOOL}" ]; then
+        [ "${_CONFIGURE_CACHED_HAS_DIALOG_TOOL}" = "yes" ]
+        return $?
+    fi
+
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        if command -v osascript >/dev/null 2>&1; then
+            _CONFIGURE_CACHED_HAS_DIALOG_TOOL="yes"
+        else
+            _CONFIGURE_CACHED_HAS_DIALOG_TOOL="no"
+        fi
+        [ "${_CONFIGURE_CACHED_HAS_DIALOG_TOOL}" = "yes" ]
+        return $?
+    fi
+
     if type check_dialog_tool >/dev/null 2>&1 && type detect_display_environment >/dev/null 2>&1; then
         local env_type
         env_type=$(detect_display_environment 2>/dev/null || echo "x11")
         local tool
         tool=$(check_dialog_tool "${env_type}" 2>/dev/null)
+        if [ -n "${tool}" ]; then
+            _CONFIGURE_CACHED_HAS_DIALOG_TOOL="yes"
+            _CONFIGURE_CACHED_DIALOG_TOOL="${tool}"
+        else
+            _CONFIGURE_CACHED_HAS_DIALOG_TOOL="no"
+            _CONFIGURE_CACHED_DIALOG_TOOL=""
+        fi
         [ -n "${tool}" ]
-    else
-        # Fallback: check for any tool directly
-        command -v yad >/dev/null 2>&1 || \
-        command -v zenity >/dev/null 2>&1 || \
-        command -v kdialog >/dev/null 2>&1
+        return $?
     fi
+
+    # Fallback: check for any tool directly
+    if command -v yad >/dev/null 2>&1 || \
+       command -v zenity >/dev/null 2>&1 || \
+       command -v kdialog >/dev/null 2>&1; then
+        _CONFIGURE_CACHED_HAS_DIALOG_TOOL="yes"
+        return 0
+    fi
+    _CONFIGURE_CACHED_HAS_DIALOG_TOOL="no"
+    return 1
 }
 
 # Get the currently selected dialog tool
 # Respects user preference from DIALOG_TOOL config (Enhancement #25)
 # Requires desktop-environment.sh and config.sh to be sourced
 get_dialog_tool() {
+    if [ -n "${_CONFIGURE_CACHED_DIALOG_TOOL}" ]; then
+        echo "${_CONFIGURE_CACHED_DIALOG_TOOL}"
+        return 0
+    fi
+
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        if command -v osascript >/dev/null 2>&1; then
+            _CONFIGURE_CACHED_DIALOG_TOOL="osascript"
+            _CONFIGURE_CACHED_HAS_DIALOG_TOOL="yes"
+            echo "osascript"
+            return 0
+        fi
+        _CONFIGURE_CACHED_HAS_DIALOG_TOOL="no"
+        return 1
+    fi
+
     if type check_dialog_tool >/dev/null 2>&1 && type detect_display_environment >/dev/null 2>&1; then
         local env_type
         env_type=$(detect_display_environment 2>/dev/null || echo "x11")
-        
-        # Get user preference for dialog tool (Enhancement #25)
+
+        # Prefer in-memory dialog_tool from load_existing_config(); avoid config file grep.
         local user_preference=""
-        if type get_dialog_tool_config >/dev/null 2>&1; then
+        if [ -n "${dialog_tool:-}" ]; then
+            user_preference="${dialog_tool}"
+        elif type get_dialog_tool_config >/dev/null 2>&1; then
             user_preference=$(get_dialog_tool_config 2>/dev/null || echo "auto")
         else
-            # Fallback if config.sh not sourced
             user_preference="auto"
         fi
-        
-        check_dialog_tool "${env_type}" "${user_preference}"
-    else
-        # Fallback: return first available tool
-        if command -v yad >/dev/null 2>&1; then
-            echo "yad"
-        elif command -v zenity >/dev/null 2>&1; then
-            echo "zenity"
-        elif command -v kdialog >/dev/null 2>&1; then
-            echo "kdialog"
+
+        local tool
+        tool=$(check_dialog_tool "${env_type}" "${user_preference}")
+        if [ -n "${tool}" ]; then
+            _CONFIGURE_CACHED_DIALOG_TOOL="${tool}"
+            _CONFIGURE_CACHED_HAS_DIALOG_TOOL="yes"
+            echo "${tool}"
+            return 0
         fi
+        _CONFIGURE_CACHED_HAS_DIALOG_TOOL="no"
+        return 1
+    fi
+
+    # Fallback: return first available tool
+    if command -v yad >/dev/null 2>&1; then
+        _CONFIGURE_CACHED_DIALOG_TOOL="yad"
+        echo "yad"
+    elif command -v zenity >/dev/null 2>&1; then
+        _CONFIGURE_CACHED_DIALOG_TOOL="zenity"
+        echo "zenity"
+    elif command -v kdialog >/dev/null 2>&1; then
+        _CONFIGURE_CACHED_DIALOG_TOOL="kdialog"
+        echo "kdialog"
     fi
 }
 
