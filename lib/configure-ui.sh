@@ -784,6 +784,28 @@ Please reduce the configured hours to fix this before saving."
     fi
 }
 
+# Show error when tighten-only partial lock rejects proposed changes at save time.
+show_partial_lock_violation_error() {
+    local use_gui="$1"
+    local violation_text="$2"
+    local title="Change Not Allowed During Lock Hours"
+    local message="Limited configuration mode is active. The following changes are not allowed:
+
+${violation_text}
+
+During lock hours you may only tighten restrictions (more frequent popups, longer min display, add hours, enable locks)."
+
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        show_info_dialog "${title}" "${message}" 720 420
+    else
+        echo "" >&2
+        echo "ERROR: Changes not allowed during lock hours (tighten-only mode):" >&2
+        printf '%b\n' "${violation_text}" >&2
+        echo "" >&2
+        read -rp "Press Enter to continue..."
+    fi
+}
+
 # Show error message when configure.sh or manage.sh is blocked during restricted hours or lock hours
 # This is for Enhancement #19 (Prevent configure.sh and manage.sh Execution)
 # Phase 2: Also checks lock hours in addition to restriction hours

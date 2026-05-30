@@ -9,7 +9,7 @@
 #
 # Functions:
 # - get_configure_block_enabled_config() - Get configure block enabled setting (Enhancement #19)
-# - get_security_settings_config() - Get combined security settings (script blocking & config locking)
+# - get_security_settings_config() - Get combined security settings (configuration lock tighten-only & config file locking)
 # - get_config_lock_enabled_config() - Get config lock enabled setting (Enhancement #18)
 # - get_pause_enabled_config() - Get pause enabled setting
 # - get_pause_duration_config() - Get pause duration
@@ -104,21 +104,23 @@ get_configure_block_enabled_config() {
         # GUI mode
         _prompt_bool_setting_gui_strict \
             "${use_gui}" \
-            "Sleep Warning Configuration - Block Configuration During Restricted Hours" \
-            "Block configure.sh and manage.sh during restricted hours?\n\nWhen enabled, the configuration and management scripts will be blocked from running during restricted hours to prevent circumventing restrictions.\n\nNote: This must be enabled for 'Additional Configuration Block Hours' to take effect.\n\nCurrent setting: ${default_block_enabled}" \
+            "Sleep Warning Configuration - Restrict Configuration Changes During Restricted Hours" \
+            "Restrict configuration changes during restricted hours? (tighten-only)\n\nWhen enabled, the configuration and management wizards open in tighten-only mode during restricted hours: you can make restrictions stricter, but cannot loosen, remove, or disable them until restricted hours end. Disabling the service and uninstalling remain available.\n\nNote: This must be enabled for 'Additional Configuration Lock Hours' to take effect.\n\nCurrent setting: ${default_block_enabled}" \
             650 \
             400
         return $?
     else
         # Text mode
         echo "" >&2
-        echo "Block Configuration During Restricted Hours - Configure Blocking:" >&2
-        echo "  When enabled, configure.sh and manage.sh will be blocked from running" >&2
-        echo "  during restricted hours to prevent circumventing restrictions." >&2
-        echo "  Note: This must be enabled for 'Additional Configuration Block Hours' to take effect." >&2
+        echo "Restrict Configuration Changes During Restricted Hours (tighten-only):" >&2
+        echo "  When enabled, the configure and manage wizards open in tighten-only mode" >&2
+        echo "  during restricted hours: you can make restrictions stricter, but cannot" >&2
+        echo "  loosen, remove, or disable them until restricted hours end." >&2
+        echo "  Disabling the service and uninstalling remain available." >&2
+        echo "  Note: This must be enabled for 'Additional Configuration Lock Hours' to take effect." >&2
         echo "" >&2
         while true; do
-            read -p "Block configure.sh and manage.sh during restricted hours? [y/n, default: ${default_block_enabled}]: " choice
+            read -p "Restrict configuration changes during restricted hours? [y/n, default: ${default_block_enabled}]: " choice
             choice=${choice:-${default_block_enabled}}
             case "${choice}" in
                 y|Y|yes|YES|true|TRUE|1)
@@ -152,8 +154,8 @@ get_security_settings_config() {
             # First, ask about configure block
             local block_enabled_result
             block_enabled_result=$(show_list_dialog \
-                "Sleep Warning Configuration - Script Blocking and Config Locking" \
-                "Block configure.sh and manage.sh during restricted hours?\n\nWhen enabled, the configuration and management scripts will be blocked from running during restricted hours to prevent circumventing restrictions.\n\nNote: This must be enabled for 'Additional Configuration Block Hours' to take effect.\n\nCurrent setting: ${current_configure_block}" \
+                "Sleep Warning Configuration - Configuration Lock (Tighten-Only) and Config File Locking" \
+                "Restrict configuration changes during restricted hours? (tighten-only)\n\nWhen enabled, the configuration and management wizards open in tighten-only mode during restricted hours: you can make restrictions stricter, but cannot loosen, remove, or disable them until restricted hours end. Disabling the service and uninstalling remain available.\n\nNote: This must be enabled for 'Additional Configuration Lock Hours' to take effect.\n\nCurrent setting: ${current_configure_block}" \
                 700 \
                 400 \
                 "true" "false")
@@ -171,7 +173,7 @@ get_security_settings_config() {
             # Then, ask about config file locking
             local lock_enabled_result
             lock_enabled_result=$(show_list_dialog \
-                "Sleep Warning Configuration - Script Blocking and Config Locking" \
+                "Sleep Warning Configuration - Configuration Lock (Tighten-Only) and Config File Locking" \
                 "Enable config file locking during restricted hours?\n\nWhen enabled, the config file and directory are made read-only during restricted hours and any configured lock hours to prevent users from circumventing restrictions by changing settings.\n\nNote: Automatically disabled if restrictions exceed ${THRESHOLD_WARN} minutes/week (> $(get_threshold_warn_description)) for safety.\n\nCurrent setting: ${current_config_lock}" \
                 700 \
                 450 \
@@ -187,6 +189,17 @@ get_security_settings_config() {
                 fi
             fi
             
+            if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                local _pl_cb="${_baseline_configure_block_enabled:-${current_configure_block}}"
+                local _pl_cl="${_baseline_config_lock_enabled:-${current_config_lock}}"
+                if ! configure_partial_lock_reject_scalar_change "configure_block_enabled" "${_pl_cb}" "${block_enabled_result}" "${use_gui}"; then
+                    continue
+                fi
+                if ! configure_partial_lock_reject_scalar_change "config_lock_enabled" "${_pl_cl}" "${lock_enabled_result}" "${use_gui}"; then
+                    continue
+                fi
+            fi
+
             # Return both values pipe-separated
             echo "${block_enabled_result}|${lock_enabled_result}"
             return 0
@@ -194,12 +207,13 @@ get_security_settings_config() {
     else
         # Text mode
         echo "" >&2
-        echo "Script Blocking and Config Locking" >&2
+        echo "Configuration Lock (Tighten-Only) and Config File Locking" >&2
         echo "" >&2
-        echo "1. Block configure.sh and manage.sh during restricted hours" >&2
-        echo "   When enabled, configure.sh and manage.sh will be blocked from running" >&2
-        echo "   during restricted hours to prevent circumventing restrictions." >&2
-        echo "   Note: This must be enabled for 'Additional Configuration Block Hours' to take effect." >&2
+        echo "1. Restrict configuration changes during restricted hours (tighten-only)" >&2
+        echo "   When enabled, the configure and manage wizards open in tighten-only mode" >&2
+        echo "   during restricted hours: you can make restrictions stricter, but cannot" >&2
+        echo "   loosen, remove, or disable them until restricted hours end." >&2
+        echo "   Note: This must be enabled for 'Additional Configuration Lock Hours' to take effect." >&2
         echo "" >&2
         echo "2. Config file locking during restricted hours" >&2
         echo "   When enabled, the config file and directory are made read-only during" >&2
@@ -216,7 +230,7 @@ get_security_settings_config() {
         # Get configure block setting
         local block_enabled
         while true; do
-            read -p "Block configure.sh and manage.sh during restricted hours? [y/n, default: ${current_configure_block}]: " choice >&2
+            read -p "Restrict configuration changes during restricted hours? (tighten-only) [y/n, default: ${current_configure_block}]: " choice >&2
             choice=${choice:-${current_configure_block}}
             case "${choice}" in
                 y|Y|yes|YES|true|TRUE|1)
@@ -260,6 +274,17 @@ get_security_settings_config() {
                     ;;
             esac
         done
+
+        if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+            local _pl_cb="${_baseline_configure_block_enabled:-${current_configure_block}}"
+            local _pl_cl="${_baseline_config_lock_enabled:-${current_config_lock}}"
+            if ! configure_partial_lock_reject_scalar_change "configure_block_enabled" "${_pl_cb}" "${block_enabled}" "${use_gui}"; then
+                return 2
+            fi
+            if ! configure_partial_lock_reject_scalar_change "config_lock_enabled" "${_pl_cl}" "${lock_enabled}" "${use_gui}"; then
+                return 2
+            fi
+        fi
         
         # Return both values pipe-separated
         echo "${block_enabled}|${lock_enabled}"
@@ -374,6 +399,13 @@ get_pause_enabled_config() {
                     continue  # User wants to continue, re-prompt
                 fi
             fi
+
+            if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                local _pl_base="${_baseline_pause_enabled:-${default_enabled}}"
+                if ! configure_partial_lock_reject_scalar_change "pause_enabled" "${_pl_base}" "${pause_enabled}" "${use_gui}"; then
+                    continue
+                fi
+            fi
             
             echo "${pause_enabled}"
             return 0
@@ -391,14 +423,32 @@ get_pause_enabled_config() {
             choice=${choice:-${default_enabled}}
             case "${choice}" in
                 y|Y|yes|YES|true|TRUE|1)
+                    if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                        local _pl_base="${_baseline_pause_enabled:-${default_enabled}}"
+                        if ! configure_partial_lock_reject_scalar_change "pause_enabled" "${_pl_base}" "true" "${use_gui}"; then
+                            continue
+                        fi
+                    fi
                     echo "true"
                     return 0
                     ;;
                 n|N|no|NO|false|FALSE|0)
+                    if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                        local _pl_base="${_baseline_pause_enabled:-${default_enabled}}"
+                        if ! configure_partial_lock_reject_scalar_change "pause_enabled" "${_pl_base}" "false" "${use_gui}"; then
+                            continue
+                        fi
+                    fi
                     echo "false"
                     return 0
                     ;;
                 "")
+                    if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                        local _pl_base="${_baseline_pause_enabled:-${default_enabled}}"
+                        if ! configure_partial_lock_reject_scalar_change "pause_enabled" "${_pl_base}" "${default_enabled}" "${use_gui}"; then
+                            continue
+                        fi
+                    fi
                     echo "${default_enabled}"
                     return 0
                     ;;
@@ -451,6 +501,13 @@ get_pause_duration_config() {
                     return 2  # Special return code for cancellation
                 else
                     continue  # User wants to continue, re-prompt
+                fi
+            fi
+
+            if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                local _pl_base="${_baseline_pause_duration:-${default_duration}}"
+                if ! configure_partial_lock_reject_scalar_change "pause_duration" "${_pl_base}" "${pause_duration}" "${use_gui}"; then
+                    continue
                 fi
             fi
             
@@ -594,7 +651,7 @@ get_uninstall_protection_mode_config() {
             local temp_result
             temp_result=$(show_list_dialog \
                 "Sleep Warning Configuration - Uninstall Protection" \
-                "Choose protection mode for uninstall.sh during restricted hours:\n\nCurrent setting: ${mode_display}\n\nOptions:\n- none - No protection, uninstall works normally during restricted hours\n- difficult - Difficult uninstall, requires confirmation phrase + 10 arithmetic questions\n\nDifficult mode allows legitimate uninstalls while deterring impulsive ones.\nIt requires significant effort and cognitive engagement.\n\nNote: Total block mode may be considered as future phase." \
+                "Choose protection mode for uninstall.sh during restricted hours:\n\nCurrent setting: ${mode_display}\n\nOptions:\n- none - No protection, uninstall works normally during restricted hours\n- difficult - Difficult uninstall, requires confirmation phrase + 5 arithmetic questions (3 wrong answers allowed)\n\nDifficult mode allows legitimate uninstalls while deterring impulsive ones.\nIt requires significant effort and cognitive engagement.\n\nNote: Total block mode may be considered as future phase." \
                 700 \
                 500 \
                 "none" "difficult")
@@ -614,6 +671,12 @@ get_uninstall_protection_mode_config() {
             # return non-zero even on OK). Only treat as cancel when result is empty or invalid.
             if [ "${mode_result_lower}" = "none" ] || [ "${mode_result_lower}" = "difficult" ]; then
                 protection_mode="${mode_result_lower}"
+                if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                    local _pl_base="${_baseline_uninstall_protection_mode:-${default_mode}}"
+                    if ! configure_partial_lock_reject_scalar_change "uninstall_protection_mode" "${_pl_base}" "${protection_mode}" "${use_gui}"; then
+                        continue
+                    fi
+                fi
                 echo "${protection_mode}"
                 return 0
             fi
@@ -639,7 +702,7 @@ get_uninstall_protection_mode_config() {
         echo "" >&2
         echo "  Difficult mode requires:" >&2
         echo "    - Confirmation phrase" >&2
-        echo "    - 10 arithmetic questions (written in word form)" >&2
+        echo "    - 5 arithmetic questions, written in word form (3 wrong answers allowed)" >&2
         echo "" >&2
         echo "  Difficult mode allows legitimate uninstalls while deterring impulsive ones." >&2
         echo "  Note: Total block mode may be considered as future phase." >&2

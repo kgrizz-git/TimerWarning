@@ -449,11 +449,12 @@ _write_config_header() {
     echo "# This is Enhancement #15 (Auto-Close Popup Window)"
     echo "POPUP_AUTO_CLOSE=${popup_auto_close}"
     echo "#"
-    echo "# CONFIGURE_BLOCK_ENABLED: Prevent configure.sh and manage.sh from running during restricted hours"
+    echo "# CONFIGURE_BLOCK_ENABLED: Restrict configure.sh and manage.sh to tighten-only edits during restricted hours"
     echo "# Default: false (opt-in feature)"
-    echo "# When enabled, configuration and management scripts are blocked during restricted hours"
-    echo "# to prevent users from circumventing restrictions by changing settings"
-    echo "# This is Enhancement #19 (Prevent configure.sh and manage.sh Execution)"
+    echo "# When enabled, the configure/manage wizards open in tighten-only mode during restricted hours:"
+    echo "# settings can be made stricter but not loosened, removed, or disabled, to prevent circumventing"
+    echo "# restrictions. Disabling the service and uninstalling remain available (see docs/SAFETY.md)."
+    echo "# This is Enhancement #19 (formerly full block; now tighten-only partial lock, lib/configure-partial-lock.sh)"
     echo "CONFIGURE_BLOCK_ENABLED=${configure_block_enabled}"
     # Add comment if configure block was disabled due to high restrictions
     if [ "${configure_block_overridden}" = "true" ]; then
@@ -465,7 +466,7 @@ _write_config_header() {
     echo "# Default: difficult"
     echo "# Options:"
     echo "#   none - No protection, uninstall works normally during restricted hours"
-    echo "#   difficult - Difficult uninstall, requires confirmation phrase + 10 arithmetic questions"
+    echo "#   difficult - Difficult uninstall, requires confirmation phrase + 5 arithmetic questions (3 wrong answers allowed)"
     echo "# When enabled, uninstall.sh requires verification during restricted hours to prevent"
     echo "# users from circumventing restrictions by uninstalling the system."
     echo "# This is Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours)"
@@ -538,13 +539,13 @@ _write_lock_hours_section() {
 
     if [ "${has_lock_hours}" = "true" ]; then
         echo ""
-        echo "# CONFIG_LOCK_HOURS: Additional hours for blocking configure.sh and manage.sh (separate from restriction hours)"
+        echo "# CONFIG_LOCK_HOURS: Additional hours that restrict configure.sh and manage.sh to tighten-only (separate from restriction hours)"
         echo "# Format: CONFIG_LOCK_HOURS_DAYNAME=START_HOUR-END_HOUR"
         echo "# Hours are in 24-hour format (0-23)"
         echo "# Multiple ranges can be specified per day (comma-separated)"
         echo "# Overnight ranges are supported (e.g., 23-6 spans midnight)"
         echo "# Leave a day empty or omit it to have no lock hours for that day"
-        echo "# When CONFIGURE_BLOCK_ENABLED=true, scripts are blocked during restriction hours OR lock hours"
+        echo "# When CONFIGURE_BLOCK_ENABLED=true, configuration is tighten-only during restriction hours OR lock hours"
         echo "# This is Enhancement #19 Phase 2 (Additional Configurable Lock Hours)"
         # Add comment if lock hours were cleared due to high restrictions
         if [ "${lock_hours_cleared}" = "true" ]; then
@@ -784,6 +785,11 @@ write_config() {
     # Create config directory if it doesn't exist
     # Enhancement #18: Config file is now in subdirectory
     mkdir -p "${CONFIG_DIR}/config"
+
+    # Allow atomic write during config-file lock hours (tighten-only wizard saves).
+    if type config_lock_prepare_for_wizard_write >/dev/null 2>&1; then
+        config_lock_prepare_for_wizard_write || true
+    fi
     
     # Extract user comments from existing file
     # User comments are no longer preserved to prevent config file growth
@@ -827,6 +833,9 @@ write_config() {
     
     # Atomically replace config file with temp file
     if mv "${temp_file}" "${CONFIG_FILE}" 2>/dev/null; then
+        if type config_lock_finish_wizard_write >/dev/null 2>&1; then
+            config_lock_finish_wizard_write || true
+        fi
         return 0
     else
         # Move failed, clean up temp file

@@ -88,8 +88,8 @@ sleep-warning-configure
 - Window Behavior - Configure popup size (including new xsmall, xlarge, max options and percentage-based sizing), position, minimum display time, immovable setting, and auto-close
 - Weekdays/Weekends Configuration - Set restricted hours
 - Visual Day/Time Grid - View and edit all days at once (recommended!)
-- Script Blocking and Config Locking - Configure blocking of configure.sh and manage.sh during restricted/lock hours
-- Lock Hours Configuration - Configure additional hours when configuration/management is blocked
+- Configuration Lock (Tighten-Only) and Config File Locking - Restrict configure.sh and manage.sh to tighten-only edits during restricted/lock hours, and lock the config file
+- Lock Hours Configuration - Configure additional hours when configuration changes are restricted to tighten-only
 - Uninstall Protection - Configure protection mode for uninstall.sh during restricted hours
 - Uninstall Lock Hours Configuration - Configure additional hours when difficult uninstall verification is required
 - Enable pause and configure duration - Configure pause feature for warning popups
@@ -727,7 +727,7 @@ or
 If you have enabled uninstall protection (`UNINSTALL_PROTECTION_MODE=difficult` in your configuration), the uninstall script will require verification when run during restricted hours or uninstall lock hours:
 
 1. **Confirmation Phrase**: You must type the exact phrase: "I really mean it and want to uninstall this program now even though restrictions are running"
-2. **Arithmetic Questions**: You must correctly answer 10 arithmetic questions written in word form
+2. **Arithmetic Questions**: You must correctly answer 5 arithmetic questions written in word form (you are allowed 3 wrong answers total across all questions)
 
 This verification process is designed to prevent impulsive uninstallation during restricted hours while still allowing legitimate uninstalls if you complete the verification.
 

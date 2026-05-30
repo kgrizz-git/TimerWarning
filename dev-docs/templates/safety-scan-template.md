@@ -13,325 +13,140 @@ This document provides a comprehensive safety scan prompt that should be run rep
 
 ## How to Use This Document
 
-### Important: Creating Scan Copies
+This is the **master template** — never tick its checkboxes. For each scan:
 
-**DO NOT mark off checklist items in this file.** This is the master template that should remain unchanged.
+1. **Copy it, timestamped:**
+   `cp dev-docs/templates/safety-scan-template.md "dev-docs/safety-scans/safety-scan-$(date +%Y-%m-%d-%H%M%S).md"` (format `safety-scan-YYYY-MM-DD-HHMMSS.md`).
+2. **Work in the copy:** tick items and record findings, test results, and reproduction steps there.
+3. **Feed back:** if the scan reveals a new *class* of issue, add a check for it to this master template; keep the timestamped copy as the historical record.
 
-Instead, for each safety scan:
+### Scan, don't fix
 
-1. **Create a new timestamped copy** of this checklist:
-   - Copy this entire file to `dev-docs/safety-scans/safety-scan-YYYY-MM-DD-HHMMSS.md`
-   - Use format: `safety-scan-2024-01-15-143022.md` (year-month-day-hour-minute-second)
-   - Example command: `cp dev-docs/templates/safety-scan-template.md "dev-docs/safety-scans/safety-scan-$(date +%Y-%m-%d-%H%M%S).md"`
+The scan is **analysis only — do not edit the codebase during it.** For each issue, document it in the timestamped file (see "Documenting an issue" under Analysis Methodology) and alert the user. Fixes happen in a separate phase afterward, so discovery stays complete and the user can prioritize.
 
-2. **Work with the timestamped copy**:
-   - Mark off items in the timestamped file as you complete them
-   - Add notes, findings, and test results directly in the timestamped file
-   - Document any issues discovered during the scan
+### Per item
 
-3. **After completing the scan**:
-   - Review all findings in the timestamped file
-   - If new safety concerns are discovered, add them to this master template (safety-scan-template.md)
-   - Keep the timestamped file as a record of that specific scan
+- Verify the system **cannot be configured** into the problematic behavior — test boundaries and malicious configs, not just the happy path.
+- Trace all related code paths, data flow, and error conditions (invalid input, corrupted files, missing dependencies), not just the obvious one.
+- Run the general security review (Analysis Methodology) alongside the specific checks.
 
-### Critical: No Code Changes During Scan
+## Important Notes (authoritative model)
 
-**DO NOT edit the codebase during the safety scan.** The scan is for **analysis and identification only**.
+**Source of truth:** [docs/SAFETY.md](../../docs/SAFETY.md) — if this checklist disagrees with SAFETY.md, fix this template.
 
-- **Document issues, don't fix them**: When you identify a problem, document it thoroughly in the timestamped scan file with:
-  - Exact location (file and line numbers)
-  - Description of the issue
-  - Potential impact/severity
-  - Steps to reproduce (if applicable)
-  - Suggested fix approach (but don't implement it yet)
+### Three invariants (non-negotiable)
 
-- **Alert the user**: After documenting an issue, immediately alert the user about the finding so they can decide how to proceed
+| # | Invariant | Mechanical check |
+|---|-----------|------------------|
+| 1 | **Per-day 16 h cap, per category** — restriction, configure-block, and uninstall-block are independent; merged intervals per calendar day ≤ 960 min each | `lib/daily-caps.sh` → `check_daily_caps`; configure `write_config`; runtime `validate_config_safety` in `sleep-warning.sh` |
+| 2 | **Popups always end** — finite absolute ceiling on every spawn path (value may grow; cap is never “unlimited”) | `lib/popup-safety.sh` → `popup_run_with_watchdog` wired into Linux + macOS spawn paths |
+| 3 | **Always-available escape hatch** — disable timer/agent and uninstall must remain reachable (≥ 8 h/day for uninstall path given caps) | `systemctl --user stop/disable` (Linux), `launchctl bootout` (macOS), `sleep-warning-uninstall` |
 
-- **Separate phases**: 
-  - **Phase 1 (Scan)**: Identify and document all issues
-  - **Phase 2 (Fix)**: After scan completion, review findings with user and implement fixes separately
+### Legacy / weekly thresholds (do not use as primary checks)
 
-This approach ensures:
-- The scan remains focused on discovery, not implementation
-- All issues are documented before any code changes
-- The user can prioritize which issues to address first
-- The scan results provide a complete picture of all safety concerns
+Older scans referenced **THRESHOLD_WARN** (6720 min/week) and **THRESHOLD_BLOCK** (10080 min/week). The product safety model is **per-day per-category**, not weekly totals. Weekly backstops may still exist in `lib/configure-validation.sh` — verify they cannot override the per-day cap — but scan items should focus on `check_daily_caps` and SAFETY.md.
 
-### Scan Process
+### Other limits to keep in sync
 
-1. **After any code changes**, create a new timestamped copy and run through the entire checklist
-2. **For each item**, verify that the system cannot be configured to achieve the described problematic behavior
-3. **Document any findings** in the timestamped scan file - If a vulnerability or issue is found, also add it to this master checklist template
-4. **Test edge cases** - Don't just verify "normal" operation; test boundary conditions and malicious configurations
-5. **Review related code** - When checking an item, review all related code paths, not just the obvious ones
-6. **Perform code flow analysis** - Trace execution paths through the codebase to understand how data flows and where vulnerabilities might exist
-7. **Consider error conditions** - Analyze how the system handles invalid input, corrupted files, missing dependencies, and other error states
-8. **General security review** - In addition to the specific checklist items, perform a general security review looking for common vulnerabilities and poor security practices (see "General Security Practices Review" in Analysis Methodology section)
+- **Window size**: minimum 384×216 px; maximum ~95% of screen (see `lib/config.sh` / `get_popup_dimensions()`)
+- **Partial configure lock**: during lock hours, configure is **tighten-only** (`lib/configure-partial-lock.sh`), not fully blocked — escape hatch unchanged
+- **macOS popup cap (current)**: `POPUP_ABSOLUTE_MAX_SECONDS=120` in `lib/popup-safety.sh` (expected to grow; invariant is “finite,” not “120 forever”)
 
-## Important Notes
+### Scan tiers
 
-- **THRESHOLD_WARN**: Currently set to **6720 minutes** (16 hours/day × 7 days) in `lib/configure-core.sh` (HOURS_PER_DAY_WARN=16)
-- **THRESHOLD_BLOCK**: Currently set to **10080 minutes** (24 hours/day × 7 days) in `lib/configure-core.sh` (HOURS_PER_DAY_BLOCK=24)
-- If these thresholds are changed in the future, update this document accordingly
-- **Window size limits**: Currently minimum 384×216 pixels, maximum 95% of screen resolution (see `lib/config.sh`)
+| Tier | When | What |
+|------|------|------|
+| **A — Mechanical** | Every PR touching config/popup/scheduler | Run targeted tests (Section 20); re-read SAFETY.md checklist |
+| **B — Automated** | Weekly or before release | ShellCheck, Semgrep, secret scan (Section 19) |
+| **C — Full manual** | Major behavior change or quarterly | Complete checklist below (timestamped copy) |
 
 ---
 
 ## Analysis Methodology
 
-When performing safety scans, use a systematic approach to analyze code flow and identify vulnerabilities. This section outlines the types of analysis to perform for each checklist item.
+For each checklist item, trace the relevant code and probe its failure modes. The dimensions below are a prompt list — apply the ones that fit the item, not all mechanically.
 
-### Code Flow Analysis
+### Code flow
 
-For each safety check, trace the execution path through the codebase:
+Trace each feature end to end:
 
-1. **Entry Points**: Identify all ways a function/feature can be invoked:
-   - Direct script execution
-   - Systemd timer/service calls
-   - User commands (configure.sh, manage.sh, uninstall.sh)
-   - Library function calls from other modules
+- **Entry points** — direct execution, systemd timer/service, user commands (configure.sh, manage.sh, uninstall.sh), library calls from other modules.
+- **Data flow** — where user input enters, how it is validated/sanitized/transformed, and where it is used (file I/O, command execution, calculations).
+- **Control flow** — decision points, bypass conditions that could skip validation, and whether errors lead to safe fallbacks or dangerous states.
+- **Dependencies** — external commands (systemd, dialog tools, window managers), filesystem state, environment variables, system state (time, display).
+- **Exit points** — normal, error, and early-return paths; ensure cleanup isn't skipped.
 
-2. **Data Flow**: Follow data from input to output:
-   - Where does user input enter the system?
-   - How is it validated and sanitized?
-   - What transformations occur?
-   - Where is it used (file I/O, command execution, calculations)?
+### Input, error, and state handling
 
-3. **Control Flow**: Understand decision points:
-   - What conditions determine execution paths?
-   - Are there bypass conditions that could skip validation?
-   - Do error conditions lead to safe fallbacks or dangerous states?
+Probe how each input point and code path handles:
 
-4. **Dependencies**: Identify what the code depends on:
-   - External commands (systemd, dialog tools, window managers)
-   - File system state (config files, log files, directories)
-   - Environment variables
-   - System state (time, display availability)
+- **Malformed input** — invalid time ranges (`25-30`, `5-3`, `abc-def`), bad window sizes (`abc`, `200x`, `200x300x400`), non-boolean booleans (`yes`, `1`, `on`), stray whitespace/newlines; empty vs missing vs whitespace-only values; invalid CLI flags; unexpected interactive responses.
+- **Wrong types** — string in a numeric field (`CHECK_INTERVAL=abc`, `POPUP_MIN_DISPLAY_TIME=not_a_number`), unvalidated type coercion.
+- **Corrupted / missing files** — partial writes, unclosed quotes, duplicate or conflicting keys (`POPUP_SIZE=small` + `=large`), non-UTF-8 bytes; missing config (→ defaults), missing libs, missing log dir, missing service/timer files; read-only config file/dir or non-executable scripts.
+- **Boundaries** — min/max and just-over values for sizes (`get_popup_dimensions()`, 300 s min-display cap in tests), large/negative numbers, integer overflow; empty / very-long / whitespace / special-char strings; time edges (00:00, day wrap, year, invalid dates).
+- **Concurrency** — config read during edit, two configure.sh at once, timer firing during uninstall, popup during shutdown; lock-file creation and staleness.
+- **System state** — missing dialog/WM tools (zenity, yad, kdialog, wmctrl, xdotool) or core utils, no/invalid DISPLAY, Wayland vs X11, disk full / OOM / FD or process limits, SIGTERM/SIGINT during writes, orphaned or outliving children, kill failures, timezone/clock changes, systemd or display-server loss, NFS unavailability, library files replaced mid-run.
+- **Atomicity** — config and state writes (PID, uptime, lock-marker) must use temp-file + rename so interruption can't corrupt them.
+- **Special characters** — UTF-8 and Unicode in config values; quotes/backslashes/newlines and path-traversal sequences handled safely.
 
-5. **Exit Points**: Understand how execution ends:
-   - Normal completion paths
-   - Error exit paths
-   - Early returns that might skip cleanup
+### Testing strategy
 
-### Input Validation and Error Handling Analysis
+For each item, consider: happy path, invalid input, missing/empty values, boundary values, dependency-failure errors, maliciously crafted input, and inconsistent system state.
 
-For each input point, analyze how the system handles:
+### General security review
 
-#### Incorrectly Formatted Input
+Alongside the specific checks, sweep for:
 
-- **Config file values**: What happens with:
-  - Invalid time ranges (e.g., "25-30", "-5", "abc-def", "5-3" when start > end in normal ranges)
-  - Malformed window sizes (e.g., "abc", "200x", "x300", "200x300x400")
-  - Invalid boolean values (e.g., "yes", "1", "on" when expecting "true"/"false")
-  - Extra whitespace, special characters, newlines in unexpected places
-  - Empty values vs. missing values vs. whitespace-only values
+- **Common vulns** — command injection, path traversal, insecure temp files (predictable/world-writable), TOCTOU races, hardcoded secrets, weak randomness.
+- **Poor practices** — missing input validation, info-leaking error handling, overly permissive permissions, unnecessary privilege escalation, weak crypto.
+- **Code quality** — deprecated/insecure functions, inadequate security logging.
+- **How** — grep for `eval`, unquoted `$var` in command position, and `rm -rf` with variables; check every external command for quoting, every file op for path validation, every input for validation before use, and every error message for information disclosure.
 
-- **Command-line arguments**: How are invalid flags/options handled?
-- **User prompts**: What if user enters unexpected responses in interactive mode?
+Record general findings in the timestamped file even if they don't map to a specific checklist item.
 
-#### Wrong Data Types
+### Documenting an issue
 
-- **String vs. Integer**: What if a numeric field receives a string?
-  - Example: `CHECK_INTERVAL=abc` or `POPUP_MIN_DISPLAY_TIME=not_a_number`
-- **Boolean confusion**: What if boolean fields receive non-boolean values?
-- **Array/list confusion**: What if a single value is expected but an array is provided?
-- **Type coercion**: Does the code assume types without validation?
-
-#### Corrupted Files
-
-- **Config file corruption**: Analyze behavior when:
-  - Config file is partially written (interrupted write)
-  - Config file contains invalid syntax (unclosed quotes, unmatched brackets)
-  - Config file has duplicate keys (which value is used?)
-  - Config file has conflicting values (e.g., both `POPUP_SIZE=small` and `POPUP_SIZE=large`)
-  - Config file is binary/corrupted (not valid text)
-  - Config file has encoding issues (non-UTF-8 characters)
-
-- **Missing files**: What happens when:
-  - Config file doesn't exist (expected behavior: use defaults)
-  - Required library files are missing
-  - Log directory doesn't exist
-  - Systemd service/timer files are missing
-
-- **Permission issues**: What happens when:
-  - Config file is read-only (can't write updates)
-  - Config directory doesn't have write permissions
-  - Script files don't have execute permissions
-
-#### Boundary Conditions
-
-- **Numeric boundaries**: Test values at limits:
-  - Minimum values (0, 1, -1 if negative allowed)
-  - Maximum values (2000 for window width, 300 for min display time)
-  - Boundary values (exactly at threshold, one above, one below)
-  - Very large numbers (integer overflow, if applicable)
-  - Negative numbers (where not expected)
-
-- **String boundaries**: Test with:
-  - Empty strings
-  - Very long strings (buffer overflow potential)
-  - Strings with only whitespace
-  - Strings with special characters (quotes, backslashes, newlines)
-
-- **Time boundaries**: Test edge cases:
-  - Midnight (00:00) transitions
-  - Day boundaries (Sunday ↔ Saturday wrap-around)
-  - Year boundaries (if date calculations are involved)
-  - Invalid dates/times
-
-#### Concurrent Operations
-
-- **Race conditions**: Consider:
-  - Config file being edited while script reads it
-  - Multiple instances of configure.sh running simultaneously
-  - Timer firing while uninstall.sh is running
-  - Popup display while system is shutting down
-
-- **File locking**: Does the system handle:
-  - Multiple processes accessing config file
-  - Lock file creation/deletion
-  - Stale lock files
-
-#### System State Variations
-
-- **Missing dependencies**: What if required tools are missing:
-  - Dialog tools (zenity, yad, kdialog)
-  - Window management tools (wmctrl, xdotool)
-  - Systemd (unlikely, but consider)
-  - Standard utilities (date, grep, sed, etc.)
-
-- **Environment variations**: Test with:
-  - No DISPLAY variable (headless system)
-  - Invalid DISPLAY value
-  - Different desktop environments
-  - Different window managers
-  - Wayland vs. X11
-
-- **Resource constraints**: Consider:
-  - Disk full (can't write config/log files)
-  - Out of memory
-  - Too many open file descriptors
-  - Process limits reached
-
-- **Signal handling**: Consider:
-  - Scripts receiving SIGTERM/SIGINT during critical operations (config writes, uninstall)
-  - Orphaned processes if parent is killed
-  - Background processes that outlive their parent
-  - Process termination failures (SIGTERM/SIGKILL both fail)
-
-- **System state changes**: Consider:
-  - Timezone changes during execution
-  - System clock adjustments (forward/backward)
-  - Systemd service manager becoming unavailable
-  - Display server disconnection (X11/Wayland)
-  - Network filesystem (NFS) becoming unavailable
-  - Library files being replaced during execution
-
-- **Atomic operations**: Consider:
-  - Config file writes being interrupted (need temp file + rename)
-  - State file writes being interrupted (PID files, uptime files)
-  - Race conditions in file operations
-  - Partial file writes causing corruption
-
-- **Character encoding and special characters**: Consider:
-  - UTF-8 encoding in config files
-  - Unicode characters in config values
-  - Special shell characters (quotes, backslashes, newlines)
-  - Path traversal via special characters
-
-### Testing Strategy
-
-For each checklist item, consider:
-
-1. **Happy path**: Does it work correctly with valid input?
-2. **Invalid input**: What happens with malformed data?
-3. **Missing data**: What happens with empty/null values?
-4. **Boundary values**: What happens at limits?
-5. **Error conditions**: What happens when dependencies fail?
-6. **Malicious input**: Could input be crafted to exploit vulnerabilities?
-7. **State corruption**: What happens if system state is inconsistent?
-
-### General Security Practices Review
-
-In addition to the specific checklist items, perform a general security review of the codebase looking for:
-
-1. **Common vulnerabilities**:
-   - Command injection (unsanitized input in command execution)
-   - Path traversal (unvalidated file paths)
-   - Insecure temporary files (predictable names, world-writable)
-   - Race conditions (time-of-check to time-of-use issues)
-   - Hardcoded secrets or credentials
-   - Insecure random number generation (if applicable)
-
-2. **Poor security practices**:
-   - Missing input validation or sanitization
-   - Insufficient error handling that leaks information
-   - Overly permissive file permissions
-   - Unnecessary privilege escalation
-   - Insecure communication (if network features exist)
-   - Weak cryptographic practices (if encryption is used)
-
-3. **Code quality security concerns**:
-   - Use of deprecated or insecure functions
-   - Missing security headers or protections
-   - Inadequate logging of security events
-   - Lack of security documentation
-
-4. **Review approach**:
-   - Search for common dangerous patterns (e.g., `eval`, unquoted variables in commands, `rm -rf` with variables)
-   - Review all external command invocations for proper quoting and sanitization
-   - Check all file operations for path validation
-   - Verify all user input is validated before use
-   - Review error messages for information disclosure
-
-Document any general security concerns found in the timestamped scan file, even if they don't fit into specific checklist categories.
-
-### Documentation Requirements
-
-When documenting issues in the timestamped scan file, include:
-
-- **Location**: Exact file and line numbers
-- **Input**: What input/data triggers the issue
-- **Expected behavior**: What should happen
-- **Actual behavior**: What actually happens
-- **Impact**: Severity and potential consequences
-- **Reproduction**: Steps to reproduce the issue
-- **Code flow**: Trace of execution path leading to the issue
-- **Suggested fix**: Approach to resolve (but don't implement during scan)
+In the timestamped file record: **location** (file:line), **input** that triggers it, **expected vs actual** behavior, **impact/severity**, **reproduction**, **code-flow trace**, and a **suggested fix** (don't implement during the scan).
 
 ---
 
 ## Safety Scan Checklist
 
-### 1. Total System Lock-Out Scenarios
+### 1. Per-Day Cap and Lock-Out Scenarios
 
-#### 1.1 24/7 Restriction Configuration
-- [ ] **Verify**: Users cannot configure restrictions that cover all 24 hours × 7 days (10080 minutes)
-- [ ] **Check**: `check_restriction_coverage()` in `lib/configure-validation.sh` correctly blocks configurations >= 10080 minutes
-- [ ] **Test**: Attempt to configure exactly 10080 minutes using various range combinations (e.g., "0-12,12-0" for each day)
-- [ ] **Test**: Attempt to configure > 10080 minutes using overlapping ranges
-- [ ] **Verify**: Configuration wizard prevents saving when `check_restriction_coverage()` returns "block"
-- [ ] **Check**: No code path allows bypassing the 24/7 restriction check
-- [ ] **Verify**: Manual config file editing cannot create 24/7 restrictions (check if `sleep-warning.sh` validates on load)
+#### 1.1 Per-day 16-hour cap (restriction category)
+- [ ] **Verify**: No single calendar day can exceed **960 merged minutes** of restriction (popup) hours
+- [ ] **Check**: `check_daily_caps` in `lib/daily-caps.sh` merges overlapping intervals before measuring
+- [ ] **Test**: Same-day overlap — e.g. Monday `0-12,12-23` → 23 h → **hard block** at configure-time
+- [ ] **Test**: Overnight carry — e.g. Sunday `22-6` affects Monday 0–6; verify Monday total includes carry
+- [ ] **Test**: Integer-hour (`7-23`) and `HH:MM` (`07:00-23:00`) configs both enforce the same cap
+- [ ] **Verify**: `write_config` / wizard cannot “save anyway” on cap violation
+- [ ] **Verify**: Manual edit + `sleep-warning.sh` reload triggers runtime fallback (`validate_config_safety`), not silent acceptance
 
-#### 1.2 Near-24/7 Restrictions (High Restriction Levels)
-- [ ] **Verify**: When restrictions exceed THRESHOLD_WARN (6720 minutes), users are warned but can still proceed
-- [ ] **Check**: Warning dialog clearly explains the high restriction level
-- [ ] **Test**: Configure exactly 6721 minutes (just above threshold) - should show warning
-- [ ] **Test**: Configure exactly 10079 minutes (just below 24/7) - should show warning
-- [ ] **Verify**: Warning does not prevent configuration, only informs user
+#### 1.2 Per-day 16-hour cap (configure-block and uninstall-block)
+- [ ] **Verify**: `CONFIG_LOCK_HOURS_*` ∪ restriction (when `CONFIGURE_BLOCK_ENABLED=true`) ≤ 960 min/day per weekday
+- [ ] **Verify**: `UNINSTALL_LOCK_HOURS_*` ∪ restriction (when uninstall protection enabled) ≤ 960 min/day
+- [ ] **Verify**: Three categories are **independent** — 16 h restriction + 16 h configure-block + 16 h uninstall-block on the same day is allowed if each category alone ≤ 16 h
+- [ ] **Test**: `bash tests/test-daily-caps.sh` passes (or run equivalent cases manually)
 
-#### 1.3 System Unresponsiveness During Timer Execution
-- [ ] **Verify**: Warning popup cannot be configured to be so large it makes the system unresponsive
-- [ ] **Check**: Window size validation in `lib/config.sh` (`get_popup_dimensions()`) enforces maximum limits (2000×2000)
-- [ ] **Test**: Attempt to configure window size larger than maximum (should fall back to default)
-- [ ] **Verify**: Popup cannot be configured to cover entire screen in a way that blocks all interaction
+#### 1.3 Weekly / 24×7 backstop (secondary)
+- [ ] **Check**: `check_restriction_coverage()` weekly backstop still blocks true 24/7 configurations
+- [ ] **Verify**: Weekly logic cannot **weaken** per-day cap (no code path that allows > 960 min/day because weekly average is OK)
+- [ ] **Test**: Attempt 24/7 via all days `0-23` or `00:00-23:59` — must fail at configure and/or runtime
+
+#### 1.4 High restriction levels (warnings vs blocks)
+- [ ] **Verify**: Distinction between **hard block** (cap violation) and **warn** (high but legal) is clear in UI and logs
+- [ ] **Check**: Warning dialogs do not imply the user can bypass a hard block
+- [ ] **Test**: Configure just under 16 h on one day — should save; just over — must not save
+
+#### 1.5 System Unresponsiveness During Timer Execution
+> Window size/fullscreen responsiveness lives in Section 2; this item is about timing, stacking, and hangs.
 - [ ] **Check**: Minimum display time (`POPUP_MIN_DISPLAY_TIME`) has a maximum limit (currently 300 seconds)
 - [ ] **Test**: Configure maximum minimum display time and verify system remains responsive
-- [ ] **Verify**: Multiple popups cannot spawn simultaneously (timer interval prevents this)
+- [ ] **Verify**: Multiple popups cannot spawn simultaneously (timer interval prevents this; see Section 16.2)
 - [ ] **Check**: Popup display logic in `lib/popup-display.sh` handles errors gracefully and doesn't hang
 
-#### 1.4 Timer Interval Issues
+#### 1.6 Timer Interval Issues
 - [ ] **Verify**: Timer interval (`CHECK_INTERVAL`) has reasonable minimum and maximum limits
 - [ ] **Check**: Very short intervals (e.g., 1 minute) don't cause system performance issues
 - [ ] **Verify**: Timer cannot be configured to run continuously or too frequently
@@ -341,28 +156,23 @@ When documenting issues in the timestamped scan file, include:
 
 ### 2. Large/Full Screen Window Configuration
 
-#### 2.1 Window Size Above THRESHOLD_WARN
-- [ ] **Verify**: When restrictions exceed THRESHOLD_WARN (6720 minutes), large or full-screen windows cannot be configured
-- [ ] **Check**: Window size validation occurs regardless of restriction level
-- [ ] **Test**: Configure restrictions > 6720 minutes AND large window size (e.g., 2000×2000) - should be prevented or warned
-- [ ] **Verify**: If THRESHOLD_WARN is changed, window size restrictions are re-evaluated accordingly
-- [ ] **Check**: Configuration wizard checks both restriction level AND window size together
-- [ ] **Test**: Attempt to manually edit config file to set large window size with high restrictions
+#### 2.1 Window size vs restriction level
+- [ ] **Verify**: Window size validation runs for all restriction levels (not only “high restriction”)
+- [ ] **Check**: Preset and custom sizes respect min 384×216 and max ~95% screen (`get_popup_dimensions()`)
+- [ ] **Test**: Manual config with oversized custom dimensions — must clamp or fall back safely
+- [ ] **Verify**: Partial lock **blocks shrinking** popup during lock hours (loosening), not merely large presets
 
-#### 2.2 Full Screen Window Scenarios
-- [ ] **Verify**: No code path allows "fullscreen" window size option (if implemented, must be restricted)
-- [ ] **Check**: Custom window sizes cannot exceed screen dimensions in a way that blocks interaction
-- [ ] **Test**: Configure window size equal to or larger than common screen resolutions (e.g., 1920×1080, 3840×2160)
-- [ ] **Verify**: Window positioning logic in `lib/window-management.sh` handles large windows correctly
-- [ ] **Check**: Large windows don't prevent access to window controls (close button, etc.)
-- [ ] **Test**: Configure maximum allowed window size (2000×2000) and verify system remains usable
+#### 2.2 Full-screen and near-full-screen scenarios
+- [ ] **Verify**: Fullscreen / large lockout overlays are **intentional** during restricted hours (not a safety defect per SAFETY.md)
+- [ ] **Check**: Even fullscreen popups still hit **absolute watchdog** and min-display bounds
+- [ ] **Test**: Common resolutions (1920×1080, 3840×2160) — popup remains dismissible after min-display + watchdog
+- [ ] **Verify**: `lib/window-management.sh` / platform code does not hang on very large geometry
 
-#### 2.3 Window Size Validation
-- [ ] **Verify**: Window size limits (200-2000 width, 100-2000 height) are enforced in all code paths
-- [ ] **Check**: `get_popup_dimensions()` in `lib/config.sh` validates custom sizes
-- [ ] **Test**: Attempt to configure invalid sizes (too small, too large, negative, non-numeric)
-- [ ] **Verify**: Invalid sizes fall back to safe defaults (medium: 500×375)
-- [ ] **Check**: Configuration wizard validates window size input before saving
+#### 2.3 Window size validation
+- [ ] **Verify**: Invalid sizes (too small, too large, negative, non-numeric) fall back to safe defaults
+- [ ] **Check**: `get_popup_dimensions()` in `lib/config.sh` is the single authority for parsed dimensions
+- [ ] **Test**: `bash tests/test-position-bounds.sh` / dialog size tests if geometry code changed
+- [ ] **Verify**: Configuration wizard validates before save; partial lock rejects “smaller popup” edits when locked
 
 ---
 
@@ -435,48 +245,53 @@ When documenting issues in the timestamped scan file, include:
 
 ---
 
-### 5. Preventing configure.sh Execution
+### 5. Configure Blocking and Partial Lock (Tighten-Only)
 
-#### 5.1 Time-Based Blocking
-- [ ] **Verify**: `configure.sh` respects `CONFIGURE_BLOCK_ENABLED` setting
-- [ ] **Check**: When enabled, `configure.sh` blocks during restricted hours
-- [ ] **Test**: Enable blocking and attempt to run `configure.sh` during restricted hours
-- [ ] **Verify**: Blocking also applies to `manage.sh`
-- [ ] **Check**: `check_config_lock_time()` in `lib/time-validation.sh` correctly identifies restricted hours
-- [ ] **Test**: Overnight ranges are handled correctly (e.g., Monday "23-6" blocks Tuesday 0-5)
+#### 5.1 Partial lock mode (current behavior)
+- [ ] **Verify**: During restriction hours, configure-block hours, or `CONFIG_LOCK_ENABLED`, wizard enters **partial lock** (not full exit)
+- [ ] **Check**: `lib/configure-partial-lock.sh` — session baseline captured at entry; tighten-only for whole session
+- [ ] **Test**: `bash tests/test-configure-partial-lock.sh`
+- [ ] **Verify**: **Allowed (tighten):** more frequent popups, longer min-display, add ranges (not edit/remove existing), enable block/lock flags, stronger uninstall protection, disable pause / shorter pause / larger popup
+- [ ] **Verify**: **Blocked (loosen):** slower frequency, shorter min-display, remove/edit/clear ranges, disable block/lock, weaker uninstall protection, enable pause / longer pause / smaller popup, position/tool/service changes
+- [ ] **Verify**: `POPUP_AUTO_CLOSE=false` is not treated as loosening; watchdog still ends popup
 
-#### 5.2 Lock Hours (Phase 2)
-- [ ] **Verify**: `CONFIG_LOCK_HOURS` settings are respected when `CONFIGURE_BLOCK_ENABLED=true`
-- [ ] **Check**: Lock hours work independently of restriction hours (OR logic)
-- [ ] **Test**: Configure lock hours and verify blocking works during those hours
-- [ ] **Verify**: Lock hours don't prevent configuration during non-lock hours
+#### 5.2 Escape hatch unchanged
+- [ ] **Verify**: `systemctl --user stop/disable` (Linux) and `launchctl bootout` (macOS) are **not** blocked by configure lock
+- [ ] **Verify**: `sleep-warning-manage` disable/status/logs work during lock hours
+- [ ] **Verify**: `sleep-warning-uninstall` remains available subject to uninstall-block cap (≥ 8 h/day free)
 
-#### 5.3 Bypass Prevention
-- [ ] **Verify**: Time check cannot be bypassed by modifying system time (check uses actual current time)
-- [ ] **Check**: No command-line flags allow bypassing the time check
-- [ ] **Test**: Attempt to modify system time and verify blocking still works
-- [ ] **Verify**: Time check happens early in script execution (before any configuration changes)
+#### 5.3 Time-based detection
+- [ ] **Check**: `check_config_lock_time()` / partial-lock triggers use current time (not cached at login)
+- [ ] **Test**: Overnight ranges (e.g. Monday `23-6` affects Tuesday 0–5)
+- [ ] **Verify**: Lock check re-runs before **save** (wizard started in free hour cannot save loosening config after hour becomes locked)
 
-#### 5.4 Edge Cases
-- [ ] **Verify**: Script handles missing config file gracefully (should allow execution if blocking not configured)
-- [ ] **Check**: Invalid time values in config don't cause script to hang
-- [ ] **Test**: Configure invalid time ranges and verify script behavior
+#### 5.4 CONFIG_LOCK_HOURS and CONFIG_LOCK_ENABLED
+- [ ] **Verify**: `CONFIG_LOCK_HOURS_*` respected when `CONFIGURE_BLOCK_ENABLED=true` (union with restriction hours)
+- [ ] **Verify**: File/directory read-only lock (`CONFIG_LOCK_ENABLED`) triggers partial mode, not silent failure
+- [ ] **Test**: `bash tests/test-config-locking.sh` / `tests/test-configure-blocking.sh` when those areas change
+
+#### 5.5 Bypass prevention and edge cases
+- [ ] **Verify**: No undocumented CLI flags bypass partial lock for loosening saves
+- [ ] **Check**: Invalid time values do not hang wizard; missing config uses safe defaults
+- [ ] **Test**: Clock skew / timezone change during session — save still re-validates caps and lock state
 
 ---
 
-### 6. Preventing Service/Timer/Config File Removal
+### 6. Service/Timer/Config Removal Stays Possible (Escape Hatch)
 
-#### 6.1 Service and Timer Protection
+> Goal of this section: confirm the lockout never blocks removal/disable. Per SAFETY.md invariant #3, the user must always be able to disable and uninstall.
+
+#### 6.1 Service and Timer Disable/Removal
 - [ ] **Verify**: No code prevents stopping systemd timer via `systemctl --user stop`
 - [ ] **Check**: Timer can be disabled via `systemctl --user disable`
 - [ ] **Test**: Verify manual removal of service/timer files is possible
 - [ ] **Verify**: Scripts don't recreate removed files automatically (unless explicitly reinstalling)
 
-#### 6.2 Config File Protection
-- [ ] **Verify**: Config file locking (`CONFIG_LOCK_ENABLED`) doesn't prevent file deletion
-- [ ] **Check**: Lock mechanism (if implemented) doesn't use file permissions that prevent deletion
-- [ ] **Test**: Attempt to delete config file when locking is enabled
-- [ ] **Verify**: Config file can be edited manually (even if configure.sh is blocked)
+#### 6.2 Config Lock vs Deletion/Uninstall
+- [ ] **Verify**: `CONFIG_LOCK_ENABLED` chmod lock does not prevent **deleting** the config file or uninstalling the app
+- [ ] **Check**: During lock hours, configure wizard may **temporarily unlock** for tighten-only saves — verify unlock is re-applied after save
+- [ ] **Test**: Attempt to delete config file when locking is enabled (deletion should remain possible)
+- [ ] **Verify**: Manual edit during lock hours is blocked by permissions (expected); escape hatch is partial configure or disable timer, not raw file edit
 
 #### 6.3 File Permissions
 - [ ] **Verify**: Installed files don't have restrictive permissions that prevent deletion
@@ -486,19 +301,21 @@ When documenting issues in the timestamped scan file, include:
 
 ---
 
-### 7. Preventing Config File Editing
+### 7. Config File Editing and Validation
 
-#### 7.1 Time-Based Restrictions
-- [ ] **Verify**: Config file editing is not blocked by time-based restrictions
-- [ ] **Check**: `CONFIGURE_BLOCK_ENABLED` only blocks script execution, not file editing
-- [ ] **Test**: Edit config file manually during restricted hours (should be possible)
-- [ ] **Verify**: Manual edits are respected by `sleep-warning.sh` on next execution
+> The read-only config lock blocking manual edits during lock hours is **intentional** (SAFETY.md). This section confirms the lock is bounded and the escape hatch never depends on editing the file.
 
-#### 7.2 File Locking
-- [ ] **Verify**: If config file locking is implemented, it doesn't prevent manual editing
-- [ ] **Check**: Lock mechanism (if any) can be bypassed by manual editing
-- [ ] **Test**: Attempt to edit locked config file manually
-- [ ] **Verify**: Lock doesn't use file system locks that prevent editing
+#### 7.1 Time-Based Restrictions vs CONFIG_LOCK
+- [ ] **Verify**: `CONFIGURE_BLOCK_ENABLED` triggers **partial configure** (tighten-only), not silent acceptance of manual loosening
+- [ ] **Check**: When `CONFIG_LOCK_ENABLED` is active, config file/dir may be read-only — manual edit blocked **by design**
+- [ ] **Test**: `sleep-warning.sh` still loads config after a legal save from partial wizard; invalid manual edits (if somehow applied) hit runtime fallback
+- [ ] **Verify**: Escape hatch does not require editing the config file (timer disable / uninstall)
+
+#### 7.2 Config lock is intentional and bounded
+- [ ] **Verify**: `CONFIG_LOCK_ENABLED` read-only lock blocking manual edits during lock hours is **by design**, not a bug to "fix"
+- [ ] **Check**: Wizard temporarily unlocks for a tighten-only save, then **re-applies** the lock (`lib/config-locking.sh`)
+- [ ] **Verify**: The lock never blocks the escape hatch — disable timer/agent, uninstall, and config-file deletion stay possible (see 6.2)
+- [ ] **Test**: `bash tests/test-config-locking.sh`
 
 #### 7.3 Validation on Load
 - [ ] **Verify**: `sleep-warning.sh` validates config file on load
@@ -508,13 +325,15 @@ When documenting issues in the timestamped scan file, include:
 
 ---
 
-### 8. Preventing uninstall.sh Execution
+### 8. Uninstall Stays Reachable (Protection Within Cap)
+
+> Uninstall protection may make uninstall *harder* during restricted hours, but uninstall is itself an escape hatch: it must stay reachable ≥ 8 h/day given the uninstall-block per-day cap (SAFETY.md).
 
 #### 8.1 Uninstall Protection Modes
 - [ ] **Verify**: `UNINSTALL_PROTECTION_MODE` setting is respected
 - [ ] **Check**: "none" mode allows uninstall without restrictions
 - [ ] **Test**: Enable "difficult" mode and attempt uninstall during restricted hours
-- [ ] **Verify**: Verification process (confirmation phrase + algebra) works correctly
+- [ ] **Verify**: Verification process (confirmation phrase + 5 arithmetic questions, 3 wrong answers allowed) works correctly
 - [ ] **Check**: Verification can be completed (not impossible to pass)
 
 #### 8.2 Time-Based Blocking
@@ -537,7 +356,9 @@ When documenting issues in the timestamped scan file, include:
 
 ---
 
-### 9. Preventing Manual Uninstall Instructions
+### 9. Manual Uninstall Guide Stays Available
+
+> `manual-uninstall-guide.sh` is a last-resort escape hatch: it must never be time-gated or blocked.
 
 #### 9.1 Script Availability
 - [ ] **Verify**: `manual-uninstall-guide.sh` is always accessible
@@ -780,6 +601,142 @@ When documenting issues in the timestamped scan file, include:
 
 ---
 
+### 16. Popup Lifetime, Watchdog, and Stacking
+
+#### 16.1 Absolute watchdog (invariant #2)
+- [ ] **Verify**: Every spawn path calls `popup_run_with_watchdog` (or equivalent) in `lib/popup-safety.sh`
+- [ ] **Check**: Linux: yad, zenity, kdialog paths in `lib/popup-display.sh`
+- [ ] **Check**: macOS: Python blocker + osascript fallback in `lib/popup-display-darwin.sh` / `lib/popup-dialog-implementations-darwin.sh`
+- [ ] **Test**: `bash tests/test-popup-safety-darwin.sh` (macOS); Linux popup safety tests on Linux host
+- [ ] **Verify**: `POPUP_ABSOLUTE_MAX_SECONDS` caps computed wait time even when `POPUP_AUTO_CLOSE=false`
+- [ ] **Test**: Kill dialog tool mid-popup — watchdog still terminates within cap
+
+#### 16.2 No unbounded stacking
+- [ ] **Verify**: Scheduler does not spawn a second modal while first is alive (`lib/popup-pid-management.sh`)
+- [ ] **Check**: PID file / stale-PID handling cannot leave system thinking popup is forever active
+- [ ] **Test**: Short `CHECK_INTERVAL` under test HOME — at most one interactive popup
+
+#### 16.3 Fallback when primary UI fails
+- [ ] **Verify**: If primary dialog tool fails to start, fallback or notification occurs (not silent success)
+- [ ] **Test**: Missing `yad`/`zenity` (Linux) or broken Python helper (macOS) — documented behavior, no hang
+
+---
+
+### 17. macOS / Linux Parity
+
+#### 17.1 Platform detection and facades
+- [ ] **Verify**: `lib/platform.sh` gates Linux-only (systemd) vs macOS (LaunchAgent) code paths
+- [ ] **Test**: `bash tests/test-platform-darwin.sh` after platform changes
+- [ ] **Check**: No accidental `systemctl` calls on macOS or `launchctl` on Linux in shared libs
+
+#### 17.2 macOS install / uninstall / scheduler
+- [ ] **Verify**: `~/Library/LaunchAgents/com.sleep-warning.plist` created on install, removed on uninstall
+- [ ] **Verify**: `uninstall.sh` “installed” detection includes LaunchAgent; `verify_removal` checks plist gone
+- [ ] **Verify**: `launchctl bootout gui/$(id -u)/com.sleep-warning` documented and works (escape hatch)
+- [ ] **Check**: `lib/install-darwin.sh` / `lib/service-config-darwin.sh` safe defaults respect per-day caps
+
+#### 17.3 macOS popup / focus behavior (intentional lockout)
+- [ ] **Verify**: Focus stealing / topmost / respawn-on-early-dismiss during min-display are **not** flagged as regressions (see SAFETY.md)
+- [ ] **Check**: Accessibility / Cmd+Tab blocking gaps are documented as known limitations, not silent failures
+
+---
+
+### 18. Agent / Development Safety
+
+#### 18.1 Installed config during restricted hours
+- [ ] **Verify**: Scans and agents do not edit `~/.config/sleep-warning/` during user's live restricted/blocked hours
+- [ ] **Check**: Tests use `mktemp -d` for `HOME` (see `.cursor/rules/config-file-edits.mdc`)
+- [ ] **Test**: Configure/install tests use dummy config per [docs/development/testing.md](../../docs/development/testing.md)
+
+#### 18.2 Cursor hooks and secret leakage (optional)
+- [ ] **Review**: [dev-docs/info/cursor-hooks-pii-secrets-scanning.md](../info/cursor-hooks-pii-secrets-scanning.md) — `beforeSubmitPrompt` / `beforeReadFile` for secrets in prompts and attachments
+- [ ] **Verify**: Hooks fail-closed on sensitive file reads where configured
+- [ ] **Check**: `.cursorignore` / hook deny lists cover `sleep-warning.conf`, logs, and backup dirs with real configs
+
+---
+
+### 19. Automated Security Scanning and Repo Hygiene
+
+Run **Tier B** scans in addition to the manual checklist. Record tool versions and command lines in the timestamped scan file.
+
+#### 19.1 Static analysis (Bash / shell)
+
+| Tool | Purpose | Suggested command |
+|------|---------|-------------------|
+| **ShellCheck** | Bash pitfalls, quoting, SC2xxx issues | `shellcheck -x configure.sh manage.sh sleep-warning.sh install.sh uninstall.sh lib/*.sh` |
+| **Semgrep** | Policy rules (command injection, `eval`, unsafe `rm`) | `semgrep --config p/bash --config p/secrets .` (add custom rules under `.semgrep/` if needed) |
+
+- [ ] **Run**: ShellCheck on changed `.sh` files; zero new errors or documented suppressions
+- [ ] **Run**: Semgrep (or equivalent) on `lib/`, top-level scripts, `tests/`
+- [ ] **Check**: No new `eval`, unquoted `$var` in command position, or `rm -rf "$user_input"`
+
+#### 19.2 Secret scanning
+
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| **Gitleaks** | Fast repo history + working tree scan | `gitleaks detect --source . --verbose` |
+| **TruffleHog** | Verified secrets in git history | `trufflehog git file://. --only-verified` (heavier; run before release) |
+| **detect-secrets** | Baseline + pre-commit plugin | `detect-secrets scan` + committed baseline (optional) |
+
+- [ ] **Run**: Secret scan on repo (including `backups/` if tracked — treat as sensitive)
+- [ ] **Verify**: No API keys, tokens, or real `sleep-warning.conf` secrets in git
+- [ ] **Check**: Example configs use placeholders only
+
+#### 19.3 Git hooks (local)
+
+Current repo hook (after `./scripts/install-git-hooks.sh`):
+
+- **pre-commit** → `scripts/prune-backups.sh` (prune tracked `backups/` older than 3 commits)
+
+Implemented locally (verify still working):
+
+- [x] **pre-commit**: `scripts/pre-commit-checks.sh` — ShellCheck on staged `*.sh`, `gitleaks protect --staged`
+- [x] **Full scan**: `scripts/run-security-scan.sh` (`--ci`, `--with-tests`)
+- [ ] **commit-msg**: Conventional format / issue reference (team policy — optional)
+- [ ] **pre-push**: Optional; run `./scripts/run-security-scan.sh --with-tests` before push
+
+- [ ] **Verify**: `SKIP_SHELLCHECK=1` / `SKIP_GITLEAKS=1` documented for emergencies only
+- [ ] **Check**: `./scripts/install-git-hooks.sh` run after clone
+
+#### 19.4 CI / Dependabot / supply chain
+
+Repo includes `.github/workflows/security.yml` and `.github/dependabot.yml`:
+
+- [ ] **Dependabot**: Weekly GitHub Actions updates (review PRs; prefer SHA-pinned actions over time)
+- [ ] **CI workflow**: `./scripts/run-security-scan.sh --ci --with-tests` on PR/push to main
+- [ ] **Verify**: CI does not use live `HOME` or upload config artifacts
+- [ ] **Docs**: [docs/development/security-scanning.md](../../docs/development/security-scanning.md) matches actual commands
+
+Optional for bash dependencies (Homebrew/apt packages referenced in docs only):
+
+- [ ] Document supported versions of `yad`, `zenity`, `bash` 4+ in install docs — no runtime package manager in app itself
+
+#### 19.5 Snyk / container scanning
+
+- [ ] **N/A or run**: Only if Docker/images or vendored deps are introduced; otherwise note “not applicable” in scan record
+
+---
+
+### 20. Regression Test Matrix (Tier A)
+
+After changes, run the **minimal** set for the touched area. Use `timeout` on interactive tests. Full list: [tests/README.md](../../tests/README.md).
+
+| Area changed | Run (non-exhaustive) |
+|--------------|----------------------|
+| Per-day caps / validation | `tests/test-daily-caps.sh`, `tests/test-24-7-prevention-additional-hours.sh` |
+| Partial configure lock | `tests/test-configure-partial-lock.sh`, `tests/test-configure-blocking.sh` |
+| Config file lock | `tests/test-config-locking.sh` |
+| Popup / watchdog | `tests/test-popup-safety-darwin.sh`, `tests/test-popup.sh` |
+| Uninstall protection | `tests/test-uninstall-lock-hours.sh`, `tests/test-manual-uninstall-guide.sh` |
+| macOS platform | `tests/test-platform-darwin.sh`, `tests/test-sleep-detection-darwin.sh` |
+| Atomic writes | `tests/test-atomic-write.sh` |
+| HH:MM parsing | `tests/test-range-endpoint-parsing.sh`, `tests/test-next-unrestricted-hhmm.sh` |
+
+- [ ] **Record**: Commands run, pass/fail, platform (darwin/linux), and temp `HOME` path in timestamped scan file
+- [ ] **Verify**: [docs/SAFETY.md](../../docs/SAFETY.md) PR checklist items satisfied for this change set
+
+---
+
 ## Adding New Safety Checks
 
 If during a safety scan (in a timestamped scan file) you identify a new potential issue or vulnerability that is not covered in this master checklist, **add it to this master template** (safety-scan-template.md):
@@ -825,26 +782,38 @@ After completing a safety scan (in your timestamped scan file):
 
 ## Related Documentation
 
-- `lib/configure-validation.sh` - Restriction coverage validation
-- `lib/config.sh` - Window size validation
-- `lib/time-validation.sh` - Time-based blocking logic
-- `lib/uninstall-verification.sh` - Uninstall protection
-- `dev-docs/enhancements/enhancement-19-prevent-configure-execution.md` - Configure blocking
-- `dev-docs/enhancements/enhancement-22-prevent-24-7-restriction-configuration.md` - 24/7 prevention
-- `dev-docs/enhancements/enhancement-26-prevent-uninstall-during-restricted-hours.md` - Uninstall protection
+| Doc | Topic |
+|-----|--------|
+| [docs/SAFETY.md](../../docs/SAFETY.md) | **Authoritative** invariants, partial lock, PR checklist |
+| [docs/development/testing.md](../../docs/development/testing.md) | Test HOME, timeouts, safe limits |
+| [AGENTS.md](../../AGENTS.md) | Agent map, git hooks |
+| `lib/daily-caps.sh` | Per-day 16 h cap per category |
+| `lib/configure-validation.sh` | Wizard validation + weekly backstop |
+| `lib/configure-partial-lock.sh` | Tighten-only configure during lock hours |
+| `lib/popup-safety.sh` | Watchdog and absolute max seconds |
+| `lib/config.sh` | Window size validation |
+| `lib/time-validation.sh` | Lock hour detection |
+| `lib/uninstall-verification.sh` | Uninstall protection |
+| [dev-docs/info/cursor-hooks-pii-secrets-scanning.md](../info/cursor-hooks-pii-secrets-scanning.md) | Cursor hooks + secret-scan tool notes |
+| `.cursor/rules/safety-guardrails.mdc` | Always-on agent rules |
+
+Legacy enhancement docs (historical context; prefer SAFETY.md if they conflict):
+
+- `dev-docs/enhancements/enhancement-19-prevent-configure-execution.md`
+- `dev-docs/enhancements/enhancement-22-prevent-24-7-restriction-configuration.md`
+- `dev-docs/enhancements/enhancement-26-prevent-uninstall-during-restricted-hours.md`
 
 ---
 
 ## Last Updated
 
-- **Date**: 2026-01-26
-- **Version**: Current
-- **Changes**: 
-  - Added Section 11 "File Safety and Unintended File Operations" to verify that scripts only affect intended files and never remove or modify files from the project directory or unrelated files outside installation locations
-  - Added "General Security Practices Review" subsection to Analysis Methodology section
-  - Added Section 4.5 "General Security Practices Review" checklist items for common security vulnerabilities and poor security practices
-  - Added Section 12 "Signal Handling and Process Management" to verify graceful signal handling, orphaned process prevention, and safe process termination
-  - Added Section 13 "System State and Environment Safety" to verify handling of timezone changes, systemd availability, display server disconnection, network filesystem issues, and environment variable safety
-  - Added Section 14 "Atomic Operations and Data Integrity" to verify atomic file writes for config files, state files, and handling of library file replacement during execution
-  - Added Section 15 "Unicode and Special Character Handling" to verify proper handling of UTF-8 encoding, Unicode characters, and special shell characters in config values
-  - Enhanced Analysis Methodology section with additional considerations for signal handling, system state changes, atomic operations, and character encoding
+- **Date**: 2026-05-28
+- **Summary**:
+  - Replaced weekly THRESHOLD_WARN/BLOCK focus with **per-day 16 h cap per category** (`check_daily_caps`, SAFETY.md)
+  - Updated configure blocking → **partial tighten-only lock** (`lib/configure-partial-lock.sh`)
+  - Fixed window-size guidance (384×216 min, ~95% max)
+  - Added Sections 16–20: popup watchdog, macOS parity, agent dev safety, automated scanning (ShellCheck, Semgrep, Gitleaks/TruffleHog, git hooks, Dependabot when CI exists), regression test matrix
+  - Added scan tiers (A/B/C) and cross-links to cursor-hooks secret-scanning doc
+  - Fixed duplicate Section 1 numbering (was two 1.3 / 1.4; now 1.1–1.6)
+  - Condensed "How to Use" and "Analysis Methodology" prose (~210 lines) with no loss of distinct checks
+  - Re-aligned with SAFETY.md so scan isn't over-restrictive: reframed Sections 6–9 titles (escape hatch preserved, not "preventing" user actions); rewrote 7.2 — the `CONFIG_LOCK_ENABLED` read-only lock blocking manual edits is **intentional**, not a bug (old 7.2 demanded the opposite)

@@ -12,6 +12,16 @@ Full rules: [SAFETY.md](../SAFETY.md). Summary:
 | Live installed config | **Do not modify** during restricted/blocked hours |
 | Test HOME | Use `mktemp -d` isolation when install/configure runs |
 
+## Security scans (static analysis)
+
+See [security-scanning.md](security-scanning.md). Before a PR:
+
+```bash
+./scripts/run-security-scan.sh --ci --with-tests
+```
+
+Enable staged checks on commit: `./scripts/install-git-hooks.sh`
+
 ## Recommended commands
 
 ```bash

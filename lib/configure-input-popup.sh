@@ -136,6 +136,13 @@ get_min_display_time_config() {
                     continue  # Re-prompt
                 fi
             fi
+
+            if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                local _pl_base="${_baseline_min_display_time:-${default_time}}"
+                if ! configure_partial_lock_reject_scalar_change "min_display_time" "${_pl_base}" "${time}" "${use_gui}"; then
+                    continue
+                fi
+            fi
             
             echo "${time}"
             return 0
@@ -172,6 +179,13 @@ get_min_display_time_config() {
                         echo "ERROR: ${validation_error}" >&2
                         echo "" >&2
                         continue  # Re-prompt
+                    fi
+                fi
+
+                if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                    local _pl_base="${_baseline_min_display_time:-${default_time}}"
+                    if ! configure_partial_lock_reject_scalar_change "min_display_time" "${_pl_base}" "${time}" "${use_gui}"; then
+                        continue
                     fi
                 fi
                 
@@ -230,6 +244,12 @@ get_popup_immovable_config() {
             fi
 
             if [ -n "${immovable}" ]; then
+                if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                    local _pl_base="${_baseline_popup_immovable:-${default_immovable}}"
+                    if ! configure_partial_lock_reject_scalar_change "popup_immovable" "${_pl_base}" "${immovable}" "${use_gui}"; then
+                        continue
+                    fi
+                fi
                 echo "${immovable}"
                 return 0
             fi

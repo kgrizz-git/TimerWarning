@@ -1,0 +1,22 @@
+# Gitleaks configuration for sleep-warning
+# Used by: scripts/pre-commit-checks.sh, scripts/run-security-scan.sh, CI
+# Schema: gitleaks v8.25+ ([[allowlists]] global allowlists)
+
+title = "sleep-warning"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Paths that may contain example or copied config; still avoid committing real secrets"
+paths = [
+  '''(?i)backups/''',
+  '''(?i)dev-docs/safety-scans/''',
+  '''(?i)\.cursor/''',
+  '''(?i)dev-docs/templates/''',
+]
+regexes = [
+  '''(?i)example\.com''',
+  '''(?i)YOUR_.*_HERE''',
+  '''(?i)changeme''',
+]

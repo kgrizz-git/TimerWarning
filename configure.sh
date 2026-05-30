@@ -102,6 +102,8 @@ source_required_lib "configure-input-time.sh" || exit 1
 source_required_lib "configure-input-service.sh" || exit 1
 source_required_lib "configure-display.sh" || exit 1
 source_required_lib "configure-workflow.sh" || exit 1
+source_required_lib "configure-partial-lock.sh" || exit 1
+source_optional_lib "time-parsing.sh" || true
 source_required_lib "service-config.sh" || exit 1
 
 # Ensure we have a UTF-8 locale so GUI dialogs (yad/zenity) can render
@@ -195,38 +197,23 @@ main() {
         fi
     fi
     
-    # Check if configuration script execution is locked due to restricted hours (Enhancement #19)
-    if ! check_config_lock_time; then
-        # Configuration script execution is locked - show error and exit
-        show_config_locked_error "${use_gui}" "Configuration"
-        exit 1
-    fi
-    
-    # Check if config file is locked (Enhancement #18)
-    # This is separate from script execution blocking - checks if file itself is locked
-    if type is_config_lock_active >/dev/null 2>&1; then
-        if is_config_lock_active 2>/dev/null; then
-            # Config file is locked - show error and exit
-            if type show_config_file_locked_error >/dev/null 2>&1; then
-                show_config_file_locked_error "${use_gui}"
-            else
-                # Fallback error message if function not available
-                if [ "${use_gui}" = "true" ]; then
-                    if command -v zenity >/dev/null 2>&1; then
-                        zenity --error --title="Configuration File Locked" --text="Configuration file is locked during restricted hours. Please try again after restrictions end." 2>/dev/null
-                    elif command -v yad >/dev/null 2>&1; then
-                        yad --error --title="Configuration File Locked" --text="Configuration file is locked during restricted hours. Please try again after restrictions end." 2>/dev/null
-                    fi
-                else
-                    echo "ERROR: Configuration file is locked during restricted hours. Please try again after restrictions end." >&2
-                fi
-            fi
-            exit 1
+    # Partial lock mode: tighten-only edits during restriction / configure-block / config-file lock hours.
+    CONFIGURE_PARTIAL_LOCK_MODE=false
+    if type configure_partial_lock_is_active >/dev/null 2>&1; then
+        if configure_partial_lock_is_active; then
+            CONFIGURE_PARTIAL_LOCK_MODE=true
         fi
     fi
     
-    # Show welcome
-    show_welcome "${use_gui}"
+    # Show welcome (full or limited)
+    if [ "${CONFIGURE_PARTIAL_LOCK_MODE}" = "true" ]; then
+        show_welcome "${use_gui}"
+        if type configure_partial_lock_show_banner >/dev/null 2>&1; then
+            configure_partial_lock_show_banner "${use_gui}"
+        fi
+    else
+        show_welcome "${use_gui}"
+    fi
     
     # Declare global arrays and variables BEFORE calling load_existing_config()
     # This ensures they exist in the parent shell
@@ -245,6 +232,10 @@ main() {
     # Load existing configuration
     # Function sets global variables and populates global arrays directly
     load_existing_config
+
+    if [ "${CONFIGURE_PARTIAL_LOCK_MODE}" = "true" ] && type configure_partial_lock_capture_baseline >/dev/null 2>&1; then
+        configure_partial_lock_capture_baseline
+    fi
     
     # Ensure dialog_tool is initialized (set by load_existing_config(), but provide fallback)
     dialog_tool="${dialog_tool:-auto}"
@@ -438,7 +429,7 @@ main() {
                 fi
                 ;;
             5)
-                # Script Blocking and Config Locking
+                # Configuration Lock (Tighten-Only) and Config File Locking
                 local security_result
                 security_result=$(get_security_settings_config "${use_gui}" "${configure_block_enabled}" "${config_lock_enabled}")
                 if [ "${security_result}" = "CANCELLED" ]; then
@@ -449,7 +440,7 @@ main() {
                 fi
                 ;;
             6)
-                # Additional Configuration Block Hours (Enhancement #19 Phase 2)
+                # Additional Configuration Lock Hours (Enhancement #19 Phase 2)
                 configure_lock_hours_section "${use_gui}" lock_hours_lines
                 local lock_exit=$?
                 if [ "${lock_exit}" -eq 2 ]; then
@@ -597,12 +588,22 @@ main() {
                     local lock_hours_cleared=""
                     local uninstall_lock_hours_cleared=""
                     
-                    # Phase 1.5: Re-check the configure-block lock immediately before writing.
-                    # The user may have started the wizard outside a lock window and spent
-                    # enough time that the clock has now crossed into a locked period.
-                    if ! check_config_lock_time; then
+                    # Partial lock: validate tighten-only changes vs session baseline.
+                    if [ "${CONFIGURE_PARTIAL_LOCK_MODE}" = "true" ] && type configure_partial_lock_validate_proposed >/dev/null 2>&1; then
+                        local partial_lock_errors
+                        partial_lock_errors=$(configure_partial_lock_validate_proposed)
+                        if [ -n "${partial_lock_errors}" ]; then
+                            if type show_partial_lock_violation_error >/dev/null 2>&1; then
+                                show_partial_lock_violation_error "${use_gui}" "${partial_lock_errors}"
+                            else
+                                show_cap_violation_error "${use_gui}" "${partial_lock_errors}"
+                            fi
+                            continue
+                        fi
+                    elif ! check_config_lock_time; then
+                        # Full mode: block save if we crossed into configure-block hours mid-session.
                         show_config_locked_error "${use_gui}" "Configuration"
-                        continue  # Return to menu, do NOT write config
+                        continue
                     fi
 
                     # Write configuration (with possibly modified values after safety overrides)

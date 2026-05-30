@@ -41,18 +41,26 @@ Facade: `service-config.sh`, `scheduler-platform.sh` (manage/status/uninstall).
 ```
 configure.sh
   → configure-core.sh, configure-config.sh (write + update_timer_file)
-  → configure-validation.sh (24/7 block)
+  → configure-partial-lock.sh (tighten-only mode when lock hours active)
+  → daily-caps.sh (per-day 16 h cap per category — primary)
+  → configure-validation.sh (weekly 24/7 backstop)
+  → config-locking.sh (chmod lock; temp unlock on wizard save)
   → configure-input-*.sh, configure-dialogs[-darwin].sh
 ```
+
+During restriction / configure-block / config-file lock hours, `configure.sh` and **Configure** in `manage.sh` stay open in **partial mode** (baseline captured at entry; loosening blocked for the session). Details: [SAFETY.md](../SAFETY.md).
 
 ## Safety-critical modules (read before editing popups/schedulers)
 
 - `lib/popup-safety.sh`
+- `lib/daily-caps.sh`
 - `lib/configure-validation.sh`
+- `lib/configure-partial-lock.sh`
+- `lib/config-locking.sh`
 - `lib/popup-pid-management.sh`
 - `docs/SAFETY.md`
 
 ## Tests
 
 - `tests/` — see [development/testing.md](../development/testing.md)
-- Always-safe unit tests: `test-popup-safety-darwin.sh`, `test-platform-darwin.sh`
+- Always-safe unit tests: `test-configure-partial-lock.sh`, `test-daily-caps.sh`, `test-popup-safety-darwin.sh`, `test-platform-darwin.sh`

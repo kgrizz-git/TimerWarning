@@ -1,0 +1,22 @@
+# Project-specific Semgrep rules for sleep-warning (bash safety-critical code)
+# Run with: semgrep scan --config p/bash --config p/secrets --config .semgrep/sleep-warning.yml
+
+rules:
+  - id: sleep-warning-no-eval
+    languages: [bash, sh]
+    severity: ERROR
+    message: >
+      Avoid eval in sleep-warning scripts (command injection risk).
+      Use explicit parsing or arrays instead.
+    pattern: eval ...
+
+  - id: sleep-warning-curl-pipe-shell
+    languages: [bash, sh]
+    severity: ERROR
+    message: Do not pipe remote content into a shell (supply-chain risk).
+    patterns:
+      - pattern-either:
+          - pattern: curl ... | bash
+          - pattern: curl ... | sh
+          - pattern: wget ... | bash
+          - pattern: wget ... | sh

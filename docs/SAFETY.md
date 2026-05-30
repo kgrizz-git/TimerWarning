@@ -69,7 +69,27 @@ The user can always permanently disable the system through at least one document
 | Linux | `systemctl --user stop sleep-warning.timer && systemctl --user disable sleep-warning.timer` | `~/.local/bin/sleep-warning-uninstall` |
 | macOS | `launchctl bootout gui/$(id -u)/com.sleep-warning` | `~/.local/bin/sleep-warning-uninstall` |
 
-`sleep-warning-manage` is **convenience**, not the escape hatch. It is allowed to refuse some operations during restricted hours — but the documented commands above must always work.
+`sleep-warning-manage` is **convenience**, not the escape hatch. Disable service, status, and logs remain available during lock hours. **Configure** opens in **tighten-only partial mode** (see below) instead of being fully blocked.
+
+### Partial configure during lock hours (tighten-only)
+
+When restriction hours, configure-block hours, or config-file lock (`CONFIG_LOCK_ENABLED`) are active, `sleep-warning-configure` and **Configure** in `sleep-warning-manage` enter **limited mode**:
+
+| Allowed (tighten) | Blocked (loosen) |
+|-------------------|------------------|
+| More frequent popups (lower `POPUP_DISPLAY_FREQUENCY`) | Slower popup frequency |
+| Longer minimum display time | Shorter min display |
+| Add time ranges (existing ranges unchanged) | Remove, edit, or clear existing ranges |
+| Enable `CONFIGURE_BLOCK_ENABLED` / `CONFIG_LOCK_ENABLED` | Disable those flags |
+| Stronger uninstall protection (`none` → `difficult`) | Weaken protection |
+| Disable pause, shorter pause duration, larger popup | Enable pause, longer pause, smaller popup |
+| Toggle `POPUP_AUTO_CLOSE` either way | Change position, dialog tool, service mode |
+
+`POPUP_AUTO_CLOSE=false` is **not** treated as loosening: popups still end via min-display and the absolute watchdog (`lib/popup-safety.sh`). On macOS, `DARWIN_FORCE_AUTO_CLOSE` may still force auto-close at runtime.
+
+Saves still run `check_daily_caps` and `check_restriction_coverage` (16 h/day per category, weekly backstop). Session baseline is captured at wizard entry; tighten-only rules apply for the **whole session** even if the clock leaves lock before save.
+
+Implementation: `lib/configure-partial-lock.sh`; tests: `tests/test-configure-partial-lock.sh`.
 
 `sleep-warning-uninstall` is itself an escape hatch and is subject to the **uninstall-block per-day 16 h cap** (above). It must therefore work for at least 8 hours of every day, no matter how the user configured uninstall protection.
 
@@ -90,7 +110,7 @@ These behaviors used to be flagged in older audits. They are **intentional**:
 - Periodic focus stealing during a popup (`focus_force()` on macOS, `wmctrl/xdotool` loops on Linux). The popup is supposed to grab and hold focus. Future work to use the Accessibility API to block Cmd+Tab is an *enhancement*, not a fix.
 - Closing the popup and respawning it during min-display if the user dismisses early. The user is trying to escape an active lockout window; respawning is the lockout working.
 - `--topmost` / `lift()` / `NSScreenSaverWindowLevel`. All intentional.
-- `sleep-warning-manage` refusing to act during restricted hours when configure-block is enabled — **as long as** the per-day 16 h cap on the configure-block category holds. The user has 8+ hours/day to use manage.
+- `sleep-warning-manage` opening configure in tighten-only partial mode during lock hours — intentional; escape hatch (disable timer, uninstall) unchanged.
 
 ## Code touchpoints (keep in sync)
 
@@ -99,6 +119,7 @@ When changing behavior, review these files together:
 - `lib/popup-safety.sh` — caps and watchdog (must be wired into all spawn paths)
 - `lib/popup-display.sh` / `lib/popup-display-darwin.sh` — spawn and wait
 - `lib/configure-validation.sh` — per-day per-category cap enforcement
+- `lib/configure-partial-lock.sh` — tighten-only edits during lock hours
 - `sleep-warning.sh` — runtime validation fallback (same per-day per-category logic)
 - `install.sh` / `lib/install-darwin.sh` — safe defaults on first install
 - `uninstall.sh` — full removal including LaunchAgent on macOS

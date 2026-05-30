@@ -4,22 +4,22 @@ overview: "Replace the all-or-nothing configure/manage block during restriction 
 todos:
   - id: module-partial-lock
     content: "Add lib/configure-partial-lock.sh: detect active, capture baseline, ranges add-only, scalar rules, full validate_proposed"
-    status: pending
+    status: completed
   - id: entry-configure-manage
     content: Wire configure.sh + manage.sh to enter partial mode instead of exit; session banner and baseline capture
-    status: pending
+    status: completed
   - id: hooks-input-dialogs
     content: Hook get_check_interval, popup/features inputs, manage_ranges_dialog add-only UI, menu error hints
-    status: pending
+    status: completed
   - id: save-unlock-write
     content: Save-path validate_proposed + config-locking temp unlock around write_config
-    status: pending
+    status: completed
   - id: tests-docs
     content: Add tests/test-configure-partial-lock.sh; update SAFETY.md, user docs, CHANGELOG
-    status: pending
+    status: completed
   - id: verify-trace-edge-cases
     content: "Post-implementation: trace save/runtime paths; run targeted + regression tests; document edge-case matrix (24/7, caps, auto-close, overnight)"
-    status: pending
+    status: completed
 isProject: false
 ---
 

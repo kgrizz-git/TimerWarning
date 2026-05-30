@@ -22,7 +22,7 @@
 #
 # Note: If UNINSTALL_PROTECTION_MODE=difficult is enabled and current time
 # is within restricted hours, this script will require verification
-# (confirmation phrase + 10 algebra questions) before proceeding.
+# (confirmation phrase + 5 arithmetic questions, 3 wrong answers allowed) before proceeding.
 # This is Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours)
 ###############################################################################
 

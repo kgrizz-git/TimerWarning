@@ -121,10 +121,10 @@ configure_weekdays_section() {
 }
 
 ###############################################################################
-# Additional Configuration Block Hours (Enhancement #19 Phase 2)
+# Additional Configuration Lock Hours (Enhancement #19 Phase 2)
 ###############################################################################
 
-# Configure additional block hours for configure.sh/manage.sh
+# Configure additional tighten-only lock hours for configure.sh/manage.sh
 # This is separate from restricted hours and uses CONFIG_LOCK_HOURS_* variables.
 # Parameters:
 #   $1 - use_gui (true/false)
@@ -136,21 +136,21 @@ configure_lock_hours_section() {
     # Show informational note about dependency
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         show_info_dialog \
-            "Additional Configuration Block Hours" \
-            "Additional Configuration Block Hours\n\nConfigure additional hours when configure.sh and manage.sh are blocked.\n\nIMPORTANT: These additional block hours only take effect when 'Block Configuration During Restricted Hours' (option 6) is enabled.\n\nIf 'Block Configuration During Restricted Hours' is disabled, these additional block hours will have no effect." \
+            "Additional Configuration Lock Hours" \
+            "Additional Configuration Lock Hours\n\nConfigure additional hours when configuration changes are restricted to tighten-only.\n\nIMPORTANT: These additional lock hours only take effect when 'Configuration Lock (Tighten-Only)' (option 5) is enabled.\n\nIf 'Configuration Lock (Tighten-Only)' is disabled, these additional lock hours will have no effect." \
             600 \
             250
     else
         echo "" >&2
-        echo "=== Additional Configuration Block Hours ===" >&2
+        echo "=== Additional Configuration Lock Hours ===" >&2
         echo "" >&2
-        echo "Configure additional hours when configure.sh and manage.sh are blocked." >&2
+        echo "Configure additional hours when configuration changes are restricted to tighten-only." >&2
         echo "" >&2
-        echo "IMPORTANT: These additional block hours only take effect when" >&2
-        echo "'Block Configuration During Restricted Hours' (option 6) is enabled." >&2
+        echo "IMPORTANT: These additional lock hours only take effect when" >&2
+        echo "'Configuration Lock (Tighten-Only)' (option 5) is enabled." >&2
         echo "" >&2
-        echo "If 'Block Configuration During Restricted Hours' is disabled, these" >&2
-        echo "additional block hours will have no effect." >&2
+        echo "If 'Configuration Lock (Tighten-Only)' is disabled, these" >&2
+        echo "additional lock hours will have no effect." >&2
         echo "" >&2
         read -p "Press Enter to continue..." >&2
     fi

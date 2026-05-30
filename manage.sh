@@ -607,12 +607,8 @@ main() {
                 view_config "${use_gui}"
                 ;;
             "Configure Restricted Hours"|3)
-                # Phase 3.3: block configure wizard during lock hours
-                if [ "${_config_locked}" = "true" ]; then
-                    show_config_locked_error "${use_gui}" "Configuration"
-                else
-                    launch_configure "${use_gui}"
-                fi
+                # During lock hours the configure wizard runs in tighten-only partial mode.
+                launch_configure "${use_gui}"
                 ;;
             "Temporarily Disable Service"|4)
                 # Phase 3.3: Disable Service is ALWAYS allowed — it's an escape hatch

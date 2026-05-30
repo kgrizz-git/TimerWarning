@@ -27,6 +27,7 @@ Bash sleep-warning system: scheduled checks during restricted hours → modal wa
 | Popups | `lib/popup-display.sh`, `lib/popup-safety.sh`, `lib/popup-*-darwin.sh` |
 | Configure wizard | `configure.sh`, `lib/configure-*.sh` |
 | Tests | [docs/development/testing.md](docs/development/testing.md), `tests/README.md` |
+| Security scans (ShellCheck, Gitleaks, Semgrep) | [docs/development/security-scanning.md](docs/development/security-scanning.md), `scripts/run-security-scan.sh` |
 | Versioning / releases | [docs/development/versioning.md](docs/development/versioning.md) |
 | Backlog / enhancements | [dev-docs/README.md](dev-docs/README.md), [dev-docs/TO_DO.md](dev-docs/TO_DO.md) |
 | macOS users | [user-docs/MACOS.md](user-docs/MACOS.md) |
@@ -57,6 +58,9 @@ Source platform-specific libs from `sleep-warning.sh` / facades—do not assume 
 
 - `lib/popup-safety.sh` — absolute watchdog (must wrap every spawn path); cap value may grow but is always finite
 - `lib/configure-validation.sh` — per-day per-category 16 h cap (hard block, no override)
+- `lib/daily-caps.sh` — primary per-day 16 h cap math (`check_daily_caps`)
+- `lib/configure-partial-lock.sh` — tighten-only configure wizard during lock hours (see [docs/SAFETY.md](docs/SAFETY.md))
+- `lib/config-locking.sh` — config file chmod lock; wizard save unlock/re-lock
 - `sleep-warning.sh` — `validate_config_safety()` runtime fallback enforcing the same per-day per-category cap
 - `lib/popup-pid-management.sh` — no stacked modals
 - Intentional lockout behaviors (focus stealing, topmost, fullscreen blocker, respawn-on-dismiss during min-display) are **features**, not bugs — see [docs/SAFETY.md](docs/SAFETY.md) "What is *not* a safety bug"
@@ -64,6 +68,7 @@ Source platform-specific libs from `sleep-warning.sh` / facades—do not assume 
 ## Testing quick reference
 
 - Temp `HOME` for install/configure tests
+- `bash tests/test-configure-partial-lock.sh`
 - `bash tests/test-popup-safety-darwin.sh`
 - `bash tests/test-platform-darwin.sh`
 - Never edit installed config during restricted hours
@@ -75,8 +80,9 @@ We follow [OpenAI harness engineering](https://openai.com/index/harness-engineer
 ## After you ship a change
 
 1. Run targeted tests.
-2. Update `docs/` + [CHANGELOG.md](CHANGELOG.md) if behavior changed ([versioning guide](docs/development/versioning.md)).
-3. Confirm [SAFETY.md](docs/SAFETY.md) checklist still passes.
+2. For `lib/` or entrypoint script changes: `./scripts/run-security-scan.sh --ci --with-tests` (or at least `--ci`).
+3. Update `docs/` + [CHANGELOG.md](CHANGELOG.md) if behavior changed ([versioning guide](docs/development/versioning.md)).
+4. Confirm [SAFETY.md](docs/SAFETY.md) checklist still passes.
 
 ## Git hooks (local)
 
@@ -86,4 +92,4 @@ After clone, enable repo hooks once:
 ./scripts/install-git-hooks.sh
 ```
 
-**pre-commit** runs [scripts/prune-backups.sh](scripts/prune-backups.sh) — removes tracked files in `backups/` whose last git commit is more than **3** commits behind `HEAD`, then stages deletions. Untracked backups are kept. Preview: `./scripts/prune-backups.sh --dry-run`.
+**pre-commit** runs [scripts/pre-commit-checks.sh](scripts/pre-commit-checks.sh): prune tracked `backups/` older than **3** commits, ShellCheck on staged `*.sh`, and `gitleaks protect --staged` when those tools are installed. Full scan: [scripts/run-security-scan.sh](scripts/run-security-scan.sh). Details: [docs/development/security-scanning.md](docs/development/security-scanning.md).

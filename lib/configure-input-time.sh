@@ -110,7 +110,14 @@ get_check_interval() {
             
             # Empty input - use default
             if [ -z "${interval}" ]; then
-                echo "${default_interval}"
+                interval="${default_interval}"
+                if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                    local _pl_base="${_baseline_check_interval:-${default_interval}}"
+                    if ! configure_partial_lock_reject_scalar_change "check_interval" "${_pl_base}" "${interval}" "${use_gui}"; then
+                        continue
+                    fi
+                fi
+                echo "${interval}"
                 return 0
             fi
             
@@ -141,6 +148,13 @@ get_check_interval() {
                 validation_error=$(validate_popup_timing_config "${current_min_display_time}" "${interval}" 2>&1)
                 if [ $? -ne 0 ]; then
                     show_error_dialog "Configuration Error" "${validation_error}"
+                    continue
+                fi
+            fi
+
+            if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                local _pl_base="${_baseline_check_interval:-${default_interval}}"
+                if ! configure_partial_lock_reject_scalar_change "check_interval" "${_pl_base}" "${interval}" "${use_gui}"; then
                     continue
                 fi
             fi
@@ -178,6 +192,13 @@ get_check_interval() {
                         continue
                     fi
                 fi
+
+                if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                    local _pl_base="${_baseline_check_interval:-${default_interval}}"
+                    if ! configure_partial_lock_reject_scalar_change "check_interval" "${_pl_base}" "${interval}" "${use_gui}"; then
+                        continue
+                    fi
+                fi
                 
                 echo "${interval}"
                 return 0
@@ -208,7 +229,18 @@ get_day_hours() {
                 local manage_exit=$?
 
                 if [ ${manage_exit} -eq 0 ]; then
-                    # User completed management (may be empty string if all ranges removed)
+                    if type configure_partial_lock_mode_enabled >/dev/null 2>&1 && \
+                       configure_partial_lock_mode_enabled && \
+                       type configure_partial_lock_ranges_add_only >/dev/null 2>&1; then
+                        if ! configure_partial_lock_ranges_add_only "${existing_ranges}" "${managed_ranges}"; then
+                            if type show_error_dialog >/dev/null 2>&1; then
+                                show_error_dialog "Change Not Allowed" "During lock hours you may only add time ranges, not remove or edit existing ones."
+                            else
+                                echo "During lock hours you may only add time ranges." >&2
+                            fi
+                            continue
+                        fi
+                    fi
                     echo "${managed_ranges}"
                     return 0
                 fi

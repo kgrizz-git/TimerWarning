@@ -144,6 +144,12 @@ get_popup_size_config() {
                 fi
             else
                 # Valid predefined size selection
+                if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                    local _pl_base="${_baseline_popup_size:-${default_size}}"
+                    if ! configure_partial_lock_reject_scalar_change "popup_size" "${_pl_base}" "${size_result}" "${use_gui}"; then
+                        continue
+                    fi
+                fi
                 echo "${size_result}"
                 return 0
             fi

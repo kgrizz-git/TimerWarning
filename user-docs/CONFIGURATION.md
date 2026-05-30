@@ -442,11 +442,11 @@ POPUP_AUTO_CLOSE=false
 - Auto-close is configured alongside immovable settings
 - The wizard shows current minimum display time for reference when configuring auto-close
 
-### Block Scripts During Restricted Hours
+### Restrict Configuration Changes During Restricted Hours (Tighten-Only)
 
 **Option**: `CONFIGURE_BLOCK_ENABLED`
 
-**Description**: When enabled, prevents `configure.sh` and `manage.sh` from running during restricted hours. This is a security feature that helps prevent circumventing restrictions by changing settings or disabling the system during restricted periods.
+**Description**: When enabled, `configure.sh` and `manage.sh` open in **tighten-only mode** during restricted hours: you can make restrictions stricter, but you cannot loosen, remove, or disable them until restricted hours end. This is a self-control aid that prevents circumventing restrictions by weakening settings during restricted periods. (Earlier versions blocked these scripts entirely; the current behavior is the less drastic tighten-only partial lock.)
 
 **Format**: `true` or `false`
 
@@ -454,25 +454,23 @@ POPUP_AUTO_CLOSE=false
 
 **Examples**:
 ```
-CONFIGURE_BLOCK_ENABLED=true   # Enable blocking (recommended for self-control)
-CONFIGURE_BLOCK_ENABLED=false  # Disable blocking (default)
+CONFIGURE_BLOCK_ENABLED=true   # Enable tighten-only lock (recommended for self-control)
+CONFIGURE_BLOCK_ENABLED=false  # Disable (default)
 ```
 
 **How It Works**:
-- When enabled (`true`), the configuration wizard (`configure.sh`) and management interface (`manage.sh`) will check the current time at startup.
-- If the current time falls within your configured restricted hours, these scripts will exit with a clear error message showing:
-  - Current time (in 12-hour format)
-  - Active restriction period
-  - When restrictions end
-- This prevents you from modifying settings or disabling the system during restricted hours.
-- The uninstall script (`uninstall.sh`) is **never blocked** - you can always uninstall the system if needed.
+- When enabled (`true`), the configuration wizard (`configure.sh`) and management interface (`manage.sh`) check the current time at startup.
+- If the current time falls within your configured restricted hours (or any configured lock hours), the wizard opens in **tighten-only mode** with a banner explaining the limited mode.
+- In tighten-only mode you **can**: make popups more frequent, lengthen minimum display time, add restriction ranges, enable lock/protection flags, and strengthen uninstall protection.
+- You **cannot**: slow popups, shorten display time, remove/edit/clear ranges, disable lock/protection flags, weaken uninstall protection, or otherwise loosen the configuration.
+- Disabling the service (`systemctl --user disable` / `launchctl bootout`) and the uninstall script (`uninstall.sh`) are **never blocked** - you can always disable or uninstall the system if needed.
 
 **Important Notes**:
 - This is an **opt-in feature** - it is disabled by default to avoid frustrating users.
-- You can only enable/disable this feature when you are **not** in restricted hours.
-- If you enable this feature and later need to change settings during restricted hours, you would need to wait until restrictions end or temporarily modify the config file directly.
-- The blocking uses the same time checking logic as the main warning system for consistency.
-- Overnight ranges (e.g., `23-6`) are handled correctly - if you're in the early morning portion of an overnight range, the scripts will be blocked.
+- You can only enable/disable the feature itself when you are **not** in restricted hours (disabling it is a "loosen" change).
+- If you are in restricted hours and need to *loosen* settings, wait until restrictions end. Tightening is always allowed.
+- The lock uses the same time-checking logic as the main warning system for consistency.
+- Overnight ranges (e.g., `23-6`) are handled correctly - if you're in the early-morning portion of an overnight range, tighten-only mode applies.
 
 **Use Cases**:
 - **Self-control**: Prevents you from easily disabling restrictions during restricted hours when willpower is low.
@@ -486,14 +484,14 @@ CONFIGURE_BLOCK_ENABLED=false  # Disable blocking (default)
   - Removing the time check code from the scripts
 - It is designed as a **self-control aid**, not a security measure against determined users with system access.
 
-### Additional Lock Hours for Blocking Scripts
+### Additional Configuration Lock Hours
 
 **Option**: `CONFIG_LOCK_HOURS_DAYNAME`
 
-**Description**: Additional hours for blocking `configure.sh` and `manage.sh` (separate from restriction hours). When `CONFIGURE_BLOCK_ENABLED=true`, these scripts are blocked during restriction hours OR lock hours (OR logic). This allows you to configure separate lock periods beyond your normal restriction hours.
+**Description**: Additional hours that restrict `configure.sh` and `manage.sh` to tighten-only edits (separate from restriction hours). When `CONFIGURE_BLOCK_ENABLED=true`, the wizards are tighten-only during restriction hours OR lock hours (OR logic). This allows you to configure separate lock periods beyond your normal restriction hours.
 
 **Used by multiple features**:
-- When **`CONFIGURE_BLOCK_ENABLED=true`** (Enhancement #19), `configure.sh`/`manage.sh` are blocked during **restricted hours OR lock hours**.
+- When **`CONFIGURE_BLOCK_ENABLED=true`** (Enhancement #19), `configure.sh`/`manage.sh` are tighten-only during **restricted hours OR lock hours**.
 - When **`CONFIG_LOCK_ENABLED=true`** (Enhancement #18), the **config file** is locked during **restricted hours OR lock hours**.
 
 **Format**: `CONFIG_LOCK_HOURS_DAYNAME=START_HOUR-END_HOUR`
@@ -536,7 +534,7 @@ CONFIG_LOCK_HOURS_WEDNESDAY=23-6     # Block overnight (11 PM to 5:59 AM)
 - **Flexible Scheduling**: Have different lock hours than restriction hours (e.g., restrict late night but lock work hours)
 
 **Configuration via Wizard**:
-- Use menu option 6: **Additional Configuration Block Hours** in the configuration wizard
+- Use menu option 6: **Additional Configuration Lock Hours** in the configuration wizard
 - Configure lock hours per day, similar to restriction hours
 - Lock hours are saved to the config file with the `CONFIG_LOCK_HOURS_DAYNAME` format
 
@@ -578,7 +576,7 @@ CONFIG_LOCK_HOURS_WEDNESDAY=23-6     # Block overnight (11 PM to 5:59 AM)
 - The config file and directory become read-only during:
   - **Restricted hours** (your configured restriction periods)
   - **Lock hours** (if `CONFIG_LOCK_HOURS_*` are configured)
-- If you try to run `configure.sh` or `manage.sh` during restricted or lock hours, they show an error message (including when the lock ends) and exit
+- During restricted or lock hours, `configure.sh` and **Configure** in `manage.sh` open in **tighten-only partial mode** (banner at start): you may make lockout stricter (more frequent popups, longer min display, add hours only, enable locks) but not remove hours or disable protections. `POPUP_AUTO_CLOSE` may be turned on or off. Other manage actions (disable service, status, logs) still work. See [docs/SAFETY.md](../docs/SAFETY.md) for the full matrix.
 - The lock is automatically applied/removed by `sleep-warning.sh` on each timer tick
 
 **Self-Healing**:
@@ -611,7 +609,7 @@ UNINSTALL_PROTECTION_MODE=difficult # Difficult uninstall - requires verificatio
 - When set to `difficult`, the uninstall script (`uninstall.sh`) will check the current time at startup.
 - If the current time falls within your configured **restriction hours OR uninstall lock hours** (if configured), the script will require you to complete a verification process before allowing uninstallation:
   1. **Confirmation Phrase**: You must type the exact phrase: "I really mean it and want to uninstall this program now even though restrictions are running"
-  2. **Arithmetic Questions**: You must correctly answer 10 arithmetic questions written in word form with step-by-step instructions (e.g., "Multiply 53 by 15, then add (31 minus 58), then add 147. What is the final result?")
+  2. **Arithmetic Questions**: You must correctly answer 5 arithmetic questions written in word form with step-by-step instructions (e.g., "Multiply 53 by 15, then add (31 minus 58), then add 147. What is the final result?"). You are allowed 3 wrong answers total across all questions.
 - Questions are written in natural language to make copy-pasting into search engines or calculators more difficult.
 - If you are **not** in restriction hours or uninstall lock hours, uninstallation works normally without verification.
 - The verification process requires cognitive engagement and effort, making it difficult to uninstall impulsively during restricted hours.
@@ -726,7 +724,7 @@ PAUSE_DURATION=10         # 10 minute pause duration
 **Important Notes**:
 - **What Pause Affects**:
   - ✅ **Suppresses warning popups** - No popups shown during pause period
-  - ❌ **Does NOT affect `configure.sh` blocking** - Still blocked during restricted hours if `CONFIGURE_BLOCK_ENABLED=true`
+  - ❌ **Does NOT affect `configure.sh` tighten-only lock** - Configuration is still tighten-only during restricted hours if `CONFIGURE_BLOCK_ENABLED=true`
   - ❌ **Does NOT affect `uninstall.sh` protection** - Still requires verification during restricted hours if `UNINSTALL_PROTECTION_MODE=difficult`
   - ❌ **Does NOT release restrictions** - Restrictions are still active, only warnings are suppressed
 - **Pause is a temporary "quiet period" for warnings only**, not a release of restrictions
@@ -846,13 +844,14 @@ POPUP_IMMOVABLE=true
 # Auto-close time is fixed at 10 seconds (not configurable)
 POPUP_AUTO_CLOSE=true
 
-# Block scripts during restricted hours: Prevent configure.sh and manage.sh from running during restricted hours (true/false)
-# This is an opt-in security feature - disabled by default
+# Restrict configuration changes during restricted hours: open configure.sh and manage.sh in tighten-only mode (true/false)
+# Tighten-only = settings can be made stricter but not loosened/removed/disabled until restricted hours end
+# This is an opt-in self-control feature - disabled by default
 CONFIGURE_BLOCK_ENABLED=false
 
 # Uninstall protection mode: Require verification to uninstall during restricted hours (none/difficult)
 # none = No protection - uninstall works normally
-# difficult = Difficult uninstall - requires confirmation phrase + 10 arithmetic questions (default)
+# difficult = Difficult uninstall - requires confirmation phrase + 5 arithmetic questions, 3 wrong answers allowed (default)
 # This security feature is enabled by default
 UNINSTALL_PROTECTION_MODE=difficult
 
@@ -871,7 +870,7 @@ DIALOG_TOOL=auto
 # IMPORTANT: This is a deterrence feature only - it can be bypassed by determined users
 # The system automatically disables this feature if restrictions exceed 9660 minutes per week (> 23 hours/day)
 # to prevent accidental lockout scenarios
-# See "Script Blocking and Config Locking" in the configuration wizard to enable/disable
+# See "Configuration Lock (Tighten-Only) and Config File Locking" in the configuration wizard to enable/disable
 CONFIG_LOCK_ENABLED=false
 
 # Restricted hours for each day
@@ -999,7 +998,7 @@ The wizard will guide you through setting all configuration options with a user-
 3. **Weekdays Configuration** - Set restricted hours for Monday through Friday
 4. **Weekends Configuration** - Set restricted hours for Saturday and Sunday
 5. **Visual Day/Time Grid** - View and edit all days in a visual grid format (see below)
-6. **Script Blocking and Config Locking** - Configure blocking of configure.sh and manage.sh during restricted/lock hours, and config file locking
+6. **Configuration Lock (Tighten-Only) and Config File Locking** - Restrict configure.sh and manage.sh to tighten-only edits during restricted/lock hours, and lock the config file
 7. **Lock Hours Configuration** - Configure additional hours when configuration/management is blocked (separate from restriction hours)
 8. **Uninstall Protection** - Configure protection mode for uninstall.sh during restricted hours
 9. **Uninstall Lock Hours Configuration** - Configure additional hours when difficult uninstall verification is required

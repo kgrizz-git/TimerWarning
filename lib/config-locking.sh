@@ -505,3 +505,57 @@ check_and_restore_config_file() {
     
     return 0
 }
+
+# Temporarily restore write permissions so the configure wizard can save during lock hours.
+# Call before atomic write; pair with config_lock_finish_wizard_write().
+config_lock_prepare_for_wizard_write() {
+    if ! is_config_lock_active 2>/dev/null; then
+        return 0
+    fi
+
+    if [ ! -f "${MARKER_FILE}" ]; then
+        return 0
+    fi
+
+    local stored_perms dir_mode file_mode marker_mode
+    stored_perms=$(retrieve_lock_state)
+    dir_mode="755"
+    file_mode="644"
+    marker_mode="644"
+    if [ -n "${stored_perms}" ]; then
+        dir_mode=$(echo "${stored_perms}" | cut -d' ' -f1)
+        file_mode=$(echo "${stored_perms}" | cut -d' ' -f2)
+        marker_mode=$(echo "${stored_perms}" | cut -d' ' -f3)
+    fi
+
+    chmod "${marker_mode}" "${MARKER_FILE}" 2>/dev/null || chmod 644 "${MARKER_FILE}" 2>/dev/null
+    if [ -d "${CONFIG_DIR_LOCKED}" ]; then
+        chmod "${dir_mode}" "${CONFIG_DIR_LOCKED}" 2>/dev/null || chmod 755 "${CONFIG_DIR_LOCKED}" 2>/dev/null
+    fi
+    if [ -f "${CONFIG_FILE}" ]; then
+        chmod "${file_mode}" "${CONFIG_FILE}" 2>/dev/null || chmod 644 "${CONFIG_FILE}" 2>/dev/null
+    fi
+    return 0
+}
+
+# Re-apply read-only lock and refresh snapshot after a wizard save during lock hours.
+config_lock_finish_wizard_write() {
+    if ! is_config_lock_active 2>/dev/null; then
+        return 0
+    fi
+
+    if [ -f "${CONFIG_FILE}" ]; then
+        cp "${CONFIG_FILE}" "${SNAPSHOT_FILE}" 2>/dev/null || true
+    fi
+
+    if [ -d "${CONFIG_DIR_LOCKED}" ]; then
+        chmod 555 "${CONFIG_DIR_LOCKED}" 2>/dev/null || true
+    fi
+    if [ -f "${CONFIG_FILE}" ]; then
+        chmod 444 "${CONFIG_FILE}" 2>/dev/null || true
+    fi
+    if [ -f "${MARKER_FILE}" ]; then
+        chmod 444 "${MARKER_FILE}" 2>/dev/null || true
+    fi
+    return 0
+}

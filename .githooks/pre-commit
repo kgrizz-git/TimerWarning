@@ -1,10 +1,10 @@
 #!/bin/sh
 #
-# Pre-commit: prune old tracked files in backups/ (see scripts/prune-backups.sh).
+# Pre-commit: backup pruning + staged ShellCheck + gitleaks (see scripts/pre-commit-checks.sh)
 # Enable once per clone: ./scripts/install-git-hooks.sh
 #
 
 set -e
 
 ROOT="$(git rev-parse --show-toplevel)"
-exec "${ROOT}/scripts/prune-backups.sh"
+exec "${ROOT}/scripts/pre-commit-checks.sh"

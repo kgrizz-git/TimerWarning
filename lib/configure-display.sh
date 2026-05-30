@@ -324,8 +324,8 @@ show_main_menu() {
             "2" "Window Behavior [opens submenu]" \
             "3" "Weekdays Configuration ${safe_weekdays}" \
             "4" "Weekends Configuration ${safe_weekends}" \
-            "5" "Script Blocking and Config Locking${safe_security_status}" \
-            "6" "Additional Configuration Block Hours${safe_lock_status}" \
+            "5" "Configuration Lock (Tighten-Only) and Config File Locking${safe_security_status}" \
+            "6" "Additional Configuration Lock Hours${safe_lock_status}" \
             "7" "Uninstall Protection${safe_uninstall_protection}" \
             "8" "Additional Uninstall Protection Hours${safe_uninstall_lock}" \
             "9" "View Weekly Hours Settings" \
@@ -415,12 +415,12 @@ show_main_menu() {
         if [ -n "${lock_hours_status}" ]; then
             lock_status_display=" ${lock_hours_status}"
         fi
-        echo "5. Script Blocking and Config Locking${security_status}" >&2
-        echo "   Configure blocking of configure.sh/manage.sh and config file locking during restricted hours" >&2
+        echo "5. Configuration Lock (Tighten-Only) and Config File Locking${security_status}" >&2
+        echo "   Restrict configure/manage to tighten-only edits, and lock the config file, during restricted hours" >&2
         echo "" >&2
-        echo "6. Additional Configuration Block Hours${lock_status_display}" >&2
-        echo "   Configure additional hours when configuration/management is blocked" >&2
-        echo "   (Only applies when Script Blocking is enabled)" >&2
+        echo "6. Additional Configuration Lock Hours${lock_status_display}" >&2
+        echo "   Configure additional hours when configuration changes are restricted to tighten-only" >&2
+        echo "   (Only applies when Configuration Lock is enabled)" >&2
         echo "" >&2
         local uninstall_protection_status=""
         if [ "${uninstall_protection_mode}" = "difficult" ]; then

@@ -52,7 +52,7 @@ DEFAULT_POPUP_AUTO_CLOSE=true
 AUTO_CLOSE_DELAY=10
 
 # Default configure block enabled setting - used if config file missing or invalid
-# This controls whether configure.sh and manage.sh are blocked during restricted hours (Enhancement #19)
+# This controls whether configure.sh and manage.sh are restricted to tighten-only edits during restricted hours (Enhancement #19)
 DEFAULT_CONFIGURE_BLOCK_ENABLED=false
 
 # Default uninstall protection mode - used if config file missing or invalid

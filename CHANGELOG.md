@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Safety scan template:** Expanded `dev-docs/templates/safety-scan-template.md` — aligned with `docs/SAFETY.md` (per-day caps, partial lock, popup watchdog), scan tiers A/B/C, automated tooling (ShellCheck, Semgrep, Gitleaks/TruffleHog, git hooks, Dependabot when CI exists), and regression test matrix.
+- **Security automation:** `scripts/run-security-scan.sh`, `scripts/pre-commit-checks.sh` (ShellCheck + gitleaks on staged files), `.gitleaks.toml`, `.semgrep/sleep-warning.yml`, GitHub Actions [`.github/workflows/security.yml`](.github/workflows/security.yml), Dependabot for Actions [`.github/dependabot.yml`](.github/dependabot.yml). Docs: [docs/development/security-scanning.md](docs/development/security-scanning.md).
+- **Security scan tuning:** Fixed `.gitleaks.toml` for gitleaks 8.30+ (`[[allowlists]]`); Semgrep uses project rules only (`p/bash` 404); ShellCheck CI scope excludes `tests/` and uses `-S error` on production scripts.
+
+- **Partial configure during lock hours (tighten-only):** When configure-block or config-file lock is active, `configure.sh` and **Configure** in `manage.sh` open the wizard in limited mode instead of exiting. Users may increase lockout (more frequent popups, longer min display, add-only hours, enable locks) but not weaken existing settings. `POPUP_AUTO_CLOSE` may be toggled freely. Saves still enforce per-day 16 h caps and weekly backstop; config writes temporarily unlock chmod-locked files when needed. New module `lib/configure-partial-lock.sh`; tests `tests/test-configure-partial-lock.sh`.
+
 ### Changed
+
+- **`tests/test-configure-blocking.sh`:** Integration test updated for partial-lock behavior (limited-mode banner, loosening rejected, tightening save allowed) instead of expecting immediate exit. New portable watchdog helper `tests/lib/test-run-timeout.sh` (GNU `timeout` / `gtimeout` when present, bash fallback otherwise).
+- **`scripts/pre-commit-checks.sh`:** ShellCheck now matches CI (`-S error`, skips `backups/` and `tests/`) so commits are not blocked by style/info findings in snapshot backups or test helpers.
 
 - **macOS configure wizard: dialogs open in front:** Tk windows use shared `configure_dialogs_darwin_window.apply_initial_frontmost()` (topmost + focus on open, drop topmost when focus leaves). AppleScript dialogs call `tell current application to activate` before `display alert`, `display dialog`, and `choose from list`.
 

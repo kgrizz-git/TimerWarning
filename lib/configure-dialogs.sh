@@ -730,6 +730,9 @@ manage_ranges_dialog() {
         
         # Show action selection dialog (Add/Remove with +/− for visibility)
         local actions=("Add range (+)" "Edit range" "Remove range (−)" "Done" "Cancel")
+        if type configure_partial_lock_mode_enabled >/dev/null 2>&1 && configure_partial_lock_mode_enabled; then
+            actions=("Add range (+)" "Done" "Cancel")
+        fi
         local action
         action=$(show_list_dialog "${title_context} – ${display_day}" "${dialog_text}" 600 400 "${actions[@]}")
         local action_exit=$?
