@@ -1,0 +1,5 @@
+# Timestamped script snapshots (may contain older patterns); see scripts/prune-backups.sh
+backups/
+
+# Test helpers use eval/bash -c patterns; production code is still scanned (see run-security-scan.sh)
+tests/

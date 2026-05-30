@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Safety scan follow-up (2026-05-30):** Linux popup path now sources `lib/popup-safety.sh` and uses `popup_compute_watchdog_seconds` with shared `popup_start_pid_file_watchdog` (PID-file kill policy). Tests: portable `tests/lib/test-stat-mode.sh` for config-locking and uninstall-lock-hours; `test-manual-uninstall-guide.sh` resolves paths from repo root; `tests/test-popup-safety-linux.sh` alias. Plan: [dev-docs/plans/plan-safety-scan-fixes-2026-05-30.md](dev-docs/plans/plan-safety-scan-fixes-2026-05-30.md).
+
 - **Popup "next unrestricted time: now (no restrictions configured)" with HH:MM config:** `build_weekly_restricted_intervals()` only accepted integer-hour ranges (`7-23`), so configure-wizard `HH:MM` values (e.g. `17:00-17:30`) were skipped and `get_next_unrestricted_time()` thought no restrictions existed. Endpoints now parse `HH:MM` as well as `HH`. Shared helpers `range_endpoint_to_day_minutes()`, `range_is_overnight()`, and `range_overnight_tail_active_for_hour()` live in `lib/time-parsing.sh`; `lib/configure-ui.sh` overnight/carry checks use them instead of raw `cut -d'-'` integer comparisons.
 
 - **macOS fullscreen popup: unreadable disabled OK button:** Tk on macOS drew disabled buttons with light chrome and white label text. Set `disabledforeground` and explicit `fg` when the OK button is locked during min-display time.

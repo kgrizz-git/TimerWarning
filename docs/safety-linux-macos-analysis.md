@@ -184,13 +184,9 @@ Scheduler escape hatch is platform-specific but equivalent:
 
 ### 5.1 Linux lacks shared popup watchdog (functional gap)
 
-**Finding:** `lib/popup-safety.sh` exists and is documented in `docs/SAFETY.md`, but **`lib/popup-display.sh` does not source or call it**. Only the Darwin path uses `popup_run_with_watchdog`.
+**Finding (updated 2026-05-30):** `lib/popup-display.sh` now sources `lib/popup-safety.sh`. Linux uses `popup_compute_watchdog_seconds` plus `popup_start_pid_file_watchdog` (reads `POPUP_PID_FILE` so respawns stay bounded). macOS uses `popup_run_with_watchdog` on the spawn function.
 
-**Risk:** If auto-close or `close_popup_process` fails (wmctrl/xdotool issues, stuck yad), Linux popups could persist longer than min_display + 10 s with no absolute ceiling.
-
-**Linux mitigations today:** auto-close timer, user dismiss after min display, duplicate skip, pause.
-
-**Recommendation:** Wire `popup_run_with_watchdog` (or equivalent) into Linux popup spawn path, or document Linux’s soft-bound model explicitly in `docs/SAFETY.md` as an accepted platform difference until wired.
+**Remaining gap:** No integration test on a Linux host that wedges yad/zenity/kdialog — see [dev-docs/plans/plan-safety-scan-fixes-2026-05-30.md](../dev-docs/plans/plan-safety-scan-fixes-2026-05-30.md) and TO_DO “Linux popup watchdog (verify on Linux build)”.
 
 ### 5.2 Runtime validation narrower than configure validation (pre-existing, both platforms)
 

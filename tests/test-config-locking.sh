@@ -23,6 +23,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TEST_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
+# shellcheck disable=SC1091
+source "${TEST_LIB_DIR}/test-stat-mode.sh"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -310,8 +313,8 @@ fi
 # Original permissions should be restored (from marker state).
 expected_dir_mode="700"
 expected_file_mode="600"
-actual_dir_mode="$(stat -c '%a' "${config_locked_dir}" 2>/dev/null || true)"
-actual_file_mode="$(stat -c '%a' "${config_file}" 2>/dev/null || true)"
+actual_dir_mode="$(test_stat_octal_mode "${config_locked_dir}" 2>/dev/null || true)"
+actual_file_mode="$(test_stat_octal_mode "${config_file}" 2>/dev/null || true)"
 
 if [ "${actual_dir_mode}" != "${expected_dir_mode}" ]; then
   fail "Dir mode mismatch: expected ${expected_dir_mode}, got ${actual_dir_mode}"

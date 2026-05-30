@@ -100,6 +100,10 @@ fi
 if [ -f "${_POPUP_DIALOGS_DIR}/popup-display-darwin.sh" ]; then
     source "${_POPUP_DIALOGS_DIR}/popup-display-darwin.sh"
 fi
+if [ -f "${_POPUP_DIALOGS_DIR}/popup-safety.sh" ]; then
+    # shellcheck disable=SC1091
+    source "${_POPUP_DIALOGS_DIR}/popup-safety.sh"
+fi
 unset _POPUP_DIALOGS_DIR
 
 # Close popup process using process termination
@@ -340,13 +344,15 @@ show_warning() {
     popup_size=$(get_popup_size)
     popup_position=$(get_popup_position)
     
-    # Get minimum display time
-    local min_display_time
-    min_display_time=$(get_min_display_time)
-    
-    # Get auto-close setting (Enhancement #15)
-    local popup_auto_close
-    popup_auto_close=$(get_popup_auto_close)
+    # Get minimum display time and auto-close (popup-safety clamps on darwin)
+    local min_display_time popup_auto_close
+    if type popup_safe_get_min_display_time >/dev/null 2>&1; then
+        min_display_time=$(popup_safe_get_min_display_time)
+        popup_auto_close=$(popup_safe_get_auto_close)
+    else
+        min_display_time=$(get_min_display_time)
+        popup_auto_close=$(get_popup_auto_close)
+    fi
     
     # Get dimensions
     local dimensions
@@ -465,29 +471,19 @@ show_warning() {
             _popup_lock_fd=""
         fi
 
-        # Phase 2.1: Absolute watchdog for Linux — kills whatever PID is current in
-        # POPUP_PID_FILE after POPUP_ABSOLUTE_MAX_SECONDS.  Reads the file each second
-        # so it correctly follows PID changes from update_popup_countdown() re-spawns.
-        local _popup_abs_max_secs="${POPUP_ABSOLUTE_MAX_SECONDS:-120}"
-        (
-            local _waited=0
-            while [ "${_waited}" -lt "${_popup_abs_max_secs}" ]; do
-                sleep 1
-                _waited=$(( _waited + 1 ))
-            done
-            if [ -f "${POPUP_PID_FILE}" ]; then
-                local _wd_pid
-                _wd_pid=$(cat "${POPUP_PID_FILE}" 2>/dev/null | tr -d '\n')
-                if [[ "${_wd_pid}" =~ ^[0-9]+$ ]] && kill -0 "${_wd_pid}" 2>/dev/null; then
-                    log_to_file "WARNING" \
-                        "Linux popup absolute watchdog fired after ${_popup_abs_max_secs}s; killing PID ${_wd_pid}"
-                    kill -TERM "${_wd_pid}" 2>/dev/null
-                    sleep 1
-                    kill -KILL "${_wd_pid}" 2>/dev/null
-                fi
-            fi
-        ) &
-        _popup_watchdog_pid=$!
+        # Absolute watchdog (lib/popup-safety.sh): finite ceiling; follows POPUP_PID_FILE
+        # across update_popup_countdown() re-spawns. Same TERM/KILL policy as macOS watchdog.
+        local _popup_watchdog_seconds
+        if type popup_compute_watchdog_seconds >/dev/null 2>&1; then
+            _popup_watchdog_seconds=$(popup_compute_watchdog_seconds "${min_display_time}" "${popup_auto_close}")
+        else
+            _popup_watchdog_seconds="${POPUP_ABSOLUTE_MAX_SECONDS:-120}"
+        fi
+        if type popup_start_pid_file_watchdog >/dev/null 2>&1; then
+            _popup_watchdog_pid=$(popup_start_pid_file_watchdog "${_popup_watchdog_seconds}" "${POPUP_PID_FILE}")
+        else
+            _popup_watchdog_pid=""
+        fi
     else
         log_to_file "ERROR" "Failed to display popup, Dialog tool: ${dialog_tool}"
         # Release lock on failure path (Phase 2.4)

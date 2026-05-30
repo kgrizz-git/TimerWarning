@@ -24,6 +24,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TEST_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
+# shellcheck disable=SC1091
+source "${TEST_LIB_DIR}/test-stat-mode.sh"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -173,12 +176,12 @@ if [ -f "${CONFIG_DIR}/.config_locked_snapshot" ]; then
 fi
 
 # Verify original permissions were restored
-actual_dir_mode="$(stat -c '%a' "${CONFIG_DIR}/config" 2>/dev/null || true)"
+actual_dir_mode="$(test_stat_octal_mode "${CONFIG_DIR}/config" 2>/dev/null || true)"
 if [ "${actual_dir_mode}" != "700" ]; then
   fail "Directory mode should be restored to 700, got ${actual_dir_mode}"
 fi
 
-actual_file_mode="$(stat -c '%a' "${CONFIG_FILE}" 2>/dev/null || true)"
+actual_file_mode="$(test_stat_octal_mode "${CONFIG_FILE}" 2>/dev/null || true)"
 if [ "${actual_file_mode}" != "600" ]; then
   fail "File mode should be restored to 600, got ${actual_file_mode}"
 fi
@@ -208,12 +211,12 @@ if [ ! -w "${CONFIG_FILE}" ]; then
 fi
 
 # Verify safe defaults were used (755/644)
-actual_dir_mode="$(stat -c '%a' "${CONFIG_DIR}/config" 2>/dev/null || true)"
+actual_dir_mode="$(test_stat_octal_mode "${CONFIG_DIR}/config" 2>/dev/null || true)"
 if [ "${actual_dir_mode}" != "755" ]; then
   fail "Directory mode should use safe default 755, got ${actual_dir_mode}"
 fi
 
-actual_file_mode="$(stat -c '%a' "${CONFIG_FILE}" 2>/dev/null || true)"
+actual_file_mode="$(test_stat_octal_mode "${CONFIG_FILE}" 2>/dev/null || true)"
 if [ "${actual_file_mode}" != "644" ]; then
   fail "File mode should use safe default 644, got ${actual_file_mode}"
 fi

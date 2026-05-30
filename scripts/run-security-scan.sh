@@ -140,7 +140,8 @@ run_safety_tests() {
   if [ -f "${ROOT}/tests/test-daily-caps.sh" ]; then
     bash "${ROOT}/tests/test-daily-caps.sh" || failed=1
   fi
-  if [ "$(uname -s)" = "Darwin" ] && [ -f "${ROOT}/tests/test-popup-safety-darwin.sh" ]; then
+  # popup-safety unit tests (all platforms); use test-popup-safety-linux.sh as alias on Linux CI
+  if [ -f "${ROOT}/tests/test-popup-safety-darwin.sh" ]; then
     bash "${ROOT}/tests/test-popup-safety-darwin.sh" || failed=1
   fi
   if [ -f "${ROOT}/tests/test-configure-partial-lock.sh" ]; then
