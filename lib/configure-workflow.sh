@@ -38,7 +38,7 @@ prompt_continue_day_flow() {
         return $?
     else
         local answer
-        read -p "${prompt_text} [Y/n]: " answer
+        configure_read -p "${prompt_text} [Y/n]: " answer
         case "${answer}" in
             [Nn]*) return 1 ;;
             *) return 0 ;;
@@ -152,7 +152,7 @@ configure_lock_hours_section() {
         echo "If 'Configuration Lock (Tighten-Only)' is disabled, these" >&2
         echo "additional lock hours will have no effect." >&2
         echo "" >&2
-        read -p "Press Enter to continue..." >&2
+        configure_read -p "Press Enter to continue..."
     fi
     
     # Ask if same hours for all weekdays and/or both weekend days (main menu entry point)
@@ -521,7 +521,7 @@ configure_uninstall_lock_hours_section() {
         echo "WARNING: Additional uninstall lock hours increase the risk of preventing" >&2
         echo "legitimate uninstall needs." >&2
         echo "" >&2
-        read -p "Press Enter to continue..." >&2
+        configure_read -p "Press Enter to continue..."
     fi
     
     # Ask if same hours for all weekdays and/or both weekend days (main menu entry point)

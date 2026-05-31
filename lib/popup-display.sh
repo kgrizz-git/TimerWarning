@@ -335,9 +335,9 @@ show_warning() {
         log_to_file "INFO" "Using automatically selected dialog tool: ${dialog_tool}"
     fi
     
-    # Get check interval for message
-    local check_interval
-    check_interval=$(get_check_interval)
+    # Popup display frequency for message (Enhancement #30; matches sleep-warning.sh throttle)
+    local popup_freq_minutes
+    popup_freq_minutes=$(get_popup_display_frequency)
     
     # Get popup size and position
     local popup_size popup_position
@@ -363,7 +363,7 @@ show_warning() {
     
     # Warning message
     local interval_text
-    interval_text="$(_popup_get_interval_text "${check_interval}")"
+    interval_text="$(_popup_get_interval_text "${popup_freq_minutes}")"
     
     # Calculate next unrestricted time
     local next_unrestricted_time

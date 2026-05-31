@@ -40,6 +40,35 @@
 # Dependencies: None (base module)
 ###############################################################################
 
+# configure_read: EOF-safe replacement for interactive `read -p`/`read -rp`.
+#
+# Interactive menu/prompt loops re-read on invalid input. If stdin is closed or
+# non-interactive (e.g. the wizard was backgrounded with redirected output and
+# no terminal), a bare `read` returns instantly at EOF and the surrounding loop
+# spins forever — pegging a CPU and growing any redirected output WITHOUT bound.
+# This once filled the disk with ~465 GB of /tmp files. See CLAUDE.md / AGENTS.md.
+#
+# On EOF we print CANCELLED to stdout (so `$(...)` callers that check for it see a
+# cancel) and exit 2. Every prompt here runs inside a command-substitution
+# subshell, so this exits that subshell — callers already treat rc 2 / "CANCELLED"
+# as a normal cancel — without bypassing the main shell's EXIT-trap cleanup. A
+# normal blank line (Enter) is NOT EOF: `read` succeeds and the caller loops as
+# before, so interactive behaviour is unchanged.
+configure_read() {
+    if read "$@"; then
+        return 0
+    fi
+    local _rc=$?
+    if [ "${_rc}" -gt 128 ]; then
+        # Timeout (read -t) or interrupting signal, not EOF — let the caller decide.
+        return "${_rc}"
+    fi
+    echo "CANCELLED"
+    echo "" >&2
+    echo "Input stream closed (EOF); aborting configuration to avoid an endless prompt loop." >&2
+    exit 2
+}
+
 # Script configuration
 SCRIPT_NAME="sleep-warning-configure"
 CONFIG_DIR="${HOME}/.config/sleep-warning"

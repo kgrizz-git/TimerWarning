@@ -21,8 +21,8 @@ show_warning_darwin() {
     display_id=$(get_display_identifier "${env_type}")
 
     local dialog_tool="osascript"
-    local check_interval popup_size popup_position
-    check_interval=$(get_check_interval)
+    local popup_freq_minutes popup_size popup_position
+    popup_freq_minutes=$(get_popup_display_frequency)
     popup_size=$(get_popup_size)
     popup_position=$(get_popup_position)
 
@@ -36,7 +36,7 @@ show_warning_darwin() {
     height=$(echo "${dimensions}" | cut -d' ' -f2)
 
     local interval_text next_unrestricted_time base_message message
-    interval_text="$(_popup_get_interval_text "${check_interval}")"
+    interval_text="$(_popup_get_interval_text "${popup_freq_minutes}")"
     next_unrestricted_time=$(get_next_unrestricted_time)
     base_message="$(_popup_build_base_message "${next_unrestricted_time}" "${interval_text}")"
     base_message="$(dialog_safe_text "${base_message}")"
@@ -58,8 +58,8 @@ show_warning_darwin() {
         local existing_pid existing_age
         existing_pid=$(echo "${existing_popup_info}" | cut -d'|' -f1)
         existing_age=$(echo "${existing_popup_info}" | cut -d'|' -f2)
-        local check_interval_seconds=$((check_interval * 60))
-        if [ "${existing_age}" -le "${check_interval_seconds}" ]; then
+        local popup_freq_seconds=$((popup_freq_minutes * 60))
+        if [ "${existing_age}" -le "${popup_freq_seconds}" ]; then
             log_to_file "INFO" "macOS: Skipping duplicate popup (PID ${existing_pid}, age ${existing_age}s)"
             return 0
         fi

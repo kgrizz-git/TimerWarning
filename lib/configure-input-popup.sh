@@ -150,7 +150,7 @@ get_min_display_time_config() {
     else
         # Text mode
         while true; do
-            read -p "Minimum display time in seconds (${MIN_DISPLAY_TIME}-${max_display_limit}, ${MIN_DISPLAY_TIME}=disabled) [${default_time}]: " time
+            configure_read -p "Minimum display time in seconds (${MIN_DISPLAY_TIME}-${max_display_limit}, ${MIN_DISPLAY_TIME}=disabled) [${default_time}]: " time
             time=${time:-${default_time}}
             
             if [[ "${time}" =~ ^[0-9]+$ ]] && [ "${time}" -ge "${MIN_DISPLAY_TIME}" ] && [ "${time}" -le "${max_display_limit}" ]; then
@@ -274,7 +274,7 @@ get_popup_immovable_config() {
         echo "  by monitoring and restoring its position if moved." >&2
         echo "" >&2
         while true; do
-            read -p "Prevent window movement? [y/n, default: ${default_immovable}]: " choice
+            configure_read -p "Prevent window movement? [y/n, default: ${default_immovable}]: " choice
             choice=${choice:-${default_immovable}}
             case "${choice}" in
                 y|Y|yes|YES|true|TRUE|1)
@@ -380,7 +380,7 @@ get_popup_auto_close_config() {
         fi
         echo "" >&2
         while true; do
-            read -p "Enable auto-close? [y/n, default: ${default_auto_close}]: " choice
+            configure_read -p "Enable auto-close? [y/n, default: ${default_auto_close}]: " choice
             choice=${choice:-${default_auto_close}}
             case "${choice}" in
                 y|Y|yes|YES|true|TRUE|1)
@@ -473,7 +473,7 @@ get_popup_size_mode_config() {
             else
                 default_choice="2"
             fi
-            read -p "Select mode [1-2, default: ${default_choice}]: " choice
+            configure_read -p "Select mode [1-2, default: ${default_choice}]: " choice
             choice=${choice:-${default_choice}}
             case "${choice}" in
                 1|fixed)
@@ -542,7 +542,7 @@ get_popup_position_config() {
         echo "  2) top-left" >&2
         echo "" >&2
         while true; do
-            read -p "Select position [1-2, default: ${default_position}]: " choice
+            configure_read -p "Select position [1-2, default: ${default_position}]: " choice
             case "${choice}" in
                 1|center) echo "center"; return 0 ;;
                 2|top-left) echo "top-left"; return 0 ;;

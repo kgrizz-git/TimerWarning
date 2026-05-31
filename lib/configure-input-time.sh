@@ -165,7 +165,7 @@ get_check_interval() {
     else
         # Text mode
         while true; do
-            read -p "Popup display frequency in minutes (1-60) [${default_interval}]: " interval
+            configure_read -p "Popup display frequency in minutes (1-60) [${default_interval}]: " interval
             interval=${interval:-${default_interval}}
             
             if [[ "${interval}" =~ ^[0-9]+$ ]] && [ "${interval}" -ge "${MIN_CHECK_INTERVAL}" ] && [ "${interval}" -le "${MAX_CHECK_INTERVAL}" ]; then
@@ -430,7 +430,7 @@ get_day_hours() {
         
         while true; do
             local range_input
-            read -p "Time range(s) for ${day_name} (or 's' to skip): " range_input
+            configure_read -p "Time range(s) for ${day_name} (or 's' to skip): " range_input
             
             case "${range_input}" in
                 skip|s|S|"")
@@ -456,7 +456,7 @@ get_day_hours() {
             preview=$(format_ranges_human "${normalized}" "${day_name}")
             
             echo "Preview: ${preview}" >&2
-            read -p "Is this correct? [Y/n]: " confirm
+            configure_read -p "Is this correct? [Y/n]: " confirm
             [[ "${confirm:-y}" =~ ^[yY] ]] && { echo "${normalized}"; return 0; }
         done
     fi

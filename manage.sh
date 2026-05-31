@@ -89,6 +89,12 @@ source_required_lib "configure-core.sh" || exit 1
 source_required_lib "configure-time.sh" || exit 1
 source_required_lib "configure-ui.sh" || exit 1
 source_required_lib "configure-dialogs.sh" || exit 1
+# On macOS, override the Linux (yad/zenity) dialog functions with the osascript +
+# tkinter-daemon implementations, same as configure.sh. Without this, show_list_dialog
+# would call a non-existent Linux tool and the GUI menu would silently exit.
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+    source_optional_lib "configure-dialogs-darwin.sh" || true
+fi
 source_optional_lib "scheduler-platform.sh" || true
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
     TIMER_FILE="${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
@@ -169,7 +175,7 @@ show_text_info() {
         echo "=== ${title} ==="
         echo "${content}"
         echo ""
-        read -p "Press Enter to continue..."
+        configure_read -p "Press Enter to continue..."
     fi
 }
 
@@ -252,7 +258,7 @@ disable_service() {
     else
         echo ""
         echo "${message}"
-        read -p "Continue? [y/N]: " answer
+        configure_read -p "Continue? [y/N]: " answer
         case "${answer}" in
             [Yy]*) ;;
             *) return 1 ;;
@@ -295,7 +301,7 @@ enable_service() {
     else
         echo ""
         echo "${message}"
-        read -p "Continue? [y/N]: " answer
+        configure_read -p "Continue? [y/N]: " answer
         case "${answer}" in
             [Yy]*) ;;
             *) return 1 ;;
@@ -507,10 +513,14 @@ Your configuration will be preserved unless you choose to remove it."
 show_menu_gui() {
     local choice
     
-    # Use dialog abstraction function which respects user preference
+    # Use dialog abstraction function which respects user preference.
+    # Signature: show_list_dialog title text WIDTH HEIGHT items...
+    # (width/height MUST precede the items on both Linux and macOS.)
     choice=$(show_list_dialog \
         "Sleep Warning System - Management" \
         "Select an option:" \
+        400 \
+        400 \
         "View Service Status" \
         "View Current Configuration" \
         "Configure Restricted Hours" \
@@ -520,9 +530,7 @@ show_menu_gui() {
         "View Pause Status" \
         "Uninstall Information" \
         "Help and Information" \
-        "Exit" \
-        400 \
-        400)
+        "Exit")
     
     if [ -z "${choice}" ]; then
         return 1
@@ -535,29 +543,34 @@ show_menu_gui() {
 # Main menu (text)
 show_menu_text() {
     while true; do
-        echo ""
-        echo "=== Sleep Warning System - Management ==="
-        echo ""
-        echo "1. View Service Status"
-        echo "2. View Current Configuration"
-        echo "3. Configure Restricted Hours"
-        echo "4. Temporarily Disable Service"
-        echo "5. Re-enable Service"
-        echo "6. View Service Logs"
-        echo "7. View Pause Status"
-        echo "8. Uninstall Information"
-        echo "9. Help and Information"
-        echo "10. Exit"
-        echo ""
-        read -p "Select an option [1-10]: " choice
-        
+        # Menu chrome goes to stderr so the captured stdout is only the chosen
+        # value. (Previously these echoed to stdout and polluted `$(show_menu_text)`,
+        # so selections never matched in text mode.)
+        {
+            echo ""
+            echo "=== Sleep Warning System - Management ==="
+            echo ""
+            echo "1. View Service Status"
+            echo "2. View Current Configuration"
+            echo "3. Configure Restricted Hours"
+            echo "4. Temporarily Disable Service"
+            echo "5. Re-enable Service"
+            echo "6. View Service Logs"
+            echo "7. View Pause Status"
+            echo "8. Uninstall Information"
+            echo "9. Help and Information"
+            echo "10. Exit"
+            echo ""
+        } >&2
+        configure_read -p "Select an option [1-10]: " choice
+
         case "${choice}" in
             1|2|3|4|5|6|7|8|9|10)
                 echo "${choice}"
                 return 0
                 ;;
             *)
-                echo "Invalid option. Please select 1-10."
+                echo "Invalid option. Please select 1-10." >&2
                 ;;
         esac
     done
@@ -593,8 +606,11 @@ main() {
             choice=$(show_menu_gui)
         else
             choice=$(show_menu_text)
+            # configure_read exits 2 on EOF/closed stdin. Stop here instead of
+            # re-rendering the menu forever (non-interactive runaway protection).
+            [ $? -eq 2 ] && break
         fi
-        
+
         if [ -z "${choice}" ] || [ "${choice}" = "Exit" ] || [ "${choice}" = "10" ]; then
             break
         fi

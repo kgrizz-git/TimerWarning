@@ -24,7 +24,7 @@ Short queue of open work. For full status per enhancement, see [FUTURE_ENHANCEME
 - [ ] **Additional hours on unrestricted days** — Lock/uninstall hours should not apply when a day has no restrictions (opt-in override) → [plan](plans/plan-additional-hours-no-restrictions.md)
 - [ ] **#29** — kdialog window size via `--textbox` + `--geometry` → [enhancement-29](enhancements/enhancement-29-kdialog-window-size-control.md)
 - [ ] **#10** — Audio alerts → [enhancement-10](enhancements/enhancement-10-audio-alerts.md)
-- [ ] **Configurable pause interval** — Let user choose pause disabled, or allow pausing every N hours where N is 6, 12, or 24 (configure wizard + runtime enforcement; see existing pause scope in [enhancement-21](enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md))
+- [ ] **Configurable pause cooldown and duration** — Pause disabled, or cooldown every N hours (N = 6, 12, 24); pause length 1/2/3/5/10/15 min → [plan](plans/plan-configurable-pause-interval.md) (scope: [enhancement-21 pause](enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md))
 
 ## Testing (high impact)
 

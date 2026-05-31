@@ -550,17 +550,8 @@ show_main_menu() {
         echo "" >&2
         
         while true; do
-            # NOTE: guard against EOF. If stdin is closed/non-interactive (e.g. the
-            # script was backgrounded with redirected output and no terminal),
-            # `read` returns non-zero immediately with empty input. Without this
-            # check the loop spins forever printing "Invalid option", pegging a CPU
-            # and growing any redirected output file without bound.
-            if ! read -p "Select option [1-13]: " choice >&2; then
-                echo "" >&2
-                echo "No input available (stdin closed); exiting configuration." >&2
-                echo "CANCELLED"
-                return 2
-            fi
+            # configure_read aborts on EOF instead of spinning (see configure-core.sh).
+            configure_read -p "Select option [1-13]: " choice
             case "${choice}" in
                 1|2|3|4|5|6|7|8|9|10|11|12|13)
                     echo "${choice}"
@@ -667,7 +658,7 @@ show_window_behavior_submenu() {
         echo "6. Back to main menu" >&2
         echo "" >&2
         while true; do
-            read -p "Select option [1-6]: " choice >&2
+            configure_read -p "Select option [1-6]: " choice
             case "${choice}" in
                 1|2|3|4|5)
                     echo "${choice}"
@@ -894,7 +885,7 @@ show_visual_grid() {
             echo ""
             
             while true; do
-                read -p "Select option [0-7]: " choice
+                configure_read -p "Select option [0-7]: " choice
                     case "${choice}" in
                     0)
                         declare -g grid_result_var="BACK"
@@ -1298,7 +1289,7 @@ show_summary() {
         fi
         
         echo ""
-        read -p "Save this configuration? [y/N]: " answer
+        configure_read -p "Save this configuration? [y/N]: " answer
         case "${answer}" in
             [Yy]*) return 0 ;;
             *) return 1 ;;

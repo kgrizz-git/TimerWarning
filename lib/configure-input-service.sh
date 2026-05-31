@@ -96,13 +96,13 @@ configure_service_mode() {
         if [ "${detected_mode}" = "unknown" ]; then
             echo "Warning: Could not detect system mode." >&2
             echo "" >&2
-            read -p "Do you want to configure the service anyway? [y/N]: " answer
+            configure_read -p "Do you want to configure the service anyway? [y/N]: " answer
             case "${answer}" in
                 [Yy]*) ;;
                 *) return 2 ;;
             esac
         else
-            read -p "Reconfigure service for ${detected_mode} mode? [Y/n]: " answer
+            configure_read -p "Reconfigure service for ${detected_mode} mode? [Y/n]: " answer
             case "${answer}" in
                 [Nn]*) return 2 ;;
             esac
@@ -142,7 +142,7 @@ configure_service_mode() {
             echo "  2) Gaming Mode (Wayland/gamescope)" >&2
             echo "" >&2
             while true; do
-                read -p "Select option [1-2]: " choice
+                configure_read -p "Select option [1-2]: " choice
                 case "${choice}" in
                     1)
                         detected_mode="desktop"

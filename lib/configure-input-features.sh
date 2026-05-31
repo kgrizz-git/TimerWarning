@@ -120,7 +120,7 @@ get_configure_block_enabled_config() {
         echo "  Note: This must be enabled for 'Additional Configuration Lock Hours' to take effect." >&2
         echo "" >&2
         while true; do
-            read -p "Restrict configuration changes during restricted hours? [y/n, default: ${default_block_enabled}]: " choice
+            configure_read -p "Restrict configuration changes during restricted hours? [y/n, default: ${default_block_enabled}]: " choice
             choice=${choice:-${default_block_enabled}}
             case "${choice}" in
                 y|Y|yes|YES|true|TRUE|1)
@@ -230,7 +230,7 @@ get_security_settings_config() {
         # Get configure block setting
         local block_enabled
         while true; do
-            read -p "Restrict configuration changes during restricted hours? (tighten-only) [y/n, default: ${current_configure_block}]: " choice >&2
+            configure_read -p "Restrict configuration changes during restricted hours? (tighten-only) [y/n, default: ${current_configure_block}]: " choice
             choice=${choice:-${current_configure_block}}
             case "${choice}" in
                 y|Y|yes|YES|true|TRUE|1)
@@ -254,7 +254,7 @@ get_security_settings_config() {
         # Get config lock setting
         local lock_enabled
         while true; do
-            read -p "Enable config file locking during restricted hours? [y/n, default: ${current_config_lock}]: " choice >&2
+            configure_read -p "Enable config file locking during restricted hours? [y/n, default: ${current_config_lock}]: " choice
             choice=${choice:-${current_config_lock}}
             case "${choice}" in
                 y|Y|yes|YES|true|TRUE|1)
@@ -324,7 +324,7 @@ get_config_lock_enabled_config() {
             echo "" >&2
             echo "Current setting: ${default_lock_enabled}" >&2
             echo "" >&2
-            read -p "Enable config file locking? [true/false]: " lock_enabled >&2
+            configure_read -p "Enable config file locking? [true/false]: " lock_enabled
             
             # Handle cancellation (Ctrl+C or empty input)
             if [ -z "${lock_enabled}" ]; then
@@ -419,7 +419,7 @@ get_pause_enabled_config() {
         echo "  Note: Pause only suppresses warning popups, not restrictions." >&2
         echo "" >&2
         while true; do
-            read -p "Enable pause feature? [y/n, default: ${default_enabled}]: " choice
+            configure_read -p "Enable pause feature? [y/n, default: ${default_enabled}]: " choice
             choice=${choice:-${default_enabled}}
             case "${choice}" in
                 y|Y|yes|YES|true|TRUE|1)
@@ -521,7 +521,7 @@ get_pause_duration_config() {
         echo "  Select how long warning popups are paused when user clicks pause button." >&2
         echo "" >&2
         while true; do
-            read -p "Pause duration (5 or 10 minutes) [default: ${default_duration}]: " choice
+            configure_read -p "Pause duration (5 or 10 minutes) [default: ${default_duration}]: " choice
             choice=${choice:-${default_duration}}
             case "${choice}" in
                 5|10)
@@ -597,7 +597,7 @@ get_pause_once_per_day_config() {
         echo "  When disabled, users can pause multiple times per day." >&2
         echo "" >&2
         while true; do
-            read -p "Limit pause to once per day? [y/n, default: ${default_once_per_day}]: " choice
+            configure_read -p "Limit pause to once per day? [y/n, default: ${default_once_per_day}]: " choice
             choice=${choice:-${default_once_per_day}}
             case "${choice}" in
                 y|Y|yes|YES|true|TRUE|1)
@@ -714,7 +714,7 @@ get_uninstall_protection_mode_config() {
             else
                 default_choice="2"
             fi
-            read -p "Select protection mode [1-2, default: ${default_choice}]: " choice
+            configure_read -p "Select protection mode [1-2, default: ${default_choice}]: " choice
             choice=${choice:-${default_choice}}
             case "${choice}" in
                 1|none|NONE)
@@ -911,7 +911,7 @@ get_dialog_tool_selection() {
         echo "" >&2
         
         while true; do
-            read -p "Select option [1-${#installed_tools[@]}, Enter for Automatic]: " choice >&2
+            configure_read -p "Select option [1-${#installed_tools[@]}, Enter for Automatic]: " choice
             # If user just presses Enter, default to "auto"
             if [ -z "${choice}" ]; then
                 echo "auto"

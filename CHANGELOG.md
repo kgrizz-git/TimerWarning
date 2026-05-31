@@ -34,14 +34,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Text-mode menu no longer spins forever on EOF:** the `show_main_menu` text-mode
-  read loop ([lib/configure-display.sh](lib/configure-display.sh)) now detects when
-  `read` fails (stdin closed / non-interactive) and exits cleanly (`CANCELLED`,
-  rc 2) instead of looping on "Invalid option". Previously, running `configure.sh
-  --text` with redirected output and no terminal (e.g. backgrounded by tooling)
-  pegged a CPU and grew the output file without bound. Other interactive `read -p`
-  loops in `lib/configure-*.sh` still need the same guard (follow-up); see
-  [CLAUDE.md](CLAUDE.md) for safe-run rules.
+- **Popup interval message:** Warning popup text ("This warning will appear every X minutes") now uses `POPUP_DISPLAY_FREQUENCY` via `get_popup_display_frequency()`, matching configure wizard output and runtime throttling. Previously the message read legacy `CHECK_INTERVAL` only and defaulted to 10 minutes when the wizard had written only `POPUP_DISPLAY_FREQUENCY`. `get_check_interval()` now delegates to `get_popup_display_frequency()`. macOS duplicate-popup age check aligned with Linux. Test: `tests/test-popup-interval-message.sh`.
+
+- **Configure wizard no longer spins forever on EOF stdin (cross-platform):** a new
+  `configure_read` helper ([lib/configure-core.sh](lib/configure-core.sh)) replaces
+  every interactive `read -p`/`read -rp` across the wizard
+  (`configure-display.sh`, `configure-ui.sh`, `configure-input-*.sh`,
+  `configure-workflow.sh`). When stdin is closed/non-interactive (e.g.
+  `configure.sh --text` backgrounded with redirected output and no terminal), the
+  old loops re-read instantly at EOF and spun forever — pegging a CPU and growing
+  the redirected file without bound (this filled a disk with ~465 GB of `/tmp`
+  files). `configure_read` aborts cleanly on EOF (`CANCELLED`, exit 2) while
+  leaving normal interactive behaviour unchanged (a blank Enter is not EOF).
+  `manage.sh` had the same menu-loop hazard and is fixed too (converted reads +
+  its outer loop now breaks when `show_menu_text` aborts on EOF).
+  `uninstall-verification.sh` and `manual-uninstall-guide.sh` already treated
+  empty input as cancel and were left as-is; popup/runtime loops
+  (`popup-display.sh`, `popup-safety.sh`, `window-management.sh`) are bounded
+  (watchdog counters + sleep gates) and `sleep-warning.sh` runs once per tick.
+  Bash-portable; applies to Linux and macOS. See [CLAUDE.md](CLAUDE.md) /
+  [AGENTS.md](AGENTS.md) for safe-run rules.
 
 - **macOS weekly-hours window lingered after "Back to Main Menu":** Cancelling/closing the 4-column tkinter grid no longer re-opens it. The daemon now reports whether the dialog window actually became visible (`shown`), so `_cd_darwin_show_table_dialog` only triggers the one-shot Tk fallback on a genuine invisible-mapping failure — not on a normal cancel. Previously every cancel looked identical to a daemon failure and spawned a duplicate one-shot window that sat behind the osascript main menu. `show_table_dialog()` now returns `(accepted, value, exit_code, shown)`.
 

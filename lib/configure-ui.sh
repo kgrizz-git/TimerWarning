@@ -171,7 +171,7 @@ confirm_cancel() {
         return $?
     else
         echo ""
-        read -p "Cancel configuration? All unsaved changes will be lost. [y/N]: " answer
+        configure_read -p "Cancel configuration? All unsaved changes will be lost. [y/N]: " answer
         case "${answer}" in
             [Yy]*) return 0 ;;
             *) return 1 ;;
@@ -209,9 +209,9 @@ confirm_skip_day() {
     else
         echo "" >&2
         if [ "${is_multiple}" = "true" ]; then
-            read -p "Skip ${day_name}? No restrictions will be set. [y/N]: " answer
+            configure_read -p "Skip ${day_name}? No restrictions will be set. [y/N]: " answer
         else
-            read -p "Skip ${day_name}? No restrictions will be set for this day. [y/N]: " answer
+            configure_read -p "Skip ${day_name}? No restrictions will be set for this day. [y/N]: " answer
         fi
         case "${answer}" in
             [Yy]*) return 0 ;;
@@ -279,7 +279,7 @@ EXAMPLES:
         echo "=== CONFIGURATION HELP ==="
         echo "${help_text}"
         echo ""
-        read -p "Press Enter to continue..."
+        configure_read -p "Press Enter to continue..."
     fi
 }
 
@@ -333,7 +333,7 @@ Let's get started!"
     else
         echo "${message}"
         echo ""
-        read -p "Press Enter to continue..."
+        configure_read -p "Press Enter to continue..."
     fi
 }
 
@@ -349,7 +349,7 @@ ask_weekday_together() {
             "No"
         return $?
     else
-        read -p "Use same hours for all weekdays (Monday-Friday)? [y/N]: " answer
+        configure_read -p "Use same hours for all weekdays (Monday-Friday)? [y/N]: " answer
         case "${answer}" in
             [Yy]*) return 0 ;;
             *) return 1 ;;
@@ -371,7 +371,7 @@ ask_weekend_together() {
             250
         return $?
     else
-        read -p "Use same hours for both weekend days (Saturday and Sunday)? [y/N]: " answer
+        configure_read -p "Use same hours for both weekend days (Saturday and Sunday)? [y/N]: " answer
         case "${answer}" in
             [Yy]*) return 0 ;;
             *) return 1 ;;
@@ -443,7 +443,7 @@ ask_what_to_edit() {
         echo "" >&2
         
         while true; do
-            read -p "Select option [1-4]: " choice
+            configure_read -p "Select option [1-4]: " choice
             case "${choice}" in
                 1|restricted|Restricted)
                     echo "restricted"
@@ -529,7 +529,7 @@ Configuration cannot be saved until you reduce the restriction level."
         echo "Please modify your settings to leave at least some unrestricted time." >&2
         echo "Configuration cannot be saved until you reduce the restriction level." >&2
         echo "" >&2
-        read -p "Press Enter to continue..."
+        configure_read -p "Press Enter to continue..."
     fi
 }
 
@@ -568,7 +568,7 @@ Do you want to save this configuration anyway?"
         echo "- Popup size will be limited to small/medium" >&2
         echo "- Additional lock hours will be cleared" >&2
         echo "" >&2
-        read -p "Save anyway? [y/N]: " answer
+        configure_read -p "Save anyway? [y/N]: " answer
         case "${answer}" in
             [Yy]*) return 0 ;;
             *) return 1 ;;
@@ -780,7 +780,7 @@ Please reduce the configured hours to fix this before saving."
         echo "Each category may cover at most 16 hours per calendar day." >&2
         echo "Please reduce hours before saving." >&2
         echo "" >&2
-        read -rp "Press Enter to continue..."
+        configure_read -rp "Press Enter to continue..."
     fi
 }
 
@@ -802,7 +802,7 @@ During lock hours you may only tighten restrictions (more frequent popups, longe
         echo "ERROR: Changes not allowed during lock hours (tighten-only mode):" >&2
         printf '%b\n' "${violation_text}" >&2
         echo "" >&2
-        read -rp "Press Enter to continue..."
+        configure_read -rp "Press Enter to continue..."
     fi
 }
 

@@ -167,7 +167,7 @@ get_popup_size_config() {
         echo "  7) custom (user-configurable)" >&2
         echo "" >&2
         while true; do
-            read -p "Select size [1-7, default: ${default_size}]: " choice
+            configure_read -p "Select size [1-7, default: ${default_size}]: " choice
             case "${choice}" in
                 1|xsmall) echo "xsmall"; return 0 ;;
                 2|small) echo "small"; return 0 ;;
@@ -373,7 +373,7 @@ get_custom_popup_size_config() {
         echo "" >&2
         
         while true; do
-            read -p "Select format [1-2]: " format_choice
+            configure_read -p "Select format [1-2]: " format_choice
             case "${format_choice}" in
                 1)
                     echo "" >&2
@@ -382,7 +382,7 @@ get_custom_popup_size_config() {
                     echo "  Range: 15-95% for both dimensions (95% max ensures buttons remain visible)" >&2
                     echo "  Example: 50%x50%" >&2
                     echo "" >&2
-                    read -p "Custom size [${default_custom}]: " dimensions
+                    configure_read -p "Custom size [${default_custom}]: " dimensions
                     dimensions=${dimensions:-${default_custom}}
                     
                     # Validate percentage format
@@ -415,7 +415,7 @@ get_custom_popup_size_config() {
                     echo "  Maximum: 95% of screen (ensures buttons remain visible)" >&2
                     echo "  Example: 1280x720" >&2
                     echo "" >&2
-                    read -p "Custom size [${default_absolute}]: " dimensions
+                    configure_read -p "Custom size [${default_absolute}]: " dimensions
                     dimensions=${dimensions:-${default_absolute}}
                     
                     # Validate pixel format

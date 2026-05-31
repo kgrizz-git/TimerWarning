@@ -120,27 +120,12 @@ get_default_hours_for_day() {
 }
 
 # Get check interval from configuration file (no args; read-only).
+# After Enhancement #30, user-facing popup frequency is POPUP_DISPLAY_FREQUENCY;
+# legacy CHECK_INTERVAL is read as fallback inside get_popup_display_frequency().
 # Note: configure-input-time.sh defines get_check_interval(use_gui) for the config wizard;
 # when that file is sourced after this one (e.g. in configure.sh), that definition shadows this.
 get_check_interval() {
-    # Check if config file exists
-    if [ ! -f "${CONFIG_FILE}" ]; then
-        echo "${DEFAULT_CHECK_INTERVAL}"
-        return 0
-    fi
-    
-    # Read CHECK_INTERVAL from config file
-    local interval
-    interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-    
-    if [ -n "${interval}" ] && [[ "${interval}" =~ ^[0-9]+$ ]] && [ "${interval}" -ge 1 ] && [ "${interval}" -le 60 ]; then
-        echo "${interval}"
-        return 0
-    else
-        # Invalid or missing, use default
-        echo "${DEFAULT_CHECK_INTERVAL}"
-        return 0
-    fi
+    get_popup_display_frequency
 }
 
 # Get popup display frequency from config (Enhancement #30).

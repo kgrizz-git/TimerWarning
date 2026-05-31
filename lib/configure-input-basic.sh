@@ -38,7 +38,7 @@ get_hour_text() {
     local default="$2"
     
     while true; do
-        read -p "${prompt} [${default}]: " input
+        configure_read -p "${prompt} [${default}]: " input
         input=${input:-${default}}
         
         if [ -z "${input}" ]; then

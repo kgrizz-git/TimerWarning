@@ -288,6 +288,12 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         local height="$4"
         shift 4
 
+        # Defensive: width/height must be numeric or the JSON is malformed and the
+        # daemon silently fails to show a window. Fall back to sane defaults if a
+        # caller passes the dimensions in the wrong position.
+        [[ "${width}" =~ ^[0-9]+$ ]] || width=500
+        [[ "${height}" =~ ^[0-9]+$ ]] || height=300
+
         printf '{'
         printf '"title":%s,' "$(_cd_darwin_json_escape "${title}")"
         printf '"message":%s,' "$(_cd_darwin_json_escape "${message}")"
