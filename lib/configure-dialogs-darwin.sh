@@ -163,6 +163,14 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
             <<< "${_CD_DARWIN_DAEMON_LAST_RESPONSE}" 2>/dev/null | grep -q '^yes$'
     }
 
+    # True when the daemon reported that the dialog window actually became
+    # visible. A clean cancel of a shown window must NOT trigger the one-shot
+    # fallback (that re-opened a duplicate window over the next menu).
+    _cd_darwin_response_was_shown() {
+        python3 -c 'import json,sys; d=json.load(sys.stdin); print("yes" if d.get("shown") else "no")' \
+            <<< "${_CD_DARWIN_DAEMON_LAST_RESPONSE}" 2>/dev/null | grep -q '^yes$'
+    }
+
     _cd_darwin_daemon_stop() {
         if [ "${_CD_DARWIN_DAEMON_ACTIVE:-}" != "yes" ]; then
             return 0
@@ -344,6 +352,24 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         return 1
     }
 
+    _cd_darwin_run_table_oneshot() {
+        local json_payload="$1"
+        local json_file py_script result="" rc=1
+        json_file=$(mktemp "${TMPDIR:-/tmp}/sw-darwin-table.XXXXXX.json")
+        py_script="${_CD_DARWIN_DIR}/configure-dialogs-darwin-table.py"
+        printf '%s\n' "${json_payload}" >"${json_file}"
+        if [ -f "${py_script}" ]; then
+            result=$(python3 "${py_script}" <"${json_file}" 2>/dev/null)
+            rc=$?
+        fi
+        rm -f "${json_file}"
+        if [ ${rc} -eq 0 ] && [ -n "${result}" ]; then
+            echo "${result}"
+            return 0
+        fi
+        return 1
+    }
+
     _cd_darwin_show_table_dialog() {
         local title="$1"
         local message="$2"
@@ -358,21 +384,17 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         prep_end=$(_cd_darwin_now_ms)
         ui_start=${prep_end}
 
-        if _cd_darwin_daemon_start && _cd_darwin_daemon_request "{\"op\":\"table\",${json_payload:1}"; then
+        local daemon_shown=0
+        if [ "${CONFIGURE_DARWIN_NO_DAEMON:-}" != "1" ] && \
+            _cd_darwin_daemon_start && \
+            _cd_darwin_daemon_request "{\"op\":\"table\",${json_payload:1}"; then
+            if _cd_darwin_response_was_shown; then
+                daemon_shown=1
+            fi
             if _cd_darwin_response_is_ok && ! _cd_darwin_response_is_cancelled; then
                 result=$(_cd_darwin_response_extract_value)
                 rc=0
             fi
-        else
-            local json_file py_script
-            json_file=$(mktemp "${TMPDIR:-/tmp}/sw-darwin-table.XXXXXX.json")
-            py_script="${_CD_DARWIN_DIR}/configure-dialogs-darwin-table.py"
-            printf '%s\n' "${json_payload}" >"${json_file}"
-            if [ -f "${py_script}" ]; then
-                result=$(python3 "${py_script}" <"${json_file}" 2>/dev/null)
-                rc=$?
-            fi
-            rm -f "${json_file}"
         fi
 
         ui_end=$(_cd_darwin_now_ms)
@@ -382,7 +404,19 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
             echo "${result}"
             return 0
         fi
-        return 1
+
+        # The daemon showed the window and the user dismissed it (Cancel/Escape/
+        # close box): a real cancel, not a failure. Returning here avoids
+        # re-launching a one-shot copy that lingered over the next menu.
+        if [ "${daemon_shown}" -eq 1 ]; then
+            return 1
+        fi
+
+        # Daemon table dialogs can fail invisibly on macOS (withdrawn root): the
+        # window never maps and the request returns immediately. Only then fall
+        # back to a one-shot Tk(), which always renders.
+        _cd_darwin_run_table_oneshot "${json_payload}"
+        return $?
     }
 
     _cd_darwin_show_time_dialog() {

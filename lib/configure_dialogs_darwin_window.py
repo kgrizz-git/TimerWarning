@@ -33,13 +33,28 @@ def run_modal(window: tk.Misc) -> None:
     """
     Block until the dialog closes.
 
-    Daemon mode passes a Toplevel on a hidden root; mainloop() on Toplevel
-    leaves an empty window on macOS. wait_window() keeps the root event loop
-    alive so widgets render. One-shot CLIs pass Tk() and use mainloop().
+    Daemon mode passes a Toplevel on a hidden root. On macOS the Toplevel must
+    be deiconified explicitly and the hidden root must wait for it; calling
+    wait_window() on the Toplevel alone can return immediately without showing UI.
+    One-shot CLIs pass Tk() and use mainloop().
     """
     window.update_idletasks()
     if isinstance(window, tk.Toplevel):
-        window.wait_window()
+        root = window.master
+        try:
+            window.deiconify()
+            window.state("normal")
+            window.lift()
+            window.grab_set()
+        except tk.TclError:
+            pass
+        try:
+            root.wait_window(window)
+        finally:
+            try:
+                window.grab_release()
+            except tk.TclError:
+                pass
     else:
         window.mainloop()
 

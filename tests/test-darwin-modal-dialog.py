@@ -61,17 +61,27 @@ class StaticModalPatternTests(unittest.TestCase):
         run_dialog = text.split("def _run_dialog", 1)[1].split("def main", 1)[0]
         self.assertNotIn("grab_set()", run_dialog)
 
+    def test_daemon_does_not_transient_withdrawn_root(self) -> None:
+        text = DAEMON.read_text(encoding="utf-8")
+        run_dialog = text.split("def _run_dialog", 1)[1].split("def main", 1)[0]
+        self.assertNotIn("dialog.transient(", run_dialog)
+
+    def test_table_dialog_has_oneshot_fallback(self) -> None:
+        text = (LIB / "configure-dialogs-darwin.sh").read_text(encoding="utf-8")
+        self.assertIn("_cd_darwin_run_table_oneshot", text)
+        self.assertIn('_cd_darwin_run_table_oneshot "${json_payload}"', text)
+
     def test_window_module_documents_toplevel_wait_window(self) -> None:
         text = (LIB / "configure_dialogs_darwin_window.py").read_text(encoding="utf-8")
-        self.assertIn("wait_window()", text)
-        self.assertIn("mainloop()", text)
+        self.assertIn("root.wait_window(window)", text)
+        self.assertIn("deiconify()", text)
 
 
 @unittest.skipUnless(_tkinter_usable(), "tkinter display not available")
 class RuntimeModalBehaviorTests(unittest.TestCase):
     """Verify run_modal/close_modal dispatch without blocking on a real dialog."""
 
-    def test_run_modal_toplevel_uses_wait_window(self) -> None:
+    def test_run_modal_toplevel_uses_root_wait_window(self) -> None:
         import tkinter as tk
 
         root = tk.Tk()
@@ -81,14 +91,14 @@ class RuntimeModalBehaviorTests(unittest.TestCase):
 
         calls: list[str] = []
 
-        def fake_wait_window() -> None:
-            calls.append("wait_window")
+        def fake_wait_window(window: tk.Misc) -> None:
+            calls.append(f"wait:{window}")
             top.destroy()
 
-        top.wait_window = fake_wait_window  # type: ignore[method-assign]
+        root.wait_window = fake_wait_window  # type: ignore[method-assign]
 
         cd_window.run_modal(top)
-        self.assertEqual(calls, ["wait_window"])
+        self.assertEqual(calls, [f"wait:{top}"])
         root.destroy()
 
     def test_run_modal_tk_uses_mainloop(self) -> None:

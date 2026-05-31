@@ -31,7 +31,7 @@ def main() -> None:
 
     root = tk.Tk()
     try:
-        ok, value, code = table_ui.show_table_dialog(root, payload)
+        ok, value, code, _shown = table_ui.show_table_dialog(root, payload)
     finally:
         root.destroy()
 

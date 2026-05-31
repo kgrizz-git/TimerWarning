@@ -15,12 +15,15 @@ from tkinter import ttk
 import configure_dialogs_darwin_window as _cd_window
 
 
-def show_table_dialog(window: tk.Misc, payload: dict[str, Any]) -> tuple[bool, str | None, int]:
+def show_table_dialog(window: tk.Misc, payload: dict[str, Any]) -> tuple[bool, str | None, int, bool]:
     """
     Show a multi-column table dialog on *window* (Tk or Toplevel).
 
     Returns:
-        (accepted, selected_value, exit_code) where exit_code is 0 on OK, 1 on cancel.
+        (accepted, selected_value, exit_code, shown) where exit_code is 0 on OK,
+        1 on cancel, and *shown* is True if the window ever became visible. On
+        macOS a Toplevel on a withdrawn root can fail to map and return
+        immediately; *shown* lets callers tell that apart from a real cancel.
     """
     title = str(payload.get("title", "Select"))
     message = str(payload.get("message", ""))
@@ -36,10 +39,16 @@ def show_table_dialog(window: tk.Misc, payload: dict[str, Any]) -> tuple[bool, s
         raise ValueError(f"print_column {print_column} out of range")
 
     result: dict[str, str | None] = {"value": None}
+    visible: dict[str, bool] = {"shown": False}
 
     window.title(title)
     window.geometry(f"{width}x{height}")
     window.minsize(min(width, 640), min(height, 320))
+
+    def _mark_shown(_event: Any = None) -> None:
+        visible["shown"] = True
+
+    window.bind("<Map>", _mark_shown, add="+")
     _cd_window.apply_initial_frontmost(window)  # type: ignore[arg-type]
 
     main_frame = ttk.Frame(window, padding=12)
@@ -114,5 +123,5 @@ def show_table_dialog(window: tk.Misc, payload: dict[str, Any]) -> tuple[bool, s
     _cd_window.cleanup_modal_window(window)
 
     if result["value"] is None:
-        return False, None, 1
-    return True, result["value"], 0
+        return False, None, 1, visible["shown"]
+    return True, result["value"], 0, visible["shown"]

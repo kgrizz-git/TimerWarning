@@ -3,10 +3,7 @@
 Sleep Warning System - macOS configure wizard tkinter dialog daemon.
 
 Reads newline-delimited JSON requests from stdin, shows dialogs on a single
-Tk root, writes one JSON response line per request to stdout.
-
-macOS: use the Tk root directly (same as one-shot CLIs). Toplevel + withdrawn
-parent leaves dialogs invisible on Aqua; deiconify root per request instead.
+hidden Tk root, writes one JSON response line per request to stdout.
 
 Protocol:
   Request:  {"op":"table"|"time"|"text"|"quit", ...payload fields...}
@@ -28,7 +25,6 @@ sys.path.insert(0, str(_LIB_DIR))
 import configure_dialogs_darwin_table_ui as table_ui  # noqa: E402
 import configure_dialogs_darwin_text_ui as text_ui  # noqa: E402
 import configure_dialogs_darwin_time_ui as time_ui  # noqa: E402
-import configure_dialogs_darwin_window as cd_window  # noqa: E402
 
 
 def _respond(payload: dict[str, Any]) -> None:
@@ -36,14 +32,20 @@ def _respond(payload: dict[str, Any]) -> None:
 
 
 def _run_dialog(root: tk.Tk, op: str, req: dict[str, Any]) -> dict[str, Any]:
-    cd_window.show_daemon_root(root)
+    dialog = tk.Toplevel(root)
+    # Do not call transient(root) while root is withdrawn — on macOS that can
+    # prevent the Toplevel from ever appearing.
+
     try:
         if op == "table":
-            ok, value, _code = table_ui.show_table_dialog(root, req)
+            ok, value, _code, shown = table_ui.show_table_dialog(dialog, req)
+            if ok and value is not None:
+                return {"ok": True, "value": value, "shown": shown}
+            return {"ok": False, "cancelled": True, "shown": shown}
         elif op == "time":
-            ok, value, _code = time_ui.show_time_dialog(root, req)
+            ok, value, _code = time_ui.show_time_dialog(dialog, req)
         elif op == "text":
-            ok, label, code = text_ui.show_text_dialog(root, req)
+            ok, label, code = text_ui.show_text_dialog(dialog, req)
             if ok and label is not None:
                 return {"ok": True, "value": label, "exit_code": code}
             if label is not None:
@@ -56,13 +58,21 @@ def _run_dialog(root: tk.Tk, op: str, req: dict[str, Any]) -> dict[str, Any]:
             return {"ok": True, "value": value}
         return {"ok": False, "cancelled": True}
     finally:
-        cd_window.cleanup_modal_window(root)
-        cd_window.hide_daemon_root(root)
+        try:
+            if dialog.winfo_exists():
+                dialog.grab_release()
+        except tk.TclError:
+            pass
+        try:
+            if dialog.winfo_exists():
+                dialog.destroy()
+        except tk.TclError:
+            pass
 
 
 def main() -> None:
     root = tk.Tk()
-    cd_window.hide_daemon_root(root)
+    root.withdraw()
 
     _respond({"ok": True, "ready": True})
 

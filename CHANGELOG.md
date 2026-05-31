@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **macOS weekly-hours window lingered after "Back to Main Menu":** Cancelling/closing the 4-column tkinter grid no longer re-opens it. The daemon now reports whether the dialog window actually became visible (`shown`), so `_cd_darwin_show_table_dialog` only triggers the one-shot Tk fallback on a genuine invisible-mapping failure — not on a normal cancel. Previously every cancel looked identical to a daemon failure and spawned a duplicate one-shot window that sat behind the osascript main menu. `show_table_dialog()` now returns `(accepted, value, exit_code, shown)`.
+
+- **macOS configure table dialog visibility:** Weekly grid (4-column tkinter table) now deiconifies daemon `Toplevel` windows and waits via `root.wait_window(dialog)`; removed `transient(withdrawn_root)` which could suppress the window on macOS. If the daemon path still fails, table dialogs automatically fall back to one-shot `configure-dialogs-darwin-table.py`.
+
 - **macOS configure GUI regression tests:** Headless suite `tests/test-darwin-configure-gui.sh` — weekly grid cache (nameref, invalidation, inherited hours), table JSON payload (non-empty rows), daemon stdin/stdout protocol, and static/runtime checks that tkinter dialogs use `wait_window()` on daemon `Toplevel` (not `mainloop()`, which caused blank windows).
 
 - **macOS configure daemon empty dialogs:** Tkinter table/time/text dialogs in `configure-dialogs-darwin-daemon.py` now use `wait_window()` on `Toplevel` windows instead of `mainloop()` (which showed blank windows on macOS when the hidden root was withdrawn). One-shot CLI dialogs still use `mainloop()` on `Tk()`.
