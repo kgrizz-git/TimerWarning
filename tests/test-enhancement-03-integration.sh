@@ -126,9 +126,9 @@ test_write_config_new_params() {
     declare -a config_lines=()
     
     # Test writing with display-based mode and custom size
-    # Note: write_config requires 15 positional parameters before config_lines array
+    # Note: write_config requires 16 positional parameters before config_lines array
     write_config \
-        "10" "custom" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" \
+        "10" "custom" "center" "30" "true" "false" "true" "none" "true" "5" "24" "auto" "false" \
         "display-based" "50%x50%" "1280x720" \
         "${config_lines[@]}"
     
@@ -157,9 +157,9 @@ test_write_config_new_params() {
     fi
     
     # Test with fixed mode and new sizes
-    # Note: write_config requires 15 positional parameters before config_lines array
+    # Note: write_config requires 16 positional parameters before config_lines array
     write_config \
-        "10" "xlarge" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" \
+        "10" "xlarge" "center" "30" "true" "false" "true" "none" "true" "5" "24" "auto" "false" \
         "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}"
     

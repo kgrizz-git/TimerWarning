@@ -72,6 +72,10 @@ DEFAULT_PAUSE_ENABLED=true
 # This controls how long warning popups are paused when user clicks pause button (Enhancement #21)
 DEFAULT_PAUSE_DURATION=5
 
+# Default pause cooldown (in hours) - minimum time between pause activations
+# Options: 6, 8, 12, 24 (default 24 preserves prior once-per-calendar-day behavior)
+DEFAULT_PAUSE_COOLDOWN_HOURS=24
+
 # Default config lock enabled setting - used if config file missing or invalid
 # This controls whether config file locking is enabled during restricted hours (Enhancement #18)
 DEFAULT_CONFIG_LOCK_ENABLED=false
@@ -447,8 +451,26 @@ get_pause_enabled() {
     fi
 }
 
+# Validate pause duration (minutes). Allowlist: 1, 2, 3, 5, 10, 15.
+pause_is_valid_duration_minutes() {
+    local minutes="$1"
+    case "${minutes}" in
+        1|2|3|5|10|15) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Validate pause cooldown (hours). Allowlist: 6, 8, 12, 24.
+pause_is_valid_cooldown_hours() {
+    local hours="$1"
+    case "${hours}" in
+        6|8|12|24) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # Get pause duration from configuration file
-# Returns pause duration in minutes (5 or 10)
+# Returns pause duration in minutes (1, 2, 3, 5, 10, or 15)
 # This is for Enhancement #21 (One-Time Pause Feature)
 get_pause_duration() {
     # Check if config file exists
@@ -462,8 +484,7 @@ get_pause_duration() {
     duration=$(grep -E "^[[:space:]]*PAUSE_DURATION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     
     if [ -n "${duration}" ] && [[ "${duration}" =~ ^[0-9]+$ ]]; then
-        # Validate duration (must be 5 or 10)
-        if [ "${duration}" -eq 5 ] || [ "${duration}" -eq 10 ]; then
+        if pause_is_valid_duration_minutes "${duration}"; then
             echo "${duration}"
             return 0
         fi
@@ -471,6 +492,28 @@ get_pause_duration() {
     
     # Invalid or missing, use default
     echo "${DEFAULT_PAUSE_DURATION}"
+    return 0
+}
+
+# Get pause cooldown from configuration file
+# Returns hours between pause activations (6, 8, 12, or 24; default 24)
+get_pause_cooldown_hours() {
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "${DEFAULT_PAUSE_COOLDOWN_HOURS}"
+        return 0
+    fi
+
+    local cooldown_hours
+    cooldown_hours=$(grep -E "^[[:space:]]*PAUSE_COOLDOWN_HOURS=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+
+    if [ -n "${cooldown_hours}" ] && [[ "${cooldown_hours}" =~ ^[0-9]+$ ]]; then
+        if pause_is_valid_cooldown_hours "${cooldown_hours}"; then
+            echo "${cooldown_hours}"
+            return 0
+        fi
+    fi
+
+    echo "${DEFAULT_PAUSE_COOLDOWN_HOURS}"
     return 0
 }
 

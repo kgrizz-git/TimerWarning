@@ -289,13 +289,14 @@ _configure_build_grid_cache() {
 #   $12 - uninstall_protection_mode (e.g., "none" or "difficult") - Enhancement #26
 #   $13 - uninstall_lock_hours_status (e.g., "[None]" or "[Configured]") - Enhancement #26 Phase 2
 #   $14 - pause_enabled (e.g., "true" or "false") - Enhancement #21
-#   $15 - pause_duration (e.g., "5" or "10") - Enhancement #21
-#   $16 - dialog_tool_status (e.g., " [Automatic]" or " [yad]") - Enhancement #25
-#   $17 - config_lock_enabled (e.g., "true" or "false") - Enhancement #18
-#   $18 - popup_size_mode (optional, e.g., "fixed" or "display-based") - Enhancement #3
-#   $19 - popup_size_custom (optional, e.g., "95%x95%") - Enhancement #3
-#   $20 - popup_size_custom_absolute (optional, e.g., "2432x1368") - Enhancement #3
-#   $21 - service_mode_status (e.g., "[desktop]" or "[gaming]" or "[none]") - current service mode for option 12
+#   $15 - pause_duration (e.g., "5") - Enhancement #21
+#   $16 - pause_cooldown_hours (e.g., "6", "8", "12", or "24") - Enhancement #21
+#   $17 - dialog_tool_status (e.g., " [Automatic]" or " [yad]") - Enhancement #25
+#   $18 - config_lock_enabled (e.g., "true" or "false") - Enhancement #18
+#   $19 - popup_size_mode (optional, e.g., "fixed" or "display-based") - Enhancement #3
+#   $20 - popup_size_custom (optional, e.g., "95%x95%") - Enhancement #3
+#   $21 - popup_size_custom_absolute (optional, e.g., "2432x1368") - Enhancement #3
+#   $22 - service_mode_status (e.g., "[desktop]" or "[gaming]" or "[none]") - current service mode for option 12
 show_main_menu() {
     local use_gui="$1"
     local check_interval="$2"
@@ -312,12 +313,13 @@ show_main_menu() {
     local uninstall_lock_hours_status="${13}"
     local pause_enabled="${14}"
     local pause_duration="${15}"
-    local dialog_tool_status="${16}"
-    local config_lock_enabled="${17}"
-    local popup_size_mode="${18:-}"  # Enhancement #3: Optional size mode
-    local popup_size_custom="${19:-}"  # Enhancement #3: Optional custom size
-    local popup_size_custom_absolute="${20:-}"  # Enhancement #3: Optional custom absolute size
-    local service_mode_status="${21:-[none]}"
+    local pause_cooldown_hours="${16}"
+    local dialog_tool_status="${17}"
+    local config_lock_enabled="${18}"
+    local popup_size_mode="${19:-}"  # Enhancement #3: Optional size mode
+    local popup_size_custom="${20:-}"  # Enhancement #3: Optional custom size
+    local popup_size_custom_absolute="${21:-}"  # Enhancement #3: Optional custom absolute size
+    local service_mode_status="${22:-[none]}"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         # GUI mode
@@ -379,10 +381,9 @@ show_main_menu() {
         fi
         
         # Build pause settings status indicator (Enhancement #21)
-        # Note: Pause is always once per day (not configurable), so we only show enabled/disabled and duration
         local pause_status=""
         if [ "${pause_enabled}" = "true" ]; then
-            pause_status=" [Enabled, ${pause_duration} min]"
+            pause_status=" [Enabled, ${pause_duration} min, ${pause_cooldown_hours}h cooldown]"
         else
             pause_status=" [Disabled]"
         fi
@@ -415,7 +416,7 @@ show_main_menu() {
             "7" "Uninstall Protection${safe_uninstall_protection}" \
             "8" "Additional Uninstall Protection Hours${safe_uninstall_lock}" \
             "9" "View Weekly Hours Settings" \
-            "10" "Enable pause and configure duration${safe_pause_status}" \
+            "10" "Enable pause, duration, and cooldown${safe_pause_status}" \
             "11" "Dialog Tool Selection ${safe_dialog_status}" \
             "12" "Service Mode Configuration ${service_mode_status}" \
             "13" "Review and Save")
@@ -530,12 +531,12 @@ show_main_menu() {
         echo "" >&2
         local pause_status=""
         if [ "${pause_enabled}" = "true" ]; then
-            pause_status=" [Enabled, ${pause_duration} min]"
+            pause_status=" [Enabled, ${pause_duration} min, ${pause_cooldown_hours}h cooldown]"
         else
             pause_status=" [Disabled]"
         fi
-        echo "10. Enable pause and configure duration${pause_status}" >&2
-        echo "   Configure pause feature for warning popups (pause suppresses popups, not restrictions)" >&2
+        echo "10. Enable pause, duration, and cooldown${pause_status}" >&2
+        echo "   Configure pause for warning popups (duration and hours-between-pauses)" >&2
         echo "" >&2
         echo "11. Dialog Tool Selection ${dialog_tool_status}" >&2
         echo "   Select which dialog tool to use for popup windows" >&2
@@ -957,6 +958,16 @@ show_summary() {
         summary="${summary}Block Scripts During Restricted/Lock Hours: Enabled\n"
     else
         summary="${summary}Block Scripts During Restricted/Lock Hours: Disabled\n"
+    fi
+
+    # Pause settings (Enhancement #21) — globals from configure.sh session
+    local summary_pause_enabled="${pause_enabled:-true}"
+    local summary_pause_duration="${pause_duration:-5}"
+    local summary_pause_cooldown="${pause_cooldown_hours:-24}"
+    if [ "${summary_pause_enabled}" = "true" ]; then
+        summary="${summary}Pause Feature: Enabled (${summary_pause_duration} min pause, ${summary_pause_cooldown} h between activations)\n"
+    else
+        summary="${summary}Pause Feature: Disabled\n"
     fi
     
     # Lock hours summary (Enhancement #19 Phase 2)

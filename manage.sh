@@ -413,69 +413,80 @@ view_pause_status() {
     local use_gui="$1"
     
     # Check if pause state functions are available
-    if ! type is_pause_active >/dev/null 2>&1 || ! type can_pause_today >/dev/null 2>&1; then
+    if ! type is_pause_active >/dev/null 2>&1 || ! type can_pause_now >/dev/null 2>&1; then
         show_message "Pause Status" "Pause status functions are not available.\n\nThis feature requires pause-state.sh library." "warning" "${use_gui}"
         return 1
     fi
     
     local status_text="Pause Feature Status\n\n"
     
-    # Check if pause is enabled
-    local pause_enabled
-    pause_enabled=$(grep -E "^[[:space:]]*PAUSE_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    local pause_enabled pause_duration pause_cooldown_hours
+    if type get_pause_enabled >/dev/null 2>&1; then
+        pause_enabled=$(get_pause_enabled)
+        pause_duration=$(get_pause_duration)
+        pause_cooldown_hours=$(get_pause_cooldown_hours)
+    else
+        pause_enabled=$(grep -E "^[[:space:]]*PAUSE_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        pause_duration=$(grep -E "^[[:space:]]*PAUSE_DURATION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        pause_cooldown_hours=$(grep -E "^[[:space:]]*PAUSE_COOLDOWN_HOURS=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    fi
     if [ -z "${pause_enabled}" ] || [ "${pause_enabled}" = "true" ] || [ "${pause_enabled}" = "1" ] || [ "${pause_enabled}" = "yes" ]; then
         status_text="${status_text}Feature: Enabled\n"
     else
         status_text="${status_text}Feature: Disabled\n"
     fi
-    
-    # Get pause duration
-    local pause_duration
-    pause_duration=$(grep -E "^[[:space:]]*PAUSE_DURATION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     if [ -z "${pause_duration}" ]; then
         pause_duration="5"
     fi
+    if [ -z "${pause_cooldown_hours}" ]; then
+        pause_cooldown_hours="24"
+    fi
     status_text="${status_text}Duration: ${pause_duration} minutes\n"
-    
-    # Note: Once-per-day limit is ALWAYS enforced (not configurable)
-    status_text="${status_text}Once Per Day: Always Enabled (not configurable)\n"
+    status_text="${status_text}Cooldown: ${pause_cooldown_hours} hours between pauses\n"
     status_text="${status_text}\n"
     
-    # Check if pause is currently active
     if is_pause_active; then
         local pause_end_timestamp
         pause_end_timestamp=$(get_pause_end_timestamp)
         if [ -n "${pause_end_timestamp}" ]; then
             local pause_end_time
             pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
-            status_text="${status_text}Current Status: ACTIVE\n"
+            status_text="${status_text}Current Status: ACTIVE (pause in progress)\n"
             status_text="${status_text}Pause expires at: ${pause_end_time}\n"
         else
             status_text="${status_text}Current Status: ACTIVE (end time unknown)\n"
         fi
+    elif can_pause_now; then
+        status_text="${status_text}Current Status: Available (you can pause from the next popup)\n"
+    elif [ "${pause_enabled}" = "true" ] || [ "${pause_enabled}" = "1" ] || [ "${pause_enabled}" = "yes" ] || [ -z "${pause_enabled}" ]; then
+        local next_available_ts next_available_time
+        next_available_ts=""
+        if type get_next_pause_available_timestamp >/dev/null 2>&1; then
+            next_available_ts=$(get_next_pause_available_timestamp)
+        fi
+        if [ -n "${next_available_ts}" ]; then
+            next_available_time=$(date -d "@${next_available_ts}" +"%Y-%m-%d %H:%M" 2>/dev/null || date -r "${next_available_ts}" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "unknown")
+            status_text="${status_text}Current Status: Cooldown (not available yet)\n"
+            status_text="${status_text}Available again at: ${next_available_time}\n"
+        else
+            status_text="${status_text}Current Status: Cooldown (not available yet)\n"
+        fi
     else
-        status_text="${status_text}Current Status: Not active\n"
+        status_text="${status_text}Current Status: Disabled\n"
     fi
     
-    # Display last pause date
-    local last_pause_date
+    local last_pause_date last_pause_timestamp
     last_pause_date=$(get_last_pause_date)
+    last_pause_timestamp=$(get_last_pause_timestamp)
     if [ -n "${last_pause_date}" ]; then
         status_text="${status_text}Last Pause Date: ${last_pause_date}\n"
     else
         status_text="${status_text}Last Pause Date: Never used\n"
     fi
-    
-    # Display whether pause is available today
-    if can_pause_today; then
-        status_text="${status_text}Pause Available Today: Yes\n"
-    else
-        status_text="${status_text}Pause Available Today: No\n"
-        if [ "${pause_enabled}" != "true" ] && [ "${pause_enabled}" != "1" ] && [ "${pause_enabled}" != "yes" ]; then
-            status_text="${status_text}  (Pause feature is disabled)\n"
-        else
-            status_text="${status_text}  (Already used today or once-per-day limit enabled)\n"
-        fi
+    if [ -n "${last_pause_timestamp}" ]; then
+        local last_pause_time
+        last_pause_time=$(date -d "@${last_pause_timestamp}" +"%Y-%m-%d %H:%M" 2>/dev/null || date -r "${last_pause_timestamp}" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "unknown")
+        status_text="${status_text}Last Pause Started: ${last_pause_time}\n"
     fi
     
     status_text="${status_text}\n"

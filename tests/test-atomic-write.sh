@@ -114,7 +114,7 @@ test_atomic_write_temp_file() {
     
     # Call write_config
     local config_lines=("SUNDAY=0-5" "MONDAY=0-5")
-    write_config "10" "medium" "center" "30" "true" "false" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" "${config_lines[@]}" "" "" "false" "false"
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "24" "auto" "false" "fixed" "50%x50%" "1280x720" "${config_lines[@]}" "" "" "false" "false"
     
     # Check if config file was created
     if [ ! -f "${CONFIG_FILE}" ]; then
@@ -143,7 +143,7 @@ test_config_file_content() {
     
     # Call write_config
     local config_lines=("SUNDAY=0-5" "MONDAY=0-5")
-    write_config "10" "medium" "center" "30" "true" "false" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" "${config_lines[@]}" "" "" "false" "false"
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "24" "auto" "false" "fixed" "50%x50%" "1280x720" "${config_lines[@]}" "" "" "false" "false"
     
     # Check if config file exists
     if [ ! -f "${CONFIG_FILE}" ]; then
@@ -189,7 +189,7 @@ test_original_file_preserved() {
     
     # Try to write config (should fail)
     local config_lines=("SUNDAY=0-5")
-    write_config "10" "medium" "center" "30" "true" "false" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" "${config_lines[@]}" "" "" "false" "false"
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "24" "auto" "false" "fixed" "50%x50%" "1280x720" "${config_lines[@]}" "" "" "false" "false"
     local write_result=$?
     
     # Restore permissions

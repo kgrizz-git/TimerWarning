@@ -33,6 +33,7 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
     declare -g _baseline_uninstall_protection_mode=""
     declare -g _baseline_pause_enabled=""
     declare -g _baseline_pause_duration=""
+    declare -g _baseline_pause_cooldown_hours=""
     declare -g _baseline_popup_size=""
     declare -g _baseline_popup_size_mode=""
     declare -g _baseline_popup_size_custom=""
@@ -213,6 +214,14 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
                     return 1
                 fi
                 ;;
+            PAUSE_COOLDOWN_HOURS|pause_cooldown_hours)
+                if ! [[ "${old_val}" =~ ^[0-9]+$ ]] || ! [[ "${new_val}" =~ ^[0-9]+$ ]]; then
+                    return 0
+                fi
+                if [ "${new_val}" -lt "${old_val}" ]; then
+                    return 1
+                fi
+                ;;
             POPUP_SIZE|popup_size)
                 local old_rank new_rank
                 old_rank=$(_configure_partial_lock_popup_size_rank "${old_val}")
@@ -262,6 +271,7 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
         _baseline_uninstall_protection_mode="${uninstall_protection_mode:-difficult}"
         _baseline_pause_enabled="${pause_enabled:-true}"
         _baseline_pause_duration="${pause_duration:-5}"
+        _baseline_pause_cooldown_hours="${pause_cooldown_hours:-24}"
         _baseline_popup_size="${popup_size:-medium}"
         _baseline_popup_size_mode="${popup_size_mode:-fixed}"
         _baseline_popup_size_custom="${popup_size_custom:-50%x50%}"
@@ -298,6 +308,9 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
         fi
         if ! configure_partial_lock_validate_scalar "pause_duration" "${_baseline_pause_duration}" "${pause_duration:-5}"; then
             errors="${errors}Cannot increase pause duration during lock hours.\n"
+        fi
+        if ! configure_partial_lock_validate_scalar "pause_cooldown_hours" "${_baseline_pause_cooldown_hours}" "${pause_cooldown_hours:-24}"; then
+            errors="${errors}Cannot shorten pause cooldown during lock hours.\n"
         fi
         if ! configure_partial_lock_validate_scalar "popup_size" "${_baseline_popup_size}" "${popup_size:-medium}"; then
             errors="${errors}Cannot decrease popup size during lock hours.\n"
@@ -366,6 +379,8 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
             min_display_time|POPUP_MIN_DISPLAY_TIME) msg="Cannot decrease minimum display time during lock hours." ;;
             configure_block_enabled|CONFIGURE_BLOCK_ENABLED) msg="Cannot disable the configuration lock (tighten-only) during lock hours." ;;
             config_lock_enabled|CONFIG_LOCK_ENABLED) msg="Cannot disable config file locking during lock hours." ;;
+            pause_duration|PAUSE_DURATION) msg="Cannot increase pause duration during lock hours." ;;
+            pause_cooldown_hours|PAUSE_COOLDOWN_HOURS) msg="Cannot shorten pause cooldown during lock hours." ;;
         esac
         if [ "${use_gui}" = "true" ] && type show_error_dialog >/dev/null 2>&1; then
             show_error_dialog "Change Not Allowed" "${msg}"

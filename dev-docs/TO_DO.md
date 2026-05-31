@@ -10,7 +10,6 @@ Short queue of open work. For full status per enhancement, see [FUTURE_ENHANCEME
 
 ## Features and safety
 
-- [ ] **Per-day 16 h cap + popup lifetime + escape-hatch bug fixes (2026-05-24 audit)** — Multi-phase plan covering critical lockout-math bypasses (HH:MM parser, head/tail mismatch, lock-hours ignored at runtime), popup lifetime gaps (Linux watchdog, macOS Python-blocker silent failure, osascript min-display), and macOS uninstall/manage escape-hatch fixes. See [plans/plan-real-bugs-fix-2026-05-24.md](plans/plan-real-bugs-fix-2026-05-24.md). Source audit: [code-assessments/bug-and-lockout-review-2026-05-24-203354.md](code-assessments/bug-and-lockout-review-2026-05-24-203354.md). **High priority — these are real bugs that violate the invariants in [docs/SAFETY.md](../docs/SAFETY.md).**
 - [ ] **macOS Accessibility API blocking** — Grant Accessibility permission via `System Settings → Privacy & Security → Accessibility` to intercept Cmd+Tab, Mission Control, and Spotlight during restricted hours. Install script should prompt and open the correct pane. See [dev-docs/POPUP_BLOCKING_MACOS.md](POPUP_BLOCKING_MACOS.md) §Option D for implementation sketch. **Deferred** — current fullscreen tkinter overlay (+ optional pyobjc boost) is the primary blocking path.
 - [x] **Linux popup watchdog (code, 2026-05-30)** — `lib/popup-display.sh` sources `lib/popup-safety.sh`; Linux uses `popup_compute_watchdog_seconds` + `popup_start_pid_file_watchdog` (PID-file watchdog for respawn path). Unit tests: `tests/test-popup-safety-linux.sh` (alias), `tests/test-popup-safety-darwin.sh` on all platforms.
 - [ ] **Linux popup watchdog (verify on Linux build)** — On a Linux host or CI with DISPLAY:
@@ -24,7 +23,7 @@ Short queue of open work. For full status per enhancement, see [FUTURE_ENHANCEME
 - [ ] **Additional hours on unrestricted days** — Lock/uninstall hours should not apply when a day has no restrictions (opt-in override) → [plan](plans/plan-additional-hours-no-restrictions.md)
 - [ ] **#29** — kdialog window size via `--textbox` + `--geometry` → [enhancement-29](enhancements/enhancement-29-kdialog-window-size-control.md)
 - [ ] **#10** — Audio alerts → [enhancement-10](enhancements/enhancement-10-audio-alerts.md)
-- [ ] **Configurable pause cooldown and duration** — Pause disabled, or cooldown every N hours (N = 6, 12, 24); pause length 1/2/3/5/10/15 min → [plan](plans/plan-configurable-pause-interval.md) (scope: [enhancement-21 pause](enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md))
+- [x] **Configurable pause cooldown and duration** — Pause disabled, or cooldown every N hours (N = 6, 8, 12, 24; default 24); pause length 1/2/3/5/10/15 min → [plan](plans/plan-configurable-pause-interval.md) (scope: [enhancement-21 pause](enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md))
 
 ## Testing (high impact)
 
@@ -49,6 +48,7 @@ Track detail in [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#mostly-imp
 
 ## Recently completed
 
+- [x] **Per-day 16 h cap + popup lifetime + escape-hatch (2026-05-24 audit)** — Shipped 2026-05-24 (Phases 0–4): `lib/daily-caps.sh` / `check_daily_caps`, HH:MM lockout math, configure hard-block + runtime fallback, popup watchdog wiring, macOS blocker/osascript/min-display and uninstall/manage escape-hatch fixes. Plan: [plan-real-bugs-fix-2026-05-24](plans/plan-real-bugs-fix-2026-05-24.md) · Audit: [bug-and-lockout-review-2026-05-24](code-assessments/bug-and-lockout-review-2026-05-24-203354.md) · Tests: `tests/test-daily-caps.sh`. **Linux host verification** remains open: [Linux popup watchdog (verify on Linux build)](#features-and-safety).
 - [x] **#30** — Separate timer check interval from popup display frequency (`POPUP_DISPLAY_FREQUENCY`, derived run interval, last-popup-time throttling). Implemented 2026-02-09 → [enhancement-30](enhancements/enhancement-30-separate-timer-check-interval-from-popup-display-frequency.md)
 
 ---

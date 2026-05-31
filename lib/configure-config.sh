@@ -35,6 +35,7 @@ load_existing_config() {
     declare -g uninstall_protection_mode="difficult"
     declare -g pause_enabled="true"
     declare -g pause_duration="5"
+    declare -g pause_cooldown_hours="24"
     declare -g dialog_tool="auto"
     declare -g config_lock_enabled="false"
     
@@ -169,8 +170,25 @@ load_existing_config() {
     local existing_pause_duration
     existing_pause_duration=$(grep -E "^[[:space:]]*PAUSE_DURATION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     if [ -n "${existing_pause_duration}" ] && [[ "${existing_pause_duration}" =~ ^[0-9]+$ ]]; then
-        if [ "${existing_pause_duration}" -eq 5 ] || [ "${existing_pause_duration}" -eq 10 ]; then
+        if type pause_is_valid_duration_minutes >/dev/null 2>&1; then
+            if pause_is_valid_duration_minutes "${existing_pause_duration}"; then
+                declare -g pause_duration="${existing_pause_duration}"
+            fi
+        elif [ "${existing_pause_duration}" -eq 5 ] || [ "${existing_pause_duration}" -eq 10 ]; then
             declare -g pause_duration="${existing_pause_duration}"
+        fi
+    fi
+
+    local existing_pause_cooldown_hours
+    existing_pause_cooldown_hours=$(grep -E "^[[:space:]]*PAUSE_COOLDOWN_HOURS=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    if [ -n "${existing_pause_cooldown_hours}" ] && [[ "${existing_pause_cooldown_hours}" =~ ^[0-9]+$ ]]; then
+        if type pause_is_valid_cooldown_hours >/dev/null 2>&1; then
+            if pause_is_valid_cooldown_hours "${existing_pause_cooldown_hours}"; then
+                declare -g pause_cooldown_hours="${existing_pause_cooldown_hours}"
+            fi
+        elif [ "${existing_pause_cooldown_hours}" -eq 6 ] || [ "${existing_pause_cooldown_hours}" -eq 8 ] || \
+             [ "${existing_pause_cooldown_hours}" -eq 12 ] || [ "${existing_pause_cooldown_hours}" -eq 24 ]; then
+            declare -g pause_cooldown_hours="${existing_pause_cooldown_hours}"
         fi
     fi
     
@@ -355,13 +373,15 @@ update_timer_file() {
 # Parameters:
 #   $1-$7: Standard configuration parameters (check_interval, popup_size, popup_position, min_display_time, popup_immovable, popup_auto_close, configure_block_enabled)
 #   $8: Uninstall protection mode (uninstall_protection_mode)
-#   $9-$10: Pause settings (pause_enabled, pause_duration) - Enhancement #21
-#   $11: Dialog tool (dialog_tool) - Enhancement #25
-#   $12: Config lock enabled (config_lock_enabled) - Enhancement #18
-#   $13: Popup size mode (popup_size_mode) - Enhancement #3: fixed or display-based
-#   $14: Popup custom size (popup_size_custom) - Enhancement #3: Custom size (percentage or pixel format)
-#   $15: Popup custom size absolute (popup_size_custom_absolute) - Enhancement #3: Absolute fallback
-#   $16+: config_lines array (7 day configurations: Sunday-Saturday)
+#   $9: Pause enabled (pause_enabled) - Enhancement #21
+#   $10: Pause duration in minutes (pause_duration) - Enhancement #21
+#   $11: Pause cooldown in hours (pause_cooldown_hours) - Enhancement #21
+#   $12: Dialog tool (dialog_tool) - Enhancement #25
+#   $13: Config lock enabled (config_lock_enabled) - Enhancement #18
+#   $14: Popup size mode (popup_size_mode) - Enhancement #3: fixed or display-based
+#   $15: Popup custom size (popup_size_custom) - Enhancement #3: Custom size (percentage or pixel format)
+#   $16: Popup custom size absolute (popup_size_custom_absolute) - Enhancement #3: Absolute fallback
+#   $17+: config_lines array (7 day configurations: Sunday-Saturday)
 #   After config_lines: lock_hours_lines array (optional, Enhancement #19 Phase 2)
 #   After lock_hours_lines: uninstall_lock_hours_lines array (optional, Enhancement #26 Phase 2)
 #   Optional (if override flags present, last 4 arguments): 
@@ -383,13 +403,14 @@ _write_config_header() {
     local uninstall_protection_mode="$8"
     local pause_enabled="$9"
     local pause_duration="${10}"
-    local dialog_tool="${11}"
-    local config_lock_enabled="${12}"
-    local popup_size_mode="${13}"
-    local popup_size_custom="${14}"
-    local popup_size_custom_absolute="${15}"
-    local popup_size_overridden="${16}"
-    local configure_block_overridden="${17}"
+    local pause_cooldown_hours="${11}"
+    local dialog_tool="${12}"
+    local config_lock_enabled="${13}"
+    local popup_size_mode="${14}"
+    local popup_size_custom="${15}"
+    local popup_size_custom_absolute="${16}"
+    local popup_size_overridden="${17}"
+    local configure_block_overridden="${18}"
 
     # Standard header
     echo "# Sleep Warning Configuration"
@@ -475,17 +496,20 @@ _write_config_header() {
     echo "#"
     echo "# PAUSE_ENABLED: Enable/disable pause feature for warning popups"
     echo "# Default: true"
-    echo "# When enabled, users can pause warning popups for a short period (5 or 10 minutes)"
+    echo "# When enabled, users can pause warning popups for a configured duration"
     echo "# directly from the warning popup window. Pause only suppresses popups, not restrictions."
     echo "# This is Enhancement #21 (One-Time Pause Feature)"
     echo "PAUSE_ENABLED=${pause_enabled}"
     echo "#"
-    echo "# PAUSE_DURATION: Duration of pause in minutes (5 or 10)"
+    echo "# PAUSE_DURATION: Duration of pause in minutes (1, 2, 3, 5, 10, or 15)"
     echo "# Default: 5 minutes"
     echo "# This controls how long warning popups are paused when user clicks pause button"
-    echo "# This is Enhancement #21 (One-Time Pause Feature)"
-    echo "# Note: Pause is ALWAYS limited to once per day (not configurable)"
     echo "PAUSE_DURATION=${pause_duration}"
+    echo "#"
+    echo "# PAUSE_COOLDOWN_HOURS: Minimum hours between pause activations (6, 8, 12, or 24)"
+    echo "# Default: 24 hours (matches prior once-per-calendar-day behavior when key is absent)"
+    echo "# After a pause ends, another pause cannot start until this cooldown elapses."
+    echo "PAUSE_COOLDOWN_HOURS=${pause_cooldown_hours}"
     echo "#"
     echo "# DIALOG_TOOL: Dialog tool selection for popup windows"
     echo "# Default: auto (uses automatic priority: YAD → Zenity → KDialog)"
@@ -614,12 +638,13 @@ write_config() {
     local uninstall_protection_mode="$8"
     local pause_enabled="${9:-true}"
     local pause_duration="${10:-5}"
-    local dialog_tool="${11:-auto}"
-    local config_lock_enabled="${12:-false}"
-    local popup_size_mode="${13:-fixed}"  # Enhancement #3: Size mode (fixed or display-based)
-    local popup_size_custom="${14:-50%x50%}"  # Enhancement #3: Custom size
-    local popup_size_custom_absolute="${15:-1280x720}"  # Enhancement #3: Absolute fallback
-    shift 15
+    local pause_cooldown_hours="${11:-24}"
+    local dialog_tool="${12:-auto}"
+    local config_lock_enabled="${13:-false}"
+    local popup_size_mode="${14:-fixed}"  # Enhancement #3: Size mode (fixed or display-based)
+    local popup_size_custom="${15:-50%x50%}"  # Enhancement #3: Custom size
+    local popup_size_custom_absolute="${16:-1280x720}"  # Enhancement #3: Absolute fallback
+    shift 16
     
     # Extract config_lines array, optional lock_hours_lines array, optional uninstall_lock_hours_lines array, and optional override flags
     # config_lines values are always "DAYVAR=RANGE" format (e.g., "MONDAY=0-5")
@@ -811,6 +836,7 @@ write_config() {
             "${uninstall_protection_mode}" \
             "${pause_enabled}" \
             "${pause_duration}" \
+            "${pause_cooldown_hours}" \
             "${dialog_tool}" \
             "${config_lock_enabled}" \
             "${popup_size_mode}" \

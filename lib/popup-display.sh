@@ -372,7 +372,7 @@ show_warning() {
     # Check if pause is available (Enhancement #21)
     local pause_available=false
     local pause_duration=""
-    if can_pause_today; then
+    if can_pause_now; then
         pause_available=true
         pause_duration=$(get_pause_duration)
     fi

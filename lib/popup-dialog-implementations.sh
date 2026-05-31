@@ -16,7 +16,7 @@
 # - It also expects functions from other modules to be available:
 #   - calculate_popup_geometry, reposition_popup_window, check_window_tools
 #   - log_to_file (optional but used in kdialog failure path)
-#   - pause-state helpers: can_pause_today, activate_pause, get_pause_end_timestamp
+#   - pause-state helpers: can_pause_now, activate_pause, get_pause_end_timestamp
 #   - pid management: cleanup_popup_pid (from popup-pid-management.sh)
 ###############################################################################
 
@@ -285,7 +285,7 @@ _popup_maybe_handle_pause_click() {
         kdialog)
             # Phase 4.2: --warningyesno exit code 0 = "Pause N min" button was clicked.
             # Use configured pause_duration from config rather than hardcoded 5/10.
-            if can_pause_today && [ ${popup_exit_code} -eq 0 ]; then
+            if can_pause_now && [ ${popup_exit_code} -eq 0 ]; then
                 if activate_pause "${pause_duration}"; then
                     local pause_end_timestamp
                     pause_end_timestamp=$(get_pause_end_timestamp)

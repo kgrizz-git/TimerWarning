@@ -1,243 +1,393 @@
 # Plan: Configurable Pause Cooldown and Duration
 
-## Overview
+Implements [TO_DO.md](../TO_DO.md) item **Configurable pause cooldown and duration**. Workspace copy with implementation todos: [`.cursor/plans/configurable_pause_cooldown_dfc6b7bb.plan.md`](../../.cursor/plans/configurable_pause_cooldown_dfc6b7bb.plan.md) — keep both files in sync.
 
-Enhancement #21 added a pause button on warning popups that suppresses popups for a short period. Today the **pause length** is partially configurable (5 or 10 minutes, default 5), but the **time between allowed pauses** is hardcoded as once per calendar day. This plan adds user-configurable pause cooldown (6, 12, or 24 hours, or pause disabled) and expands pause duration to **1, 2, 3, 5, 10, or 15 minutes**.
+**Related:** [enhancement-21-one-time-pause-feature.md](../enhancements/enhancement-21-one-time-pause-feature.md), [enhancement-21-pause-scope-clarification.md](../enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md), [docs/SAFETY.md](../../docs/SAFETY.md)
 
-**Related docs:**
-- [enhancement-21-one-time-pause-feature.md](../enhancements/enhancement-21-one-time-pause-feature.md)
-- [enhancement-21-pause-scope-clarification.md](../enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md)
-- [docs/SAFETY.md](../../docs/SAFETY.md) — partial-lock tighten-only rules during configure-block hours
+---
 
-## Goals
+## Problem
 
-1. **Pause on/off** — Keep `PAUSE_ENABLED=true|false` (disable pause entirely).
-2. **Configurable cooldown** — When pause is enabled, let the user choose minimum time between pause activations: **6, 12, or 24 hours** (replacing calendar-day once-per-day logic).
-3. **Configurable duration** — Expand `PAUSE_DURATION` allowlist to **1, 2, 3, 5, 10, or 15** minutes (default remains 5).
-4. **Configure wizard** — Single pause settings flow: enabled/disabled, cooldown hours, duration minutes.
-5. **Runtime enforcement** — Cooldown enforced in `lib/pause-state.sh`; popup buttons hidden when cooldown not elapsed.
-6. **Backward compatibility** — Existing installs with no `PAUSE_COOLDOWN_HOURS` behave like **24 hours** (closest to current once-per-day semantics).
+Enhancement #21 shipped pause as a popup-only quiet period, but cooldown is **not configurable**:
 
-## Current Behavior (as of 2026-05-31)
+| Layer | Today |
+|-------|-------|
+| Runtime | [`can_pause_today()`](../../lib/pause-state.sh) compares `LAST_PAUSE_DATE` to today's calendar date |
+| Config | No cooldown key; [`write_config`](../../lib/configure-config.sh) comments say "once per day (not configurable)" |
+| Wizard | [`get_pause_once_per_day_config()`](../../lib/configure-input-features.sh) exists but is **dead code** (not wired) |
+| Duration | Enum-locked to **5 or 10** min in `activate_pause()`, wizard, and config load |
 
-### Pause duration — not hardcoded to 5 minutes, but enum-locked
+Users cannot choose pause off, a shorter/longer gap between pauses, or shorter pause lengths.
 
-| Layer | Behavior |
-|-------|----------|
-| Default | `DEFAULT_PAUSE_DURATION=5` in `lib/config.sh` |
-| Config key | `PAUSE_DURATION=5` or `10` in `sleep-warning.conf` |
-| Configure wizard | User picks 5 or 10 via `get_pause_duration_config()` |
-| Popup UI | One button: `Pause ${pause_duration} min` (from config, not both options) |
-| Activation | `activate_pause()` rejects anything except 5 or 10 |
+---
 
-So pause length is **configurable but limited to two values**. Default is 5 minutes when unset.
+## Target behavior (confirmed)
 
-### Pause cooldown — hardcoded once per calendar day
+### Cooldown (`PAUSE_COOLDOWN_HOURS`)
 
-| Layer | Behavior |
-|-------|----------|
-| Runtime | `can_pause_today()` in `lib/pause-state.sh` compares `LAST_PAUSE_DATE` to today's date (`YYYY-MM-DD`) |
-| State file | `~/.config/sleep-warning/.pause_state` stores `LAST_PAUSE_DATE` + `PAUSE_END_TIMESTAMP` |
-| Config | **No config key** — once-per-day is always enforced |
-| Dead code | `get_pause_once_per_day_config()` exists in `lib/configure-input-features.sh` but is **not wired** to config write or runtime (removed from enhancement-21 implementation) |
-
-### Scope unchanged
-
-Pause still **only suppresses warning popups**. It does not affect `configure.sh` blocking, uninstall protection, or restriction-hour math. See [pause scope clarification](../enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md).
-
-## Proposed Configuration
-
-### New key: `PAUSE_COOLDOWN_HOURS`
-
-```bash
-# PAUSE_COOLDOWN_HOURS: Minimum hours between pause activations (6, 12, or 24)
-# Only applies when PAUSE_ENABLED=true
-# Default: 24 (backward-compatible with prior once-per-day behavior)
-# Cooldown is measured from last activation timestamp, not calendar midnight
-PAUSE_COOLDOWN_HOURS=24
-```
+When `PAUSE_ENABLED=true`, minimum time **between pause activations**:
 
 | Value | Meaning |
 |-------|---------|
-| *(n/a when `PAUSE_ENABLED=false`)* | Pause feature off — no pause button |
-| `6` | User may activate pause again 6 hours after the previous activation |
-| `12` | User may activate pause again 12 hours after the previous activation |
-| `24` | User may activate pause again 24 hours after the previous activation |
+| `6` | Next pause allowed 6 hours after last activation |
+| `8` | Next pause allowed 8 hours after last activation |
+| `12` | Next pause allowed 12 hours after last activation |
+| `24` | Next pause allowed 24 hours after last activation (default; closest to legacy once-per-day) |
 
-**Not in scope (unless explicitly requested later):** unlimited pauses (cooldown `0`), per-day cap separate from cooldown, or sub-hour cooldowns.
+When `PAUSE_ENABLED=false`: no pause button anywhere.
 
-### Existing keys (unchanged semantics, expanded validation)
+**Not in scope:** cooldown `0` (unlimited), sub-hour cooldowns, separate per-day cap beyond cooldown.
 
-```bash
-PAUSE_ENABLED=true|false          # default: true
-PAUSE_DURATION=1|2|3|5|10|15      # default: 5
+### Duration (`PAUSE_DURATION`)
+
+Expand allowlist to **1, 2, 3, 5, 10, 15** minutes (default **5**).
+
+### Scope unchanged
+
+Pause still **only suppresses warning popups** — not configure-block, uninstall protection, or restriction-hour math ([pause scope doc](../enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md)).
+
+```mermaid
+flowchart TD
+  popup[Warning popup shown] --> canPause{can_pause_now?}
+  canPause -->|PAUSE_ENABLED false| noBtn[Hide pause button]
+  canPause -->|is_pause_active| noBtn
+  canPause -->|cooldown not elapsed| noBtn
+  canPause -->|yes| showBtn["Show Pause N min button"]
+  showBtn --> click[User clicks pause]
+  click --> activate[activate_pause duration]
+  activate --> state["Write .pause_state timestamps"]
+  state --> suppress[sleep-warning skips show_warning until PAUSE_END_TIMESTAMP]
 ```
 
-### State file format (extended)
+---
+
+## Configuration schema
+
+### New / updated keys in `sleep-warning.conf`
 
 ```bash
-# ~/.config/sleep-warning/.pause_state
-PAUSE_END_TIMESTAMP=<unix_epoch>       # when current pause expires (unchanged)
-LAST_PAUSE_TIMESTAMP=<unix_epoch>      # when user last clicked pause (NEW — replaces date-only tracking)
-LAST_PAUSE_DATE=YYYY-MM-DD             # kept for migration / logging; optional after migration
+PAUSE_ENABLED=true|false              # default: true
+PAUSE_COOLDOWN_HOURS=6|8|12|24        # default: 24 (new)
+PAUSE_DURATION=1|2|3|5|10|15          # default: 5 (expanded allowlist)
 ```
 
-On activation, write both `LAST_PAUSE_TIMESTAMP` and `LAST_PAUSE_DATE`. Cooldown checks use `LAST_PAUSE_TIMESTAMP` only.
+### Shared validation helpers (single source of truth)
 
-**Migration:** If `LAST_PAUSE_TIMESTAMP` is missing but `LAST_PAUSE_DATE` is today, treat last activation as start of that calendar day (conservative — user waits until cooldown from midnight). If `LAST_PAUSE_DATE` is a prior day, no cooldown block.
+Add to [`lib/pause-state.sh`](../../lib/pause-state.sh) or [`lib/config.sh`](../../lib/config.sh):
 
-## Duration Expansion (Phase 6)
+- `pause_is_valid_cooldown_hours N` — allowlist `{6,8,12,24}`
+- `pause_is_valid_duration_minutes N` — allowlist `{1,2,3,5,10,15}`
 
-Current allowlist: **5, 10** minutes everywhere (`activate_pause`, configure, partial lock).
+Getters:
 
-**Target allowlist:** **1, 2, 3, 5, 10, 15** minutes.
+- `get_pause_cooldown_hours()` — invalid/missing → `24`
+- Update `get_pause_duration()` — use shared duration allowlist; invalid → `5`
 
-| Value | Role |
-|-------|------|
-| 1, 2, 3 | Short “finish this one thing” breaks; more restrictive default options for users who want minimal popup suppression |
-| 5, 10 | Existing choices (5 remains default) |
-| 15 | Longest allowed pause — still a brief exception window, not a hours-long bypass |
+Legacy: `get_check_interval()` delegation is unrelated; leave as-is.
 
-**Design constraints:**
-- **Enum only** — no free-form minutes; validate in `activate_pause()`, config load, configure save, and partial lock.
-- **Partial lock** — longer duration = more permissive → blocked during configure-block hours unless baseline already allowed that value; shorter duration = tighten-only (allowed).
-- **Popup safety** — pause duration is independent of popup min-display / watchdog; no change to [docs/SAFETY.md](../../docs/SAFETY.md) popup lifetime invariant.
-- **Invalid legacy values** — if config has a value outside the allowlist (e.g. manual edit), fall back to **5** and log a warning (same pattern as other enum config keys).
+---
 
-**Shared validation helper (recommended):** `pause_is_valid_duration_minutes N` in `lib/pause-state.sh` or `lib/config.sh` — single source for allowlist `{1,2,3,5,10,15}` used by runtime, wizard, and tests.
+## State file changes
 
-## User Experience
+**Path:** `~/.config/sleep-warning/.pause_state` (unchanged)
 
-### Configure wizard (menu item 10 today)
+```bash
+PAUSE_END_TIMESTAMP=<unix_epoch>      # active pause expiry (unchanged)
+LAST_PAUSE_TIMESTAMP=<unix_epoch>     # NEW — when user last clicked pause
+LAST_PAUSE_DATE=YYYY-MM-DD            # kept for migration / display
+```
 
-Replace “Enable pause and configure duration” with a small sub-flow:
+### `activate_pause()` writes
 
-1. **Enable pause?** (`PAUSE_ENABLED`) — yes / no  
-2. If yes → **Cooldown between pauses:** 6 h / 12 h / 24 h (`PAUSE_COOLDOWN_HOURS`)  
-3. If yes → **Pause length:** 1 / 2 / 3 / 5 / 10 / 15 min (`PAUSE_DURATION`)
+On success, atomically write all three fields; set mode `0600`.
 
-Status line example: `[Enabled, 5 min, cooldown 12 h]`
+### `check_and_clear_expired_pause()` retention
 
-### Warning popup
+When `PAUSE_END_TIMESTAMP` expires, clear only that field but **retain** `LAST_PAUSE_TIMESTAMP` and `LAST_PAUSE_DATE` (mirror current `LAST_PAUSE_DATE` retention logic at lines 224–247 of [`lib/pause-state.sh`](../../lib/pause-state.sh)).
 
-- Show pause button only when `PAUSE_ENABLED=true` **and** cooldown elapsed **and** not currently in an active pause (`can_pause_now()` — new helper, replaces misleading `can_pause_today()` name).
-- Button label unchanged: `Pause ${pause_duration} min`.
-- If cooldown not elapsed: hide pause button (same as today when “already used today”).
+**All state-file rewrite paths** must preserve `LAST_PAUSE_TIMESTAMP` whenever `LAST_PAUSE_DATE` is kept — not only the expiry path:
 
-### manage.sh / status.sh
+| Path in `check_and_clear_expired_pause()` | Today | Required after change |
+|-------------------------------------------|-------|------------------------|
+| Invalid `PAUSE_END_TIMESTAMP` | Keeps `LAST_PAUSE_DATE` only | Keep **both** `LAST_PAUSE_DATE` and `LAST_PAUSE_TIMESTAMP` |
+| Expired pause | Keeps `LAST_PAUSE_DATE` only | Keep **both** timestamps/date |
+| Invalid/missing `LAST_PAUSE_DATE` | Removes entire file | Unchanged |
 
-Display:
-- Pause enabled / disabled
-- Configured duration and cooldown
-- Active pause until `HH:MM` if applicable
-- Next pause available at `HH:MM` if cooldown blocking
+Add helper `_pause_state_write_retained_fields()` (or equivalent) to avoid drift between rewrite paths.
 
-## Safety Assessment
+### Migration (upgrade path)
+
+| Existing state | Behavior |
+|----------------|----------|
+| No `PAUSE_COOLDOWN_HOURS` in config | Default **24** h |
+| Only `LAST_PAUSE_DATE` (no `LAST_PAUSE_TIMESTAMP`) | If date is **today**: treat last activation as **00:00 local** that day (conservative — user waits longer). If prior day: no cooldown block |
+| Invalid manual cooldown (e.g. `7`) | Fall back to **24**, log warning |
+| Invalid manual duration | Fall back to **5**, log warning |
+
+---
+
+## Core runtime logic ([`lib/pause-state.sh`](../../lib/pause-state.sh))
+
+### New: `get_last_pause_timestamp()`
+
+Read/validate numeric `LAST_PAUSE_TIMESTAMP` from state file.
+
+### New: `can_pause_now()` (primary API)
+
+Return **0** (may pause) only when ALL true:
+
+1. `get_pause_enabled` → `true`
+2. `is_pause_active` → false
+3. `now - get_last_pause_timestamp >= get_pause_cooldown_hours * 3600` (or no prior timestamp)
+
+Return **1** otherwise.
+
+### New: `get_next_pause_available_timestamp()` (recommended)
+
+Returns Unix epoch when cooldown ends, or empty if pause available now. Used by `status.sh` / `manage.sh`.
+
+### Replace `can_pause_today()`
+
+Implement as thin wrapper calling `can_pause_now()` (keep name for backward compatibility; update docstring — no longer calendar-day logic).
+
+### Update `activate_pause()` — defense in depth
+
+UI gating via `can_pause_now()` is necessary but not sufficient. **`activate_pause()` must re-check before writing state** (protects double-clicks, kdialog late paths, manual invocation):
+
+1. Reject (return 1, log) if `get_pause_enabled` is not `true`
+2. Reject if `is_pause_active` (already in a pause window)
+3. Reject if cooldown not elapsed (same math as `can_pause_now()` — use shared helper e.g. `_pause_cooldown_elapsed`)
+4. Validate duration via `pause_is_valid_duration_minutes`
+5. On success: write `LAST_PAUSE_TIMESTAMP=$(date +%s)`, `PAUSE_END_TIMESTAMP`, `LAST_PAUSE_DATE`; mode `0600`
+6. Log duration, cooldown hours, and expiry time
+
+---
+
+## Config load / write ([`lib/configure-config.sh`](../../lib/configure-config.sh))
+
+### `load_existing_config`
+
+- Add global `pause_cooldown_hours` default `24`
+- Read `PAUSE_COOLDOWN_HOURS` with allowlist validation
+- Expand `pause_duration` load to full allowlist `{1,2,3,5,10,15}`
+
+### `write_config` signature change
+
+Insert **`pause_cooldown_hours` as `$11`**; shift subsequent positional args by one:
+
+| Old | New |
+|-----|-----|
+| `$11` dialog_tool | `$12` dialog_tool |
+| `$12` config_lock_enabled | `$13` |
+| ... | ... |
+| `shift 15` | `shift 16` |
+
+**Backward compatibility in `write_config()`:**
+
+```bash
+local pause_cooldown_hours="${11:-24}"   # new; default 24 if omitted
+local dialog_tool="${12:-auto}"          # was $11
+# ... shift 16 ...
+```
+
+**Mechanical audit — insert `"24"` (or test value) after `pause_duration` in every caller:**
+
+- [`configure.sh`](../../configure.sh) — `declare -g pause_cooldown_hours`, menu case `10)` sub-flow, `write_config` call
+- [`tests/test-atomic-write.sh`](../../tests/test-atomic-write.sh)
+- [`tests/test-write-config-override-flags.sh`](../../tests/test-write-config-override-flags.sh)
+- [`tests/test-enhancement-03-wizard.sh`](../../tests/test-enhancement-03-wizard.sh)
+- [`tests/test-enhancement-03-integration.sh`](../../tests/test-enhancement-03-integration.sh)
+- [`tests/test-auto-close-popup.sh`](../../tests/test-auto-close-popup.sh) (if it invokes `write_config` with full positional args)
+
+**Partial-lock test fixture:** add `pause_cooldown_hours=24` to globals in [`tests/test-configure-partial-lock.sh`](../../tests/test-configure-partial-lock.sh).
+
+**Install defaults:** `install.sh` does not write pause keys today; **`get_pause_cooldown_hours()` default 24** is sufficient until first configure save — no install.sh change required unless we want keys visible in a fresh conf template.
+
+### `_write_config_header` comments
+
+Replace "once per day" prose with cooldown explanation; document `PAUSE_COOLDOWN_HOURS` and expanded `PAUSE_DURATION` values.
+
+---
+
+## Configure wizard
+
+### Menu item 10 sub-flow ([`configure.sh`](../../configure.sh) case `10)`)
+
+1. `get_pause_enabled_config` (existing; update copy — remove "5 or 10 only" / "once per day")
+2. If enabled → **new** `get_pause_cooldown_hours_config(use_gui)` — list `6`, `8`, `12`, `24` with brief descriptions
+3. If enabled → `get_pause_duration_config` — list `1`, `2`, `3`, `5`, `10`, `15`
+
+Skip cooldown/duration prompts when user disables pause (still save `PAUSE_ENABLED=false`; cooldown/duration can remain in file — prefer **keep last values** for re-enable).
+
+### New function: `get_pause_cooldown_hours_config`
+
+In [`lib/configure-input-features.sh`](../../lib/configure-input-features.sh):
+
+- GUI: `show_list_dialog` with four options
+- Text: numbered menu
+- Partial-lock guard via `configure_partial_lock_reject_scalar_change "pause_cooldown_hours" ...`
+
+### Update existing pause prompts
+
+- [`get_pause_enabled_config`](../../lib/configure-input-features.sh) — text mentions configurable cooldown + duration
+- [`get_pause_duration_config`](../../lib/configure-input-features.sh) — six duration options; partial-lock guard unchanged pattern
+
+### Delete dead code
+
+Remove **`get_pause_once_per_day_config()`** entirely (lines ~543–619) — avoids competing cooldown UI. Grep confirms it is not called from [`configure.sh`](../../configure.sh).
+
+### Menu status ([`lib/configure-display.sh`](../../lib/configure-display.sh))
+
+**Signature ripple** — `show_main_menu()` gains a `pause_cooldown_hours` parameter (after `pause_duration`, before `dialog_tool_status`):
+
+- Update [`show_main_menu()`](../../lib/configure-display.sh) — both GUI and text branches for menu item 10
+- Update sole caller: [`configure.sh`](../../configure.sh) line ~301 — pass `"${pause_cooldown_hours}"`
+- Status example: `[Enabled, 5 min, cooldown 12 h]` vs `[Disabled]`
+- macOS configure uses same `show_list_dialog` / daemon path — no separate cooldown UI needed
+
+---
+
+## Partial configure lock ([`lib/configure-partial-lock.sh`](../../lib/configure-partial-lock.sh))
+
+Per [docs/SAFETY.md](../../docs/SAFETY.md): shorter cooldown = **more permissive** (more pauses).
+
+| Change during lock hours | Allowed? |
+|--------------------------|----------|
+| `PAUSE_ENABLED` false → true | No (existing) |
+| `PAUSE_DURATION` increase (5 → 15) | No (existing) |
+| `PAUSE_COOLDOWN_HOURS` decrease (24 → 6) | **No** (new) |
+| Disable pause, shorten duration, **increase** cooldown (6 → 24) | Yes (tighten) |
+
+Implementation:
+
+- `_baseline_pause_cooldown_hours` in `configure_partial_lock_capture_baseline`
+- `configure_partial_lock_validate_scalar` case `PAUSE_COOLDOWN_HOURS|pause_cooldown_hours`: reject if `new_val < old_val`
+- **`configure_partial_lock_reject_scalar_change`** — add field-specific message in the `case "${field}"` block (lines ~364–369):
+  - `pause_cooldown_hours|PAUSE_COOLDOWN_HOURS` → `"Cannot shorten pause cooldown during lock hours."`
+- `configure_partial_lock_validate_proposed` — add validation error string if cooldown loosening attempted on save
+
+---
+
+## Popup and entrypoints
+
+Replace `can_pause_today` calls with `can_pause_now` (or keep wrapper — behavior must use timestamp cooldown):
+
+| File | Change |
+|------|--------|
+| [`lib/popup-display.sh`](../../lib/popup-display.sh) | Pause button availability |
+| [`lib/popup-display-darwin.sh`](../../lib/popup-display-darwin.sh) | Same |
+| [`lib/popup-dialog-implementations.sh`](../../lib/popup-dialog-implementations.sh) | kdialog path line ~288 |
+| [`manage.sh`](../../manage.sh) `view_pause_status` | Distinct states (see below); remove "Once Per Day: Always Enabled" |
+| [`status.sh`](../../status.sh) | Same distinct states; use getters not raw `grep` |
+
+**Status UX — three distinct states** (replace "Pause Available Today: Yes/No"):
+
+| State | Display |
+|-------|---------|
+| Pause **active** | `Active until HH:MM` (from `PAUSE_END_TIMESTAMP`) |
+| Pause **inactive**, cooldown **blocking** | `Next pause available at HH:MM` (from `get_next_pause_available_timestamp()`) |
+| Pause **available** | `Pause available now` |
+
+Always show configured **cooldown hours** and **duration**. Use `get_pause_cooldown_hours()` / `get_pause_duration()` instead of raw `grep` where feasible.
+
+[`sleep-warning.sh`](../../sleep-warning.sh) — no change: already skips popup when `is_pause_active`; cooldown gating is only for showing the pause **button**, not for restriction checks.
+
+---
+
+## Safety assessment
 
 | Invariant | Impact |
 |-----------|--------|
-| Per-day 16 h cap | **None** — pause does not change restriction/configure/uninstall hour sets |
-| Popups must always end | **None** — pause shortens how often popups appear; popup watchdog unchanged |
-| Escape hatch | **None** — `launchctl bootout` / `systemctl --user stop` / uninstall path unchanged |
-| Partial configure lock | **Apply tighten-only rules:** during lock hours, user may disable pause or **decrease** cooldown hours / duration; may **not** enable pause, **increase** cooldown interval (more pauses), or **increase** duration |
+| Per-day 16 h cap | None — pause does not alter restriction/configure/uninstall hour sets |
+| Popups must always end | None — pause suppresses spawn frequency; watchdog unchanged |
+| Escape hatch | None — `launchctl bootout` / `systemctl --user stop` / uninstall path unchanged |
+| Partial lock tighten-only | New cooldown rule as above |
 
-Pause remains a popup-only “quiet period,” not a restriction release. Shorter cooldown (6 h vs 24 h) is more permissive and should be blocked during partial lock unless baseline already allowed it.
+Tamper note: user can delete `.pause_state` — existing acceptable behavior for self-control tooling.
 
-**Abuse note:** Cooldown is enforced via state file; a determined user can delete `.pause_state`. That is existing behavior for once-per-day and is acceptable — the product goal is self-control aid, not tamper-proof lockout.
+**Clock skew (known limitation):** system clock moved backward could allow an early pause; forward could extend cooldown. Acceptable for self-control tooling — document in enhancement-21 docs, no special NTP handling.
 
-## Implementation Plan
+**Uninstall:** [`uninstall.sh`](../../uninstall.sh) already removes `.pause_state` — no change required.
 
-### Phase 1 — Config and getters
+---
 
-**Files:** `lib/config.sh`, `lib/configure-config.sh`
+## Tests
 
-- [ ] Add `DEFAULT_PAUSE_COOLDOWN_HOURS=24`
-- [ ] Add `get_pause_cooldown_hours()` — returns `6`, `12`, or `24`; invalid/missing → `24`
-- [ ] Read/write `PAUSE_COOLDOWN_HOURS` in `load_existing_config` / `write_config`
-- [ ] Validate on save: must be 6, 12, or 24 when `PAUSE_ENABLED=true`
+### Required test matrix
 
-### Phase 2 — Pause state logic
+| # | Case | Expected |
+|---|------|----------|
+| 1 | No prior pause | `can_pause_now` → true (when enabled) |
+| 2 | Just activated | `can_pause_now` → false; `is_pause_active` → true |
+| 3 | Pause **expired**, cooldown **not** elapsed | `can_pause_now` → false; `is_pause_active` → false |
+| 4 | Cooldown elapsed, no active pause | `can_pause_now` → true |
+| 5 | Each cooldown value 6, 8, 12, 24 | Blocks until `LAST_PAUSE_TIMESTAMP + N*3600` |
+| 6 | `activate_pause` when cooldown blocking | Returns 1; state unchanged |
+| 7 | `activate_pause` when already active | Returns 1 |
+| 8 | `LAST_PAUSE_TIMESTAMP` written on activation | Grep state file |
+| 9 | `check_and_clear_expired_pause` after expiry | Removes `PAUSE_END_TIMESTAMP`; keeps `LAST_PAUSE_TIMESTAMP` + `LAST_PAUSE_DATE` |
+| 10 | Invalid timestamp recovery path | Keeps `LAST_PAUSE_TIMESTAMP` + `LAST_PAUSE_DATE` |
+| 11 | Migration: `LAST_PAUSE_DATE`-only (today) | Conservative cooldown from midnight |
+| 12 | Migration: `LAST_PAUSE_DATE`-only (prior day) | No cooldown block |
+| 13 | Duration 1, 3, 15 min | Activation + end timestamp math |
+| 14 | Invalid duration / cooldown in config | Fallback to 5 / 24 |
+| 15 | `PAUSE_ENABLED=false` | No pause available |
+| 16 | Partial lock: 24 → 6 cooldown | Rejected |
+| 17 | Partial lock: 6 → 24 cooldown | Allowed |
+| 18 | Duration 1 min with short min-display | Sanity — pause still activates (independent of popup watchdog) |
 
-**Files:** `lib/pause-state.sh`
+Implement in [`tests/test-pause-feature.sh`](../../tests/test-pause-feature.sh) (cases 1–15, 18) and [`tests/test-configure-partial-lock.sh`](../../tests/test-configure-partial-lock.sh) or [`tests/test-configure-blocking.sh`](../../tests/test-configure-blocking.sh) (cases 16–17).
 
-- [ ] Rename or wrap: `can_pause_now()` (public) replacing `can_pause_today()` semantics:
-  - Return false if `PAUSE_ENABLED=false`
-  - Return false if `is_pause_active`
-  - Return false if `now - LAST_PAUSE_TIMESTAMP < PAUSE_COOLDOWN_HOURS * 3600`
-  - Return true otherwise
-- [ ] Add `get_last_pause_timestamp()` reader
-- [ ] Update `activate_pause()` to write `LAST_PAUSE_TIMESTAMP=$(date +%s)`
-- [ ] Update `check_and_clear_expired_pause()` to retain `LAST_PAUSE_TIMESTAMP` when clearing expired `PAUSE_END_TIMESTAMP` (mirror current `LAST_PAUSE_DATE` retention)
-- [ ] Migration helper: populate `LAST_PAUSE_TIMESTAMP` from `LAST_PAUSE_DATE` when missing
+Rename/extend section "Test 5" from calendar-day semantics to cooldown semantics.
 
-### Phase 3 — Configure wizard
+Use temp `HOME` / `TEST_CONFIG_DIR`; do not touch installed config during restricted hours.
 
-**Files:** `lib/configure-input-features.sh`, `lib/configure-display.sh`, `configure.sh` (orchestration)
+### Regression
 
-- [ ] Add `get_pause_cooldown_hours_config(use_gui)`
-- [ ] Wire sub-flow after `get_pause_enabled_config` / `get_pause_duration_config`
-- [ ] Update menu status strings (GUI + text)
-- [ ] Remove or repurpose dead `get_pause_once_per_day_config()` — **delete** if unused (avoid two competing cooldown UIs)
-- [ ] Partial lock baselines in `lib/configure-partial-lock.sh`:
-  - `_baseline_pause_cooldown_hours`
-  - Validate: cannot **decrease** cooldown hours (e.g. 24 → 6) during lock hours
-  - Validate: cannot enable pause or increase duration (existing)
+```bash
+bash tests/test-pause-feature.sh
+bash tests/test-configure-partial-lock.sh
+bash tests/test-popup-safety-darwin.sh
+bash tests/test-platform-darwin.sh
+```
 
-### Phase 4 — Popup and entrypoints
+---
 
-**Files:** `lib/popup-display.sh`, `lib/popup-display-darwin.sh`, `lib/popup-dialog-implementations*.sh`, `sleep-warning.sh`, `manage.sh`, `status.sh`
+## Documentation and release
 
-- [ ] Replace `can_pause_today` calls with `can_pause_now`
-- [ ] Optional: `get_next_pause_available_time()` for status display
+- Keep this file in sync with [`.cursor/plans/configurable_pause_cooldown_dfc6b7bb.plan.md`](../../.cursor/plans/configurable_pause_cooldown_dfc6b7bb.plan.md)
+- Update [TO_DO.md](../TO_DO.md) line 27 — `N = 6, 8, 12, 24` (currently says `6, 12, 24`)
+- Update [enhancement-21-one-time-pause-feature.md](../enhancements/enhancement-21-one-time-pause-feature.md) — remove "always once per day"
+- [CHANGELOG.md](../../CHANGELOG.md) — Unreleased **Added** (configurable cooldown + duration options)
+- User docs ([user-docs/CONFIGURATION.md](../../user-docs/CONFIGURATION.md), [user-docs/MACOS.md](../../user-docs/MACOS.md)) if pause section exists
 
-### Phase 5 — Tests and docs
+---
 
-- [ ] Extend `tests/test-pause-feature.sh`:
-  - Cooldown 6/12/24 blocks re-pause until elapsed
-  - Migration from `LAST_PAUSE_DATE`-only state file
-  - `PAUSE_ENABLED=false` hides pause
-- [ ] Partial lock test cases in `tests/test-configure-partial-lock.sh`
-- [ ] Update [enhancement-21-one-time-pause-feature.md](../enhancements/enhancement-21-one-time-pause-feature.md) — cooldown replaces “always once per day”
-- [ ] Update [user-docs/MACOS.md](../../user-docs/MACOS.md) / Linux user docs if pause section exists
-- [ ] CHANGELOG entry under “Unreleased”
+## Implementation order
 
-### Phase 6 — Duration allowlist expansion
+1. **Validation helpers + getters** — `lib/config.sh`, constants
+2. **Pause state core** — `lib/pause-state.sh` (`can_pause_now`, timestamps, migration, defense-in-depth `activate_pause`, all retention paths)
+3. **Config I/O** — `lib/configure-config.sh` load/write + signature shift + caller audit
+4. **Wizard** — `configure-input-features.sh`, `configure-display.sh`, `configure.sh`; delete dead once-per-day UI
+5. **Partial lock** — `lib/configure-partial-lock.sh`
+6. **Status/popup wiring** — popup-display*, manage.sh, status.sh, popup-dialog-implementations.sh
+7. **Tests + docs + CHANGELOG**
 
-**Files:** `lib/pause-state.sh`, `lib/config.sh`, `lib/configure-config.sh`, `lib/configure-input-features.sh`, `lib/configure-partial-lock.sh`
+---
 
-- [ ] Add `pause_is_valid_duration_minutes` (or equivalent) — allowlist **1, 2, 3, 5, 10, 15**
-- [ ] Update `activate_pause()` validation and error messages
-- [ ] Update `get_pause_duration()` / config load in `lib/configure-config.sh` — reject invalid values → default 5
-- [ ] Update `get_pause_duration_config()` wizard list (GUI + text) with all six options and short descriptions
-- [ ] Update `write_config` comments for `PAUSE_DURATION`
-- [ ] Partial lock: treat duration as ordered allowlist index or numeric minutes for tighten-only compare
-- [ ] Extend `tests/test-pause-feature.sh` — activation and timestamp math for 1, 2, 3, and 15 min; invalid value fallback
+## Acceptance criteria
 
-## Backward Compatibility
-
-| Scenario | Behavior |
-|----------|----------|
-| No `PAUSE_COOLDOWN_HOURS` in config | Default **24** — approximates once-per-day |
-| Existing `.pause_state` with only `LAST_PAUSE_DATE` | Migration on read (see §State file format) |
-| `PAUSE_ENABLED=false` | Unchanged — no pause button |
-| Manual `PAUSE_DURATION=5` or `10` | Unchanged |
-| Manual `PAUSE_DURATION` outside allowlist | Fall back to **5** on read |
-
-## Open Questions
-
-1. **Default cooldown for new installs:** 24 h (recommended) vs 12 h?
-2. **kdialog / osascript UX:** Any extra copy when cooldown active (“Pause available again at …”) — status only, or also in popup footer?
-
-## Acceptance Criteria
-
-- [ ] User can disable pause entirely (`PAUSE_ENABLED=false`).
-- [ ] User can set cooldown to 6, 12, or 24 hours when pause is enabled.
-- [ ] Pause button appears only when cooldown has elapsed and no active pause.
-- [ ] Pause duration respects config — any of **1, 2, 3, 5, 10, 15** minutes; default 5.
-- [ ] Upgraded configs without new key behave as ~once per 24 hours.
-- [ ] Partial lock prevents loosening pause settings during configure-block hours.
-- [ ] `bash tests/test-pause-feature.sh` passes; partial-lock tests updated.
-- [ ] SAFETY.md checklist unchanged for the three invariants.
+- User can disable pause (`PAUSE_ENABLED=false`)
+- User can set cooldown to **6, 8, 12, or 24** hours when pause enabled
+- User can set duration to **1, 2, 3, 5, 10, or 15** minutes
+- Pause button hidden when cooldown not elapsed or pause active
+- Upgraded configs without `PAUSE_COOLDOWN_HOURS` behave as ~24 h cooldown
+- Partial lock blocks shortening cooldown and other existing pause loosening
+- `activate_pause()` rejects when cooldown active or pause already active (defense in depth)
+- All `check_and_clear_expired_pause()` rewrite paths preserve `LAST_PAUSE_TIMESTAMP`
+- Status/manage show three distinct pause states (active / cooldown / available)
+- `bash tests/test-pause-feature.sh` passes; partial-lock cooldown cases pass
+- SAFETY.md three invariants unchanged
 
 ---
 

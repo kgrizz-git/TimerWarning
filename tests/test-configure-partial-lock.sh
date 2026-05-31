@@ -62,6 +62,9 @@ assert_rc "disable configure block blocked" 1 configure_partial_lock_validate_sc
 assert_rc "enable configure block OK" 0 configure_partial_lock_validate_scalar configure_block_enabled false true
 assert_rc "auto-close toggle either way OK" 0 configure_partial_lock_validate_scalar POPUP_AUTO_CLOSE true false
 assert_rc "auto-close enable OK" 0 configure_partial_lock_validate_scalar POPUP_AUTO_CLOSE false true
+assert_rc "higher pause duration blocked" 1 configure_partial_lock_validate_scalar pause_duration 5 10
+assert_rc "longer pause cooldown OK" 0 configure_partial_lock_validate_scalar pause_cooldown_hours 24 24
+assert_rc "shorter pause cooldown blocked" 1 configure_partial_lock_validate_scalar pause_cooldown_hours 24 6
 
 echo ""
 echo "=== configure_partial_lock_validate_proposed ==="
@@ -84,6 +87,7 @@ config_lock_enabled=false
 uninstall_protection_mode=difficult
 pause_enabled=true
 pause_duration=5
+pause_cooldown_hours=24
 popup_size=medium
 popup_size_mode=fixed
 popup_size_custom="50%x50%"
@@ -122,6 +126,29 @@ if [ -n "${errors}" ]; then
     _pass "edit Monday range blocked"
 else
     _fail "edit Monday range should be blocked"
+fi
+
+_configure_partial_lock_reset_session
+pause_cooldown_hours=12
+errors=$(configure_partial_lock_validate_proposed)
+if [ -n "${errors}" ]; then
+    _pass "shorten pause cooldown blocked"
+else
+    _fail "shorten pause cooldown should be blocked"
+fi
+
+_configure_partial_lock_reset_session
+pause_cooldown_hours=24
+errors=$(configure_partial_lock_validate_proposed)
+assert_eq "same pause cooldown OK" "" "${errors}"
+
+_configure_partial_lock_reset_session
+pause_duration=10
+errors=$(configure_partial_lock_validate_proposed)
+if [ -n "${errors}" ]; then
+    _pass "increase pause duration blocked"
+else
+    _fail "increase pause duration should be blocked"
 fi
 
 echo ""

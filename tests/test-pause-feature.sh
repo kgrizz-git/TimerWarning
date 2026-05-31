@@ -3,11 +3,11 @@
 ###############################################################################
 # Sleep Warning System - Pause Feature Test Suite
 #
-# This script tests the one-time pause feature (Enhancement #21) to ensure:
-# - Pause state file creation and reading
-# - Pause activation with 5 and 10 minute durations
-# - Pause expiration and auto-clearing
-# - Once-per-day limit enforcement (always enforced)
+# This script tests the pause feature (Enhancement #21) including:
+# - Pause state file creation and reading (including LAST_PAUSE_TIMESTAMP)
+# - Pause activation with configured duration allowlist
+# - Cooldown enforcement via can_pause_now()
+# - Pause expiration and auto-clearing while retaining cooldown fields
 # - Edge cases (corrupted files, missing files, invalid format)
 #
 # Usage: ./tests/test-pause-feature.sh
@@ -99,6 +99,7 @@ CONFIGURE_BLOCK_ENABLED=false
 UNINSTALL_PROTECTION_MODE=none
 PAUSE_ENABLED=true
 PAUSE_DURATION=5
+PAUSE_COOLDOWN_HOURS=24
 EOF
     
     # Source lib modules (must set CONFIG_DIR before sourcing)
@@ -146,7 +147,8 @@ test_pause_state_file_creation() {
         
         # Check file content format
         if grep -qE "^PAUSE_END_TIMESTAMP=[0-9]+$" "${TEST_PAUSE_STATE_FILE}" && \
-           grep -qE "^LAST_PAUSE_DATE=[0-9]{4}-[0-9]{2}-[0-9]{2}$" "${TEST_PAUSE_STATE_FILE}"; then
+           grep -qE "^LAST_PAUSE_DATE=[0-9]{4}-[0-9]{2}-[0-9]{2}$" "${TEST_PAUSE_STATE_FILE}" && \
+           grep -qE "^LAST_PAUSE_TIMESTAMP=[0-9]+$" "${TEST_PAUSE_STATE_FILE}"; then
             print_test_result "Pause state file has correct format" "PASS"
         else
             print_test_result "Pause state file has correct format" "FAIL"
@@ -205,8 +207,26 @@ test_pause_activation_durations() {
     # Clean up any existing state file
     rm -f "${TEST_PAUSE_STATE_FILE}"
     
+    local minutes current_time end_timestamp expected_end diff
+    for minutes in 1 2 3; do
+        rm -f "${TEST_PAUSE_STATE_FILE}"
+        current_time=$(date +%s)
+        if activate_pause "${minutes}"; then
+            end_timestamp=$(get_pause_end_timestamp)
+            expected_end=$((current_time + minutes * 60))
+            diff=$((end_timestamp - expected_end))
+            if [ ${diff} -ge -5 ] && [ ${diff} -le 5 ]; then
+                print_test_result "${minutes} minute pause sets correct end timestamp" "PASS"
+            else
+                print_test_result "${minutes} minute pause sets correct end timestamp" "FAIL"
+            fi
+        else
+            print_test_result "${minutes} minute pause activation" "FAIL"
+        fi
+    done
+    
     # Test 5 minute pause
-    local current_time
+    rm -f "${TEST_PAUSE_STATE_FILE}"
     current_time=$(date +%s)
     if activate_pause 5; then
         local end_timestamp
@@ -227,6 +247,7 @@ test_pause_activation_durations() {
     rm -f "${TEST_PAUSE_STATE_FILE}"
     
     # Test 10 minute pause
+    rm -f "${TEST_PAUSE_STATE_FILE}"
     current_time=$(date +%s)
     if activate_pause 10; then
         local end_timestamp
@@ -243,11 +264,30 @@ test_pause_activation_durations() {
         print_test_result "10 minute pause activation" "FAIL"
     fi
     
-    # Test invalid duration
-    if activate_pause 15 2>/dev/null; then
-        print_test_result "Invalid duration (15 min) is rejected" "FAIL"
+    rm -f "${TEST_PAUSE_STATE_FILE}"
+    
+    # Test 15 minute pause (expanded allowlist)
+    current_time=$(date +%s)
+    if activate_pause 15; then
+        local end_timestamp
+        end_timestamp=$(get_pause_end_timestamp)
+        local expected_end=$((current_time + 900))
+        local diff=$((end_timestamp - expected_end))
+        if [ ${diff} -ge -5 ] && [ ${diff} -le 5 ]; then
+            print_test_result "15 minute pause sets correct end timestamp" "PASS"
+        else
+            print_test_result "15 minute pause sets correct end timestamp" "FAIL"
+        fi
     else
-        print_test_result "Invalid duration (15 min) is rejected" "PASS"
+        print_test_result "15 minute pause activation" "FAIL"
+    fi
+    
+    # Test invalid duration
+    rm -f "${TEST_PAUSE_STATE_FILE}"
+    if activate_pause 20 2>/dev/null; then
+        print_test_result "Invalid duration (20 min) is rejected" "FAIL"
+    else
+        print_test_result "Invalid duration (20 min) is rejected" "PASS"
     fi
     
     # Clean up
@@ -295,74 +335,206 @@ test_is_pause_active() {
     rm -f "${TEST_PAUSE_STATE_FILE}"
 }
 
-# Test 5: can_pause_today function
-test_can_pause_today() {
-    print_section "Test 5: can_pause_today Function"
+# Test 5: can_pause_now / cooldown function
+test_can_pause_now() {
+    print_section "Test 5: can_pause_now and Cooldown"
     
-    # Clean up any existing state file
     rm -f "${TEST_PAUSE_STATE_FILE}"
     
-    # Test when pause is enabled and not used today
-    if can_pause_today; then
-        print_test_result "can_pause_today returns true when pause available" "PASS"
+    if can_pause_now; then
+        print_test_result "can_pause_now returns true when no prior pause" "PASS"
     else
-        print_test_result "can_pause_today returns true when pause available" "FAIL"
+        print_test_result "can_pause_now returns true when no prior pause" "FAIL"
     fi
     
-    # Activate pause
     activate_pause 5
     
-    # Test when pause already used today (once-per-day limit enforced)
-    if can_pause_today; then
-        print_test_result "can_pause_today returns false when already used today" "FAIL"
+    if can_pause_now; then
+        print_test_result "can_pause_now returns false while pause is active" "FAIL"
     else
-        print_test_result "can_pause_today returns false when already used today" "PASS"
+        print_test_result "can_pause_now returns false while pause is active" "PASS"
     fi
     
-    # Test with yesterday's date (should allow pause)
+    # Expired pause but cooldown not elapsed (24h default)
+    local past_end recent_activation today
+    past_end=$(( $(date +%s) - 60 ))
+    recent_activation=$(( $(date +%s) - 3600 ))
+    today=$(date +%Y-%m-%d)
+    cat > "${TEST_PAUSE_STATE_FILE}" <<EOF
+LAST_PAUSE_DATE=${today}
+LAST_PAUSE_TIMESTAMP=${recent_activation}
+EOF
+    
+    if can_pause_now; then
+        print_test_result "can_pause_now returns false during cooldown after expiry" "FAIL"
+    else
+        print_test_result "can_pause_now returns false during cooldown after expiry" "PASS"
+    fi
+    
+    # Cooldown elapsed (25 hours ago with 24h cooldown)
+    local old_activation
+    old_activation=$(( $(date +%s) - 90000 ))
+    cat > "${TEST_PAUSE_STATE_FILE}" <<EOF
+LAST_PAUSE_DATE=${today}
+LAST_PAUSE_TIMESTAMP=${old_activation}
+EOF
+    
+    if can_pause_now; then
+        print_test_result "can_pause_now returns true after cooldown elapsed" "PASS"
+    else
+        print_test_result "can_pause_now returns true after cooldown elapsed" "FAIL"
+    fi
+    
+    # Migration: LAST_PAUSE_DATE today without timestamp blocks until midnight+24h from midnight
+    cat > "${TEST_PAUSE_STATE_FILE}" <<EOF
+LAST_PAUSE_DATE=${today}
+EOF
+    if can_pause_now; then
+        print_test_result "can_pause_now migration (today date only) blocks during cooldown" "FAIL"
+    else
+        print_test_result "can_pause_now migration (today date only) blocks during cooldown" "PASS"
+    fi
+    
+    # Yesterday's date only — cooldown elapsed
     local yesterday
     yesterday=$(date -d "yesterday" +%Y-%m-%d 2>/dev/null || date -v-1d +%Y-%m-%d 2>/dev/null || echo "")
     if [ -n "${yesterday}" ]; then
-        echo "PAUSE_END_TIMESTAMP=$(( $(date +%s) - 3600 ))" > "${TEST_PAUSE_STATE_FILE}"
-        echo "LAST_PAUSE_DATE=${yesterday}" >> "${TEST_PAUSE_STATE_FILE}"
-        
-        if can_pause_today; then
-            print_test_result "can_pause_today returns true when last pause was yesterday" "PASS"
+        echo "LAST_PAUSE_DATE=${yesterday}" > "${TEST_PAUSE_STATE_FILE}"
+        if can_pause_now; then
+            print_test_result "can_pause_now returns true when last pause date was yesterday (no timestamp)" "PASS"
         else
-            print_test_result "can_pause_today returns true when last pause was yesterday" "FAIL"
+            print_test_result "can_pause_now returns true when last pause date was yesterday (no timestamp)" "FAIL"
         fi
     fi
     
-    # Test when pause is disabled
-    # Replace PAUSE_ENABLED in config file
-    sed -i 's/^PAUSE_ENABLED=.*/PAUSE_ENABLED=false/' "${TEST_CONFIG_FILE}"
+    # Pause disabled
+    sed -i '' 's/^PAUSE_ENABLED=.*/PAUSE_ENABLED=false/' "${TEST_CONFIG_FILE}" 2>/dev/null || sed -i 's/^PAUSE_ENABLED=.*/PAUSE_ENABLED=false/' "${TEST_CONFIG_FILE}"
     rm -f "${TEST_PAUSE_STATE_FILE}"
     
-    # Verify config was updated
     local pause_enabled_in_file
     pause_enabled_in_file=$(grep -E "^[[:space:]]*PAUSE_ENABLED=" "${TEST_CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-    
-    # Test can_pause_today (should return false when pause disabled)
-    # Note: This test verifies that can_pause_today respects the pause_enabled setting
-    # If the config file update worked, can_pause_today should return false
     if [ "${pause_enabled_in_file}" = "false" ]; then
-        if can_pause_today; then
-            print_test_result "can_pause_today returns false when pause disabled" "FAIL"
-            echo "  Config file has PAUSE_ENABLED=false, but can_pause_today returned true"
-            echo "  get_pause_enabled returned: $(get_pause_enabled)"
+        if can_pause_now; then
+            print_test_result "can_pause_now returns false when pause disabled" "FAIL"
         else
-            print_test_result "can_pause_today returns false when pause disabled" "PASS"
+            print_test_result "can_pause_now returns false when pause disabled" "PASS"
         fi
     else
-        # Config update didn't work - this is a test setup issue
-        print_test_result "can_pause_today returns false when pause disabled" "SKIP"
-        echo "  Note: Config file update failed (PAUSE_ENABLED=${pause_enabled_in_file})"
+        print_test_result "can_pause_now returns false when pause disabled" "SKIP"
     fi
     
-    # Restore config
-    sed -i 's/^PAUSE_ENABLED=.*/PAUSE_ENABLED=true/' "${TEST_CONFIG_FILE}"
+    sed -i '' 's/^PAUSE_ENABLED=.*/PAUSE_ENABLED=true/' "${TEST_CONFIG_FILE}" 2>/dev/null || sed -i 's/^PAUSE_ENABLED=.*/PAUSE_ENABLED=true/' "${TEST_CONFIG_FILE}"
+    rm -f "${TEST_PAUSE_STATE_FILE}"
+}
+
+# Test 5b: pause config getters (cooldown and duration allowlists)
+test_pause_config_getters() {
+    print_section "Test 5b: Pause Config Getters"
     
-    # Clean up
+    local value
+    
+    value=$(get_pause_cooldown_hours)
+    if [ "${value}" = "24" ]; then
+        print_test_result "get_pause_cooldown_hours returns configured default (24)" "PASS"
+    else
+        print_test_result "get_pause_cooldown_hours returns configured default (24)" "FAIL"
+    fi
+    
+    sed -i '' 's/^PAUSE_COOLDOWN_HOURS=.*/PAUSE_COOLDOWN_HOURS=6/' "${TEST_CONFIG_FILE}" 2>/dev/null \
+        || sed -i 's/^PAUSE_COOLDOWN_HOURS=.*/PAUSE_COOLDOWN_HOURS=6/' "${TEST_CONFIG_FILE}"
+    value=$(get_pause_cooldown_hours)
+    if [ "${value}" = "6" ]; then
+        print_test_result "get_pause_cooldown_hours returns valid configured value (6)" "PASS"
+    else
+        print_test_result "get_pause_cooldown_hours returns valid configured value (6)" "FAIL"
+    fi
+    
+    sed -i '' 's/^PAUSE_COOLDOWN_HOURS=.*/PAUSE_COOLDOWN_HOURS=99/' "${TEST_CONFIG_FILE}" 2>/dev/null \
+        || sed -i 's/^PAUSE_COOLDOWN_HOURS=.*/PAUSE_COOLDOWN_HOURS=99/' "${TEST_CONFIG_FILE}"
+    value=$(get_pause_cooldown_hours)
+    if [ "${value}" = "24" ]; then
+        print_test_result "get_pause_cooldown_hours falls back on invalid value" "PASS"
+    else
+        print_test_result "get_pause_cooldown_hours falls back on invalid value" "FAIL"
+    fi
+    
+    sed -i '' '/^PAUSE_COOLDOWN_HOURS=/d' "${TEST_CONFIG_FILE}" 2>/dev/null \
+        || sed -i '/^PAUSE_COOLDOWN_HOURS=/d' "${TEST_CONFIG_FILE}"
+    value=$(get_pause_cooldown_hours)
+    if [ "${value}" = "24" ]; then
+        print_test_result "get_pause_cooldown_hours falls back when key missing" "PASS"
+    else
+        print_test_result "get_pause_cooldown_hours falls back when key missing" "FAIL"
+    fi
+    
+    echo "PAUSE_COOLDOWN_HOURS=24" >> "${TEST_CONFIG_FILE}"
+    
+    value=$(get_pause_duration)
+    if [ "${value}" = "5" ]; then
+        print_test_result "get_pause_duration returns configured default (5)" "PASS"
+    else
+        print_test_result "get_pause_duration returns configured default (5)" "FAIL"
+    fi
+    
+    sed -i '' 's/^PAUSE_DURATION=.*/PAUSE_DURATION=3/' "${TEST_CONFIG_FILE}" 2>/dev/null \
+        || sed -i 's/^PAUSE_DURATION=.*/PAUSE_DURATION=3/' "${TEST_CONFIG_FILE}"
+    value=$(get_pause_duration)
+    if [ "${value}" = "3" ]; then
+        print_test_result "get_pause_duration returns valid configured value (3)" "PASS"
+    else
+        print_test_result "get_pause_duration returns valid configured value (3)" "FAIL"
+    fi
+    
+    sed -i '' 's/^PAUSE_DURATION=.*/PAUSE_DURATION=7/' "${TEST_CONFIG_FILE}" 2>/dev/null \
+        || sed -i 's/^PAUSE_DURATION=.*/PAUSE_DURATION=7/' "${TEST_CONFIG_FILE}"
+    value=$(get_pause_duration)
+    if [ "${value}" = "5" ]; then
+        print_test_result "get_pause_duration falls back on invalid value" "PASS"
+    else
+        print_test_result "get_pause_duration falls back on invalid value" "FAIL"
+    fi
+    
+    sed -i '' 's/^PAUSE_DURATION=.*/PAUSE_DURATION=5/' "${TEST_CONFIG_FILE}" 2>/dev/null \
+        || sed -i 's/^PAUSE_DURATION=.*/PAUSE_DURATION=5/' "${TEST_CONFIG_FILE}"
+}
+
+# Test 5c: can_pause_now with sub-24h cooldown
+test_can_pause_now_sub24_cooldown() {
+    print_section "Test 5c: can_pause_now with 6-Hour Cooldown"
+    
+    rm -f "${TEST_PAUSE_STATE_FILE}"
+    sed -i '' 's/^PAUSE_COOLDOWN_HOURS=.*/PAUSE_COOLDOWN_HOURS=6/' "${TEST_CONFIG_FILE}" 2>/dev/null \
+        || sed -i 's/^PAUSE_COOLDOWN_HOURS=.*/PAUSE_COOLDOWN_HOURS=6/' "${TEST_CONFIG_FILE}"
+    
+    local recent_activation today
+    today=$(date +%Y-%m-%d)
+    recent_activation=$(( $(date +%s) - 7200 ))
+    cat > "${TEST_PAUSE_STATE_FILE}" <<EOF
+LAST_PAUSE_DATE=${today}
+LAST_PAUSE_TIMESTAMP=${recent_activation}
+EOF
+    
+    if can_pause_now; then
+        print_test_result "can_pause_now returns false during 6h cooldown (2h elapsed)" "FAIL"
+    else
+        print_test_result "can_pause_now returns false during 6h cooldown (2h elapsed)" "PASS"
+    fi
+    
+    local old_activation
+    old_activation=$(( $(date +%s) - 25200 ))
+    cat > "${TEST_PAUSE_STATE_FILE}" <<EOF
+LAST_PAUSE_DATE=${today}
+LAST_PAUSE_TIMESTAMP=${old_activation}
+EOF
+    
+    if can_pause_now; then
+        print_test_result "can_pause_now returns true after 6h cooldown elapsed (7h)" "PASS"
+    else
+        print_test_result "can_pause_now returns true after 6h cooldown elapsed (7h)" "FAIL"
+    fi
+    
+    sed -i '' 's/^PAUSE_COOLDOWN_HOURS=.*/PAUSE_COOLDOWN_HOURS=24/' "${TEST_CONFIG_FILE}" 2>/dev/null \
+        || sed -i 's/^PAUSE_COOLDOWN_HOURS=.*/PAUSE_COOLDOWN_HOURS=24/' "${TEST_CONFIG_FILE}"
     rm -f "${TEST_PAUSE_STATE_FILE}"
 }
 
@@ -374,28 +546,29 @@ test_clear_expired_pause() {
     rm -f "${TEST_PAUSE_STATE_FILE}"
     
     # Create expired pause
-    local past_timestamp
+    local past_timestamp activation_ts
     past_timestamp=$(( $(date +%s) - 3600 ))  # 1 hour ago
+    activation_ts=$(( $(date +%s) - 7200 ))
     local today
     today=$(date +%Y-%m-%d)
     echo "PAUSE_END_TIMESTAMP=${past_timestamp}" > "${TEST_PAUSE_STATE_FILE}"
     echo "LAST_PAUSE_DATE=${today}" >> "${TEST_PAUSE_STATE_FILE}"
+    echo "LAST_PAUSE_TIMESTAMP=${activation_ts}" >> "${TEST_PAUSE_STATE_FILE}"
     
-    # Check and clear expired pause
     check_and_clear_expired_pause
     
-    # Verify file still exists but only contains LAST_PAUSE_DATE (PAUSE_END_TIMESTAMP cleared)
     if [ -f "${TEST_PAUSE_STATE_FILE}" ]; then
         if grep -qE "^LAST_PAUSE_DATE=${today}$" "${TEST_PAUSE_STATE_FILE}" && \
+           grep -qE "^LAST_PAUSE_TIMESTAMP=${activation_ts}$" "${TEST_PAUSE_STATE_FILE}" && \
            ! grep -qE "^PAUSE_END_TIMESTAMP=" "${TEST_PAUSE_STATE_FILE}"; then
-            print_test_result "check_and_clear_expired_pause clears expired pause (keeps LAST_PAUSE_DATE)" "PASS"
+            print_test_result "check_and_clear_expired_pause clears expired pause (keeps cooldown fields)" "PASS"
         else
-            print_test_result "check_and_clear_expired_pause clears expired pause (keeps LAST_PAUSE_DATE)" "FAIL"
+            print_test_result "check_and_clear_expired_pause clears expired pause (keeps cooldown fields)" "FAIL"
             echo "  File content:"
             cat "${TEST_PAUSE_STATE_FILE}" | sed 's/^/    /'
         fi
     else
-        print_test_result "check_and_clear_expired_pause clears expired pause (keeps LAST_PAUSE_DATE)" "FAIL"
+        print_test_result "check_and_clear_expired_pause clears expired pause (keeps cooldown fields)" "FAIL"
         echo "  File was completely removed (should keep LAST_PAUSE_DATE)"
     fi
     
@@ -481,10 +654,10 @@ test_missing_pause_state_file() {
         print_test_result "is_pause_active handles missing file" "PASS"
     fi
     
-    if can_pause_today; then
-        print_test_result "can_pause_today handles missing file (allows pause)" "PASS"
+    if can_pause_now; then
+        print_test_result "can_pause_now handles missing file (allows pause)" "PASS"
     else
-        print_test_result "can_pause_today handles missing file (allows pause)" "FAIL"
+        print_test_result "can_pause_now handles missing file (allows pause)" "FAIL"
     fi
 }
 
@@ -536,7 +709,9 @@ main() {
     test_pause_state_file_reading
     test_pause_activation_durations
     test_is_pause_active
-    test_can_pause_today
+    test_can_pause_now
+    test_pause_config_getters
+    test_can_pause_now_sub24_cooldown
     test_clear_expired_pause
     test_corrupted_pause_state_file
     test_missing_pause_state_file

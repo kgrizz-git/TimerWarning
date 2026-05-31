@@ -66,6 +66,13 @@ This design maintains restriction effectiveness while providing user flexibility
 - Warning popups resume immediately
 - All other restrictions still apply
 
+## Configurable cooldown and duration (2026)
+
+- **`PAUSE_COOLDOWN_HOURS`:** 6, 8, 12, or 24 (default **24** — same effective minimum spacing as legacy once-per-calendar-day for upgraded configs without the key).
+- **`PAUSE_DURATION`:** 1, 2, 3, 5, 10, or 15 minutes (default **5**).
+- **State file:** `.pause_state` stores `LAST_PAUSE_TIMESTAMP` for cooldown math; legacy `LAST_PAUSE_DATE`-only files migrate conservatively (today's date → midnight today as activation time).
+- **Availability:** `can_pause_now()` — not active, feature enabled, cooldown elapsed. `status.sh` / manage **Pause Status** show active, cooldown, or available.
+
 ## Testing Requirements
 
 - [ ] Verify pause suppresses popups

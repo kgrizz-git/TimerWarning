@@ -45,7 +45,7 @@ show_warning_darwin() {
     message="$(dialog_safe_text "${message}")"
 
     local pause_available=false pause_duration=""
-    if can_pause_today; then
+    if can_pause_now; then
         pause_available=true
         pause_duration=$(get_pause_duration)
     fi

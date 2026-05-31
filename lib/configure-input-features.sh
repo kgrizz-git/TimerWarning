@@ -13,7 +13,7 @@
 # - get_config_lock_enabled_config() - Get config lock enabled setting (Enhancement #18)
 # - get_pause_enabled_config() - Get pause enabled setting
 # - get_pause_duration_config() - Get pause duration
-# - get_pause_once_per_day_config() - Get pause once per day setting
+# - get_pause_cooldown_hours_config() - Get pause cooldown between activations
 # - get_uninstall_protection_mode_config() - Get uninstall protection mode
 # - get_dialog_tool_selection() - Get dialog tool selection (Enhancement #25)
 #
@@ -464,28 +464,26 @@ get_pause_duration_config() {
     local use_gui="$1"
     local default_duration="5"
     
-    # Try to get existing setting from config
-    if [ -f "${CONFIG_FILE}" ]; then
+    if type get_pause_duration >/dev/null 2>&1; then
+        default_duration=$(get_pause_duration)
+    elif [ -f "${CONFIG_FILE}" ]; then
         local existing_duration
         existing_duration=$(grep -E "^[[:space:]]*PAUSE_DURATION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-        if [ -n "${existing_duration}" ] && [[ "${existing_duration}" =~ ^[0-9]+$ ]]; then
-            if [ "${existing_duration}" -eq 5 ] || [ "${existing_duration}" -eq 10 ]; then
-                default_duration="${existing_duration}"
-            fi
+        if [ -n "${existing_duration}" ] && type pause_is_valid_duration_minutes >/dev/null 2>&1 && pause_is_valid_duration_minutes "${existing_duration}"; then
+            default_duration="${existing_duration}"
         fi
     fi
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
-        # GUI mode
         while true; do
             local pause_duration
             local duration_result
             duration_result=$(show_list_dialog \
                 "Sleep Warning Configuration - Pause Duration" \
-                "Select pause duration:\n\nCurrent setting: ${default_duration} minutes\n\nOptions:\n- 5 minutes - Shorter pause period\n- 10 minutes - Longer pause period\n\nThe selected duration determines how long warning popups are paused when user clicks pause button." \
+                "Select pause duration:\n\nCurrent setting: ${default_duration} minutes\n\nHow long warning popups stay paused after you click Pause." \
                 600 \
-                350 \
-                "5" "10")
+                400 \
+                "1" "2" "3" "5" "10" "15")
             local exit_code=$?
             
             if [ ${exit_code} -eq 0 ] && [ -n "${duration_result}" ]; then
@@ -494,13 +492,12 @@ get_pause_duration_config() {
                 pause_duration=""
             fi
             
-            # User cancelled
             if [ "${exit_code}" -ne 0 ] || [ -z "${pause_duration}" ]; then
                 if confirm_cancel "${use_gui}"; then
                     echo "CANCELLED"
-                    return 2  # Special return code for cancellation
+                    return 2
                 else
-                    continue  # User wants to continue, re-prompt
+                    continue
                 fi
             fi
 
@@ -515,107 +512,110 @@ get_pause_duration_config() {
             return 0
         done
     else
-        # Text mode
         echo "" >&2
         echo "Pause Duration:" >&2
         echo "  Select how long warning popups are paused when user clicks pause button." >&2
+        echo "  Allowed values: 1, 2, 3, 5, 10, or 15 minutes." >&2
         echo "" >&2
         while true; do
-            configure_read -p "Pause duration (5 or 10 minutes) [default: ${default_duration}]: " choice
+            configure_read -p "Pause duration in minutes [default: ${default_duration}]: " choice
             choice=${choice:-${default_duration}}
-            case "${choice}" in
-                5|10)
+            if type pause_is_valid_duration_minutes >/dev/null 2>&1; then
+                if pause_is_valid_duration_minutes "${choice}"; then
+                    if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                        local _pl_base="${_baseline_pause_duration:-${default_duration}}"
+                        if ! configure_partial_lock_reject_scalar_change "pause_duration" "${_pl_base}" "${choice}" "${use_gui}"; then
+                            continue
+                        fi
+                    fi
                     echo "${choice}"
                     return 0
-                    ;;
-                "")
-                    echo "${default_duration}"
-                    return 0
-                    ;;
-                *)
-                    echo "Invalid choice. Please enter '5' or '10'." >&2
-                    ;;
-            esac
+                fi
+            elif [ "${choice}" = "5" ] || [ "${choice}" = "10" ]; then
+                echo "${choice}"
+                return 0
+            fi
+            echo "Invalid choice. Please enter 1, 2, 3, 5, 10, or 15." >&2
         done
     fi
 }
 
-get_pause_once_per_day_config() {
+get_pause_cooldown_hours_config() {
     local use_gui="$1"
-    local default_once_per_day="true"
-    
-    # Try to get existing setting from config
-    if [ -f "${CONFIG_FILE}" ]; then
-        local existing_once_per_day
-        existing_once_per_day=$(grep -E "^[[:space:]]*PAUSE_ONCE_PER_DAY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-        if [ -n "${existing_once_per_day}" ]; then
-            if [ "${existing_once_per_day}" = "true" ] || [ "${existing_once_per_day}" = "1" ] || [ "${existing_once_per_day}" = "yes" ]; then
-                default_once_per_day="true"
-            elif [ "${existing_once_per_day}" = "false" ] || [ "${existing_once_per_day}" = "0" ] || [ "${existing_once_per_day}" = "no" ]; then
-                default_once_per_day="false"
-            fi
+    local default_cooldown="24"
+
+    if type get_pause_cooldown_hours >/dev/null 2>&1; then
+        default_cooldown=$(get_pause_cooldown_hours)
+    elif [ -f "${CONFIG_FILE}" ]; then
+        local existing_cooldown
+        existing_cooldown=$(grep -E "^[[:space:]]*PAUSE_COOLDOWN_HOURS=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        if [ -n "${existing_cooldown}" ] && type pause_is_valid_cooldown_hours >/dev/null 2>&1 && pause_is_valid_cooldown_hours "${existing_cooldown}"; then
+            default_cooldown="${existing_cooldown}"
         fi
     fi
-    
+
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
-        # GUI mode
         while true; do
-            local pause_once_per_day
-            local once_per_day_result
-            once_per_day_result=$(show_list_dialog \
-                "Sleep Warning Configuration - Pause Once Per Day" \
-                "Limit pause to once per day?\n\nWhen enabled, users can only use pause once per day (resets at midnight).\nWhen disabled, users can pause multiple times per day.\n\nCurrent setting: ${default_once_per_day}" \
+            local pause_cooldown_hours
+            local cooldown_result
+            cooldown_result=$(show_list_dialog \
+                "Sleep Warning Configuration - Pause Cooldown" \
+                "Minimum hours between pause activations:\n\nCurrent setting: ${default_cooldown} hours\n\nCounted from when you click Pause (not when the quiet period ends)." \
                 650 \
-                350 \
-                "true" "false")
+                400 \
+                "6" "8" "12" "24")
             local exit_code=$?
-            
-            if [ ${exit_code} -eq 0 ] && [ -n "${once_per_day_result}" ]; then
-                pause_once_per_day="${once_per_day_result}"
+
+            if [ ${exit_code} -eq 0 ] && [ -n "${cooldown_result}" ]; then
+                pause_cooldown_hours="${cooldown_result}"
             else
-                pause_once_per_day=""
+                pause_cooldown_hours=""
             fi
-            
-            # User cancelled
-            if [ "${exit_code}" -ne 0 ] || [ -z "${pause_once_per_day}" ]; then
+
+            if [ "${exit_code}" -ne 0 ] || [ -z "${pause_cooldown_hours}" ]; then
                 if confirm_cancel "${use_gui}"; then
                     echo "CANCELLED"
-                    return 2  # Special return code for cancellation
+                    return 2
                 else
-                    continue  # User wants to continue, re-prompt
+                    continue
                 fi
             fi
-            
-            echo "${pause_once_per_day}"
+
+            if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                local _pl_base="${_baseline_pause_cooldown_hours:-${default_cooldown}}"
+                if ! configure_partial_lock_reject_scalar_change "pause_cooldown_hours" "${_pl_base}" "${pause_cooldown_hours}" "${use_gui}"; then
+                    continue
+                fi
+            fi
+
+            echo "${pause_cooldown_hours}"
             return 0
         done
     else
-        # Text mode
         echo "" >&2
-        echo "Pause Once Per Day Limit:" >&2
-        echo "  When enabled, users can only use pause once per day (resets at midnight)." >&2
-        echo "  When disabled, users can pause multiple times per day." >&2
+        echo "Pause Cooldown:" >&2
+        echo "  Minimum hours between pause activations (6, 8, 12, or 24)." >&2
+        echo "  Counted from when you click Pause, not when the quiet period ends." >&2
         echo "" >&2
         while true; do
-            configure_read -p "Limit pause to once per day? [y/n, default: ${default_once_per_day}]: " choice
-            choice=${choice:-${default_once_per_day}}
-            case "${choice}" in
-                y|Y|yes|YES|true|TRUE|1)
-                    echo "true"
+            configure_read -p "Pause cooldown in hours [default: ${default_cooldown}]: " choice
+            choice=${choice:-${default_cooldown}}
+            if type pause_is_valid_cooldown_hours >/dev/null 2>&1; then
+                if pause_is_valid_cooldown_hours "${choice}"; then
+                    if type configure_partial_lock_reject_scalar_change >/dev/null 2>&1; then
+                        local _pl_base="${_baseline_pause_cooldown_hours:-${default_cooldown}}"
+                        if ! configure_partial_lock_reject_scalar_change "pause_cooldown_hours" "${_pl_base}" "${choice}" "${use_gui}"; then
+                            continue
+                        fi
+                    fi
+                    echo "${choice}"
                     return 0
-                    ;;
-                n|N|no|NO|false|FALSE|0)
-                    echo "false"
-                    return 0
-                    ;;
-                "")
-                    echo "${default_once_per_day}"
-                    return 0
-                    ;;
-                *)
-                    echo "Invalid choice. Please enter 'y' for yes or 'n' for no." >&2
-                    ;;
-            esac
+                fi
+            elif [ "${choice}" = "6" ] || [ "${choice}" = "8" ] || [ "${choice}" = "12" ] || [ "${choice}" = "24" ]; then
+                echo "${choice}"
+                return 0
+            fi
+            echo "Invalid choice. Please enter 6, 8, 12, or 24." >&2
         done
     fi
 }

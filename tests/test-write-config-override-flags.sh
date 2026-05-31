@@ -162,8 +162,8 @@ test_normal_with_override_flags() {
     CONFIG_FILE="${test_config}"
     
     # Call write_config with override flags
-    # Note: write_config requires 15 positional parameters before config_lines array
-    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" \
+    # Note: write_config requires 16 positional parameters before config_lines array
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "24" "auto" "false" "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}" "true" "true"
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then
@@ -189,8 +189,8 @@ test_normal_without_override_flags() {
     CONFIG_FILE="${test_config}"
     
     # Call write_config WITHOUT override flags (old style)
-    # Note: write_config requires 15 positional parameters before config_lines array
-    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" \
+    # Note: write_config requires 16 positional parameters before config_lines array
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "24" "auto" "false" "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}"
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then
@@ -217,8 +217,8 @@ test_sparse_config_lines() {
     CONFIG_FILE="${test_config}"
     
     # Call with override flags
-    # Note: write_config requires 15 positional parameters before config_lines array
-    write_config "10" "large" "center" "30" "true" "true" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" \
+    # Note: write_config requires 16 positional parameters before config_lines array
+    write_config "10" "large" "center" "30" "true" "true" "true" "none" "true" "5" "24" "auto" "false" "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}" "true" "true"
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then
@@ -246,8 +246,8 @@ test_empty_config_lines_with_flags() {
     CONFIG_FILE="${test_config}"
     
     # Call with override flags but no config_lines
-    # Note: write_config requires 15 positional parameters before config_lines array
-    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" \
+    # Note: write_config requires 16 positional parameters before config_lines array
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "24" "auto" "false" "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}" "true" "true"
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then
@@ -335,8 +335,8 @@ test_mixed_override_flags() {
     # write_config requires 10 positional parameters: check_interval, popup_size, popup_position, 
     # min_display_time, popup_immovable, configure_block_enabled, uninstall_protection_mode,
     # pause_enabled, pause_duration, dialog_tool
-    # Note: write_config requires 15 positional parameters before config_lines array
-    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" \
+    # Note: write_config requires 16 positional parameters before config_lines array
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "24" "auto" "false" "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}" "true" ""
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then
@@ -434,8 +434,8 @@ test_override_flags_empty_strings() {
     CONFIG_FILE="${test_config}"
     
     # Call with both override flags as empty strings (should not add comments)
-    # Note: write_config requires 15 positional parameters before config_lines array
-    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "auto" "false" "fixed" "50%x50%" "1280x720" \
+    # Note: write_config requires 16 positional parameters before config_lines array
+    write_config "10" "medium" "center" "30" "true" "false" "true" "none" "true" "5" "24" "auto" "false" "fixed" "50%x50%" "1280x720" \
         "${config_lines[@]}" "" ""
     
     if [ $? -eq 0 ] && [ -f "${test_config}" ]; then

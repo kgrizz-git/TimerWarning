@@ -242,7 +242,7 @@ main() {
     # This is a sparse array indexed 0-6 (Sunday-Saturday) with entries like:
     #   UNINSTALL_LOCK_HOURS_MONDAY=9-17
     declare -g -a uninstall_lock_hours_lines=()
-    declare -g check_interval popup_size popup_size_mode popup_size_custom popup_size_custom_absolute popup_position min_display_time popup_immovable popup_auto_close configure_block_enabled uninstall_protection_mode pause_enabled pause_duration dialog_tool config_lock_enabled
+    declare -g check_interval popup_size popup_size_mode popup_size_custom popup_size_custom_absolute popup_position min_display_time popup_immovable popup_auto_close configure_block_enabled uninstall_protection_mode pause_enabled pause_duration pause_cooldown_hours dialog_tool config_lock_enabled
     
     # Load existing configuration
     # Function sets global variables and populates global arrays directly
@@ -298,7 +298,7 @@ main() {
         
         # Show main menu
         local menu_choice
-        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}" "${dialog_tool_status}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "${service_mode_status}")
+        menu_choice=$(show_main_menu "${use_gui}" "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${weekdays_status}" "${weekends_status}" "${configure_block_enabled}" "${lock_hours_status}" "${uninstall_protection_mode}" "${uninstall_lock_hours_status}" "${pause_enabled}" "${pause_duration}" "${pause_cooldown_hours}" "${dialog_tool_status}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "${service_mode_status}")
         local menu_exit=$?
         
         if [ "${menu_exit}" -eq 2 ] || [ "${menu_choice}" = "CANCELLED" ]; then
@@ -483,19 +483,27 @@ main() {
                 local new_pause_enabled
                 new_pause_enabled=$(get_pause_enabled_config "${use_gui}")
                 if [ "${new_pause_enabled}" = "CANCELLED" ]; then
-                    # User already confirmed cancellation
                     exit 0
                 else
                     pause_enabled="${new_pause_enabled}"
                 fi
-                
-                local new_pause_duration
-                new_pause_duration=$(get_pause_duration_config "${use_gui}")
-                if [ "${new_pause_duration}" = "CANCELLED" ]; then
-                    # User already confirmed cancellation
-                    exit 0
-                else
-                    pause_duration="${new_pause_duration}"
+
+                if [ "${pause_enabled}" = "true" ]; then
+                    local new_pause_cooldown_hours
+                    new_pause_cooldown_hours=$(get_pause_cooldown_hours_config "${use_gui}")
+                    if [ "${new_pause_cooldown_hours}" = "CANCELLED" ]; then
+                        exit 0
+                    else
+                        pause_cooldown_hours="${new_pause_cooldown_hours}"
+                    fi
+
+                    local new_pause_duration
+                    new_pause_duration=$(get_pause_duration_config "${use_gui}")
+                    if [ "${new_pause_duration}" = "CANCELLED" ]; then
+                        exit 0
+                    else
+                        pause_duration="${new_pause_duration}"
+                    fi
                 fi
                 ;;
             11)
@@ -613,7 +621,7 @@ main() {
                         echo "DEBUG: uninstall_lock_hours_lines=${uninstall_lock_hours_lines[*]}" >&2
                     fi
 
-                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${dialog_tool}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}" "${lock_hours_cleared}" "${uninstall_lock_hours_cleared}"; then
+                    if write_config "${check_interval}" "${popup_size}" "${popup_position}" "${min_display_time}" "${popup_immovable}" "${popup_auto_close}" "${configure_block_enabled}" "${uninstall_protection_mode}" "${pause_enabled}" "${pause_duration}" "${pause_cooldown_hours}" "${dialog_tool}" "${config_lock_enabled}" "${popup_size_mode}" "${popup_size_custom}" "${popup_size_custom_absolute}" "${config_lines[@]}" "${lock_hours_lines[@]}" "${uninstall_lock_hours_lines[@]}" "${popup_size_overridden}" "${configure_block_overridden}" "${lock_hours_cleared}" "${uninstall_lock_hours_cleared}"; then
                         # Update timer file if it exists
                         if [ -f "${TIMER_FILE}" ]; then
                             if update_timer_file "${check_interval}"; then
