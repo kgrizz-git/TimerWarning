@@ -26,7 +26,7 @@ usage() {
 Usage: run-security-scan.sh [--ci] [--with-tests]
 
   --ci          Require shellcheck, gitleaks, and semgrep; exit non-zero on findings
-  --with-tests  Run fast safety tests (test-daily-caps, test-popup-safety-darwin on macOS)
+  --with-tests  Run fast safety tests (daily caps, time picker, popup safety, partial lock; darwin GUI on macOS)
 EOF
 }
 
@@ -139,6 +139,9 @@ run_safety_tests() {
   local failed=0
   if [ -f "${ROOT}/tests/test-daily-caps.sh" ]; then
     bash "${ROOT}/tests/test-daily-caps.sh" || failed=1
+  fi
+  if [ -f "${ROOT}/tests/test-time-picker-minutes.sh" ]; then
+    bash "${ROOT}/tests/test-time-picker-minutes.sh" || failed=1
   fi
   # popup-safety unit tests (all platforms); use test-popup-safety-linux.sh as alias on Linux CI
   if [ -f "${ROOT}/tests/test-popup-safety-darwin.sh" ]; then

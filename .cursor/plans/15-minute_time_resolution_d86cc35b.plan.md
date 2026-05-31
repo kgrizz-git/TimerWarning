@@ -4,19 +4,19 @@ overview: Expand GUI time pickers from 30-minute (:00/:30) to 15-minute (:00/:15
 todos:
   - id: backup-files
     content: Back up lib/configure-dialogs-time.sh and lib/configure_dialogs_darwin_time_ui.py to backups/ before editing (verify copies exist)
-    status: pending
+    status: completed
   - id: shared-picker-helper
     content: Add TIME_PICKER_MINUTES + normalize_minute_for_picker() + YAD combo builder in configure-dialogs-time.sh; wire into YAD/Zenity/KDialog
-    status: pending
+    status: completed
   - id: darwin-picker
     content: Update MINUTES and _norm_minute() in configure_dialogs_darwin_time_ui.py
-    status: pending
+    status: completed
   - id: tests
     content: Add/extend headless tests for :15/:45 parsing, caps, overnight boundaries, and picker prefill helper
-    status: pending
+    status: completed
   - id: docs-changelog
     content: Update MACOS.md and CHANGELOG.md; run ShellCheck/security scan on changed lib/ files
-    status: pending
+    status: completed
 isProject: false
 ---
 

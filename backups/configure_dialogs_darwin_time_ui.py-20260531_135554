@@ -1,45 +1,20 @@
 #!/usr/bin/env python3
 """
-Sleep Warning System - macOS time-range picker (tkinter).
-
-Mirrors the Linux yad/zenity time dialog: 12-hour hour + 00/30 minute + AM/PM
-for start and end. Reads JSON from stdin, prints one line on stdout in the
-format expected by normalize_time_range (e.g. 11:00PM-5:00AM), exit 0 on OK
-or 1 on cancel.
-
-Expected JSON:
-{
-  "title": "...",
-  "day_name": "Monday",
-  "hint_text": "Press Cancel to skip this day.",
-  "start": {"hour": 11, "minute": "00", "ampm": "PM"},
-  "end": {"hour": 5, "minute": "00", "ampm": "AM"},
-  "width": 520,
-  "height": 360
-}
+Reusable tkinter time-range dialog for macOS configure wizard.
 """
 
 from __future__ import annotations
 
-import json
-import sys
-from pathlib import Path
+from typing import Any
 
 import tkinter as tk
 from tkinter import ttk
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import configure_dialogs_darwin_window as _cd_window  # noqa: E402
-
+import configure_dialogs_darwin_window as _cd_window
 
 HOURS = [str(h) for h in range(1, 13)]
 MINUTES = ["00", "30"]
 AMPM = ["AM", "PM"]
-
-
-def _fail(message: str, code: int = 1) -> None:
-    print(message, file=sys.stderr)
-    raise SystemExit(code)
 
 
 def _norm_hour(value: int | str) -> str:
@@ -87,12 +62,8 @@ def _time_block(parent: tk.Misc, label: str, defaults: dict) -> dict[str, ttk.Co
     return {"hour": hour, "minute": minute, "ampm": ampm}
 
 
-def main() -> None:
-    try:
-        payload = json.load(sys.stdin)
-    except json.JSONDecodeError as exc:
-        _fail(f"Invalid JSON input: {exc}")
-
+def show_time_dialog(window: tk.Misc, payload: dict[str, Any]) -> tuple[bool, str | None, int]:
+    """Show time-range picker on *window*. Returns (accepted, value, exit_code)."""
     title = str(payload.get("title", "Time Range"))
     day_name = str(payload.get("day_name", "")).strip()
     hint_text = str(payload.get("hint_text", "")).strip()
@@ -103,21 +74,16 @@ def main() -> None:
 
     result: dict[str, str | None] = {"value": None}
 
-    root = tk.Tk()
-    root.title(title)
-    root.geometry(f"{width}x{height}")
-    root.minsize(480, 320)
-    _cd_window.apply_initial_frontmost(root)
+    window.title(title)
+    window.geometry(f"{width}x{height}")
+    window.minsize(480, 320)
+    _cd_window.apply_initial_frontmost(window)  # type: ignore[arg-type]
 
-    outer = ttk.Frame(root, padding=14)
+    outer = ttk.Frame(window, padding=14)
     outer.pack(fill=tk.BOTH, expand=True)
 
     if day_name:
-        ttk.Label(
-            outer,
-            text=f"Day: {day_name}",
-            font=("", 12, "bold"),
-        ).pack(anchor=tk.W, pady=(0, 4))
+        ttk.Label(outer, text=f"Day: {day_name}", font=("", 12, "bold")).pack(anchor=tk.W, pady=(0, 4))
 
     if hint_text:
         ttk.Label(outer, text=hint_text, wraplength=max(width - 48, 400), justify=tk.LEFT).pack(
@@ -138,25 +104,22 @@ def main() -> None:
         em = _norm_minute(end_widgets["minute"].get())
         eap = _norm_ampm(end_widgets["ampm"].get())
         result["value"] = f"{sh}:{sm}{sap}-{eh}:{em}{eap}"
-        root.destroy()
+        _cd_window.close_modal(window)
 
     def cancel() -> None:
         result["value"] = None
-        root.destroy()
+        _cd_window.close_modal(window)
 
     ttk.Button(btn_row, text="Cancel", command=cancel).pack(side=tk.RIGHT)
     ttk.Button(btn_row, text="OK", command=accept).pack(side=tk.RIGHT, padx=(0, 8))
 
-    root.bind("<Return>", lambda _e: accept())
-    root.bind("<Escape>", lambda _e: cancel())
-    root.protocol("WM_DELETE_WINDOW", cancel)
-    root.mainloop()
+    window.bind("<Return>", lambda _e: accept())
+    window.bind("<Escape>", lambda _e: cancel())
+    window.protocol("WM_DELETE_WINDOW", cancel)
+    _cd_window.run_modal(window)
+
+    _cd_window.cleanup_modal_window(window)
 
     if result["value"] is None:
-        raise SystemExit(1)
-    print(result["value"])
-    raise SystemExit(0)
-
-
-if __name__ == "__main__":
-    main()
+        return False, None, 1
+    return True, result["value"], 0

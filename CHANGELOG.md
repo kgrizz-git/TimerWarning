@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **GUI time picker: 15-minute resolution:** Configure wizard time pickers (Linux yad/zenity/kdialog and macOS tkinter) now offer :00, :15, :30, and :45 minute choices for restriction hours, configure-block lock hours, and uninstall lock hours. Runtime parsing, daily caps, and popup scheduling were already minute-precision; text mode (`--text`) still accepts any valid minute.
+
 - **Pause cooldown follow-ups:** Configure review summary shows pause enable/duration/cooldown; wizard cooldown copy clarifies timing is from activation click. Atomic write for retained pause-state fields; expanded pause/cooldown tests and corrected `write_config` parameter docs (16 positional args).
 
 - **Backlog:** Marked the 2026-05-24 safety/lockout audit complete in [dev-docs/TO_DO.md](dev-docs/TO_DO.md) (implementation was already shipped per [dev-docs/plans/plan-real-bugs-fix-2026-05-24.md](dev-docs/plans/plan-real-bugs-fix-2026-05-24.md)); Linux popup watchdog verification stays open as a separate item.

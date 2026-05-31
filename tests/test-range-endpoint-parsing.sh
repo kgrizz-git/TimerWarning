@@ -58,6 +58,8 @@ assert_not_overnight() {
 
 assert_minutes "integer hour 5" "5" "300"
 assert_minutes "HH:MM 17:30" "17:30" "1050"
+assert_minutes "HH:MM 17:15" "17:15" "1035"
+assert_minutes "HH:MM 23:45" "23:45" "1425"
 assert_minutes "HH:MM 00:00" "00:00" "0"
 assert_overnight "23:30-06:00" "23:30" "06:00"
 assert_not_overnight "17:00-17:30" "17:00" "17:30"

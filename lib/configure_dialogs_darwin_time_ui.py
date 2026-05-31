@@ -13,7 +13,7 @@ from tkinter import ttk
 import configure_dialogs_darwin_window as _cd_window
 
 HOURS = [str(h) for h in range(1, 13)]
-MINUTES = ["00", "30"]
+MINUTES = ["00", "15", "30", "45"]
 AMPM = ["AM", "PM"]
 
 
@@ -30,7 +30,15 @@ def _norm_hour(value: int | str) -> str:
 
 
 def _norm_minute(value: str) -> str:
-    return "30" if str(value).strip() == "30" else "00"
+    allowed = {"00", "15", "30", "45"}
+    v = str(value).strip().zfill(2)
+    if v in allowed:
+        return v
+    try:
+        m = int(v)
+        return f"{((m + 7) // 15 * 15) % 60:02d}"
+    except ValueError:
+        return "00"
 
 
 def _norm_ampm(value: str) -> str:

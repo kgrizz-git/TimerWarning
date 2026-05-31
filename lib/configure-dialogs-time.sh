@@ -12,6 +12,32 @@
 #   `show_entry_dialog` and `show_error_dialog` which are defined elsewhere.
 ###############################################################################
 
+# GUI time picker minute quantum (restriction / lock / uninstall lock hours)
+readonly TIME_PICKER_MINUTES=(00 15 30 45)
+
+# Snap arbitrary minute (0-59) to nearest 15-min slot for combobox prefill when editing.
+# Text-mode configs may use any minute; GUI edit prefill may round (e.g. :17 -> :15).
+normalize_minute_for_picker() {
+    local m=$((10#${1:-0}))
+    if [ "${m}" -lt 0 ] || [ "${m}" -gt 59 ]; then
+        echo "00"
+        return 0
+    fi
+    printf "%02d" $(( (m + 7) / 15 * 15 % 60 ))
+}
+
+# Build YAD combobox value: ^DEFAULT!opt1!opt2!...
+_yad_minute_cb_value() {
+    local selected
+    selected=$(normalize_minute_for_picker "${1:-0}")
+    local out="^${selected}"
+    local m
+    for m in "${TIME_PICKER_MINUTES[@]}"; do
+        out="${out}!${m}"
+    done
+    echo "${out}"
+}
+
 # Parse normalized time (HH:MM) to 12-hour format components
 # Returns: hour minute ampm (e.g., "11 30 PM")
 parse_normalized_time_to_12h() {
@@ -123,6 +149,8 @@ show_time_selection_dialog_yad() {
     eh=$(echo "${end_data}" | cut -d' ' -f1)
     em=$(echo "${end_data}" | cut -d' ' -f2)
     eap=$(echo "${end_data}" | cut -d' ' -f3)
+    sm=$(normalize_minute_for_picker "${sm}")
+    em=$(normalize_minute_for_picker "${em}")
     
     local yad_fields=()
     local output_offset=0
@@ -140,11 +168,11 @@ show_time_selection_dialog_yad() {
     yad_fields+=(
         --field="Start Time:":LBL ""
         --field="Hour:CB" "^${sh}!1!2!3!4!5!6!7!8!9!10!11!12"
-        --field="Minute:CB" "^${sm}!00!30"
+        --field="Minute:CB" "$(_yad_minute_cb_value "${sm}")"
         --field="AM/PM:CB" "^${sap}!AM!PM"
         --field="End Time:":LBL ""
         --field="Hour:CB" "^${eh}!1!2!3!4!5!6!7!8!9!10!11!12"
-        --field="Minute:CB" "^${em}!00!30"
+        --field="Minute:CB" "$(_yad_minute_cb_value "${em}")"
         --field="AM/PM:CB" "^${eap}!AM!PM"
     )
     
@@ -211,6 +239,8 @@ show_time_selection_dialog_zenity() {
     eh=$(echo "${end_data}" | cut -d' ' -f1)
     em=$(echo "${end_data}" | cut -d' ' -f2)
     eap=$(echo "${end_data}" | cut -d' ' -f3)
+    sm=$(normalize_minute_for_picker "${sm}")
+    em=$(normalize_minute_for_picker "${em}")
     
     local text_prompt="Configure time range:"
     if [ -n "${day_name}" ]; then
@@ -225,10 +255,10 @@ show_time_selection_dialog_zenity() {
     output=$(zenity --forms --title="${title}" \
         --text="${text_prompt}" \
         --add-entry="Start Hour (1-12)" --entry-text="${sh}" \
-        --add-combo="Start Minute" --combo-values="00|30" --set "${sm}" \
+        --add-combo="Start Minute" --combo-values="00|15|30|45" --set "${sm}" \
         --add-combo="Start AM/PM" --combo-values="AM|PM" --set "${sap}" \
         --add-entry="End Hour (1-12)" --entry-text="${eh}" \
-        --add-combo="End Minute" --combo-values="00|30" --set "${em}" \
+        --add-combo="End Minute" --combo-values="00|15|30|45" --set "${em}" \
         --add-combo="End AM/PM" --combo-values="AM|PM" --set "${eap}" \
         2>/dev/null)
     
@@ -295,13 +325,15 @@ show_time_selection_dialog_kdialog() {
     eh=$(echo "${end_data}" | cut -d' ' -f1)
     em=$(echo "${end_data}" | cut -d' ' -f2)
     eap=$(echo "${end_data}" | cut -d' ' -f3)
+    sm=$(normalize_minute_for_picker "${sm}")
+    em=$(normalize_minute_for_picker "${em}")
     
     sh=$(kdialog --title "${title}" --combobox "Start Hour:" "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" --default "${sh}") || return 1
-    sm=$(kdialog --title "${title}" --combobox "Start Minute:" "00" "30" --default "${sm}") || return 1
+    sm=$(kdialog --title "${title}" --combobox "Start Minute:" "00" "15" "30" "45" --default "${sm}") || return 1
     sap=$(kdialog --title "${title}" --combobox "Start AM/PM:" "AM" "PM" --default "${sap}") || return 1
     
     eh=$(kdialog --title "${title}" --combobox "End Hour:" "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" --default "${eh}") || return 1
-    em=$(kdialog --title "${title}" --combobox "End Minute:" "00" "30" --default "${em}") || return 1
+    em=$(kdialog --title "${title}" --combobox "End Minute:" "00" "15" "30" "45" --default "${em}") || return 1
     eap=$(kdialog --title "${title}" --combobox "End AM/PM:" "AM" "PM" --default "${eap}") || return 1
     
     echo "${sh}:${sm}${sap}-${eh}:${em}${eap}"

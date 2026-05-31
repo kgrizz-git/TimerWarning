@@ -37,6 +37,16 @@ assert_eq "parse 05:30 hour" "5" "$(echo "${data}" | cut -d' ' -f1)"
 assert_eq "parse 05:30 minute" "30" "$(echo "${data}" | cut -d' ' -f2)"
 assert_eq "parse 05:30 ampm" "AM" "$(echo "${data}" | cut -d' ' -f3)"
 
+data=$(parse_normalized_time_to_12h "23:15")
+assert_eq "parse 23:15 hour" "11" "$(echo "${data}" | cut -d' ' -f1)"
+assert_eq "parse 23:15 minute" "15" "$(echo "${data}" | cut -d' ' -f2)"
+assert_eq "parse 23:15 ampm" "PM" "$(echo "${data}" | cut -d' ' -f3)"
+
+data=$(parse_normalized_time_to_12h "05:45")
+assert_eq "parse 05:45 hour" "5" "$(echo "${data}" | cut -d' ' -f1)"
+assert_eq "parse 05:45 minute" "45" "$(echo "${data}" | cut -d' ' -f2)"
+assert_eq "parse 05:45 ampm" "AM" "$(echo "${data}" | cut -d' ' -f3)"
+
 if _cd_darwin_has_time_dialog; then
     echo "PASS: time dialog helper available"
     pass=$((pass + 1))

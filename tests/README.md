@@ -12,7 +12,8 @@ These run on macOS (and Linux for platform detection branches) without GUI or mo
 |--------|---------|
 | `tests/test-platform-darwin.sh` | Platform detection, plist `StartInterval`, watchdog math |
 | `tests/test-popup-safety-darwin.sh` | Popup watchdog kills hung child processes |
-| `tests/test-darwin-configure-gui.sh` | macOS configure GUI regressions (grid cache, table JSON, daemon protocol, modal dialog wiring) — headless |
+| `tests/test-darwin-configure-gui.sh` | macOS configure GUI regressions (grid cache, table JSON, daemon protocol, time picker helpers, modal dialog wiring) — headless |
+| `tests/test-time-picker-minutes.sh` | GUI time picker minute helpers (`normalize_minute_for_picker`, YAD combobox builder) — headless, all platforms |
 
 ```bash
 bash tests/test-platform-darwin.sh

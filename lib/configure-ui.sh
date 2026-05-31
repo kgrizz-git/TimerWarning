@@ -226,6 +226,10 @@ show_help_dialog() {
     
     local help_text="TIME RANGE CONFIGURATION HELP
 
+GUI TIME PICKER (graphical mode):
+  Minute choices are :00, :15, :30, and :45.
+  Text mode accepts any valid minute (e.g. 11:17pm-5:42am).
+
 SINGLE RANGE:
   Format: START-END
   Example: 0-5

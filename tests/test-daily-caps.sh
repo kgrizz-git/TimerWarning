@@ -101,6 +101,9 @@ assert_eq "09-17 self → 540 1020" "540 1020" "${result}"
 result=$(_parse_range_to_minute_intervals "07:30-23:00" "self")
 assert_eq "07:30-23:00 self → 450 1380" "450 1380" "${result}"
 
+result=$(_parse_range_to_minute_intervals "07:15-23:15" "self")
+assert_eq "07:15-23:15 self → 435 1395" "435 1395" "${result}"
+
 # Bounds: hours > 23 should be rejected
 result=$(_parse_range_to_minute_intervals "25:00-26:00" "self")
 assert_eq "25:00-26:00 self → rejected (empty)" "" "${result}"
@@ -131,6 +134,9 @@ assert_eq "6-23 → 1020 min" "1020" "${m}"
 # HH:MM 16h exactly
 m=$(_compute_day_merged_minutes "00:00-16:00" "")
 assert_eq "00:00-16:00 → 960 min" "960" "${m}"
+
+m=$(_compute_day_merged_minutes "07:15-23:15" "")
+assert_eq "07:15-23:15 → 960 min" "960" "${m}"
 
 # HH:MM 16h 1min
 m=$(_compute_day_merged_minutes "00:00-16:01" "")

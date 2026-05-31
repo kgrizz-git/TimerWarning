@@ -58,6 +58,25 @@ test_comparison() {
     is_time_in_single_range "0600" "23:00-05:00" && echo "06:00 is in 23:00-05:00" || echo "06:00 is NOT in 23:00-05:00"
 }
 
+test_comparison_15min_overnight() {
+    echo "Testing 15-minute overnight boundaries (23:15-05:45)..."
+    local pass=0 fail=0
+    _assert_in() {
+        local t="$1" want="$2"
+        if is_time_in_single_range "${t}" "23:15-05:45"; then
+            [ "${want}" = "in" ] && pass=$((pass + 1)) || { echo "FAIL: ${t} should be OUT"; fail=$((fail + 1)); }
+        else
+            [ "${want}" = "out" ] && pass=$((pass + 1)) || { echo "FAIL: ${t} should be IN"; fail=$((fail + 1)); }
+        fi
+    }
+    _assert_in "2314" "out"
+    _assert_in "2315" "in"
+    _assert_in "0544" "in"
+    _assert_in "0545" "out"
+    echo "15-min overnight boundary: ${pass} passed, ${fail} failed"
+    [ "${fail}" -eq 0 ] || exit 1
+}
+
 test_human_format() {
     echo "Testing human format..."
     format_range_human "23:30-05:30" "Monday"
@@ -74,6 +93,7 @@ test_conversion
 test_range_normalization
 test_validation
 test_comparison
+test_comparison_15min_overnight
 test_human_format
 
 rm -f "${CONFIG_FILE}"

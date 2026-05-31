@@ -130,7 +130,7 @@ The full configure **menu** is available in GUI mode (`sleep-warning-configure -
 |---------|-------------------|-----------------------------|
 | Main menu | Multi-column list (700×500) | Two-column rows: `Option — Description` |
 | **View Weekly Hours** | Four-column table (1050×500) | **Four-column tkinter table** (same width/height; requires Python 3 + tkinter) |
-| **Time range entry** | yad/zenity spinboxes (hour, :00/:30, AM/PM) | **Same spinbox-style tkinter picker** (fallback: text field) |
+| **Time range entry** | yad/zenity spinboxes (hour, :00/:15/:30/:45, AM/PM) | **Same spinbox-style tkinter picker** (fallback: text field) |
 | **Multi-range editor** | Add / Edit / Remove / Done dialog loop | **Same shared editor** (uses tkinter time picker + list dialogs) |
 | Min display time (configure) | 0–300 seconds | **0–60 seconds** (`DARWIN_MAX_MIN_DISPLAY_TIME`; Linux allows up to 300) |
 | Yes/No confirms | Custom button labels | **Yes / No** buttons (wording in message text) |
