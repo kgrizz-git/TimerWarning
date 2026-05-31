@@ -121,6 +121,10 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         [ -f "${_CD_DARWIN_DIR}/configure-dialogs-darwin-table.py" ] && _cd_darwin_has_tkinter
     }
 
+    _cd_darwin_has_list_dialog() {
+        [ -f "${_CD_DARWIN_DIR}/configure_dialogs_darwin_list_ui.py" ] && _cd_darwin_has_tkinter
+    }
+
     _cd_darwin_has_time_dialog() {
         [ -f "${_CD_DARWIN_DIR}/configure-dialogs-darwin-time.py" ] && _cd_darwin_has_tkinter
     }
@@ -272,6 +276,29 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
             done
             printf ']'
             i=$((i + _cd_num_columns))
+        done
+        printf ']'
+        printf '}'
+    }
+
+    _cd_darwin_build_list_json() {
+        local title="$1"
+        local message="$2"
+        local width="$3"
+        local height="$4"
+        shift 4
+
+        printf '{'
+        printf '"title":%s,' "$(_cd_darwin_json_escape "${title}")"
+        printf '"message":%s,' "$(_cd_darwin_json_escape "${message}")"
+        printf '"width":%s,' "${width:-500}"
+        printf '"height":%s,' "${height:-300}"
+        printf '"items":['
+        local item first=1
+        for item in "$@"; do
+            [ "${first}" -eq 1 ] || printf ','
+            first=0
+            printf '%s' "$(_cd_darwin_json_escape "${item}")"
         done
         printf ']'
         printf '}'
@@ -594,6 +621,31 @@ APPLESCRIPT
         shift 4
         local items=("$@")
         message=$(_cd_darwin_preprocess_message "${message}")
+
+        # Prefer the tkinter daemon so menus/prompts share the weekly grid's root
+        # (consistent z-order, no per-prompt osascript process). Fall back to
+        # `choose from list` if the daemon is unavailable or never showed a window.
+        if [ "${CONFIGURE_DARWIN_NO_DAEMON:-}" != "1" ] \
+            && _cd_darwin_has_list_dialog \
+            && _cd_darwin_daemon_start; then
+            local json_payload
+            json_payload=$(_cd_darwin_build_list_json "${title}" "${message}" "${_w}" "${_h}" "${items[@]}")
+            if _cd_darwin_daemon_request "{\"op\":\"list\",${json_payload:1}"; then
+                if _cd_darwin_response_was_shown; then
+                    if _cd_darwin_response_is_ok && ! _cd_darwin_response_is_cancelled; then
+                        local daemon_value
+                        daemon_value=$(_cd_darwin_response_extract_value)
+                        [ -n "${daemon_value}" ] || return 1
+                        printf '%s\n' "${daemon_value}"
+                        return 0
+                    fi
+                    # Window was shown and dismissed: a genuine cancel.
+                    return 1
+                fi
+                # Window never mapped (withdrawn-root invisible failure): use osascript.
+            fi
+        fi
+
         local result
         result=$(_cd_darwin_run_applescript "${title}" "${message}" "${items[@]}" <<'APPLESCRIPT'
 on run argv

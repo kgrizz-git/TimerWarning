@@ -550,7 +550,17 @@ show_main_menu() {
         echo "" >&2
         
         while true; do
-            read -p "Select option [1-13]: " choice >&2
+            # NOTE: guard against EOF. If stdin is closed/non-interactive (e.g. the
+            # script was backgrounded with redirected output and no terminal),
+            # `read` returns non-zero immediately with empty input. Without this
+            # check the loop spins forever printing "Invalid option", pegging a CPU
+            # and growing any redirected output file without bound.
+            if ! read -p "Select option [1-13]: " choice >&2; then
+                echo "" >&2
+                echo "No input available (stdin closed); exiting configuration." >&2
+                echo "CANCELLED"
+                return 2
+            fi
             case "${choice}" in
                 1|2|3|4|5|6|7|8|9|10|11|12|13)
                     echo "${choice}"

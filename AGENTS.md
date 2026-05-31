@@ -10,6 +10,14 @@
 | #2 | [docs/core-beliefs.md](docs/core-beliefs.md) |
 | #3 | [docs/harness-engineering.md](docs/harness-engineering.md) — OpenAI harness patterns in this repo |
 
+> ⛔ **Operational hazard — never run `configure.sh` (or `lib/configure-*.sh`
+> prompts) unbounded.** Its text-mode read loops spin forever on EOF stdin (no
+> terminal + no input), pegging a CPU and growing redirected output WITHOUT
+> bound — this once produced ~465 GB of `/tmp` files and filled the disk. Always
+> run with **all three**: a `timeout`, controlled stdin (`</dev/null` or finite
+> valid input), and bounded output. Then `pkill -f configure.sh` and remove temp
+> files. Never `./configure.sh ... > out.txt 2>&1 &` and walk away.
+
 Cursor rules: `.cursor/rules/safety-guardrails.mdc` (always on), `config-file-edits.mdc`, `tests.mdc`.
 
 ## Project in one paragraph

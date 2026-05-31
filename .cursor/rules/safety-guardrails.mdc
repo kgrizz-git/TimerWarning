@@ -31,6 +31,18 @@ alwaysApply: true
 - Verify the per-day cap holds for both integer-hour (`7-23`) and HH:MM (`07:00-23:00`) configs.
 - Complete the PR checklist in `docs/SAFETY.md`.
 
+## ⛔ Operational hazard — never run `configure.sh` unbounded
+
+`configure.sh` / `lib/configure-*.sh` are **interactive read loops**. With
+non-interactive stdin at EOF (no terminal + no input) they **spin forever**,
+pegging a CPU and growing redirected output WITHOUT bound — this once produced
+~465 GB of `/tmp` files and filled the disk.
+
+When running it, use **all three**: a `timeout`, controlled stdin (`</dev/null`
+or finite valid input), and bounded output. Then `pkill -f configure.sh` and
+delete temp files. **Never** `./configure.sh ... > out.txt 2>&1 &` and walk away.
+Example (safe): `printf '13\n' | timeout 15 ./configure.sh --text 2>&1 | head -200`.
+
 ## Development
 
 - Do not modify installed `~/.config/sleep-warning/` during restricted/blocked hours; use temp `HOME` (see `config-file-edits.mdc`).

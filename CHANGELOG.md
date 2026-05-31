@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **macOS configure wizard: menus/prompts share the tkinter daemon:** `show_list_dialog` now renders through the dialog daemon (new `configure_dialogs_darwin_list_ui.py`, daemon `list` op) instead of osascript `choose from list`. The main menu, every submenu, all true/false & yes/no-via-confirm prompts, and the weekly grid now run as one tkinter process on one root — consistent z-order, no per-prompt osascript spawn, and the daemon root is reused. Falls back to `choose from list` when tkinter is unavailable, `CONFIGURE_DARWIN_NO_DAEMON=1`, the daemon fails, or the window never maps (`shown=false`). Leaf alerts (info/error/question/text-entry) still use osascript. No menu-building code changed; the return contract (selected item text, non-zero on cancel) is unchanged.
+
 - **macOS configure wizard performance:** Session cache for `has_dialog_tool` / `get_dialog_tool` (Darwin skips X11/Wayland display probing). Main menu no longer re-greps config or leaks temp files; weekly grid caches formatted hour strings until hour arrays change. Long-lived `configure-dialogs-darwin-daemon.py` keeps one tkinter root for table/time/text dialogs (one-shot Python fallback if daemon fails). Set `CONFIGURE_PROFILE=1` for per-dialog `prep_ms` / `ui_ms` on stderr. Fix circular nameref warnings in `_configure_build_grid_cache`.
 
 - **macOS install:** `install-darwin.sh` sources `config.sh` before reading popup interval for LaunchAgent setup (fixes `get_check_interval: command not found`). `--force` messaging now states explicitly that `sleep-warning.conf` is preserved (programs and scheduler files are updated).
@@ -31,6 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **macOS popup UI path logging:** Each popup now logs `macOS popup UI: fullscreen-blocker` or `osascript-alert` at open time (with `reason=` and PID verification). Session end logs include `ui=` and `reason=`. Python blocker stderr is appended to `~/.config/sleep-warning/logs/popup-blocker-stderr.log` for LaunchAgent diagnosis when logs showed success but the movable alert appeared.
 
 ### Fixed
+
+- **Text-mode menu no longer spins forever on EOF:** the `show_main_menu` text-mode
+  read loop ([lib/configure-display.sh](lib/configure-display.sh)) now detects when
+  `read` fails (stdin closed / non-interactive) and exits cleanly (`CANCELLED`,
+  rc 2) instead of looping on "Invalid option". Previously, running `configure.sh
+  --text` with redirected output and no terminal (e.g. backgrounded by tooling)
+  pegged a CPU and grew the output file without bound. Other interactive `read -p`
+  loops in `lib/configure-*.sh` still need the same guard (follow-up); see
+  [CLAUDE.md](CLAUDE.md) for safe-run rules.
 
 - **macOS weekly-hours window lingered after "Back to Main Menu":** Cancelling/closing the 4-column tkinter grid no longer re-opens it. The daemon now reports whether the dialog window actually became visible (`shown`), so `_cd_darwin_show_table_dialog` only triggers the one-shot Tk fallback on a genuine invisible-mapping failure — not on a normal cancel. Previously every cancel looked identical to a daemon failure and spawned a duplicate one-shot window that sat behind the osascript main menu. `show_table_dialog()` now returns `(accepted, value, exit_code, shown)`.
 

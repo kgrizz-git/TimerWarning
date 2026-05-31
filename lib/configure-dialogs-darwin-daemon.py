@@ -22,6 +22,7 @@ import tkinter as tk
 _LIB_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_LIB_DIR))
 
+import configure_dialogs_darwin_list_ui as list_ui  # noqa: E402
 import configure_dialogs_darwin_table_ui as table_ui  # noqa: E402
 import configure_dialogs_darwin_text_ui as text_ui  # noqa: E402
 import configure_dialogs_darwin_time_ui as time_ui  # noqa: E402
@@ -37,7 +38,12 @@ def _run_dialog(root: tk.Tk, op: str, req: dict[str, Any]) -> dict[str, Any]:
     # prevent the Toplevel from ever appearing.
 
     try:
-        if op == "table":
+        if op == "list":
+            ok, value, _code, shown = list_ui.show_list_dialog(dialog, req)
+            if ok and value is not None:
+                return {"ok": True, "value": value, "shown": shown}
+            return {"ok": False, "cancelled": True, "shown": shown}
+        elif op == "table":
             ok, value, _code, shown = table_ui.show_table_dialog(dialog, req)
             if ok and value is not None:
                 return {"ok": True, "value": value, "shown": shown}

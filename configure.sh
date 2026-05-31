@@ -3,6 +3,14 @@
 ###############################################################################
 # Sleep Warning System - Interactive Configuration Wizard
 #
+# ⛔ AGENTS / AUTOMATION: this is an INTERACTIVE script. Its text-mode menus are
+#    read loops that can SPIN FOREVER on EOF stdin (no terminal + no input),
+#    burning CPU and growing redirected output WITHOUT BOUND. This once produced
+#    ~465 GB of /tmp files and filled the disk. NEVER run it backgrounded with
+#    redirected output and no timeout. Always: a `timeout`, controlled stdin
+#    (`</dev/null` or finite valid input), and bounded output — then clean up
+#    (`pkill -f configure.sh`). See CLAUDE.md "never run configure.sh unbounded".
+#
 # This script provides a user-friendly GUI interface for configuring restricted
 # hours for the sleep warning system. It walks users through setting up
 # restricted hours for each day of the week.
