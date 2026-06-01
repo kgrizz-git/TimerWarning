@@ -16,6 +16,26 @@ import tkinter as tk
 _GRACE_MS = 400
 
 
+def set_stable_geometry(window: tk.Misc, width: int, height: int) -> None:
+    """
+    Size and center a dialog consistently.
+
+    Tk's bare WIDTHxHEIGHT geometry lets macOS cascade each new Toplevel, which
+    makes fast menu-to-menu navigation feel jumpy. Centering each dialog gives
+    the wizard a stable anchor even when the next screen has a different size.
+    """
+    try:
+        screen_w = int(window.winfo_screenwidth())
+        screen_h = int(window.winfo_screenheight())
+    except tk.TclError:
+        window.geometry(f"{width}x{height}")
+        return
+
+    x = max(0, (screen_w - width) // 2)
+    y = max(0, (screen_h - height) // 3)
+    window.geometry(f"{width}x{height}+{x}+{y}")
+
+
 def close_modal(window: tk.Misc) -> None:
     """
     Dismiss a dialog started by run_modal().
@@ -23,7 +43,18 @@ def close_modal(window: tk.Misc) -> None:
     Toplevel (daemon): destroy the window so wait_window() returns.
     Tk root (one-shot CLI): quit the mainloop.
     """
-    if isinstance(window, tk.Toplevel):
+    if isinstance(window, tk.Toplevel) and bool(getattr(window, "_sw_reusable_modal", False)):
+        try:
+            window.withdraw()
+        except tk.TclError:
+            pass
+        done_var = getattr(window, "_sw_modal_done_var", None)
+        if done_var is not None:
+            try:
+                done_var.set(True)
+            except tk.TclError:
+                pass
+    elif isinstance(window, tk.Toplevel):
         window.destroy()
     else:
         window.quit()
@@ -41,6 +72,11 @@ def run_modal(window: tk.Misc) -> None:
     window.update_idletasks()
     if isinstance(window, tk.Toplevel):
         root = window.master
+        reusable = bool(getattr(window, "_sw_reusable_modal", False))
+        done_var: tk.BooleanVar | None = None
+        if reusable:
+            done_var = tk.BooleanVar(master=root, value=False)
+            setattr(window, "_sw_modal_done_var", done_var)
         try:
             window.deiconify()
             window.state("normal")
@@ -49,12 +85,21 @@ def run_modal(window: tk.Misc) -> None:
         except tk.TclError:
             pass
         try:
-            root.wait_window(window)
+            if reusable and done_var is not None:
+                root.wait_variable(done_var)
+            else:
+                root.wait_window(window)
         finally:
             try:
                 window.grab_release()
             except tk.TclError:
                 pass
+            if reusable:
+                try:
+                    window.withdraw()
+                except tk.TclError:
+                    pass
+                setattr(window, "_sw_modal_done_var", None)
     else:
         window.mainloop()
 
@@ -68,6 +113,16 @@ def cleanup_modal_window(window: tk.Misc) -> None:
         return
     for child in window.winfo_children():
         child.destroy()
+    if bool(getattr(window, "_sw_reusable_modal", False)):
+        for sequence in ("<Map>", "<Return>", "<Escape>", "<FocusOut>"):
+            try:
+                window.unbind(sequence)
+            except tk.TclError:
+                pass
+        try:
+            window.protocol("WM_DELETE_WINDOW", "")
+        except tk.TclError:
+            pass
 
 
 def apply_initial_frontmost(root: tk.Tk) -> None:

@@ -38,7 +38,7 @@ def show_text_dialog(window: tk.Misc, payload: dict[str, Any]) -> tuple[bool, st
     result: dict[str, str | None] = {"label": None, "code": 0}
 
     window.title(title)
-    window.geometry(f"{width}x{height}")
+    _cd_window.set_stable_geometry(window, width, height)
     window.minsize(min(width, 480), min(height, 320))
     _cd_window.apply_initial_frontmost(window)  # type: ignore[arg-type]
 

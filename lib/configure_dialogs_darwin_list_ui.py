@@ -44,7 +44,7 @@ def show_list_dialog(window: tk.Misc, payload: dict[str, Any]) -> tuple[bool, st
     visible: dict[str, bool] = {"shown": False}
 
     window.title(title)
-    window.geometry(f"{width}x{height}")
+    _cd_window.set_stable_geometry(window, width, height)
     window.minsize(min(width, 360), min(height, 200))
 
     def _mark_shown(_event: Any = None) -> None:

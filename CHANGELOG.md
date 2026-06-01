@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **macOS configure wizard performance (phase 2):** Single-pass daemon response parsing (bash booleans + one optional Python value extract instead of four `python3 -c` calls per dialog). Weekly grid caches pre-built table JSON (`_CONFIGURE_GRID_TABLE_JSON`) and skips array copy + JSON rebuild on repeat shows. Daemon starts before the welcome alert to overlap Python/Tk cold start. `CONFIGURE_PROFILE=1` now covers list, info, question, entry, and osascript list fallback paths. Conditional osascript `activate` skips redundant frontmost calls when the previous osascript dialog closed &lt;500 ms ago (always activates after tkinter and on first dialog). Tests: `tests/test-darwin-response-parse.sh`, `tests/test-darwin-profile-baseline.sh`.
 
+- **macOS configure wizard performance/UX follow-up:** The tkinter daemon now sends its ready handshake before warming list/table/time/text UI imports, letting module import cost overlap with the welcome dialog. Successful daemon response values use a pure-bash fast path instead of spawning `python3 -c` on every simple menu selection. The daemon also reuses one hidden `Toplevel` window instead of creating/destroying a new Tk window for each screen. Tkinter configure dialogs use a shared stable centered geometry helper instead of bare `WIDTHxHEIGHT`, preventing each menu-to-menu transition from cascading to a new offset position.
+
 - **macOS configure wizard performance:** Session cache for `has_dialog_tool` / `get_dialog_tool` (Darwin skips X11/Wayland display probing). Main menu no longer re-greps config or leaks temp files; weekly grid caches formatted hour strings until hour arrays change. Long-lived `configure-dialogs-darwin-daemon.py` keeps one tkinter root for table/time/text dialogs (one-shot Python fallback if daemon fails). Set `CONFIGURE_PROFILE=1` for per-dialog `prep_ms` / `ui_ms` on stderr. Fix circular nameref warnings in `_configure_build_grid_cache`.
 
 - **macOS install:** `install-darwin.sh` sources `config.sh` before reading popup interval for LaunchAgent setup (fixes `get_check_interval: command not found`). `--force` messaging now states explicitly that `sleep-warning.conf` is preserved (programs and scheduler files are updated).
@@ -68,6 +70,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [AGENTS.md](AGENTS.md) for safe-run rules.
 
 - **macOS weekly-hours window lingered after "Back to Main Menu":** Cancelling/closing the 4-column tkinter grid no longer re-opens it. The daemon now reports whether the dialog window actually became visible (`shown`), so `_cd_darwin_show_table_dialog` only triggers the one-shot Tk fallback on a genuine invisible-mapping failure — not on a normal cancel. Previously every cancel looked identical to a daemon failure and spawned a duplicate one-shot window that sat behind the osascript main menu. `show_table_dialog()` now returns `(accepted, value, exit_code, shown)`.
+
+- **macOS manage logs:** `sleep-warning-manage` now reads macOS LaunchAgent logs from `~/.config/sleep-warning/logs/launchd-stdout.log`, `launchd-stderr.log`, and `~/.config/sleep-warning/warnings.log` instead of unconditionally calling Linux `journalctl`.
+
+- **macOS configure GUI regression suite:** `tests/test-darwin-modal-dialog.py` probes tkinter usability in a subprocess, so native AppKit/Tk aborts skip runtime Tk tests instead of killing the whole suite.
 
 - **macOS configure table dialog visibility:** Weekly grid (4-column tkinter table) now deiconifies daemon `Toplevel` windows and waits via `root.wait_window(dialog)`; removed `transient(withdrawn_root)` which could suppress the window on macOS. If the daemon path still fails, table dialogs automatically fall back to one-shot `configure-dialogs-darwin-table.py`.
 

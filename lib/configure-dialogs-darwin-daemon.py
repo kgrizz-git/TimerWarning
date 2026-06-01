@@ -22,36 +22,65 @@ import tkinter as tk
 _LIB_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_LIB_DIR))
 
+list_ui: Any | None = None
+table_ui: Any | None = None
+text_ui: Any | None = None
+time_ui: Any | None = None
 
+def _warm_imports() -> None:
+    """
+    Import UI modules after the ready handshake.
 
+    configure.sh starts the daemon before the welcome alert, so this work can
+    overlap with the user's first dialog instead of landing on the first menu
+    transition. Imports are deliberately kept in the main thread because Tk
+    modules can be fussy on macOS.
+    """
+    global list_ui, table_ui, text_ui, time_ui
+    import configure_dialogs_darwin_list_ui as _list_ui
+    import configure_dialogs_darwin_table_ui as _table_ui
+    import configure_dialogs_darwin_text_ui as _text_ui
+    import configure_dialogs_darwin_time_ui as _time_ui
+
+    list_ui = _list_ui
+    table_ui = _table_ui
+    text_ui = _text_ui
+    time_ui = _time_ui
 
 def _respond(payload: dict[str, Any]) -> None:
     print(json.dumps(payload, ensure_ascii=False), flush=True)
 
 
-def _run_dialog(root: tk.Tk, op: str, req: dict[str, Any]) -> dict[str, Any]:
-    dialog = tk.Toplevel(root)
+def _run_dialog(root: tk.Tk, dialog: tk.Toplevel, op: str, req: dict[str, Any]) -> dict[str, Any]:
     # Do not call transient(root) while root is withdrawn — on macOS that can
     # prevent the Toplevel from ever appearing.
 
     try:
         if op == "list":
-            import configure_dialogs_darwin_list_ui as list_ui
+            global list_ui
+            if list_ui is None:
+                import configure_dialogs_darwin_list_ui as list_ui
             ok, value, _code, shown = list_ui.show_list_dialog(dialog, req)
             if ok and value is not None:
                 return {"ok": True, "value": value, "shown": shown}
             return {"ok": False, "cancelled": True, "shown": shown}
         elif op == "table":
-            import configure_dialogs_darwin_table_ui as table_ui
+            global table_ui
+            if table_ui is None:
+                import configure_dialogs_darwin_table_ui as table_ui
             ok, value, _code, shown = table_ui.show_table_dialog(dialog, req)
             if ok and value is not None:
                 return {"ok": True, "value": value, "shown": shown}
             return {"ok": False, "cancelled": True, "shown": shown}
         elif op == "time":
-            import configure_dialogs_darwin_time_ui as time_ui
+            global time_ui
+            if time_ui is None:
+                import configure_dialogs_darwin_time_ui as time_ui
             ok, value, _code = time_ui.show_time_dialog(dialog, req)
         elif op == "text":
-            import configure_dialogs_darwin_text_ui as text_ui
+            global text_ui
+            if text_ui is None:
+                import configure_dialogs_darwin_text_ui as text_ui
             ok, label, code = text_ui.show_text_dialog(dialog, req)
             if ok and label is not None:
                 return {"ok": True, "value": label, "exit_code": code}
@@ -72,7 +101,7 @@ def _run_dialog(root: tk.Tk, op: str, req: dict[str, Any]) -> dict[str, Any]:
             pass
         try:
             if dialog.winfo_exists():
-                dialog.destroy()
+                dialog.withdraw()
         except tk.TclError:
             pass
 
@@ -80,8 +109,12 @@ def _run_dialog(root: tk.Tk, op: str, req: dict[str, Any]) -> dict[str, Any]:
 def main() -> None:
     root = tk.Tk()
     root.withdraw()
+    dialog = tk.Toplevel(root)
+    dialog.withdraw()
+    setattr(dialog, "_sw_reusable_modal", True)
 
     _respond({"ok": True, "ready": True})
+    _warm_imports()
 
     for line in sys.stdin:
         line = line.strip()
@@ -99,7 +132,7 @@ def main() -> None:
             _respond({"ok": True, "quit": True})
             break
 
-        _respond(_run_dialog(root, op, req))
+        _respond(_run_dialog(root, dialog, op, req))
 
     raise SystemExit(0)
 

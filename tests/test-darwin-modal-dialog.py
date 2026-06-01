@@ -9,6 +9,7 @@ Runs without opening visible dialogs when tkinter is unavailable (static checks 
 from __future__ import annotations
 
 import sys
+import subprocess
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -28,15 +29,23 @@ DAEMON = LIB / "configure-dialogs-darwin-daemon.py"
 
 
 def _tkinter_usable() -> bool:
+    probe = (
+        "import tkinter as tk; "
+        "root = tk.Tk(); "
+        "root.withdraw(); "
+        "root.destroy()"
+    )
     try:
-        import tkinter as tk
-
-        root = tk.Tk()
-        root.withdraw()
-        root.destroy()
-        return True
-    except Exception:
+        result = subprocess.run(
+            [sys.executable, "-c", probe],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
         return False
+    return result.returncode == 0
 
 
 class StaticModalPatternTests(unittest.TestCase):
@@ -75,6 +84,13 @@ class StaticModalPatternTests(unittest.TestCase):
         text = (LIB / "configure_dialogs_darwin_window.py").read_text(encoding="utf-8")
         self.assertIn("root.wait_window(window)", text)
         self.assertIn("deiconify()", text)
+
+    def test_ui_modules_use_stable_geometry(self) -> None:
+        for path in UI_MODULES + (LIB / "configure_dialogs_darwin_list_ui.py",):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(module=path.name):
+                self.assertIn("_cd_window.set_stable_geometry(window, width, height)", text)
+                self.assertNotIn('window.geometry(f"{width}x{height}")', text)
 
 
 @unittest.skipUnless(_tkinter_usable(), "tkinter display not available")

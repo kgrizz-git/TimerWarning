@@ -42,7 +42,7 @@ def show_table_dialog(window: tk.Misc, payload: dict[str, Any]) -> tuple[bool, s
     visible: dict[str, bool] = {"shown": False}
 
     window.title(title)
-    window.geometry(f"{width}x{height}")
+    _cd_window.set_stable_geometry(window, width, height)
     window.minsize(min(width, 640), min(height, 320))
 
     def _mark_shown(_event: Any = None) -> None:

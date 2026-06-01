@@ -83,7 +83,7 @@ def show_time_dialog(window: tk.Misc, payload: dict[str, Any]) -> tuple[bool, st
     result: dict[str, str | None] = {"value": None}
 
     window.title(title)
-    window.geometry(f"{width}x{height}")
+    _cd_window.set_stable_geometry(window, width, height)
     window.minsize(480, 320)
     _cd_window.apply_initial_frontmost(window)  # type: ignore[arg-type]
 

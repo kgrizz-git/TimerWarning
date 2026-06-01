@@ -336,7 +336,37 @@ view_logs() {
     fi
     
     local logs
-    logs=$(journalctl --user -u "${SERVICE_NAME}.service" -n 50 --no-pager 2>/dev/null)
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        local log_dir stdout_log stderr_log warnings_log
+        if type sleep_warning_log_dir >/dev/null 2>&1; then
+            log_dir="$(sleep_warning_log_dir)"
+        else
+            log_dir="${CONFIG_DIR}/logs"
+        fi
+        stdout_log="${log_dir}/launchd-stdout.log"
+        stderr_log="${log_dir}/launchd-stderr.log"
+        warnings_log="${CONFIG_DIR}/warnings.log"
+
+        local logs_found=false
+        logs="macOS LaunchAgent Logs"$'\n\n'
+        if [ -f "${warnings_log}" ]; then
+            logs="${logs}== warnings.log (last 50 lines) =="$'\n'"$(tail -n 50 "${warnings_log}" 2>/dev/null)"$'\n\n'
+            logs_found=true
+        fi
+        if [ -f "${stdout_log}" ]; then
+            logs="${logs}== launchd-stdout.log (last 50 lines) =="$'\n'"$(tail -n 50 "${stdout_log}" 2>/dev/null)"$'\n\n'
+            logs_found=true
+        fi
+        if [ -f "${stderr_log}" ]; then
+            logs="${logs}== launchd-stderr.log (last 50 lines) =="$'\n'"$(tail -n 50 "${stderr_log}" 2>/dev/null)"$'\n\n'
+            logs_found=true
+        fi
+        if [ "${logs_found}" = "false" ]; then
+            logs="No macOS logs found yet."$'\n\n'"Checked:"$'\n'"${warnings_log}"$'\n'"${stdout_log}"$'\n'"${stderr_log}"
+        fi
+    else
+        logs=$(journalctl --user -u "${SERVICE_NAME}.service" -n 50 --no-pager 2>/dev/null)
+    fi
     
     if [ -z "${logs}" ]; then
         logs="No logs found. The service may not have run yet."
@@ -595,14 +625,6 @@ main() {
         use_gui="true"
     fi
     
-    # Phase 3.3: Check configure-block lock.  Some actions (Disable Service, status
-    # viewing, logs) are still allowed during lock hours because they are escape hatches.
-    # "Configure Restricted Hours" is the only action that must be blocked.
-    local _config_locked=false
-    if ! check_config_lock_time 2>/dev/null; then
-        _config_locked=true
-    fi
-
     # Check if installed
     if ! is_installed; then
         show_message "Not Installed" "The Sleep Warning System is not installed.\n\nPlease run install.sh to install it first." "error" "${use_gui}"

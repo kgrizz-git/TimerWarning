@@ -185,8 +185,25 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         fi
     }
 
+    _cd_darwin_response_extract_simple_value() {
+        local json="${_CD_DARWIN_DAEMON_LAST_RESPONSE}"
+        # Fast path for daemon values without JSON escapes. This covers menu
+        # numbers, day names, time ranges, and most labels without spawning
+        # python3 on every dialog transition.
+        if [[ "${json}" =~ \"value\"[[:space:]]*:[[:space:]]*\"([^\"\\]*)\" ]]; then
+            printf '%s' "${BASH_REMATCH[1]}"
+            return 0
+        fi
+        return 1
+    }
+
     _cd_darwin_response_extract_value() {
         if [ "${_CD_RESP_VALUE_FETCHED}" = "yes" ]; then
+            printf '%s' "${_CD_RESP_VALUE}"
+            return 0
+        fi
+        if _CD_RESP_VALUE="$(_cd_darwin_response_extract_simple_value)"; then
+            _CD_RESP_VALUE_FETCHED="yes"
             printf '%s' "${_CD_RESP_VALUE}"
             return 0
         fi

@@ -46,6 +46,11 @@ assert_eq "parse shown=yes" "yes" "${_CD_RESP_SHOWN}"
 value=$(_cd_darwin_response_extract_value)
 assert_eq "parse value Monday" "Monday" "${value}"
 
+# --- simple value does not need python3 ---
+_cd_darwin_parse_last_response
+value=$(PATH=/nonexistent _cd_darwin_response_extract_value)
+assert_eq "simple value parse without python3" "Monday" "${value}"
+
 # --- cancel response ---
 _CD_DARWIN_DAEMON_LAST_RESPONSE='{"ok": false, "cancelled": true, "shown": true}'
 _cd_darwin_parse_last_response
@@ -63,6 +68,12 @@ _CD_DARWIN_DAEMON_LAST_RESPONSE='{"ok": true, "value": "9:00am–5:00pm", "shown
 _cd_darwin_parse_last_response
 value=$(_cd_darwin_response_extract_value)
 assert_eq "unicode value preserved" "9:00am–5:00pm" "${value}"
+
+# --- escaped values still use JSON parser fallback ---
+_CD_DARWIN_DAEMON_LAST_RESPONSE='{"ok": true, "value": "A \"quoted\" value", "shown": true}'
+_cd_darwin_parse_last_response
+value=$(_cd_darwin_response_extract_value)
+assert_eq "escaped quote value preserved" 'A "quoted" value' "${value}"
 
 echo ""
 echo "Results: ${pass} passed, ${fail} failed"
