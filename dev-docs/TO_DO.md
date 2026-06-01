@@ -2,6 +2,10 @@
 
 Short queue of open work. For full status per enhancement, see [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md). For testing, docs, and master-plan phases, see [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md).
 
+## Refactoring / maintainability
+
+- [ ] **May 2026 refactor assessment** — Address 10 files over 750 lines: extract configure UI error dialogs and summary builders, split `configure-input-features.sh`, finish `show_warning()` orchestration, run Phase 0 `write_config()` verification gates → [plan](plans/plan-refactor-assessment-2026-05-31.md) · [assessment](refactor-assessments/refactor-assessment-2026-05-31-140925.md) · continues [Feb refactor plan](plans/refactor-plan-high-priority-2026-02-05.md)
+
 ## Configure and UI
 
 - [ ] **#16c** — Finish GUI multiple time ranges; test with yad, zenity, and kdialog → [enhancement-16c](enhancements/enhancement-16c-multiple-range-entry-gui.md)

@@ -288,7 +288,9 @@ flowchart TD
 | Mechanism | File | Behavior |
 |-----------|------|----------|
 | Dialog tool cache | `configure-core.sh` | `has_dialog_tool` / `get_dialog_tool` cached per session; Darwin uses `osascript` only (no `detect_display_environment`). |
-| Grid string cache | `configure-display.sh` | `_configure_build_grid_cache` rebuilds weekly grid labels only when `configure_hours_data_changed` invalidates. |
-| Tk dialog daemon | `configure-dialogs-darwin-daemon.py` | Started from `configure.sh` when GUI mode on macOS; table/time/text dialogs reuse one hidden Tk root. Stopped on EXIT/INT/TERM. |
-| One-shot fallback | `configure-dialogs-darwin.sh` | If daemon start or request fails, falls back to `python3 configure-dialogs-darwin-{table,time,text}.py`. |
-| Profiling | `CONFIGURE_PROFILE=1` | stderr lines: `CONFIGURE_PROFILE dialog=table prep_ms=… ui_ms=…` from `_cd_darwin_profile_log`. |
+| Grid string + JSON cache | `configure-display.sh` | `_configure_build_grid_cache` rebuilds labels and `_CONFIGURE_GRID_TABLE_JSON` only when `configure_hours_data_changed` invalidates. Repeat grid shows skip array copy and JSON serialization. |
+| Tk dialog daemon | `configure-dialogs-darwin-daemon.py` | Started from `configure.sh` **before welcome** when GUI mode on macOS; table/time/text/list dialogs reuse one hidden Tk root. Stopped on EXIT/INT/TERM. |
+| Daemon response parse | `configure-dialogs-darwin.sh` | Bash regex for `ok`/`cancelled`/`shown`; lazy Python extract for `value` only when needed. |
+| osascript activate throttle | `configure-dialogs-darwin.sh` | Skips redundant `activate` when last dialog was osascript and closed &lt;500 ms ago; always activates after tkinter, on first dialog, and on list fallback. |
+| One-shot fallback | `configure-dialogs-darwin.sh` | If daemon start or request fails, falls back to `python3 configure-dialogs-darwin-{table,time,text}.py` or osascript `choose from list`. |
+| Profiling | `CONFIGURE_PROFILE=1` | stderr: `CONFIGURE_PROFILE dialog={table\|list\|time\|text\|info\|question\|entry\|list-osascript} prep_ms=… ui_ms=…`. Headless baseline: `tests/test-darwin-profile-baseline.sh`. Manual hop matrix: run `./configure.sh` with `CONFIGURE_PROFILE=1`. |

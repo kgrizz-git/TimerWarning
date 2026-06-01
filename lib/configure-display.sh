@@ -270,6 +270,31 @@ _configure_build_grid_cache() {
     _CONFIGURE_GRID_LOCK+=("")
     _CONFIGURE_GRID_UNINSTALL+=("")
 
+    _CONFIGURE_GRID_TABLE_JSON=""
+    if type _cd_darwin_build_table_json >/dev/null 2>&1; then
+        local -a _cg_table_columns=("Day" "Restricted Hours" "Config Lock Hours" "Uninstall Lock Hours")
+        local -a _cg_table_data=()
+        local _cg_i
+        for _cg_i in "${!_CONFIGURE_GRID_DAY_NAMES[@]}"; do
+            _cg_table_data+=("${_CONFIGURE_GRID_DAY_NAMES[${_cg_i}]}")
+            _cg_table_data+=("${_CONFIGURE_GRID_RESTRICTED[${_cg_i}]}")
+            _cg_table_data+=("${_CONFIGURE_GRID_LOCK[${_cg_i}]}")
+            _cg_table_data+=("${_CONFIGURE_GRID_UNINSTALL[${_cg_i}]}")
+        done
+        _cd_column_names=("${_cg_table_columns[@]}")
+        _cd_num_columns=4
+        _cd_data=("${_cg_table_data[@]}")
+        _CONFIGURE_GRID_TABLE_JSON=$(
+            _cd_darwin_build_table_json \
+                "View Weekly Hours Settings" \
+                "Select a day to edit its restricted hours, lock hours, or uninstall lock hours:" \
+                1050 \
+                500 \
+                1
+        )
+        _CONFIGURE_GRID_TABLE_JSON_TITLE="View Weekly Hours Settings"
+    fi
+
     _CONFIGURE_GRID_CACHE_VALID=true
 }
 
@@ -701,39 +726,43 @@ show_visual_grid() {
                 echo "DEBUG: show_visual_grid local day_names(after)=${day_names[*]}" >&2
             fi
 
-            # Build data array in alternating format for multi-column dialog
-            # Format: col1_row1, col2_row1, col3_row1, col4_row1, col1_row2, col2_row2, col3_row2, col4_row2, ...
-            local grid_data=()
-            for i in "${!day_names[@]}"; do
-                grid_data+=("${day_names[${i}]}")
-                grid_data+=("${restricted_hours_list[${i}]}")
-                grid_data+=("${lock_hours_list[${i}]}")
-                grid_data+=("${uninstall_lock_hours_list[${i}]}")
-            done
-            
-            # Debug: Log what we're sending to dialog (if DEBUG_GRID is set)
-            if [ -n "${DEBUG_GRID:-}" ]; then
-                echo "DEBUG: Grid data array (alternating Day, Restricted Hours, Lock Hours, Uninstall Lock Hours):" >&2
-                for i in "${!grid_data[@]}"; do
-                    echo "  [${i}]: '${grid_data[${i}]}'" >&2
+            local selected exit_code
+            if [ -n "${_CONFIGURE_GRID_TABLE_JSON:-}" ] \
+                && type _cd_darwin_show_table_with_json >/dev/null 2>&1; then
+                selected=$(_cd_darwin_show_table_with_json "${_CONFIGURE_GRID_TABLE_JSON}" 0)
+                exit_code=$?
+            else
+                # Build data array in alternating format for multi-column dialog
+                # Format: col1_row1, col2_row1, col3_row1, col4_row1, col1_row2, ...
+                local grid_data=()
+                for i in "${!day_names[@]}"; do
+                    grid_data+=("${day_names[${i}]}")
+                    grid_data+=("${restricted_hours_list[${i}]}")
+                    grid_data+=("${lock_hours_list[${i}]}")
+                    grid_data+=("${uninstall_lock_hours_list[${i}]}")
                 done
+
+                # Debug: Log what we're sending to dialog (if DEBUG_GRID is set)
+                if [ -n "${DEBUG_GRID:-}" ]; then
+                    echo "DEBUG: Grid data array (alternating Day, Restricted Hours, Lock Hours, Uninstall Lock Hours):" >&2
+                    for i in "${!grid_data[@]}"; do
+                        echo "  [${i}]: '${grid_data[${i}]}'" >&2
+                    done
+                fi
+
+                selected=$(show_multi_column_list_dialog \
+                    "View Weekly Hours Settings" \
+                    "Select a day to edit its restricted hours, lock hours, or uninstall lock hours:" \
+                    1050 \
+                    500 \
+                    1 \
+                    "Day" \
+                    "Restricted Hours" \
+                    "Config Lock Hours" \
+                    "Uninstall Lock Hours" \
+                    "${grid_data[@]}")
+                exit_code=$?
             fi
-            
-            # Use multi-column abstraction function
-            # Width reduced another 25% (1400 -> 1050)
-            local selected
-            selected=$(show_multi_column_list_dialog \
-                "View Weekly Hours Settings" \
-                "Select a day to edit its restricted hours, lock hours, or uninstall lock hours:" \
-                1050 \
-                500 \
-                1 \
-                "Day" \
-                "Restricted Hours" \
-                "Config Lock Hours" \
-                "Uninstall Lock Hours" \
-                "${grid_data[@]}")
-            local exit_code=$?
             
             # Check if user cancelled (empty choice and non-zero exit)
             if [ ${exit_code} -ne 0 ] && [ -z "${selected}" ]; then

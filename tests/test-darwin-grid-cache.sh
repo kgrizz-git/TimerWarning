@@ -17,6 +17,8 @@ source "${SCRIPT_DIR}/lib/time-parsing.sh" 2>/dev/null || true
 source "${SCRIPT_DIR}/lib/configure-time.sh"
 # shellcheck source=../lib/configure-display.sh
 source "${SCRIPT_DIR}/lib/configure-display.sh"
+# shellcheck source=../lib/configure-dialogs-darwin.sh
+source "${SCRIPT_DIR}/lib/configure-dialogs-darwin.sh"
 
 pass=0
 fail=0
@@ -75,6 +77,13 @@ assert_eq "grid cache valid after build" "true" "${_CONFIGURE_GRID_CACHE_VALID}"
 assert_eq "grid row count (7 days + Back)" "8" "${#_CONFIGURE_GRID_DAY_NAMES[@]}"
 assert_eq "grid back row label" "[Back]" "${_CONFIGURE_GRID_DAY_NAMES[7]}"
 assert_contains "monday restricted formatted" "${_CONFIGURE_GRID_RESTRICTED[1]}" "9:00am"
+if [ -n "${_CONFIGURE_GRID_TABLE_JSON:-}" ]; then
+    echo "PASS: grid table json populated when darwin dialogs loaded"
+    pass=$((pass + 1))
+else
+    echo "FAIL: grid table json not populated"
+    fail=$((fail + 1))
+fi
 
 # --- cache reuse without rebuild ---
 _CONFIGURE_GRID_DAY_NAMES=("STALE")

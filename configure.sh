@@ -212,6 +212,12 @@ main() {
         fi
     fi
     
+    # macOS: start long-lived tkinter dialog helper early for faster screen switches.
+    # Spawning before the welcome alert (osascript) hides Python cold-start latency.
+    if [ "${use_gui}" = "true" ] && is_darwin && type _cd_darwin_daemon_start >/dev/null 2>&1; then
+        _cd_darwin_daemon_start || true
+    fi
+    
     # Partial lock mode: tighten-only edits during restriction / configure-block / config-file lock hours.
     CONFIGURE_PARTIAL_LOCK_MODE=false
     if type configure_partial_lock_is_active >/dev/null 2>&1; then
@@ -258,12 +264,6 @@ main() {
     
     # Ensure dialog_tool is initialized (set by load_existing_config(), but provide fallback)
     dialog_tool="${dialog_tool:-auto}"
-
-    # macOS: start long-lived tkinter dialog helper for faster screen switches.
-    if [ "${use_gui}" = "true" ] && is_darwin && type _cd_darwin_daemon_start >/dev/null 2>&1; then
-        _cd_darwin_daemon_start || true
-    fi
-    
     # Main configuration loop
     while true; do
         # Get section status indicators for restricted hours

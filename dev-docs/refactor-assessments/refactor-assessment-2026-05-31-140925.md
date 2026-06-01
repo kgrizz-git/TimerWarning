@@ -512,12 +512,14 @@ File is **appropriately large** as the runtime config API surface. Further split
 
 ## Next Steps
 
-- [ ] Review prioritized recommendations with user
-- [ ] Run `write_config()` representative output verification (Feb plan gap)
-- [ ] Implement high-priority extractions in order: `configure-ui-errors` → `configure-display-summary` → finish `show_warning` orchestration
+- [x] Review prioritized recommendations with user
+- [x] Implementation plan created → [plan-refactor-assessment-2026-05-31.md](../plans/plan-refactor-assessment-2026-05-31.md)
+- [x] TO_DO item added → [dev-docs/TO_DO.md](../TO_DO.md) (Refactoring / maintainability)
+- [ ] Run `write_config()` representative output verification (Phase 0 in plan)
+- [ ] Implement per plan: Phase 1 `configure-ui-errors` → Phase 2 `configure-display-summary` → Phase 3 input-features split → Phase 4 `show_warning` orchestration
 - [ ] After each extraction: targeted tests per [docs/development/testing.md](../../docs/development/testing.md); `./scripts/run-security-scan.sh --ci` for lib changes
 - [ ] Update [refactor-plan-high-priority-2026-02-05.md](../plans/refactor-plan-high-priority-2026-02-05.md) checkboxes when items complete
-- [ ] Re-run assessment after next major feature batch (15-minute resolution, pause cooldown, etc.)
+- [ ] Re-run assessment after Phase 4 completes
 
 ---
 

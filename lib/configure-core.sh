@@ -185,9 +185,13 @@ declare -g -a _CONFIGURE_GRID_DAY_NAMES=()
 declare -g -a _CONFIGURE_GRID_RESTRICTED=()
 declare -g -a _CONFIGURE_GRID_LOCK=()
 declare -g -a _CONFIGURE_GRID_UNINSTALL=()
+_CONFIGURE_GRID_TABLE_JSON=""
+_CONFIGURE_GRID_TABLE_JSON_TITLE=""
 
 configure_invalidate_grid_cache() {
     _CONFIGURE_GRID_CACHE_VALID=false
+    _CONFIGURE_GRID_TABLE_JSON=""
+    _CONFIGURE_GRID_TABLE_JSON_TITLE=""
 }
 
 configure_hours_data_changed() {

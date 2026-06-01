@@ -1,5 +1,7 @@
 ## Refactoring Plan (High Priority) - 2026-02-05
 
+**Superseded for remaining work by:** [plan-refactor-assessment-2026-05-31.md](plan-refactor-assessment-2026-05-31.md) (May 2026 assessment follow-up). Checkboxes below reflect Feb–May progress; open items are carried forward in the May plan.
+
 ### Goals
 
 - Reduce maintenance risk by breaking up the largest “hotspot” functions and removing duplicated logic.

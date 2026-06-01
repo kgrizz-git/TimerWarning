@@ -61,8 +61,17 @@ if ! read -r -t 10 -u "${DAEMON_RFD}" ready_line; then
     exit 1
 fi
 
+# Source lib to test pure-bash parsing helper
+source "${SCRIPT_DIR}/lib/configure-dialogs-darwin.sh"
+
 ready_ok=$(python3 -c 'import json,sys; d=json.loads(sys.argv[1]); print("yes" if d.get("ready") else "no")' "${ready_line}" 2>/dev/null || echo "no")
 assert_eq "daemon ready handshake" "yes" "${ready_ok}"
+
+bash_ready_ok="no"
+if _cd_darwin_json_field_true "${ready_line}" "ready"; then
+    bash_ready_ok="yes"
+fi
+assert_eq "pure bash daemon ready parse" "yes" "${bash_ready_ok}"
 
 # --- invalid JSON → error response, daemon stays alive ---
 printf '%s\n' 'not-json' >&"${DAEMON_WFD}"
@@ -79,6 +88,7 @@ if ! read -r -t 5 -u "${DAEMON_RFD}" quit_line; then
     echo "FAIL: daemon quit response timeout"
     exit 1
 fi
+
 quit_ok=$(python3 -c 'import json,sys; d=json.loads(sys.argv[1]); print("yes" if d.get("quit") else "no")' "${quit_line}" 2>/dev/null || echo "no")
 assert_eq "daemon quit response" "yes" "${quit_ok}"
 

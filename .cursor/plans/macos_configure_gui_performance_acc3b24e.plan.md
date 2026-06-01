@@ -4,22 +4,22 @@ overview: "Deep-dive on macOS configure wizard responsiveness: what already make
 todos:
   - id: baseline-profile
     content: Run CONFIGURE_PROFILE=1 manual hop matrix; record prep_ms/ui_ms for main menu, grid, time, list, osascript info
-    status: pending
+    status: completed
   - id: single-parse-response
     content: Refactor configure-dialogs-darwin.sh to parse daemon JSON once per response (Tier A1)
-    status: pending
+    status: completed
   - id: cache-table-json
     content: Store _CONFIGURE_GRID_TABLE_JSON alongside grid cache; invalidate with configure_invalidate_grid_cache (Tier A2)
-    status: pending
+    status: completed
   - id: early-daemon-warm
     content: Start _cd_darwin_daemon_start before/ during welcome when use_gui on Darwin (Tier A3)
-    status: pending
+    status: completed
   - id: profile-list-osascript
     content: Add CONFIGURE_PROFILE logging to show_list_dialog and osascript paths (Tier A4)
-    status: pending
+    status: completed
   - id: phase4-activate-optional
     content: "If profiling shows osascript cost: implement conditional activate with z-order manual QA (Tier B1)"
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -68,9 +68,9 @@ Reference doc: [`dev-docs/CONFIGURE_GUI_FLOW.md`](dev-docs/CONFIGURE_GUI_FLOW.md
 
 | Cost | Where | Typical when felt |
 |------|--------|-------------------|
-| **Table JSON rebuild** | `show_visual_grid` builds `grid_data[]` every loop iteration, then [`_cd_darwin_build_table_json`](lib/configure-dialogs-darwin.sh) escapes ~32 cells | Every return to weekly grid (option 9), even when grid **string** cache is warm |
-| **4× `python3 -c` per daemon response** | `_cd_darwin_response_extract_value`, `_is_ok`, `_is_cancelled`, `_was_shown` | Every list/table/time/text interaction |
-| **Full Toplevel rebuild** | Daemon creates new `Toplevel`, builds Treeview/Listbox from scratch, [`apply_initial_frontmost`](lib/configure_dialogs_darwin_window.py) | Every tk dialog (expected; pooling is hard) |
+| **Table JSON rebuild + array copy** | `show_visual_grid` copies the cached `_CONFIGURE_GRID_*` arrays into `grid_data[]` on every loop iteration, then [`_cd_darwin_build_table_json`](lib/configure-dialogs-darwin.sh) escapes ~32 cells via pure-bash string ops (no subprocess, but O(N×columns) per show) | Every return to weekly grid (option 9), even when the grid cache arrays are warm — **the JSON string itself is not cached** |
+| **4× `python3 -c` per daemon response** | `_cd_darwin_response_was_shown`, `_is_ok`, `_is_cancelled`, `_cd_darwin_response_extract_value` — always all 4, plus one extra `python3 -c` ready-check at daemon startup | Every list/table/time/text interaction |
+| **Full Toplevel rebuild** | Daemon creates new `Toplevel`, builds Treeview/Listbox from scratch; `run_modal()` calls `deiconify/lift/grab_set`; [`apply_initial_frontmost`](lib/configure_dialogs_darwin_window.py) acts on the hidden `tk.Tk` root, not the Toplevel directly | Every tk dialog (expected; pooling is hard) |
 | **Focus grace delays** | `_GRACE_MS = 400`, `after(50)`, `after_idle` re-raise | Every tk dialog open (~400ms+ of intentional deferral) |
 
 Grid string cache **does not** cache serialization:
@@ -134,31 +134,41 @@ From [`docs/SAFETY.md`](docs/SAFETY.md) and project history — **do not trade t
 
 **A1. Single-pass daemon response parsing**
 
-Replace 2–4 separate `python3 -c` invocations with one helper, e.g. `_cd_darwin_parse_last_response` that sets globals `_CD_RESP_OK`, `_CD_RESP_VALUE`, `_CD_RESP_CANCELLED`, `_CD_RESP_SHOWN` in one subprocess (or one Python line printed as `ok|value|cancelled|shown`).
+Replace 4 separate `python3 -c` invocations (always all four per interaction) with a `_cd_darwin_parse_last_response` helper that sets globals `_CD_RESP_OK`, `_CD_RESP_VALUE`, `_CD_RESP_CANCELLED`, `_CD_RESP_SHOWN`.
+
+Recommended **hybrid approach**: pure-bash regex for the three boolean fields (`ok`, `cancelled`, `shown`) — zero subprocess cost — and a single `python3 -c` call only when the value field is needed (handles embedded quotes and unicode safely). This cuts 4 spawns to 0–1 per interaction.
+
+As a bonus, replace the daemon ready-check at startup (`_cd_darwin_daemon_start` L218: `python3 -c 'import json,sys; ...'`) with the same bash check — one less subprocess on wizard open.
 
 - Files: [`lib/configure-dialogs-darwin.sh`](lib/configure-dialogs-darwin.sh)
-- Risk: **Low** — pure refactor; extend [`tests/test-darwin-daemon-protocol.sh`](tests/test-darwin-daemon-protocol.sh) with a bash-level parse smoke test if needed
+- Risk: **Low** — pure refactor; extend [`tests/test-darwin-daemon-protocol.sh`](tests/test-darwin-daemon-protocol.sh) with a bash-level parse smoke test
 - Expected: **~30–120 ms** per tk interaction (4 process spawns × ~10–30 ms each on Apple Silicon; measure with `CONFIGURE_PROFILE=1`)
 
 **A2. Cache table JSON with grid cache**
 
 When `_configure_build_grid_cache` runs, also build and store `_CONFIGURE_GRID_TABLE_JSON` (fixed title/message/width/height/columns; rows from cached arrays). Invalidate only via existing `configure_invalidate_grid_cache`.
 
-- Files: [`lib/configure-display.sh`](lib/configure-display.sh), [`lib/configure-core.sh`](lib/configure-core.sh) (global), [`lib/configure-dialogs-darwin.sh`](lib/configure-dialogs-darwin.sh) — optional fast path: `_cd_darwin_show_table_dialog` accepts prebuilt JSON
+Two-part win:
+1. **Cache the JSON string** in `_configure_build_grid_cache` — skips the `_cd_darwin_build_table_json` bash loop (pure-bash string ops over ~32 cells) on repeated grid shows
+2. **Skip the `grid_data[]` array copy** in `show_visual_grid` — when the JSON is pre-built, `_cd_darwin_show_table_dialog` can accept it directly, bypassing the per-show bash loop at L706–712
+
+- Files: [`lib/configure-display.sh`](lib/configure-display.sh), [`lib/configure-core.sh`](lib/configure-core.sh) (add `_CONFIGURE_GRID_TABLE_JSON` global), [`lib/configure-dialogs-darwin.sh`](lib/configure-dialogs-darwin.sh) — `_cd_darwin_show_table_dialog` accepts optional prebuilt JSON
 - Risk: **Low** if invalidation stays tied to `configure_hours_data_changed` / lock/uninstall mutations
-- Expected: **50–150 ms** on repeated grid opens (bash JSON escape is O(cells)); biggest win when hopping grid → edit day → grid
+- Expected: **50–150 ms** on repeated grid opens; biggest win when hopping grid → edit day → grid
 
 **A3. Overlap daemon startup with welcome**
 
-Move `_cd_darwin_daemon_start` to immediately after `use_gui=true` is known (before or right after `show_welcome`), while user reads the welcome alert. Keep EXIT trap cleanup unchanged.
+Move `_cd_darwin_daemon_start` to immediately after `use_gui` is determined (~L215 in `configure.sh`, right after the `if/elif/else` GUI-detection block and **before** the `show_welcome` call at L224). This maximises the cold-start overlap window — the user reads the welcome alert while Python and tkinter initialise.
 
-- Files: [`configure.sh`](configure.sh)
+The lib is already sourced before this point (`source_optional_lib "configure-dialogs-darwin.sh"` at L99), and `is_darwin` is already confirmed by that guard. No ordering constraints to work around.
+
+- Files: [`configure.sh`](configure.sh) — move the `_cd_darwin_daemon_start` block from ~L262 to ~L215
 - Risk: **Low** — same daemon, earlier start; failure still `|| true`
 - Expected: **First tk dialog** feels as fast as later ones (200–800 ms cold start absorbed during welcome)
 
 **A4. Extend profiling coverage**
 
-Add `_cd_darwin_profile_log` to `show_list_dialog` and optionally osascript wrappers (`prep_ms` = JSON/build, `ui_ms` = osascript block). Enables evidence-based Phase 4 decisions.
+Add `_cd_darwin_profile_log` to `show_list_dialog` (currently unhooked) and optionally osascript wrappers (`prep_ms` = JSON/build, `ui_ms` = osascript block). Also add a profile log line on the silent daemon→osascript fallback path in `show_list_dialog` (when `shown=false`) — this makes invisible-daemon failures observable in the field without adding noise to normal runs.
 
 - Risk: **None** (stderr only when `CONFIGURE_PROFILE=1`)
 
@@ -213,10 +223,14 @@ Import `table_ui` / `list_ui` / etc. inside `_run_dialog` per `op` to shrink ini
 
 | Check | Command / method |
 |-------|------------------|
-| Headless regressions | `bash tests/test-darwin-configure-gui.sh` (includes daemon protocol, grid cache, table JSON, modal static checks) |
+| Headless regressions | `bash tests/test-darwin-configure-gui.sh` (daemon protocol, modal static checks) |
+| Grid cache (A2) | `bash tests/test-darwin-grid-cache.sh` — dedicated grid cache invalidation tests |
+| Table JSON (A2) | `bash tests/test-darwin-table-json.sh` — dedicated table JSON build tests |
+| Daemon protocol (A1) | `bash tests/test-darwin-daemon-protocol.sh` — extend with bash-level parse smoke test for A1 |
 | Partial lock / caps | `bash tests/test-configure-partial-lock.sh`, `bash tests/test-daily-caps.sh` if touching display/core |
 | Before/after timing | `CONFIGURE_PROFILE=1 ./configure.sh` — compare `prep_ms` (should drop for grid/list) and `ui_ms` (should stay dominated by user + Tk map) |
 | Manual macOS matrix | Main menu ↔ window behavior ↔ weekly grid ↔ time editor ↔ summary save; terminal focused vs IDE; cancel/Back/Escape; confirm after list |
+| Daemon mid-session death | Kill the daemon PID mid-session (`kill $pid`); verify next dialog falls back cleanly (table→one-shot, list→osascript `choose from list`) without duplicate windows |
 | Z-order regression | `confirm_cancel`, osascript after tk (should still use list/tk paths), invisible daemon → osascript list fallback |
 | CI | `./scripts/run-security-scan.sh --ci --with-tests` after `lib/` changes |
 | Safety | No changes to [`lib/configure-validation.sh`](lib/configure-validation.sh), [`lib/popup-safety.sh`](lib/popup-safety.sh), or popup spawn paths |

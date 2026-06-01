@@ -138,6 +138,14 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
     _CD_DARWIN_DAEMON_RFD=""
     _CD_DARWIN_DAEMON_WFD=""
     _CD_DARWIN_DAEMON_LAST_RESPONSE=""
+    _CD_RESP_OK=""
+    _CD_RESP_CANCELLED=""
+    _CD_RESP_SHOWN=""
+    _CD_RESP_VALUE=""
+    _CD_RESP_VALUE_FETCHED=""
+    _CD_FIRST_OSASCRIPT_DIALOG="pending"
+    _CD_LAST_DIALOG_END_MS=0
+    _CD_LAST_DIALOG_WAS_TK="no"
 
     _cd_darwin_now_ms() {
         if [ -n "${EPOCHREALTIME:-}" ]; then
@@ -149,30 +157,98 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
 
     _cd_darwin_profile_log() {
         [ "${CONFIGURE_PROFILE:-}" = "1" ] || return 0
-        echo "CONFIGURE_PROFILE dialog=${1} prep_ms=${2} ui_ms=${3}" >&2
+        echo "CONFIGURE_PROFILE dialog=${1} prep_ms=${2} ui_ms=${3}${4:+ ${4}}" >&2
+    }
+
+    # Pure-bash JSON boolean probe (daemon responses use unquoted true/false).
+    _cd_darwin_json_field_true() {
+        local json="$1"
+        local field="$2"
+        [[ "${json}" =~ \"${field}\"[[:space:]]*:[[:space:]]*true ]]
+    }
+
+    _cd_darwin_parse_last_response() {
+        local json="${_CD_DARWIN_DAEMON_LAST_RESPONSE}"
+        _CD_RESP_OK="no"
+        _CD_RESP_CANCELLED="no"
+        _CD_RESP_SHOWN="no"
+        _CD_RESP_VALUE=""
+        _CD_RESP_VALUE_FETCHED=""
+        if _cd_darwin_json_field_true "${json}" "ok"; then
+            _CD_RESP_OK="yes"
+        fi
+        if _cd_darwin_json_field_true "${json}" "cancelled"; then
+            _CD_RESP_CANCELLED="yes"
+        fi
+        if _cd_darwin_json_field_true "${json}" "shown"; then
+            _CD_RESP_SHOWN="yes"
+        fi
     }
 
     _cd_darwin_response_extract_value() {
-        python3 -c 'import json,sys; d=json.load(sys.stdin); v=d.get("value"); print("" if v is None else v)' \
-            <<< "${_CD_DARWIN_DAEMON_LAST_RESPONSE}" 2>/dev/null
+        if [ "${_CD_RESP_VALUE_FETCHED}" = "yes" ]; then
+            printf '%s' "${_CD_RESP_VALUE}"
+            return 0
+        fi
+        _CD_RESP_VALUE=$(
+            python3 -c 'import json,sys; d=json.load(sys.stdin); v=d.get("value"); print("" if v is None else v)' \
+                <<< "${_CD_DARWIN_DAEMON_LAST_RESPONSE}" 2>/dev/null || true
+        )
+        _CD_RESP_VALUE_FETCHED="yes"
+        printf '%s' "${_CD_RESP_VALUE}"
     }
 
     _cd_darwin_response_is_ok() {
-        python3 -c 'import json,sys; d=json.load(sys.stdin); print("yes" if d.get("ok") else "no")' \
-            <<< "${_CD_DARWIN_DAEMON_LAST_RESPONSE}" 2>/dev/null | grep -q '^yes$'
+        [ "${_CD_RESP_OK:-no}" = "yes" ]
     }
 
     _cd_darwin_response_is_cancelled() {
-        python3 -c 'import json,sys; d=json.load(sys.stdin); print("yes" if d.get("cancelled") else "no")' \
-            <<< "${_CD_DARWIN_DAEMON_LAST_RESPONSE}" 2>/dev/null | grep -q '^yes$'
+        [ "${_CD_RESP_CANCELLED:-no}" = "yes" ]
     }
 
     # True when the daemon reported that the dialog window actually became
     # visible. A clean cancel of a shown window must NOT trigger the one-shot
     # fallback (that re-opened a duplicate window over the next menu).
     _cd_darwin_response_was_shown() {
-        python3 -c 'import json,sys; d=json.load(sys.stdin); print("yes" if d.get("shown") else "no")' \
-            <<< "${_CD_DARWIN_DAEMON_LAST_RESPONSE}" 2>/dev/null | grep -q '^yes$'
+        [ "${_CD_RESP_SHOWN:-no}" = "yes" ]
+    }
+
+    _cd_darwin_mark_dialog_end() {
+        local backend="${1:-osascript}"
+        _CD_LAST_DIALOG_END_MS=$(_cd_darwin_now_ms)
+        if [ "${backend}" = "tk" ]; then
+            _CD_LAST_DIALOG_WAS_TK="yes"
+        else
+            _CD_LAST_DIALOG_WAS_TK="no"
+        fi
+    }
+
+    _cd_darwin_should_osascript_activate() {
+        if [ "${_CD_FORCE_OSASCRIPT_ACTIVATE:-}" = "1" ]; then
+            return 0
+        fi
+        if [ "${_CD_FIRST_OSASCRIPT_DIALOG:-pending}" = "pending" ]; then
+            _CD_FIRST_OSASCRIPT_DIALOG="done"
+            return 0
+        fi
+        if [ "${_CD_LAST_DIALOG_WAS_TK}" = "yes" ]; then
+            return 0
+        fi
+        local now elapsed
+        now=$(_cd_darwin_now_ms)
+        if [ "${_CD_LAST_DIALOG_END_MS:-0}" -gt 0 ]; then
+            elapsed=$((now - _CD_LAST_DIALOG_END_MS))
+            if [ "${elapsed}" -lt 500 ]; then
+                return 1
+            fi
+        fi
+        return 0
+    }
+
+    _cd_darwin_osascript_activate_snippet() {
+        if _cd_darwin_should_osascript_activate; then
+            printf '    tell current application to activate\n'
+        fi
     }
 
     _cd_darwin_daemon_stop() {
@@ -215,7 +291,7 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
             _cd_darwin_daemon_stop
             return 1
         fi
-        if ! printf '%s' "${ready}" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("ready") else 1)' 2>/dev/null; then
+        if ! _cd_darwin_json_field_true "${ready}" "ready"; then
             _cd_darwin_daemon_stop
             return 1
         fi
@@ -237,6 +313,8 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
             _cd_darwin_daemon_stop
             return 1
         fi
+        _cd_darwin_parse_last_response
+        _cd_darwin_mark_dialog_end tk
         return 0
     }
 
@@ -403,19 +481,11 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         return 1
     }
 
-    _cd_darwin_show_table_dialog() {
-        local title="$1"
-        local message="$2"
-        local width="$3"
-        local height="$4"
-        local print_column="$5"
-        # Uses _cd_column_names[], _cd_data[], _cd_num_columns from _cd_darwin_parse_multi_column_args.
-
-        local prep_start prep_end ui_start ui_end json_payload result="" rc=1
-        prep_start=$(_cd_darwin_now_ms)
-        json_payload=$(_cd_darwin_build_table_json "${title}" "${message}" "${width}" "${height}" "${print_column}")
-        prep_end=$(_cd_darwin_now_ms)
-        ui_start=${prep_end}
+    _cd_darwin_show_table_with_json() {
+        local json_payload="$1"
+        local prep_ms="${2:-0}"
+        local ui_start ui_end result="" rc=1
+        ui_start=$(_cd_darwin_now_ms)
 
         local daemon_shown=0
         if [ "${CONFIGURE_DARWIN_NO_DAEMON:-}" != "1" ] && \
@@ -431,25 +501,47 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         fi
 
         ui_end=$(_cd_darwin_now_ms)
-        _cd_darwin_profile_log "table" "$((prep_end - prep_start))" "$((ui_end - ui_start))"
+        _cd_darwin_profile_log "table" "${prep_ms}" "$((ui_end - ui_start))"
 
         if [ ${rc} -eq 0 ] && [ -n "${result}" ]; then
             echo "${result}"
             return 0
         fi
 
-        # The daemon showed the window and the user dismissed it (Cancel/Escape/
-        # close box): a real cancel, not a failure. Returning here avoids
-        # re-launching a one-shot copy that lingered over the next menu.
         if [ "${daemon_shown}" -eq 1 ]; then
             return 1
         fi
 
-        # Daemon table dialogs can fail invisibly on macOS (withdrawn root): the
-        # window never maps and the request returns immediately. Only then fall
-        # back to a one-shot Tk(), which always renders.
         _cd_darwin_run_table_oneshot "${json_payload}"
         return $?
+    }
+
+    _cd_darwin_show_table_dialog() {
+        local title="$1"
+        local message="$2"
+        local width="$3"
+        local height="$4"
+        local print_column="$5"
+        # Uses _cd_column_names[], _cd_data[], _cd_num_columns from _cd_darwin_parse_multi_column_args.
+
+        local prep_start prep_end json_payload
+        prep_start=$(_cd_darwin_now_ms)
+        
+        if [ "${_CONFIGURE_GRID_CACHE_VALID:-false}" = "true" ] && \
+           [ "${title}" = "${_CONFIGURE_GRID_TABLE_JSON_TITLE:-}" ] && \
+           [ -n "${_CONFIGURE_GRID_TABLE_JSON:-}" ]; then
+            json_payload="${_CONFIGURE_GRID_TABLE_JSON}"
+            prep_end=$(_cd_darwin_now_ms)
+        else
+            json_payload=$(_cd_darwin_build_table_json "${title}" "${message}" "${width}" "${height}" "${print_column}")
+            prep_end=$(_cd_darwin_now_ms)
+            if [ "${_CONFIGURE_GRID_CACHE_VALID:-false}" = "true" ] && [ "${title}" = "View Weekly Hours Settings" ]; then
+                _CONFIGURE_GRID_TABLE_JSON_TITLE="${title}"
+                _CONFIGURE_GRID_TABLE_JSON="${json_payload}"
+            fi
+        fi
+
+        _cd_darwin_show_table_with_json "${json_payload}" "$((prep_end - prep_start))"
     }
 
     _cd_darwin_show_time_dialog() {
@@ -471,12 +563,8 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         fi
 
         local sh sm sap eh em eap
-        sh=$(echo "${start_data}" | cut -d' ' -f1)
-        sm=$(echo "${start_data}" | cut -d' ' -f2)
-        sap=$(echo "${start_data}" | cut -d' ' -f3)
-        eh=$(echo "${end_data}" | cut -d' ' -f1)
-        em=$(echo "${end_data}" | cut -d' ' -f2)
-        eap=$(echo "${end_data}" | cut -d' ' -f3)
+        read -r sh sm sap <<< "${start_data}"
+        read -r eh em eap <<< "${end_data}"
 
         local prep_start prep_end ui_start ui_end json_payload result rc=1
         prep_start=$(_cd_darwin_now_ms)
@@ -525,15 +613,21 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         local message="$2"
         local _w="${3:-500}"
         local _h="${4:-200}"
+        local prep_start ui_start ui_end
+        prep_start=$(_cd_darwin_now_ms)
         message=$(_cd_darwin_preprocess_message "${message}")
-        _cd_darwin_run_applescript "${title}" "${message}" <<'APPLESCRIPT'
+        ui_start=$(_cd_darwin_now_ms)
+        _cd_darwin_run_applescript "${title}" "${message}" <<APPLESCRIPT
 on run argv
-    tell current application to activate
+$(_cd_darwin_osascript_activate_snippet)
     set theTitle to item 1 of argv
     set theMessage to item 2 of argv
     display alert theMessage with title theTitle buttons {"OK"} default button "OK"
 end run
 APPLESCRIPT
+        ui_end=$(_cd_darwin_now_ms)
+        _cd_darwin_mark_dialog_end osascript
+        _cd_darwin_profile_log "info" "$((ui_start - prep_start))" "$((ui_end - ui_start))"
         return 0
     }
 
@@ -548,13 +642,13 @@ APPLESCRIPT
         local no_label="${4:-No}"
         local _w="${5:-600}"
         local _h="${6:-400}"
-        local result
+        local result prep_start ui_start ui_end
+        prep_start=$(_cd_darwin_now_ms)
         message=$(_cd_darwin_preprocess_message "${message}")
-        # Phase 4.1: pass yes_label/no_label as argv items 3 and 4 so AppleScript
-        # renders the custom button text instead of hardcoded "Yes"/"No".
-        result=$(_cd_darwin_run_applescript "${title}" "${message}" "${yes_label}" "${no_label}" <<'APPLESCRIPT'
+        ui_start=$(_cd_darwin_now_ms)
+        result=$(_cd_darwin_run_applescript "${title}" "${message}" "${yes_label}" "${no_label}" <<APPLESCRIPT
 on run argv
-    tell current application to activate
+$(_cd_darwin_osascript_activate_snippet)
     set theTitle to item 1 of argv
     set theMessage to item 2 of argv
     set yesBtn to item 3 of argv
@@ -568,6 +662,9 @@ on run argv
 end run
 APPLESCRIPT
 )
+        ui_end=$(_cd_darwin_now_ms)
+        _cd_darwin_mark_dialog_end osascript
+        _cd_darwin_profile_log "question" "$((ui_start - prep_start))" "$((ui_end - ui_start))"
         result=$(_cd_darwin_trim "${result}")
         [ "${result}" = "${yes_label}" ]
     }
@@ -594,11 +691,13 @@ APPLESCRIPT
         local title="$1"
         local message="$2"
         local default_value="${3:-}"
-        local result
+        local result prep_start ui_start ui_end
+        prep_start=$(_cd_darwin_now_ms)
         message=$(_cd_darwin_preprocess_message "${message}")
-        result=$(_cd_darwin_run_applescript "${title}" "${message}" "${default_value}" <<'APPLESCRIPT'
+        ui_start=$(_cd_darwin_now_ms)
+        result=$(_cd_darwin_run_applescript "${title}" "${message}" "${default_value}" <<APPLESCRIPT
 on run argv
-    tell current application to activate
+$(_cd_darwin_osascript_activate_snippet)
     set theTitle to item 1 of argv
     set theMessage to item 2 of argv
     set defaultVal to item 3 of argv
@@ -611,6 +710,9 @@ on run argv
 end run
 APPLESCRIPT
 )
+        ui_end=$(_cd_darwin_now_ms)
+        _cd_darwin_mark_dialog_end osascript
+        _cd_darwin_profile_log "entry" "$((ui_start - prep_start))" "$((ui_end - ui_start))"
         result=$(_cd_darwin_trim "${result}")
         if [ -z "${result}" ]; then
             return 1
@@ -626,6 +728,8 @@ APPLESCRIPT
         local _h="${4:-300}"
         shift 4
         local items=("$@")
+        local prep_start prep_end ui_start ui_end json_payload
+        prep_start=$(_cd_darwin_now_ms)
         message=$(_cd_darwin_preprocess_message "${message}")
 
         # Prefer the tkinter daemon so menus/prompts share the weekly grid's root
@@ -634,28 +738,36 @@ APPLESCRIPT
         if [ "${CONFIGURE_DARWIN_NO_DAEMON:-}" != "1" ] \
             && _cd_darwin_has_list_dialog \
             && _cd_darwin_daemon_start; then
-            local json_payload
             json_payload=$(_cd_darwin_build_list_json "${title}" "${message}" "${_w}" "${_h}" "${items[@]}")
+            prep_end=$(_cd_darwin_now_ms)
+            ui_start=${prep_end}
             if _cd_darwin_daemon_request "{\"op\":\"list\",${json_payload:1}"; then
                 if _cd_darwin_response_was_shown; then
                     if _cd_darwin_response_is_ok && ! _cd_darwin_response_is_cancelled; then
                         local daemon_value
                         daemon_value=$(_cd_darwin_response_extract_value)
+                        ui_end=$(_cd_darwin_now_ms)
+                        _cd_darwin_profile_log "list" "$((prep_end - prep_start))" "$((ui_end - ui_start))"
                         [ -n "${daemon_value}" ] || return 1
                         printf '%s\n' "${daemon_value}"
                         return 0
                     fi
-                    # Window was shown and dismissed: a genuine cancel.
+                    ui_end=$(_cd_darwin_now_ms)
+                    _cd_darwin_profile_log "list" "$((prep_end - prep_start))" "$((ui_end - ui_start))"
                     return 1
                 fi
-                # Window never mapped (withdrawn-root invisible failure): use osascript.
+                _cd_darwin_profile_log "list" "$((prep_end - prep_start))" "0" "fallback=osascript invisible_daemon"
             fi
+        else
+            prep_end=$(_cd_darwin_now_ms)
         fi
 
+        ui_start=$(_cd_darwin_now_ms)
         local result
-        result=$(_cd_darwin_run_applescript "${title}" "${message}" "${items[@]}" <<'APPLESCRIPT'
+        _CD_FORCE_OSASCRIPT_ACTIVATE=1
+        result=$(_cd_darwin_run_applescript "${title}" "${message}" "${items[@]}" <<APPLESCRIPT
 on run argv
-    tell current application to activate
+$(_cd_darwin_osascript_activate_snippet)
     set theTitle to item 1 of argv
     set thePrompt to item 2 of argv
     set theItems to {}
@@ -674,6 +786,10 @@ on run argv
 end run
 APPLESCRIPT
 )
+        _CD_FORCE_OSASCRIPT_ACTIVATE=""
+        ui_end=$(_cd_darwin_now_ms)
+        _cd_darwin_mark_dialog_end osascript
+        _cd_darwin_profile_log "list-osascript" "$((prep_end - prep_start))" "$((ui_end - ui_start))"
         result=$(_cd_darwin_trim "${result}")
         if [ -z "${result}" ] || [ "${result}" = "false" ]; then
             return 1
