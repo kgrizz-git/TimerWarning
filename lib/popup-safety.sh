@@ -10,17 +10,19 @@
 if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
     POPUP_SAFETY_LOADED=1
 
-    # Hard ceiling per popup invocation (seconds)
-    POPUP_ABSOLUTE_MAX_SECONDS="${POPUP_ABSOLUTE_MAX_SECONDS:-120}"
+    # Hard ceiling per popup invocation (seconds). Must comfortably exceed the
+    # largest configurable min-display (300s) plus auto-close delay (10s) plus
+    # the watchdog buffer (15s) = 325s; see popup_compute_watchdog_seconds.
+    POPUP_ABSOLUTE_MAX_SECONDS="${POPUP_ABSOLUTE_MAX_SECONDS:-330}"
     # configure-core.sh may already define this as readonly; do not reassign.
     if [ -z "${DARWIN_MAX_MIN_DISPLAY_TIME+x}" ]; then
-        DARWIN_MAX_MIN_DISPLAY_TIME=60
+        DARWIN_MAX_MIN_DISPLAY_TIME=300
     fi
     DARWIN_FORCE_AUTO_CLOSE="${DARWIN_FORCE_AUTO_CLOSE:-true}"
     POPUP_AUTO_CLOSE_DELAY_SECONDS="${POPUP_AUTO_CLOSE_DELAY_SECONDS:-10}"
 
     _popup_darwin_max_min_cap() {
-        echo "${DARWIN_MAX_MIN_DISPLAY_TIME:-60}"
+        echo "${DARWIN_MAX_MIN_DISPLAY_TIME:-300}"
     }
 
     popup_is_darwin() {

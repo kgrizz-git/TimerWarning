@@ -50,11 +50,22 @@ else
 fi
 
 cap=$(popup_compute_watchdog_seconds 999 true)
-if [ "${cap}" -le 120 ]; then
-    echo "PASS: absolute max caps watchdog (${cap})"
+if [ "${cap}" -le "${POPUP_ABSOLUTE_MAX_SECONDS}" ]; then
+    echo "PASS: absolute max caps watchdog (${cap} <= ${POPUP_ABSOLUTE_MAX_SECONDS})"
     pass=$((pass + 1))
 else
     echo "FAIL: watchdog not capped (${cap})"
+    fail=$((fail + 1))
+fi
+
+# A 300s min-display must produce a watchdog that actually allows the full
+# display window (regression guard for the old 120s ceiling clamping it short).
+wd_300=$(popup_compute_watchdog_seconds 300 true)
+if [ "${wd_300}" -ge 325 ]; then
+    echo "PASS: 300s min-display watchdog accommodates full window (${wd_300})"
+    pass=$((pass + 1))
+else
+    echo "FAIL: 300s min-display watchdog clamped too short (${wd_300})"
     fail=$((fail + 1))
 fi
 

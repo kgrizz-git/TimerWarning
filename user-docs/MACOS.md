@@ -47,9 +47,9 @@ Logs: `~/.config/sleep-warning/logs/launchd-stdout.log` and `launchd-stderr.log`
 
 The macOS build is designed so you are **not** left with a blocking dialog all day:
 
-- **Hard watchdog:** each popup is killed if it runs longer than `POPUP_ABSOLUTE_MAX_SECONDS` (default 120s).
+- **Hard watchdog:** each popup is killed if it runs longer than `POPUP_ABSOLUTE_MAX_SECONDS` (default 330s).
 - **Auto-close forced on** for new installs (`POPUP_AUTO_CLOSE=true`).
-- **Min display time capped** at 60 seconds on macOS (Linux allows up to 300s).
+- **Min display time capped** at 300 seconds (5 minutes) on macOS — the same ceiling as Linux.
 - **Duplicate popup prevention:** if a warning is still open, the next scheduled check skips showing another.
 - **24/7 configure block:** saving restrictions that cover the entire week is blocked (same as Linux).
 - **Pause button** on the warning dialog (once-per-day rules apply).
@@ -132,7 +132,7 @@ The full configure **menu** is available in GUI mode (`sleep-warning-configure -
 | **View Weekly Hours** | Four-column table (1050×500) | **Four-column tkinter table** (same width/height; requires Python 3 + tkinter) |
 | **Time range entry** | yad/zenity spinboxes (hour, :00/:15/:30/:45, AM/PM) | **Same spinbox-style tkinter picker** (fallback: text field) |
 | **Multi-range editor** | Add / Edit / Remove / Done dialog loop | **Same shared editor** (uses tkinter time picker + list dialogs) |
-| Min display time (configure) | 0–300 seconds | **0–60 seconds** (`DARWIN_MAX_MIN_DISPLAY_TIME`; Linux allows up to 300) |
+| Min display time (configure) | 0–300 seconds | **0–300 seconds** (`DARWIN_MAX_MIN_DISPLAY_TIME`; same ceiling as Linux) |
 | Yes/No confirms | Custom button labels | **Yes / No** buttons (wording in message text) |
 | Simple list picks | Sized list dialog | AppleScript `choose from list` (width not configurable) |
 | Window stay-on-top / immovable | wmctrl/xdotool | Not applied |

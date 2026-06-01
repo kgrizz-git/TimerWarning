@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Minimum popup display time configurable up to 300s on all platforms:** Raised the macOS cap `DARWIN_MAX_MIN_DISPLAY_TIME` from 60 to 300 seconds (5 minutes), matching the existing Linux `MAX_DISPLAY_TIME` ceiling, so the configure wizard and runtime clamp now allow values above 60s on macOS. Raised the absolute popup watchdog `POPUP_ABSOLUTE_MAX_SECONDS` from 120 to 330 so a 300s min-display popup actually stays open for its full window before the watchdog fires (previously every platform clamped min-display past ~95s down to the 120s ceiling). Popup lifetime remains finite per [docs/SAFETY.md](docs/SAFETY.md) (invariant: bounded by an explicit cap, expected to grow). Both caps stay overridable via env. Updated `tests/test-popup-safety-darwin.sh` (watchdog assertion tracks `POPUP_ABSOLUTE_MAX_SECONDS`; added a 300s regression guard) and [user-docs/MACOS.md](user-docs/MACOS.md).
+
 - **GUI time picker: 15-minute resolution:** Configure wizard time pickers (Linux yad/zenity/kdialog and macOS tkinter) now offer :00, :15, :30, and :45 minute choices for restriction hours, configure-block lock hours, and uninstall lock hours. Runtime parsing, daily caps, and popup scheduling were already minute-precision; text mode (`--text`) still accepts any valid minute.
 
 - **Pause cooldown follow-ups:** Configure review summary shows pause enable/duration/cooldown; wizard cooldown copy clarifies timing is from activation click. Atomic write for retained pause-state fields; expanded pause/cooldown tests and corrected `write_config` parameter docs (16 positional args).

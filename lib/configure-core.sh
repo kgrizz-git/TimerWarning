@@ -123,8 +123,9 @@ readonly MAX_HOUR=23
 # Time range constants (for minimum display time validation)
 readonly MIN_DISPLAY_TIME=0
 readonly MAX_DISPLAY_TIME=300
-# macOS safety cap for POPUP_MIN_DISPLAY_TIME (see lib/popup-safety.sh)
-readonly DARWIN_MAX_MIN_DISPLAY_TIME="${DARWIN_MAX_MIN_DISPLAY_TIME:-60}"
+# macOS safety cap for POPUP_MIN_DISPLAY_TIME (see lib/popup-safety.sh).
+# Now matches the Linux ceiling (MAX_DISPLAY_TIME) so both platforms allow up to 300s.
+readonly DARWIN_MAX_MIN_DISPLAY_TIME="${DARWIN_MAX_MIN_DISPLAY_TIME:-300}"
 
 # Maximum POPUP_MIN_DISPLAY_TIME allowed in the configure wizard (platform-aware).
 get_max_min_display_time_limit() {
