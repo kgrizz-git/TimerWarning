@@ -62,15 +62,48 @@ _map_on_off_list_to_bool() {
     esac
 }
 
+# Resolve the popup display frequency (in minutes) currently in effect for the
+# wizard session: prefer the in-progress value, then live config, then default.
+# Used to bound min-display time so popups never outlast their interval and stack
+# (see validate_popup_timing_config).
+_resolve_current_popup_frequency() {
+    local freq="${check_interval:-}"
+    if [ -z "${freq}" ] || ! [[ "${freq}" =~ ^[0-9]+$ ]] || \
+       [ "${freq}" -lt "${MIN_CHECK_INTERVAL}" ] || [ "${freq}" -gt "${MAX_CHECK_INTERVAL}" ]; then
+        if type get_popup_display_frequency >/dev/null 2>&1; then
+            freq=$(get_popup_display_frequency)
+        elif [ -f "${CONFIG_FILE}" ]; then
+            freq=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+            [ -z "${freq}" ] && freq=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        fi
+        if [ -z "${freq}" ] || ! [[ "${freq}" =~ ^[0-9]+$ ]]; then
+            freq=10  # Default
+        fi
+    fi
+    echo "${freq}"
+}
+
 # Get minimum display time from user
 get_min_display_time_config() {
     local use_gui="$1"
     local default_time="${DEFAULT_MIN_DISPLAY_TIME:-30}"
     local max_display_limit
     max_display_limit=$(get_max_min_display_time_limit)
+
+    # The effective ceiling is the smaller of the absolute cap and the popup
+    # display frequency (in seconds): a min-display longer than the interval
+    # would let popups stack. Surface that up front instead of only on rejection.
+    local freq_minutes effective_max freq_note=""
+    freq_minutes=$(_resolve_current_popup_frequency)
+    effective_max="${max_display_limit}"
+    if [ $((freq_minutes * 60)) -lt "${effective_max}" ]; then
+        effective_max=$((freq_minutes * 60))
+        freq_note=$'\n'"(Capped at ${effective_max}s by popup frequency of ${freq_minutes} min — raise the frequency to allow a longer time.)"
+    fi
+
     local min_display_prompt
-    min_display_prompt=$'Minimum time popup must be visible before it can be closed:\n\n'"Enter time in seconds (${MIN_DISPLAY_TIME}-${max_display_limit}):"$'\n'"(${MIN_DISPLAY_TIME} = disabled, ${default_time} = default)"
-    
+    min_display_prompt=$'Minimum time popup must be visible before it can be closed:\n\n'"Enter time in seconds (${MIN_DISPLAY_TIME}-${effective_max}):"$'\n'"(${MIN_DISPLAY_TIME} = disabled, ${default_time} = default)""${freq_note}"
+
     # Try to get existing time from config
     if [ -f "${CONFIG_FILE}" ]; then
         local existing_time
@@ -101,33 +134,23 @@ get_min_display_time_config() {
                 esac
             fi
             
-            # Validate time
-            if ! [[ "${time}" =~ ^[0-9]+$ ]] || [ "${time}" -lt "${MIN_DISPLAY_TIME}" ] || [ "${time}" -gt "${max_display_limit}" ]; then
+            # Validate time against the effective ceiling (absolute cap AND popup
+            # frequency). When the frequency is the binding limit, explain why.
+            if ! [[ "${time}" =~ ^[0-9]+$ ]] || [ "${time}" -lt "${MIN_DISPLAY_TIME}" ] || [ "${time}" -gt "${effective_max}" ]; then
+                local _invalid_msg="Invalid time. Please enter a number between ${MIN_DISPLAY_TIME} and ${effective_max} seconds."
+                if [ -n "${freq_note}" ]; then
+                    _invalid_msg="${_invalid_msg}"$'\n\n'"${effective_max}s is the most you can require: popups appear every ${freq_minutes} min (${effective_max}s), and a longer minimum would let popups stack. Raise the popup display frequency first to allow a longer time."
+                fi
                 show_info_dialog \
                     "Invalid Time" \
-                    "Invalid time. Please enter a number between ${MIN_DISPLAY_TIME} and ${max_display_limit} seconds."
+                    "${_invalid_msg}"
                 continue
             fi
-            
-            # Validate timing configuration (Enhancement #9); use popup display frequency (Enhancement #30)
-            local current_check_interval
-            current_check_interval="${check_interval:-}"
-            if [ -z "${current_check_interval}" ] || ! [[ "${current_check_interval}" =~ ^[0-9]+$ ]] || \
-               [ "${current_check_interval}" -lt "${MIN_CHECK_INTERVAL}" ] || [ "${current_check_interval}" -gt "${MAX_CHECK_INTERVAL}" ]; then
-                if type get_popup_display_frequency >/dev/null 2>&1; then
-                    current_check_interval=$(get_popup_display_frequency)
-                elif [ -f "${CONFIG_FILE}" ]; then
-                    current_check_interval=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-                    [ -z "${current_check_interval}" ] && current_check_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-                fi
-                if [ -z "${current_check_interval}" ] || ! [[ "${current_check_interval}" =~ ^[0-9]+$ ]]; then
-                    current_check_interval=10  # Default
-                fi
-            fi
-            
+
+            # Defense in depth: authoritative timing check (Enhancement #9/#30).
             if type validate_popup_timing_config >/dev/null 2>&1; then
                 local validation_error
-                validation_error=$(validate_popup_timing_config "${time}" "${current_check_interval}" 2>&1)
+                validation_error=$(validate_popup_timing_config "${time}" "${freq_minutes}" 2>&1)
                 if [ $? -ne 0 ]; then
                     # Hard error - block user from proceeding
                     show_error_dialog \
@@ -150,29 +173,16 @@ get_min_display_time_config() {
     else
         # Text mode
         while true; do
-            configure_read -p "Minimum display time in seconds (${MIN_DISPLAY_TIME}-${max_display_limit}, ${MIN_DISPLAY_TIME}=disabled) [${default_time}]: " time
+            local _freq_hint=""
+            [ -n "${freq_note}" ] && _freq_hint=", capped by ${freq_minutes}-min popup frequency"
+            configure_read -p "Minimum display time in seconds (${MIN_DISPLAY_TIME}-${effective_max}${_freq_hint}, ${MIN_DISPLAY_TIME}=disabled) [${default_time}]: " time
             time=${time:-${default_time}}
-            
-            if [[ "${time}" =~ ^[0-9]+$ ]] && [ "${time}" -ge "${MIN_DISPLAY_TIME}" ] && [ "${time}" -le "${max_display_limit}" ]; then
-                # Validate timing configuration (Enhancement #9); use popup display frequency (Enhancement #30)
-                local current_check_interval
-                current_check_interval="${check_interval:-}"
-                if [ -z "${current_check_interval}" ] || ! [[ "${current_check_interval}" =~ ^[0-9]+$ ]] || \
-                   [ "${current_check_interval}" -lt "${MIN_CHECK_INTERVAL}" ] || [ "${current_check_interval}" -gt "${MAX_CHECK_INTERVAL}" ]; then
-                    if type get_popup_display_frequency >/dev/null 2>&1; then
-                        current_check_interval=$(get_popup_display_frequency)
-                    elif [ -f "${CONFIG_FILE}" ]; then
-                        current_check_interval=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-                        [ -z "${current_check_interval}" ] && current_check_interval=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-                    fi
-                    if [ -z "${current_check_interval}" ] || ! [[ "${current_check_interval}" =~ ^[0-9]+$ ]]; then
-                        current_check_interval=10  # Default
-                    fi
-                fi
-                
+
+            if [[ "${time}" =~ ^[0-9]+$ ]] && [ "${time}" -ge "${MIN_DISPLAY_TIME}" ] && [ "${time}" -le "${effective_max}" ]; then
+                # Defense in depth: authoritative timing check (Enhancement #9/#30).
                 if type validate_popup_timing_config >/dev/null 2>&1; then
                     local validation_error
-                    validation_error=$(validate_popup_timing_config "${time}" "${current_check_interval}" 2>&1)
+                    validation_error=$(validate_popup_timing_config "${time}" "${freq_minutes}" 2>&1)
                     if [ $? -ne 0 ]; then
                         # Hard error - block user from proceeding
                         echo "" >&2
@@ -188,11 +198,14 @@ get_min_display_time_config() {
                         continue
                     fi
                 fi
-                
+
                 echo "${time}"
                 return 0
             else
-                echo "Invalid time. Please enter a number between ${MIN_DISPLAY_TIME} and ${max_display_limit}." >&2
+                echo "Invalid time. Please enter a number between ${MIN_DISPLAY_TIME} and ${effective_max}." >&2
+                if [ -n "${freq_note}" ] && [[ "${time}" =~ ^[0-9]+$ ]] && [ "${time}" -gt "${effective_max}" ]; then
+                    echo "(${effective_max}s is the cap because popups appear every ${freq_minutes} min; raise the popup display frequency to allow a longer minimum.)" >&2
+                fi
             fi
         done
     fi
