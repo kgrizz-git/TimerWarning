@@ -26,6 +26,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck
           curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh | sh -s -- -b /usr/local/bin
+          echo "/usr/local/bin" >> "${GITHUB_PATH}"
           python3 -m pip install --user semgrep
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
 
