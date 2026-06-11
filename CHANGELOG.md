@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Popup interval message:** Warning popup text ("This warning will appear every X minutes") now uses `POPUP_DISPLAY_FREQUENCY` via `get_popup_display_frequency()`, matching configure wizard output and runtime throttling. Previously the message read legacy `CHECK_INTERVAL` only and defaulted to 10 minutes when the wizard had written only `POPUP_DISPLAY_FREQUENCY`. `get_check_interval()` now delegates to `get_popup_display_frequency()`. macOS duplicate-popup age check aligned with Linux. Test: `tests/test-popup-interval-message.sh`.
 
+- **macOS configure wizard: coproc subshell bad file descriptor fix:** Fixed a `Bad file descriptor` warning in `configure-dialogs-darwin.sh` by duplicating the tkinter daemon's coproc file descriptors to dynamically allocated stable descriptors (`exec {_CD_DARWIN_DAEMON_RFD}<&...` and `exec {_CD_DARWIN_DAEMON_WFD}>&...`). This allows subshells (such as command substitutions used for menus and grids) to inherit and write/read from the daemon correctly without throwing bad file descriptor errors.
+
 - **Configure wizard no longer spins forever on EOF stdin (cross-platform):** a new
   `configure_read` helper ([lib/configure-core.sh](lib/configure-core.sh)) replaces
   every interactive `read -p`/`read -rp` across the wizard

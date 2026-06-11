@@ -275,6 +275,9 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         if [ -n "${_CD_DARWIN_DAEMON_WFD:-}" ]; then
             { printf '{"op":"quit"}\n' >&"${_CD_DARWIN_DAEMON_WFD}"; } 2>/dev/null || true
             read -r -t 3 -u "${_CD_DARWIN_DAEMON_RFD}" _ 2>/dev/null || true
+            # Close the duplicated file descriptors
+            exec {_CD_DARWIN_DAEMON_WFD}>&- 2>/dev/null || true
+            exec {_CD_DARWIN_DAEMON_RFD}<&- 2>/dev/null || true
         fi
         if [ -n "${_CD_DARWIN_DAEMON_PID:-}" ]; then
             kill "${_CD_DARWIN_DAEMON_PID}" 2>/dev/null || true
@@ -299,9 +302,16 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         fi
 
         coproc _CD_DARWIN_CP { python3 "${py_script}"; }
-        _CD_DARWIN_DAEMON_RFD=${_CD_DARWIN_CP[0]}
-        _CD_DARWIN_DAEMON_WFD=${_CD_DARWIN_CP[1]}
-        _CD_DARWIN_DAEMON_PID=${_CD_DARWIN_CP_PID}
+
+        # Duplicate coproc file descriptors to dynamically allocated stable descriptors
+        # so they remain open and are inherited by subshells (command substitutions).
+        if [ -n "${_CD_DARWIN_CP[0]:-}" ] && [ -n "${_CD_DARWIN_CP[1]:-}" ]; then
+            exec {_CD_DARWIN_DAEMON_RFD}<&"${_CD_DARWIN_CP[0]}"
+            exec {_CD_DARWIN_DAEMON_WFD}>&"${_CD_DARWIN_CP[1]}"
+            _CD_DARWIN_DAEMON_PID=${_CD_DARWIN_CP_PID}
+        else
+            return 1
+        fi
 
         local ready=""
         if ! read -r -t 30 -u "${_CD_DARWIN_DAEMON_RFD}" ready; then
