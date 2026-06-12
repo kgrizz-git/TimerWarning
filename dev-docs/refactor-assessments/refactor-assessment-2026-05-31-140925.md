@@ -513,7 +513,7 @@ File is **appropriately large** as the runtime config API surface. Further split
 ## Next Steps
 
 - [x] Review prioritized recommendations with user
-- [x] Implementation plan created → [plan-refactor-assessment-2026-05-31.md](../plans/plan-refactor-assessment-2026-05-31.md)
+- [x] Implementation plan created → [plan-refactor-assessment-2026-05-31.md](../completed-plans/plan-refactor-assessment-2026-05-31.md) (superseded by [plan-refactor-assessment-2026-06-12.md](../plans/plan-refactor-assessment-2026-06-12.md))
 - [x] TO_DO item added → [dev-docs/TO_DO.md](../TO_DO.md) (Refactoring / maintainability)
 - [ ] Run `write_config()` representative output verification (Phase 0 in plan)
 - [ ] Implement per plan: Phase 1 `configure-ui-errors` → Phase 2 `configure-display-summary` → Phase 3 input-features split → Phase 4 `show_warning` orchestration

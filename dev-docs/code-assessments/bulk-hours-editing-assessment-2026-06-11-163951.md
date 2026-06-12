@@ -275,7 +275,7 @@ A cross-category bulk feature could look like:
 
 3. **Should there be an undo?** The wizard already does not have undo. Bulk changes make the lack of undo more painful. Consider adding a "Review before apply" intermediate dialog for bulk operations.
 
-4. **Priority vs. other backlog:** This is adjacent to [#16c](enhancements/enhancement-16c-multiple-range-entry-gui.md) (GUI multiple ranges) and the [May 2026 refactor](plans/plan-refactor-assessment-2026-05-31.md). Bulk editing should be built **after** the refactor stabilizes the configure UI, or it will add more debt to files already flagged for splitting.
+4. **Priority vs. other backlog:** This is adjacent to [#16c](enhancements/enhancement-16c-multiple-range-entry-gui.md) (GUI multiple ranges) and the [June 2026 refactor](plans/plan-refactor-assessment-2026-06-12.md). Bulk editing should be built **after** the refactor stabilizes the configure UI, or it will add more debt to files already flagged for splitting.
 
 ---
 

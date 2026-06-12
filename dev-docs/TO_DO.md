@@ -4,7 +4,15 @@ Short queue of open work. For full status per enhancement, see [FUTURE_ENHANCEME
 
 ## Refactoring / maintainability
 
-- [ ] **May 2026 refactor assessment** — Address 10 files over 750 lines: extract configure UI error dialogs and summary builders, split `configure-input-features.sh`, finish `show_warning()` orchestration, run Phase 0 `write_config()` verification gates → [plan](plans/plan-refactor-assessment-2026-05-31.md) · [assessment](refactor-assessments/refactor-assessment-2026-05-31-140925.md) · continues [Feb refactor plan](plans/refactor-plan-high-priority-2026-02-05.md)
+- [ ] **June 2026 refactor assessment** — Address 10 files over 750 lines: getter boilerplate, configure UI/display splits, `write_config()` verification gates, `show_warning()` last → [plan](plans/plan-refactor-assessment-2026-06-12.md) · [assessment](refactor-assessments/refactor-assessment-2026-06-12-001417.md) · supersedes [May plan](completed-plans/plan-refactor-assessment-2026-05-31.md) · continues [Feb refactor plan](plans/refactor-plan-high-priority-2026-02-05.md)
+
+## Harness engineering (after refactor)
+
+**Start only after** the [June 2026 refactor assessment](#refactoring--maintainability) is complete — stable `lib/` facades and configure splits before CI tiers, Cursor rules, and doc rehome.
+
+- [ ] **Harness engineering improvements** — Test tier manifest, macOS+Linux Tier-A CI, Cursor rule hygiene, rehome agent docs from `docs/` → `dev-docs/`, doc drift checks, actionable validation messages, contributor/PR template → [plan](plans/plan-harness-engineering-improvements-2026-06-12.md)
+
+Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents (see plan Phase 4).
 
 ## Configure and UI
 
@@ -59,4 +67,4 @@ Track detail in [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#mostly-imp
 
 **Plans index:** [Master plan](plans/master/linux-warning-system-plan.md) · [Active plans](plans/) · [Completed plans](completed-plans/)
 
-**Last updated:** 2026-05-31
+**Last updated:** 2026-06-12 (harness plan queued post-refactor)

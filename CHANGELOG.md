@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Refactor plan (2026-06-12):** Review pass on [dev-docs/plans/plan-refactor-assessment-2026-06-12.md](dev-docs/plans/plan-refactor-assessment-2026-06-12.md) — fixed popup-size module name, aligned `configure-display.sh` line targets with 900-line cap, added `test-daily-caps.sh` and concrete test names, documented indent metric, Phase 1c popup-getter follow-up, Phase 8 sequencing after config phases, facade-only sourcing guardrail. May plan moved to [dev-docs/completed-plans/](dev-docs/completed-plans/) (superseded archive).
+
 ### Added
 
-- **Refactor assessment (2026-05-31):** [dev-docs/refactor-assessments/refactor-assessment-2026-05-31-140925.md](dev-docs/refactor-assessments/refactor-assessment-2026-05-31-140925.md) — 10 production files over 750 lines; prioritized extractions. Implementation plan: [dev-docs/plans/plan-refactor-assessment-2026-05-31.md](dev-docs/plans/plan-refactor-assessment-2026-05-31.md); tracked in [dev-docs/TO_DO.md](dev-docs/TO_DO.md).
+- **Refactor assessment (2026-05-31):** [dev-docs/refactor-assessments/refactor-assessment-2026-05-31-140925.md](dev-docs/refactor-assessments/refactor-assessment-2026-05-31-140925.md) — 10 production files over 750 lines; prioritized extractions. Implementation plan: [dev-docs/completed-plans/plan-refactor-assessment-2026-05-31.md](dev-docs/completed-plans/plan-refactor-assessment-2026-05-31.md) (later superseded by June plan); tracked in [dev-docs/TO_DO.md](dev-docs/TO_DO.md).
 
 - **Configurable pause cooldown and duration:** New `PAUSE_COOLDOWN_HOURS` config key (6, 8, 12, or 24 hours; default 24). Expanded `PAUSE_DURATION` allowlist to 1, 2, 3, 5, 10, and 15 minutes. Runtime cooldown uses `LAST_PAUSE_TIMESTAMP` in `.pause_state` with migration from legacy `LAST_PAUSE_DATE`-only files. Configure wizard option 10 prompts for enable, cooldown, and duration; partial-lock rejects shortening cooldown or increasing duration during lock hours. Status/manage show active, cooldown, or available states.
 
