@@ -68,7 +68,7 @@ ask_weekday_together() {
 }
 ```
 
-Apply the same pattern to `ask_weekend_together` (line 365-383).
+Apply the same pattern to `ask_weekend_together` (line 365-383). Note: `ask_weekend_together` currently passes explicit dimensions `650 250` to `show_question_dialog`; the `show_list_dialog` call should use similar dimensions.
 
 **Rationale for not changing Linux**: `show_question_dialog` on Linux uses yad/zenity/kdialog which do not exhibit the z-order regression. Changing them to `show_list_dialog` would alter the UI (yad `--question` vs `--list` behave differently) and is unnecessary.
 
@@ -162,7 +162,7 @@ for i in 1 2 3 4 5; do
 done
 ```
 
-Also apply the same pattern to `configure_weekends_section` (line 289-365) where `local day_var` and `local allow_back` are declared inside loops.
+Also apply the same pattern to `configure_weekends_section` (line 289-365) where `local day_var` and `local allow_back` are declared inside loops, and to `configure_lock_hours_section` and `configure_uninstall_lock_hours_section` which have the same `local day_var` inside loops pattern (approximately 12 additional `local day_var` declarations across those two functions).
 
 ---
 
@@ -184,6 +184,8 @@ The z-order issue is not isolated to the weekday dialog. Any `show_question_dial
 | `show_partial_lock_violation_error` | `lib/configure-ui.sh` | `show_info_dialog` | High risk: user doesn't see why save is blocked |
 | `show_config_locked_error` | `lib/configure-ui.sh` | `show_info_dialog` | High risk: user doesn't see why configure is locked |
 | `show_config_file_locked_error` | `lib/configure-ui.sh` | `show_info_dialog` | High risk: same as above |
+| `confirm_skip_day` | `lib/configure-ui.sh` | `show_question_dialog` | High risk: called after tkinter time picker; skip dialog hidden → day silently skipped |
+| `show_summary_save_dialog` (Save Configuration?) | `lib/configure-display.sh` | `show_question_dialog` | Critical risk: called after tkinter summary dialog; hidden → entire configuration session lost |
 
 **Decision matrix for each**:
 - **Informational only** (`show_welcome`, `show_24_7_error`, `show_cap_violation_error`, etc.): Can stay on `show_info_dialog` if the risk is just "user didn't read the message." But these are safety-critical messages, so they should also be hardened.
@@ -226,7 +228,9 @@ Only apply the macOS-safe pattern to the high-risk callers listed in the audit t
 - **Pros**: Minimal UI change; only fixes the known-broken paths.
 - **Cons**: Future callers can reintroduce the bug; the codebase accumulates a patchwork of safe/unsafe calls.
 
-**Recommendation**: Start with **Approach B** (targeted fixes) for the weekday bug to keep the change minimal and reviewable. Then create a follow-up task to evaluate **Approach A** (systematic override) for the next release, since the safety-critical dialogs (`show_cap_violation_error`, `show_config_locked_error`, etc.) are also at risk.
+**Recommendation**: Start with **Approach B** (targeted fixes) for the weekday bug to keep the change minimal and reviewable. Then create a **tracked follow-up issue** to evaluate **Approach A** (systematic override) for the next release, since the safety-critical dialogs (`show_cap_violation_error`, `show_config_locked_error`, etc.) are also at risk.
+
+> **Mixed pattern note**: Phase 1 patches `is_darwin` checks into individual caller functions, while `show_confirm_dialog` solves the same z-order problem as a platform override in `configure-dialogs-darwin.sh`. This leaves two patterns for the same bug class. The follow-up issue for Approach A should unify these into a single mechanism.
 
 ### 2.3 Add a warning comment to `show_question_dialog` and `show_info_dialog` definitions
 
@@ -250,9 +254,35 @@ This prevents future developers from accidentally introducing new vulnerable cal
 
 ### 3.1 Text-mode baseline
 
-Run the weekday bulk test in text mode to confirm the data path is correct independent of GUI. **This must run with a timeout** because `configure.sh` read loops spin forever on EOF (AGENTS.md). On macOS, `timeout` is not available; use one of the cross-platform alternatives below.
+Run the weekday bulk test in text mode to confirm the data path is correct independent of GUI.
 
-**Linux:**
+**⚠️ Critical safety requirement:** `configure.sh` read loops spin forever on EOF (AGENTS.md). The piped input must match the exact prompt sequence, or the script will hang. If the wizard hits an error, validation retry, or unexpected menu, stdin is exhausted and the loop spins without bound. **A timeout is mandatory** to bound this risk.
+
+**Environment requirements:** This text-mode test requires either Linux (native `timeout`) or macOS with a timeout mechanism. On macOS, prefer `gtimeout` from Homebrew coreutils (`brew install coreutils`). If coreutils is unavailable, use the Perl or background+kill fallbacks below.
+
+**Helper function (recommended — add to project test helpers):**
+```bash
+# Cross-platform timeout. Usage: sw_timeout SECONDS COMMAND [ARGS...]
+sw_timeout() {
+    local secs="$1"; shift
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "${secs}" "$@"
+    elif command -v gtimeout >/dev/null 2>&1; then
+        gtimeout "${secs}" "$@"
+    elif command -v perl >/dev/null 2>&1; then
+        perl -e "alarm ${secs}; exec \@ARGV" -- "$@"
+    else
+        # Fallback: background + kill (less precise, but needs no extra tools)
+        "$@" &
+        local pid=$!
+        sleep "${secs}"
+        kill "${pid}" 2>/dev/null
+        wait "${pid}" 2>/dev/null
+    fi
+}
+```
+
+**Linux (using `timeout`):**
 ```bash
 export TEST_HOME=$(mktemp -d)
 export HOME="${TEST_HOME}"
@@ -260,7 +290,11 @@ timeout 10 bash -c "printf '\n3\ny\n0-5\n13\ny\n' | ./configure.sh --text" || tr
 cat ~/.config/sleep-warning/config/sleep-warning.conf | grep -E '^(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY)='
 ```
 
-**macOS (with Homebrew coreutils):**
+**macOS (recommended: install coreutils first):**
+```bash
+brew install coreutils   # provides gtimeout
+```
+Then:
 ```bash
 export TEST_HOME=$(mktemp -d)
 export HOME="${TEST_HOME}"
@@ -268,11 +302,22 @@ gtimeout 10 bash -c "printf '\n3\ny\n0-5\n13\ny\n' | ./configure.sh --text" || t
 cat ~/.config/sleep-warning/config/sleep-warning.conf | grep -E '^(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY)='
 ```
 
-**macOS (without coreutils — Perl is always available):**
+**macOS (using Perl, always available — no coreutils needed):**
 ```bash
 export TEST_HOME=$(mktemp -d)
 export HOME="${TEST_HOME}"
 perl -e 'alarm 10; exec @ARGV' -- bash -c "printf '\n3\ny\n0-5\n13\ny\n' | ./configure.sh --text" || true
+cat ~/.config/sleep-warning/config/sleep-warning.conf | grep -E '^(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY)='
+```
+
+**macOS (background + kill, no extra dependencies):**
+```bash
+export TEST_HOME=$(mktemp -d)
+export HOME="${TEST_HOME}"
+printf '\n3\ny\n0-5\n13\ny\n' | ./configure.sh --text > output.txt 2>&1 &
+CPID=$!
+sleep 10
+kill $CPID 2>/dev/null || true
 cat ~/.config/sleep-warning/config/sleep-warning.conf | grep -E '^(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY)='
 ```
 

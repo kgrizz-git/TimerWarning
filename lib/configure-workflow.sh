@@ -24,10 +24,25 @@ prompt_continue_day_flow() {
     local use_gui="$1"
     local next_label="$2"
     local section_label="$3"
-
     local prompt_text="Next up: ${next_label}. Continue configuring ${section_label}?"
 
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        if type is_darwin >/dev/null 2>&1 && is_darwin; then
+            local choice
+            choice=$(show_list_dialog \
+                "Continue Configuration?" \
+                "${prompt_text}" \
+                600 300 \
+                "Yes, Continue" \
+                "Return to Menu")
+            local list_exit=$?
+            if [ ${list_exit} -ne 0 ] || [ -z "${choice}" ]; then
+                return 1
+            fi
+            [ "${choice}" = "Yes, Continue" ]
+            return $?
+        fi
+        # Linux path unchanged
         show_question_dialog \
             "Continue Configuration?" \
             "${prompt_text}" \
@@ -37,6 +52,7 @@ prompt_continue_day_flow() {
             250
         return $?
     else
+        # Text mode unchanged
         local answer
         configure_read -p "${prompt_text} [Y/n]: " answer
         case "${answer}" in
@@ -50,13 +66,18 @@ configure_weekdays_section() {
     local use_gui="$1"
     local -n config_lines_ref="$2"  # Pass by reference
     local -n summary_lines_ref="$3"  # Pass by reference
+    local weekday_range
+    local day_var
+    local allow_back
+    local range
+    local exit_code
+    local i
     
     # Ask if configure together or separately
     if ask_weekday_together "${use_gui}"; then
         # Configure all weekdays together
-        local weekday_range
         weekday_range=$(get_day_hours "Weekdays (Monday-Friday)" 1 "${use_gui}" "false" "true")
-        local exit_code=$?
+        exit_code=$?
         
         if [ "${weekday_range}" = "CANCELLED" ] || [ ${exit_code} -eq 2 ]; then
             return 2  # Cancelled
@@ -64,7 +85,7 @@ configure_weekdays_section() {
 
         # Apply to all weekdays (indices 1-5: Monday-Friday)
         for i in 1 2 3 4 5; do
-            local day_var="${DAY_VARS[${i}]}"
+            day_var="${DAY_VARS[${i}]}"
             if [ "${weekday_range}" != "skip" ]; then
                 config_lines_ref[${i}]="${day_var}=${weekday_range}"
                 summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${weekday_range}"
@@ -76,15 +97,14 @@ configure_weekdays_section() {
         return 0
     else
         # Configure each weekday separately
-        local i=1  # Start with Monday
+        i=1  # Start with Monday
         while [ "${i}" -le 5 ]; do  # Monday through Friday
             # No previous weekday before Monday; hide "Go back to previous day" on first day
-            local allow_back="false"
+            allow_back="false"
             [ "${i}" -gt 1 ] && allow_back="true"
             
-            local range
             range=$(get_day_hours "${DAY_NAMES[${i}]}" "${i}" "${use_gui}" "${allow_back}" "true")
-            local exit_code=$?
+            exit_code=$?
             
             if [ "${range}" = "CANCELLED" ]; then
                 return 2  # Cancelled
@@ -101,7 +121,7 @@ configure_weekdays_section() {
                 fi
                 # Continue loop to re-prompt previous day
             else
-                local day_var="${DAY_VARS[${i}]}"
+                day_var="${DAY_VARS[${i}]}"
                 if [ "${range}" != "skip" ]; then
                     config_lines_ref[${i}]="${day_var}=${range}"
                     summary_lines_ref[${i}]="${DAY_NAMES[${i}]}: ${range}"
@@ -132,6 +152,17 @@ configure_weekdays_section() {
 configure_lock_hours_section() {
     local use_gui="$1"
     local -n lock_hours_lines_ref="$2"  # Pass lock_hours_lines by reference
+    local weekday_range
+    local weekend_range
+    local day_var
+    local i
+    local day_index
+    local day_name
+    local label
+    local allow_back
+    local existing_lock
+    local range
+    local exit_code
     
     # Show informational note about dependency
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
@@ -157,14 +188,12 @@ configure_lock_hours_section() {
     
     # Ask if same hours for all weekdays and/or both weekend days (main menu entry point)
     if ask_weekday_together "${use_gui}"; then
-        local weekday_range
         weekday_range=$(get_day_hours "Weekdays (Monday-Friday) - Additional Block Hours" 1 "${use_gui}" "false" "true")
         if [ "${weekday_range}" = "CANCELLED" ]; then
             return 2
         fi
-        local i
         for i in 1 2 3 4 5; do
-            local day_var="${DAY_VARS[${i}]}"
+            day_var="${DAY_VARS[${i}]}"
             if [ "${weekday_range}" != "skip" ]; then
                 lock_hours_lines_ref[${i}]="CONFIG_LOCK_HOURS_${day_var}=${weekday_range}"
             else
@@ -173,13 +202,12 @@ configure_lock_hours_section() {
         done
         # Weekends
         if ask_weekend_together "${use_gui}"; then
-            local weekend_range
             weekend_range=$(get_day_hours "Weekends (Saturday and Sunday) - Additional Block Hours" 6 "${use_gui}" "false" "true")
             if [ "${weekend_range}" = "CANCELLED" ]; then
                 return 2
             fi
             for i in 6 0; do
-                local day_var="${DAY_VARS[${i}]}"
+                day_var="${DAY_VARS[${i}]}"
                 if [ "${weekend_range}" != "skip" ]; then
                     lock_hours_lines_ref[${i}]="CONFIG_LOCK_HOURS_${day_var}=${weekend_range}"
                 else
@@ -188,16 +216,15 @@ configure_lock_hours_section() {
             done
         else
             for i in 6 0; do
-                local day_name="${DAY_NAMES[${i}]}"
-                local label="Additional Block Hours - ${day_name}"
-                local existing_lock=""
+                day_name="${DAY_NAMES[${i}]}"
+                label="Additional Block Hours - ${day_name}"
+                existing_lock=""
                 [ -n "${lock_hours_lines_ref[${i}]+set}" ] && [ -n "${lock_hours_lines_ref[${i}]}" ] && existing_lock=$(echo "${lock_hours_lines_ref[${i}]}" | cut -d'=' -f2-)
-                local range
                 range=$(get_day_hours "${label}" "${i}" "${use_gui}" "false" "true" "${existing_lock}")
                 if [ "${range}" = "CANCELLED" ]; then
                     return 2
                 fi
-                local day_var="${DAY_VARS[${i}]}"
+                day_var="${DAY_VARS[${i}]}"
                 if [ "${range}" != "skip" ]; then
                     lock_hours_lines_ref[${i}]="CONFIG_LOCK_HOURS_${day_var}=${range}"
                 else
@@ -209,13 +236,12 @@ configure_lock_hours_section() {
     fi
     
     if ask_weekend_together "${use_gui}"; then
-        local weekend_range
         weekend_range=$(get_day_hours "Weekends (Saturday and Sunday) - Additional Block Hours" 6 "${use_gui}" "false" "true")
         if [ "${weekend_range}" = "CANCELLED" ]; then
             return 2
         fi
         for i in 6 0; do
-            local day_var="${DAY_VARS[${i}]}"
+            day_var="${DAY_VARS[${i}]}"
             if [ "${weekend_range}" != "skip" ]; then
                 lock_hours_lines_ref[${i}]="CONFIG_LOCK_HOURS_${day_var}=${weekend_range}"
             else
@@ -223,15 +249,14 @@ configure_lock_hours_section() {
             fi
         done
         # Per-day for weekdays (1-5)
-        local day_index=1
+        day_index=1
         while [ "${day_index}" -le 5 ]; do
-            local day_name="${DAY_NAMES[${day_index}]}"
-            local label="Additional Block Hours - ${day_name}"
-            local allow_back="true"
+            day_name="${DAY_NAMES[${day_index}]}"
+            label="Additional Block Hours - ${day_name}"
+            allow_back="true"
             [ "${day_index}" -eq 1 ] && allow_back="false"
-            local existing_lock=""
+            existing_lock=""
             [ -n "${lock_hours_lines_ref[${day_index}]+set}" ] && [ -n "${lock_hours_lines_ref[${day_index}]}" ] && existing_lock=$(echo "${lock_hours_lines_ref[${day_index}]}" | cut -d'=' -f2-)
-            local range
             range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "${allow_back}" "true" "${existing_lock}")
             if [ "${range}" = "CANCELLED" ]; then
                 return 2
@@ -240,7 +265,7 @@ configure_lock_hours_section() {
                 day_index=$((day_index - 1))
                 continue
             fi
-            local day_var="${DAY_VARS[${day_index}]}"
+            day_var="${DAY_VARS[${day_index}]}"
             if [ "${range}" != "skip" ]; then
                 lock_hours_lines_ref[${day_index}]="CONFIG_LOCK_HOURS_${day_var}=${range}"
             else
@@ -252,17 +277,16 @@ configure_lock_hours_section() {
     fi
     
     # Per-day loop for all days (Sunday-Saturday, indices 0-6)
-    local day_index=0
+    day_index=0
     while [ "${day_index}" -le 6 ]; do
-        local day_name="${DAY_NAMES[${day_index}]}"
-        local label="Additional Block Hours - ${day_name}"
-        local allow_back="false"
+        day_name="${DAY_NAMES[${day_index}]}"
+        label="Additional Block Hours - ${day_name}"
+        allow_back="false"
         [ "${day_index}" -gt 0 ] && allow_back="true"
-        local existing_lock=""
+        existing_lock=""
         [ -n "${lock_hours_lines_ref[${day_index}]+set}" ] && [ -n "${lock_hours_lines_ref[${day_index}]}" ] && existing_lock=$(echo "${lock_hours_lines_ref[${day_index}]}" | cut -d'=' -f2-)
-        local range
         range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "${allow_back}" "true" "${existing_lock}")
-        local exit_code=$?
+        exit_code=$?
         if [ "${range}" = "CANCELLED" ]; then
             return 2
         fi
@@ -275,7 +299,7 @@ configure_lock_hours_section() {
                 return 0
             fi
         fi
-        local day_var="${DAY_VARS[${day_index}]}"
+        day_var="${DAY_VARS[${day_index}]}"
         if [ "${range}" != "skip" ]; then
             lock_hours_lines_ref[${day_index}]="CONFIG_LOCK_HOURS_${day_var}=${range}"
         else
@@ -290,13 +314,18 @@ configure_weekends_section() {
     local use_gui="$1"
     local -n config_lines_ref="$2"  # Pass by reference
     local -n summary_lines_ref="$3"  # Pass by reference
+    local weekend_range
+    local exit_code
+    local weekend_day
+    local allow_back
+    local range
+    local day_var
     
     # Ask if configure together or separately
     if ask_weekend_together "${use_gui}"; then
         # Configure both weekend days together
-        local weekend_range
         weekend_range=$(get_day_hours "Weekends (Saturday and Sunday)" 6 "${use_gui}" "false" "true")
-        local exit_code=$?
+        exit_code=$?
         
         if [ "${weekend_range}" = "CANCELLED" ]; then
             return 2  # Cancelled
@@ -316,15 +345,14 @@ configure_weekends_section() {
         return 0
     else
         # Configure Saturday and Sunday separately
-        local weekend_day=6  # Start with Saturday
+        weekend_day=6  # Start with Saturday
         while true; do
             # No previous day before Saturday; hide "Go back to previous day" on first day
-            local allow_back="false"
+            allow_back="false"
             [ "${weekend_day}" -eq 0 ] && allow_back="true"
             
-            local range
             range=$(get_day_hours "${DAY_NAMES[${weekend_day}]}" "${weekend_day}" "${use_gui}" "${allow_back}" "true")
-            local exit_code=$?
+            exit_code=$?
             
             if [ "${range}" = "CANCELLED" ]; then
                 return 2  # Cancelled
@@ -341,7 +369,7 @@ configure_weekends_section() {
                 fi
                 # Continue loop to re-prompt previous day
             else
-                local day_var="${DAY_VARS[${weekend_day}]}"
+                day_var="${DAY_VARS[${weekend_day}]}"
                 if [ "${range}" != "skip" ]; then
                     config_lines_ref[${weekend_day}]="${day_var}=${range}"
                     summary_lines_ref[${weekend_day}]="${DAY_NAMES[${weekend_day}]}: ${range}"
@@ -498,6 +526,17 @@ configure_day_from_grid() {
 configure_uninstall_lock_hours_section() {
     local use_gui="$1"
     local -n uninstall_lock_hours_lines_ref="$2"  # Pass uninstall_lock_hours_lines by reference
+    local weekday_range
+    local weekend_range
+    local i
+    local day_index
+    local day_name
+    local label
+    local allow_back
+    local existing_uninstall
+    local uninstall_lock_range
+    local day_var
+    local exit_code
     
     # Show informational note about dependency
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
@@ -526,14 +565,12 @@ configure_uninstall_lock_hours_section() {
     
     # Ask if same hours for all weekdays and/or both weekend days (main menu entry point)
     if ask_weekday_together "${use_gui}"; then
-        local weekday_range
         weekday_range=$(get_day_hours "Weekdays (Monday-Friday) - Uninstall Lock Hours" 1 "${use_gui}" "false" "true")
         if [ "${weekday_range}" = "CANCELLED" ]; then
             return 2
         fi
-        local i
         for i in 1 2 3 4 5; do
-            local day_var="${DAY_VARS[${i}]}"
+            day_var="${DAY_VARS[${i}]}"
             if [ "${weekday_range}" != "skip" ]; then
                 uninstall_lock_hours_lines_ref[${i}]="UNINSTALL_LOCK_HOURS_${day_var}=${weekday_range}"
             else
@@ -541,13 +578,12 @@ configure_uninstall_lock_hours_section() {
             fi
         done
         if ask_weekend_together "${use_gui}"; then
-            local weekend_range
             weekend_range=$(get_day_hours "Weekends (Saturday and Sunday) - Uninstall Lock Hours" 6 "${use_gui}" "false" "true")
             if [ "${weekend_range}" = "CANCELLED" ]; then
                 return 2
             fi
             for i in 6 0; do
-                local day_var="${DAY_VARS[${i}]}"
+                day_var="${DAY_VARS[${i}]}"
                 if [ "${weekend_range}" != "skip" ]; then
                     uninstall_lock_hours_lines_ref[${i}]="UNINSTALL_LOCK_HOURS_${day_var}=${weekend_range}"
                 else
@@ -556,16 +592,15 @@ configure_uninstall_lock_hours_section() {
             done
         else
             for i in 6 0; do
-                local day_name="${DAY_NAMES[${i}]}"
-                local label="Uninstall Lock Hours - ${day_name}"
-                local existing_uninstall=""
+                day_name="${DAY_NAMES[${i}]}"
+                label="Uninstall Lock Hours - ${day_name}"
+                existing_uninstall=""
                 [ -n "${uninstall_lock_hours_lines_ref[${i}]+set}" ] && [ -n "${uninstall_lock_hours_lines_ref[${i}]}" ] && existing_uninstall=$(echo "${uninstall_lock_hours_lines_ref[${i}]}" | cut -d'=' -f2-)
-                local uninstall_lock_range
                 uninstall_lock_range=$(get_day_hours "${label}" "${i}" "${use_gui}" "false" "true" "${existing_uninstall}")
                 if [ "${uninstall_lock_range}" = "CANCELLED" ]; then
                     return 2
                 fi
-                local day_var="${DAY_VARS[${i}]}"
+                day_var="${DAY_VARS[${i}]}"
                 if [ "${uninstall_lock_range}" != "skip" ]; then
                     uninstall_lock_hours_lines_ref[${i}]="UNINSTALL_LOCK_HOURS_${day_var}=${uninstall_lock_range}"
                 else
@@ -577,28 +612,26 @@ configure_uninstall_lock_hours_section() {
     fi
     
     if ask_weekend_together "${use_gui}"; then
-        local weekend_range
         weekend_range=$(get_day_hours "Weekends (Saturday and Sunday) - Uninstall Lock Hours" 6 "${use_gui}" "false" "true")
         if [ "${weekend_range}" = "CANCELLED" ]; then
             return 2
         fi
         for i in 6 0; do
-            local day_var="${DAY_VARS[${i}]}"
+            day_var="${DAY_VARS[${i}]}"
             if [ "${weekend_range}" != "skip" ]; then
                 uninstall_lock_hours_lines_ref[${i}]="UNINSTALL_LOCK_HOURS_${day_var}=${weekend_range}"
             else
                 uninstall_lock_hours_lines_ref[${i}]="UNINSTALL_LOCK_HOURS_${day_var}="
             fi
         done
-        local day_index=1
+        day_index=1
         while [ "${day_index}" -le 5 ]; do
-            local day_name="${DAY_NAMES[${day_index}]}"
-            local label="Uninstall Lock Hours - ${day_name}"
-            local allow_back="true"
+            day_name="${DAY_NAMES[${day_index}]}"
+            label="Uninstall Lock Hours - ${day_name}"
+            allow_back="true"
             [ "${day_index}" -eq 1 ] && allow_back="false"
-            local existing_uninstall=""
+            existing_uninstall=""
             [ -n "${uninstall_lock_hours_lines_ref[${day_index}]+set}" ] && [ -n "${uninstall_lock_hours_lines_ref[${day_index}]}" ] && existing_uninstall=$(echo "${uninstall_lock_hours_lines_ref[${day_index}]}" | cut -d'=' -f2-)
-            local uninstall_lock_range
             uninstall_lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "${allow_back}" "true" "${existing_uninstall}")
             if [ "${uninstall_lock_range}" = "CANCELLED" ]; then
                 return 2
@@ -607,7 +640,7 @@ configure_uninstall_lock_hours_section() {
                 day_index=$((day_index - 1))
                 continue
             fi
-            local day_var="${DAY_VARS[${day_index}]}"
+            day_var="${DAY_VARS[${day_index}]}"
             if [ "${uninstall_lock_range}" != "skip" ]; then
                 uninstall_lock_hours_lines_ref[${day_index}]="UNINSTALL_LOCK_HOURS_${day_var}=${uninstall_lock_range}"
             else
@@ -619,16 +652,15 @@ configure_uninstall_lock_hours_section() {
     fi
     
     # Per-day loop for all days (Sunday-Saturday, indices 0-6)
-    local day_index=0
+    day_index=0
     while [ "${day_index}" -le 6 ]; do
-        local day_name="${DAY_NAMES[${day_index}]}"
-        local day_var="${DAY_VARS[${day_index}]}"
-        local label="Uninstall Lock Hours - ${day_name}"
-        local existing_uninstall=""
+        day_name="${DAY_NAMES[${day_index}]}"
+        day_var="${DAY_VARS[${day_index}]}"
+        label="Uninstall Lock Hours - ${day_name}"
+        existing_uninstall=""
         [ -n "${uninstall_lock_hours_lines_ref[${day_index}]+set}" ] && [ -n "${uninstall_lock_hours_lines_ref[${day_index}]}" ] && existing_uninstall=$(echo "${uninstall_lock_hours_lines_ref[${day_index}]}" | cut -d'=' -f2-)
-        local uninstall_lock_range
         uninstall_lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "false" "true" "${existing_uninstall}")
-        local exit_code=$?
+        exit_code=$?
         if [ "${uninstall_lock_range}" = "CANCELLED" ]; then
             return 2
         fi

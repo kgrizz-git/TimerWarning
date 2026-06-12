@@ -635,6 +635,13 @@ if [ -z "${CONFIGURE_DIALOGS_DARWIN_LOADED:-}" ]; then
         return 1
     }
 
+    # ⚠️ macOS Z-ORDER WARNING:
+    # show_question_dialog and show_info_dialog use osascript display alert.
+    # On macOS 13+, display alert dialogs may appear BEHIND the terminal after
+    # a tkinter dialog closes. Callers in the configure path should prefer
+    # show_list_dialog (for questions) or show_text_dialog (for info) when
+    # the dialog immediately follows a tkinter window.
+    # See: dev-docs/weekday-gui-bug-assessment.md
     show_info_dialog() {
         local title="$1"
         local message="$2"

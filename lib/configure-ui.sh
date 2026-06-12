@@ -344,8 +344,25 @@ Let's get started!"
 # Ask if user wants to configure weekdays together
 ask_weekday_together() {
     local use_gui="$1"
-    
+
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        if type is_darwin >/dev/null 2>&1 && is_darwin; then
+            # macOS-safe: list dialog instead of display alert
+            local choice
+            choice=$(show_list_dialog \
+                "Sleep Warning Configuration" \
+                "Would you like to use the same restricted hours for all weekdays (Monday-Friday)?" \
+                600 300 \
+                "Yes" \
+                "No")
+            local list_exit=$?
+            if [ ${list_exit} -ne 0 ] || [ -z "${choice}" ]; then
+                return 1  # Dismissed or cancelled → treat as "No"
+            fi
+            [ "${choice}" = "Yes" ]
+            return $?
+        fi
+        # Linux path: keep original show_question_dialog
         show_question_dialog \
             "Sleep Warning Configuration" \
             "Would you like to use the same restricted hours for all weekdays (Monday-Friday)?" \
@@ -353,6 +370,7 @@ ask_weekday_together() {
             "No"
         return $?
     else
+        # Text mode unchanged
         configure_read -p "Use same hours for all weekdays (Monday-Friday)? [y/N]: " answer
         case "${answer}" in
             [Yy]*) return 0 ;;
@@ -364,8 +382,25 @@ ask_weekday_together() {
 # Ask if user wants to configure weekends together
 ask_weekend_together() {
     local use_gui="$1"
-    
+
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        if type is_darwin >/dev/null 2>&1 && is_darwin; then
+            # macOS-safe: list dialog instead of display alert
+            local choice
+            choice=$(show_list_dialog \
+                "Sleep Warning Configuration" \
+                "Would you like to use the same restricted hours for both weekend days (Saturday and Sunday)?" \
+                650 250 \
+                "Yes" \
+                "No")
+            local list_exit=$?
+            if [ ${list_exit} -ne 0 ] || [ -z "${choice}" ]; then
+                return 1  # Dismissed or cancelled → treat as "No"
+            fi
+            [ "${choice}" = "Yes" ]
+            return $?
+        fi
+        # Linux path: keep original show_question_dialog
         show_question_dialog \
             "Sleep Warning Configuration" \
             "Would you like to use the same restricted hours for both weekend days (Saturday and Sunday)?" \
@@ -375,6 +410,7 @@ ask_weekend_together() {
             250
         return $?
     else
+        # Text mode unchanged
         configure_read -p "Use same hours for both weekend days (Saturday and Sunday)? [y/N]: " answer
         case "${answer}" in
             [Yy]*) return 0 ;;
