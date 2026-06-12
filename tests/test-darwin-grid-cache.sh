@@ -117,7 +117,7 @@ assert_not_contains "no circular nameref warning" "${stderr}" "circular name ref
 assert_contains "inherited overnight on Tuesday" "${_CONFIGURE_GRID_RESTRICTED[2]}" "inherited"
 
 # --- helper must not reuse caller nameref names (static guard) ---
-if grep -q 'local -n summary_lines_ref="\$1"' "${SCRIPT_DIR}/lib/configure-display.sh"; then
+if grep -q 'local -n summary_lines_ref="\$1"' "${SCRIPT_DIR}/lib/configure-display-grid.sh"; then
     echo "FAIL: _configure_build_grid_cache uses caller nameref name summary_lines_ref"
     fail=$((fail + 1))
 else

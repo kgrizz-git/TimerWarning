@@ -52,10 +52,10 @@ test_check "Text mode flag (--text)" "${CONFIGURE_SCRIPT} --text --help 2>&1 | g
 test_check "Script syntax validation" "bash -n ${CONFIGURE_SCRIPT}"
 
 # Test 4: Menu option 9 (View Weekly Hours / grid) exists in code
-test_check "Menu option 9 (View Weekly Hours Settings) exists" "grep -q 'View Weekly Hours Settings' ${LIB_DIR}/configure-display.sh"
+test_check "Menu option 9 (View Weekly Hours Settings) exists" "grep -q 'View Weekly Hours Settings' ${LIB_DIR}/configure-display-menu.sh"
 
 # Test 5: show_visual_grid function exists
-test_check "show_visual_grid function exists" "grep -q '^show_visual_grid()' ${LIB_DIR}/configure-display.sh"
+test_check "show_visual_grid function exists" "grep -q '^show_visual_grid()' ${LIB_DIR}/configure-display-grid.sh"
 
 # Test 6: configure_day_from_grid function exists
 test_check "configure_day_from_grid function exists" "grep -q '^configure_day_from_grid()' ${LIB_DIR}/configure-workflow.sh"
@@ -64,22 +64,22 @@ test_check "configure_day_from_grid function exists" "grep -q '^configure_day_fr
 test_check "Case statement handles option 9" "grep -A 15 '^[[:space:]]*9)' ${CONFIGURE_SCRIPT} | grep -q 'show_visual_grid'"
 
 # Test 8: Text mode menu shows option 9 (View Weekly Hours)
-test_check "Text mode menu includes option 9" "grep -q 'View Weekly Hours Settings' ${LIB_DIR}/configure-display.sh"
+test_check "Text mode menu includes option 9" "grep -q 'View Weekly Hours Settings' ${LIB_DIR}/configure-display-menu.sh"
 
 # Test 9: Text mode grid display function exists
-test_check "Text mode grid display code exists" "grep -q '^show_visual_grid()' ${LIB_DIR}/configure-display.sh && grep -q 'Visual Day/Time Grid' ${LIB_DIR}/configure-display.sh"
+test_check "Text mode grid display code exists" "grep -q '^show_visual_grid()' ${LIB_DIR}/configure-display-grid.sh && grep -q 'Visual Day/Time Grid' ${LIB_DIR}/configure-display-grid.sh"
 
 # Test 10: format_ranges_human function exists (used by grid)
 test_check "format_ranges_human function exists" "grep -q '^format_ranges_human()' ${LIB_DIR}/configure-time.sh"
 
 # Test 11: Grid handles empty/unconfigured days
-test_check "Grid handles empty days" "grep -q 'No restrictions' ${LIB_DIR}/configure-display.sh && grep -q '\\(no restrictions\\)' ${LIB_DIR}/configure-time.sh"
+test_check "Grid handles empty days" "grep -q 'No restrictions' ${LIB_DIR}/configure-display-summary.sh && grep -q '\\(no restrictions\\)' ${LIB_DIR}/configure-time.sh"
 
 # Test 12: Grid renders a tabular listing (text mode)
-test_check "Grid renders table rows" "grep -Fq 'printf \"%d.\\t%-9s\\t' ${LIB_DIR}/configure-display.sh"
+test_check "Grid renders table rows" "grep -Fq 'printf \"%d.\\t%-9s\\t' ${LIB_DIR}/configure-display-grid.sh"
 
 # Test 13: Back to menu option exists in grid
-test_check "Back to menu option in grid" "grep -q '0\\. Back to Main Menu' ${LIB_DIR}/configure-display.sh"
+test_check "Back to menu option in grid" "grep -q '0\\. Back to Main Menu' ${LIB_DIR}/configure-display-grid.sh"
 
 # Test 14: Grid navigation loop exists
 test_check "Grid navigation loop exists" "grep -B 2 -A 2 'show_visual_grid' ${CONFIGURE_SCRIPT} | grep -q 'while true'"

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Phase 3 refactor (`configure-display`):** Split menus, weekly grid, and summary into `lib/configure-display-menu.sh`, `configure-display-grid.sh`, and `configure-display-summary.sh`; facade `configure-display.sh` 1,338→193 lines. Grid module adds `_format_grid_row()` and `_validate_grid_edit()` for text-mode nesting reduction. Tests: `test-configure-text-mode.sh`, `test-enhancement-03-wizard.sh`, `test-configure-modular.sh`, `test-darwin-grid-cache.sh`, `test-daily-caps.sh`.
+
+- **Phase 2 refactor (`configure-ui`):** Extracted lock/cap/partial-lock error dialogs to `lib/configure-ui-errors.sh`; moved `calculate_restriction_end_time()` to `lib/time-calculations.sh`. `configure-ui.sh` 1,291→622 lines. Tests: `test-configure-partial-lock.sh`, cancel-menu tests, `test-configure-gui-split.sh`.
+
+- **Phase 4 refactor (`config.sh`):** Merged `parse_lock_hours()` / `parse_uninstall_lock_hours()` into shared `_parse_config_hours_for_day()` with thin wrappers; preserved numeric-only API for configure lock hours and day-name support for uninstall lock hours. ~53 lines removed (864→811). Tests: `test-daily-caps.sh`, `test-lock-hours-phase2.sh`, `test-uninstall-lock-hours*.sh`, `test-24-7-prevention-additional-hours.sh`.
+
+- **Phase 1 refactor (`configure-input-features`):** Split feature getters into `lib/configure-input-feature-helpers.sh`, `configure-input-security.sh`, `configure-input-pause.sh`, `configure-input-dialog-tool.sh`; `configure-input-features.sh` is now a thin facade (~35 lines). Shared bool/list/text prompt helpers; behavior unchanged per `test-configure-partial-lock.sh`, `test-pause-feature.sh`, `test-dialog-tool-selection.sh`. Phase 0 baseline: [dev-docs/plans/phase-0-verification-2026-06-12.md](dev-docs/plans/phase-0-verification-2026-06-12.md).
+
 - **Refactor plan (2026-06-12):** Review pass on [dev-docs/plans/plan-refactor-assessment-2026-06-12.md](dev-docs/plans/plan-refactor-assessment-2026-06-12.md) — fixed popup-size module name, aligned `configure-display.sh` line targets with 900-line cap, added `test-daily-caps.sh` and concrete test names, documented indent metric, Phase 1c popup-getter follow-up, Phase 8 sequencing after config phases, facade-only sourcing guardrail. May plan moved to [dev-docs/completed-plans/](dev-docs/completed-plans/) (superseded archive).
 
 ### Added

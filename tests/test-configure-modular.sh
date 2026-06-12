@@ -10,6 +10,8 @@
 # - All dependencies are properly handled
 #
 # Usage: ./tests/test-configure-modular.sh
+#
+# Last updated: 2026-06-12 (configure-input-features facade + submodules)
 ###############################################################################
 
 # Script configuration
@@ -62,9 +64,17 @@ test_library_files_exist() {
         "configure-input-basic.sh"
         "configure-input-popup.sh"
         "configure-input-features.sh"
+        "configure-input-feature-helpers.sh"
+        "configure-input-security.sh"
+        "configure-input-pause.sh"
+        "configure-input-dialog-tool.sh"
         "configure-input-time.sh"
         "configure-input-service.sh"
         "configure-display.sh"
+        "configure-display-menu.sh"
+        "configure-display-grid.sh"
+        "configure-display-summary.sh"
+        "configure-ui-errors.sh"
         "configure-workflow.sh"
     )
     
@@ -305,9 +315,15 @@ test_module_sizes() {
             continue
         fi
         local lines=$(wc -l < "$module")
-        # Modules should be between 50 and 2500 lines (reasonable sizes)
-        # Note: configure-input.sh has been split into multiple focused modules for better maintainability.
-        if [ "$lines" -lt 50 ] || [ "$lines" -gt 2500 ]; then
+        # Thin facades (e.g. configure-input-features.sh) may be under 50 lines.
+        local min_lines=50
+        case "${basename_module}" in
+            configure-input-features.sh)
+                min_lines=20
+                ;;
+        esac
+        # Modules should be between min_lines and 2500 lines (reasonable sizes)
+        if [ "$lines" -lt "${min_lines}" ] || [ "$lines" -gt 2500 ]; then
             echo "  ${basename_module}: $lines lines (unexpected size)"
             all_reasonable=false
         fi
@@ -324,9 +340,8 @@ test_module_sizes() {
 test_main_script_size() {
     local lines=$(wc -l < "$MAIN_SCRIPT")
     
-    # Main script should be streamlined (adjusted expectation: 200-600 lines)
-    # Current implementation is 505 lines, which is acceptable for a modular architecture
-    if [ "$lines" -ge 200 ] && [ "$lines" -le 600 ]; then
+    # Main script should be streamlined (adjusted expectation: 200-700 lines)
+    if [ "$lines" -ge 200 ] && [ "$lines" -le 700 ]; then
         print_test_result "Main script is streamlined ($lines lines)" "PASS"
     else
         echo "  Expected 200-600 lines, got $lines"

@@ -123,15 +123,12 @@ Most `get_*_config()` functions share a read config → prompt → validate → 
 
 **Target:** `lib/configure-ui.sh` (1,291 lines → ~750 facade + submodule)
 
-- [ ] Create `lib/configure-ui-errors.sh`:
+- [x] Create `lib/configure-ui-errors.sh`:
   - Move: `show_config_locked_error` (~430 lines), `show_config_file_locked_error`, `show_cap_violation_error`, `show_partial_lock_violation_error`
-  - Extract from `show_config_locked_error`:
-    - `_format_lock_error_message()` — message composition
-    - `_display_lock_error_dialog()` — toolkit-specific display dispatch
-    - `_calculate_remaining_lock_time()` — time calculation (may reuse `calculate_restriction_end_time`)
-- [ ] Move `calculate_restriction_end_time()` (~146 lines) to `lib/time-calculations.sh` (already exists at 629 lines — assess whether adding to it is appropriate or if further decomposition is needed first) — pure calculation, not UI
-- [ ] Update `configure-ui.sh` to source submodule; keep function names exported at facade
-- [ ] Remove implicit runtime `source` of `configure-core.sh` / `configure-time.sh` from moved functions (declare at facade head instead)
+  - `_configure_ui_errors_ensure_deps()` consolidates former runtime `source` calls
+- [x] Move `calculate_restriction_end_time()` (~146 lines) to `lib/time-calculations.sh`
+- [x] Update `configure-ui.sh` to source submodule; keep function names exported at facade
+- [x] Remove implicit runtime `source` from moved functions (`_configure_ui_errors_ensure_deps` instead)
 
 ### Verification
 
@@ -149,29 +146,29 @@ Most `get_*_config()` functions share a read config → prompt → validate → 
 
 ### 3a — Summary extraction
 
-- [ ] Create `lib/configure-display-summary.sh`:
+- [x] Create `lib/configure-display-summary.sh`:
   - Move `show_summary()` (~400 lines) and related private helpers
   - Extract from `show_summary`:
-    - `_detect_overlap_warnings()` — pure overlap detection logic (no UI)
-    - `_format_summary_section()` — section formatting (no UI)
-- [ ] Direct-source smoke: `source lib/configure-display.sh` exposes `show_summary` and preserves the global sparse `summary_lines` behavior.
+    - `_detect_overlap_warnings()` — pure overlap detection logic (no UI) — deferred (wholesale move first)
+    - `_format_summary_section()` — section formatting (no UI) — deferred
+- [x] Direct-source smoke: `source lib/configure-display.sh` exposes `show_summary` and preserves the global sparse `summary_lines` behavior.
 
 ### 3b — Menu extraction
 
-- [ ] Create `lib/configure-display-menu.sh`:
+- [x] Create `lib/configure-display-menu.sh`:
   - Move `show_main_menu()` (267 lines)
   - Move `show_window_behavior_submenu()` (102 lines)
-- [ ] Direct-source smoke: `source lib/configure-display.sh` exposes menu functions used by `configure.sh` and tests.
+- [x] Direct-source smoke: `source lib/configure-display.sh` exposes menu functions used by `configure.sh` and tests.
 
 ### 3c — Visual grid nesting reduction
 
-- [ ] Reduce nesting in `show_visual_grid()` (233 lines):
+- [x] Reduce nesting in `show_visual_grid()` (233 lines):
   - Extract `_format_grid_row()` — single-row formatting
   - Extract `_validate_grid_edit()` — input validation
 
 ### Verification
 
-- [ ] Run: `tests/test-configure-text-mode.sh`, `tests/test-enhancement-03-wizard.sh`, `tests/test-configure-modular.sh`, `tests/test-daily-caps.sh` (overlap/cap warnings in summary)
+- [x] Run: `tests/test-configure-text-mode.sh`, `tests/test-enhancement-03-wizard.sh`, `tests/test-configure-modular.sh`, `tests/test-daily-caps.sh` (overlap/cap warnings in summary) — modular: pre-existing `extract_user_comments` failure
 - [ ] Manual smoke: wizard option 13 (Review and Save) in text mode with bounded `configure.sh`
 
 **Exit criteria:** Each subphase lands separately (3a, then 3b, then 3c); `configure-display.sh` under **900 lines** after 3c; no behavior change in summary, menu, or grid; overlap/cap warnings unchanged.
@@ -182,11 +179,11 @@ Most `get_*_config()` functions share a read config → prompt → validate → 
 
 **Target:** `lib/config.sh` (864 lines → ~780)
 
-- [ ] Parameterize `parse_lock_hours()` / `parse_uninstall_lock_hours()` into a single function:
-  - `_parse_hours_for_day()` taking config key prefix (`CONFIG_LOCK_HOURS` / `UNINSTALL_LOCK_HOURS`) and day input
+- [x] Parameterize `parse_lock_hours()` / `parse_uninstall_lock_hours()` into a single function:
+  - `_parse_config_hours_for_day()` + `_resolve_lock_hours_day_num()` (config key prefix `CONFIG_LOCK_HOURS` / `UNINSTALL_LOCK_HOURS`)
   - Wrapper functions `parse_lock_hours` and `parse_uninstall_lock_hours` delegate to it
-- [ ] Keep both public function names as stable API. Callers unchanged.
-- [ ] Preserve API differences: `parse_lock_hours` currently accepts numeric days only; `parse_uninstall_lock_hours` accepts numeric days and day names/case variants.
+- [x] Keep both public function names as stable API. Callers unchanged.
+- [x] Preserve API differences: `parse_lock_hours` accepts numeric days only; `parse_uninstall_lock_hours` accepts numeric days and day names/case variants.
 
 ### Verification
 
