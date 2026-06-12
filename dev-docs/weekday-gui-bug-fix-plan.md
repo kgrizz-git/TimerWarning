@@ -250,17 +250,29 @@ This prevents future developers from accidentally introducing new vulnerable cal
 
 ### 3.1 Text-mode baseline
 
-Run the weekday bulk test in text mode to confirm the data path is correct independent of GUI:
+Run the weekday bulk test in text mode to confirm the data path is correct independent of GUI. **This must run with a timeout** because `configure.sh` read loops spin forever on EOF (AGENTS.md). On macOS, `timeout` is not available; use one of the cross-platform alternatives below.
 
+**Linux:**
 ```bash
-# Create a fresh temp HOME
 export TEST_HOME=$(mktemp -d)
 export HOME="${TEST_HOME}"
+timeout 10 bash -c "printf '\n3\ny\n0-5\n13\ny\n' | ./configure.sh --text" || true
+cat ~/.config/sleep-warning/config/sleep-warning.conf | grep -E '^(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY)='
+```
 
-# Run configure in text mode, choose bulk weekdays
-printf '\n3\ny\n0-5\n13\ny\n' | ./configure.sh --text
+**macOS (with Homebrew coreutils):**
+```bash
+export TEST_HOME=$(mktemp -d)
+export HOME="${TEST_HOME}"
+gtimeout 10 bash -c "printf '\n3\ny\n0-5\n13\ny\n' | ./configure.sh --text" || true
+cat ~/.config/sleep-warning/config/sleep-warning.conf | grep -E '^(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY)='
+```
 
-# Verify all five weekdays are present
+**macOS (without coreutils — Perl is always available):**
+```bash
+export TEST_HOME=$(mktemp -d)
+export HOME="${TEST_HOME}"
+perl -e 'alarm 10; exec @ARGV' -- bash -c "printf '\n3\ny\n0-5\n13\ny\n' | ./configure.sh --text" || true
 cat ~/.config/sleep-warning/config/sleep-warning.conf | grep -E '^(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY)='
 ```
 
