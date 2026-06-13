@@ -62,13 +62,15 @@ May plan Phase 0 (verification gates) is still open. May plan Phase 4 (`show_war
 
 Open items from May plan. Must close before touching config/display code.
 
-- [ ] **`write_config()` output parity** — Capture representative configs (weekday/weekend, lock hours, uninstall lock, pause, HH:MM + integer hours, override flags); assert byte-identical output before/after any `configure-config.sh` change.
+**Record:** [phase-0-verification-2026-06-12.md](phase-0-verification-2026-06-12.md) (2026-06-12 baseline)
+
+- [x] **`write_config()` output parity** — Capture representative configs (weekday/weekend, lock hours, uninstall lock, pause, HH:MM + integer hours, override flags); assert byte-identical output before/after any `configure-config.sh` change.
   - Tests: `tests/test-atomic-write.sh`, `tests/test-write-config-override-flags.sh`, `tests/test-daily-caps.sh`
   - Document the exact fixture-generation command(s) and fixture paths before refactoring so the after-refactor comparison is reproducible.
-- [ ] **`configure-input-popup-size.sh` caller parity** — Confirm getters in `lib/configure-input-popup-size.sh` (sourced from `configure-input-popup.sh`) return identical values for predefined, custom %, custom absolute, display-based mode.
-- [ ] **`configure-input-features.sh` toggle parity** — Cancel/default handling consistent across remaining getters after prompt-helper partial refactor (Feb plan item 7 partial completion).
+- [x] **`configure-input-popup-size.sh` caller parity** — Confirm getters in `lib/configure-input-popup-size.sh` (sourced from `configure-input-popup.sh`) return identical values for predefined, custom %, custom absolute, display-based mode.
+- [x] **`configure-input-features.sh` toggle parity** — Cancel/default handling consistent across remaining getters after prompt-helper partial refactor (Feb plan item 7 partial completion).
 
-**Exit criteria:** All three verification tasks documented (pass/fail + fixtures). No Phase 2+ `configure-config.sh` splits until `write_config()` gate passes. (Phase 4 `config.sh` parse merge may proceed after Phase 0 daily-caps baseline is recorded.)
+**Exit criteria:** All three verification tasks documented (pass/fail + fixtures). No Phase 2+ `configure-config.sh` splits until `write_config()` gate passes. (Phase 4 `config.sh` parse merge may proceed after Phase 0 daily-caps baseline is recorded.) **Status:** closed 2026-06-12 per verification record; known pre-existing failures documented there — do not regress passing cases.
 
 ---
 
