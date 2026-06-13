@@ -319,14 +319,15 @@ Carried from May plan Phase 5.
 
 Carried from May plan Phase 4.
 
-- [ ] Refactor `show_warning()` to orchestrate only:
+- [x] Refactor `show_warning()` to orchestrate only:
   - Display env detection, message build (existing `_popup_*` helpers)
-  - Delegate spawn/update/respawn to `_popup_run_${dialog_tool}` in implementations module
+  - Delegate spawn/update/respawn to `_popup_spawn_warning_dialog` in implementations module
+  - Linux lifecycle in `lib/popup-display-linux.sh`
   - Preserve window-management hooks, min-display respawn, pause exit-code semantics
-- [ ] Confirm **every** spawn path still wrapped by `popup-safety.sh` watchdog
-- [ ] Run: `tests/test-popup-safety-darwin.sh`, `tests/test-popup-safety-linux.sh`, `tests/test-popup.sh`, `tests/test-pause-feature.sh`, `tests/test-modular-refactor.sh`
+- [x] Confirm **every** spawn path still wrapped by `popup-safety.sh` watchdog (`popup_start_pid_file_watchdog` on initial spawn; respawns tracked via PID file)
+- [x] Run: `tests/test-popup-safety-darwin.sh`, `tests/test-popup-safety-linux.sh`, `tests/test-popup-display-source.sh`, `tests/test-pause-feature.sh`, `tests/test-popup-interval-message.sh`, `tests/test-modular-refactor.sh` (8/10 — 2 pre-existing main-script size/source checks)
 
-**Exit criteria:** `show_warning()` under 200 lines; yad/zenity/kdialog paths verified.
+**Exit criteria:** `show_warning()` under 200 lines; yad/zenity/kdialog paths verified. **Lines:** 169 ✓
 
 ---
 

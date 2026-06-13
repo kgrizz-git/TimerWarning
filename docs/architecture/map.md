@@ -21,7 +21,7 @@ sleep-warning.sh
   → config.sh, time-validation.sh, pause-state.sh
   → display-detection[-darwin].sh
   → popup-safety.sh
-  → popup-display.sh → popup-display-darwin.sh (macOS)
+  → popup-display.sh → popup-display-linux.sh (Linux lifecycle) / popup-display-darwin.sh (macOS)
   → popup-pid-management.sh
 ```
 
