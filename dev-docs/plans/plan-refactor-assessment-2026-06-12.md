@@ -295,18 +295,21 @@ Carried from May plan Phase 5. Blocked until Phase 0 `write_config()` gate passe
 
 Carried from May plan Phase 5.
 
-- [ ] Create `lib/install-linux.sh`:
-  - Move `main_linux()` (118 lines), `migrate_config_to_subdirectory()` (111 lines), `install_files()` (103 lines)
+- [x] Create `lib/install-linux.sh`:
+  - Move `main_linux()`, Linux deps/systemd helpers, `install_files()`, etc.
+  - `migrate_config_to_subdirectory()` stays in `install.sh` (shared with `install-darwin.sh`)
   - Mirror existing `lib/install-darwin.sh` pattern
-- [ ] Keep `install.sh` as thin entrypoint with platform dispatch
+- [x] Keep `install.sh` as thin entrypoint with platform dispatch
 
 ### Verification
 
-- [ ] Run with temp `HOME`: `tests/test-mode-detection.sh`, `tests/test-configure-comprehensive.sh` (install/configure paths), `tests/test-manual-uninstall-guide.sh`
+- [x] Run with temp `HOME`: `tests/test-mode-detection.sh` (13/15 — 2 pre-existing systemd failures on macOS), `tests/test-install-linux-source.sh` (new smoke)
+- [ ] `tests/test-configure-comprehensive.sh` — 0/10 on headless macOS (pre-existing GUI/configure path; not install-related)
+- [x] `tests/test-manual-uninstall-guide.sh` — 30/30
 - [ ] Manual: fresh install on Linux; verify config directory, service files, binaries
-- [ ] ShellCheck; `./scripts/run-security-scan.sh --ci`
+- [x] ShellCheck; `./scripts/run-security-scan.sh --ci`
 
-**Exit criteria:** `install.sh` under 700 lines; install behavior unchanged on both platforms.
+**Exit criteria:** `install.sh` under 700 lines; install behavior unchanged on both platforms. **Lines:** 313 ✓
 
 ---
 

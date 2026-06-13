@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Phase 9 refactor (`install.sh`):** Extracted Linux installation helpers to `lib/install-linux.sh` (distribution/deps detection, systemd timer setup, `main_linux()`, etc.); `install.sh` 1,077→313 lines (shared disclaimer, `migrate_config_to_subdirectory()`, platform dispatch). `migrate_config_to_subdirectory()` remains in `install.sh` because macOS `install-darwin.sh` also calls it. New `tests/test-install-linux-source.sh` direct-source smoke.
+
 - **Phase 8 refactor (config keys):** Added `lib/config-keys.sh` as single source of truth for scalar config keys and lock-hour prefixes; migrated `lib/config.sh`, `configure-config-{load,write}.sh`, and `configure-display.sh` grep/write paths. Facades source constants directly for test/module paths.
 
 - **Phase 7 refactor (`configure-dialogs`):** Toolkit dispatch extracted to `lib/configure-dialogs-dispatch.sh` (entry + multi-column yad/zenity/kdialog); range add/edit/delete helpers and `manage_ranges_dialog()` in `configure-dialogs-ranges.sh`. `configure-dialogs.sh` 923→496 lines.
