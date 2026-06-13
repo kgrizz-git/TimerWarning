@@ -115,6 +115,76 @@ Please reduce the configured hours to fix this before saving.${safety_footer}"
     fi
 }
 
+# Show hard-block error when input-time cap validation rejects a proposed range.
+# Uses a tkinter text dialog on macOS (osascript alerts can hide behind the terminal
+# after the time picker closes). Save-time cap errors use show_cap_violation_error.
+# Parameters:
+#   $1 - use_gui (true/false)
+#   $2 - violation_text: multi-line "day|category|minutes" lines from check_daily_caps
+show_input_time_cap_violation_error() {
+    local use_gui="$1"
+    local violation_text="$2"
+
+    _configure_ui_errors_ensure_invariants
+
+    local title="Time Range Exceeds 16-Hour Limit"
+
+    local details=""
+    local line day cat mins inv_id
+    while IFS='|' read -r day cat mins; do
+        [ -z "${day}" ] && continue
+        local hours=$(( mins / 60 ))
+        local rem=$(( mins % 60 ))
+        local cat_label
+        inv_id="$(safety_invariant_id_for_category "${cat}")"
+        case "${cat}" in
+            restriction)     cat_label="Restriction hours" ;;
+            configure_block) cat_label="Configure-block hours" ;;
+            uninstall_block) cat_label="Uninstall-block hours" ;;
+            *)               cat_label="${cat}" ;;
+        esac
+        details="${details}  • [${inv_id}] ${day}: ${cat_label} = ${hours}h ${rem}m (limit: 16h 0m)\n"
+    done <<< "${violation_text}"
+
+    local safety_footer
+    safety_footer="$(safety_invariant_footer "${INV_CAP_RESTRICTION_DAY}")"
+
+    local message="This time range cannot be accepted.
+
+The per-day limit is 16 hours in each category (popup restrictions, configure-block, uninstall-block). Your selection exceeds that limit on:
+
+${details}
+Overnight ranges (for example 9pm–6am or 9pm–6pm) count toward both the start day and the next calendar day. Use shorter ranges or different hours.
+
+Each category may cover at most 16 hours on any single calendar day.${safety_footer}"
+
+    if [ "${use_gui}" = "true" ] && has_dialog_tool; then
+        # Prefer scrollable text dialog: visible after macOS tkinter time picker (z-order safe).
+        if type show_text_info_dialog >/dev/null 2>&1; then
+            show_text_info_dialog "${title}" "${message}" 720 520
+        elif type show_error_dialog >/dev/null 2>&1; then
+            show_error_dialog "${title}" "${message}" 720 520
+        else
+            show_info_dialog "${title}" "${message}" 720 520
+        fi
+    else
+        echo "" >&2
+        echo "========================================" >&2
+        echo "Time Range Exceeds 16-Hour Limit" >&2
+        echo "========================================" >&2
+        echo "" >&2
+        echo "This time range cannot be accepted." >&2
+        echo "" >&2
+        echo "${details}" | sed 's/\\n/\n/g' >&2
+        echo "Overnight ranges count toward both the start day and the next calendar day." >&2
+        echo "Each category may cover at most 16 hours per calendar day." >&2
+        safety_invariant_tag "${INV_CAP_RESTRICTION_DAY}" >&2
+        safety_invariant_doc_link "${INV_CAP_RESTRICTION_DAY}" >&2
+        echo "" >&2
+        configure_read -rp "Press Enter to try again..."
+    fi
+}
+
 # Show error when tighten-only partial lock rejects proposed changes at save time.
 show_partial_lock_violation_error() {
     local use_gui="$1"

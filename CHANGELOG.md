@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`set -u` + unset `IFS`:** Time parsing and daily-cap helpers use safe `${IFS-}` capture/restore so scripts do not crash when `IFS` is unset.
 - **Uninstall verification EOF:** Text-mode uninstall verification prompts use `configure_read` instead of bare `read -p`, avoiding infinite spin on closed stdin.
 - **Input-time 16 h cap:** Configure wizard now blocks over-cap restriction, configure-lock, and uninstall-lock hours immediately when a range is confirmed (same `check_daily_caps` math as save), e.g. `1am-11pm` on weekdays together.
+- **Input-time cap error visibility:** Rejected ranges (e.g. `9pm-6pm`) now show a clear input-specific message via a scrollable dialog on macOS (tkinter, z-order safe after the time picker) instead of a hidden osascript alert with save-time wording.
 
 ### Added
 

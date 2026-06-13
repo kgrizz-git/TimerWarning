@@ -59,6 +59,12 @@ echo ""
 echo "=== configure hard-block surfaces ==="
 assert_file_contains "${LIB}/configure-ui-errors.sh" "INV_CAP_RESTRICTION_DAY" \
     "show_cap_violation_error cites CAP-RESTRICTION-DAY"
+assert_file_contains "${LIB}/configure-ui-errors.sh" "show_input_time_cap_violation_error" \
+    "input-time cap error function exists"
+assert_file_contains "${LIB}/configure-ui-errors.sh" "show_text_info_dialog" \
+    "input-time cap error uses scrollable text dialog"
+assert_file_contains "${LIB}/configure-input-time.sh" "show_input_time_cap_violation_error" \
+    "get_day_hours calls input-time cap error"
 assert_file_contains "${LIB}/configure-ui-errors.sh" "INV_PARTIAL_LOCK_TIGHTEN" \
     "show_partial_lock_violation_error cites PARTIAL-LOCK-TIGHTEN"
 

@@ -243,7 +243,9 @@ _block_if_hours_cap_exceeded() {
     local violations
     violations=$(check_input_time_daily_caps "${CONFIGURE_INPUT_HOURS_KIND:-restriction}" "${day_index}" "${ranges_csv}")
     if [ -n "${violations}" ]; then
-        if type show_cap_violation_error >/dev/null 2>&1; then
+        if type show_input_time_cap_violation_error >/dev/null 2>&1; then
+            show_input_time_cap_violation_error "${use_gui}" "${violations}"
+        elif type show_cap_violation_error >/dev/null 2>&1; then
             show_cap_violation_error "${use_gui}" "${violations}"
         elif type show_error_dialog >/dev/null 2>&1; then
             show_error_dialog "Per-Day 16-Hour Cap Exceeded" "${violations}"
