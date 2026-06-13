@@ -95,6 +95,41 @@ validate_single_time_range() {
     # Validate start and end parts
     if ! validate_single_time_value "${start_part}"; then return 1; fi
     if ! validate_single_time_value "${end_part}"; then return 1; fi
+
+    # Reject zero-length windows (start == end in minute precision)
+    if type parse_time_token_to_24h_hm >/dev/null 2>&1; then
+        local start_parts end_parts start_h start_m end_h end_m _hm start_min end_min
+        if start_parts=$(parse_time_token_to_24h_hm "${start_part}") &&
+           end_parts=$(parse_time_token_to_24h_hm "${end_part}"); then
+            if type _split_24h_hm_parts >/dev/null 2>&1; then
+                _hm=$(_split_24h_hm_parts "${start_parts}") || return 1
+                start_h="${_hm%% *}"
+                start_m="${_hm#* }"
+                _hm=$(_split_24h_hm_parts "${end_parts}") || return 1
+                end_h="${_hm%% *}"
+                end_m="${_hm#* }"
+            else
+                start_h="${start_parts%% *}"
+                start_m="${start_parts#* }"
+                end_h="${end_parts%% *}"
+                end_m="${end_parts#* }"
+                if [ "${start_h}" = "${start_m}" ]; then start_m=0; fi
+                if [ "${end_h}" = "${end_m}" ]; then end_m=0; fi
+            fi
+            start_min=$((10#${start_h} * 60 + 10#${start_m}))
+            end_min=$((10#${end_h} * 60 + 10#${end_m}))
+            if [ "${start_min}" -eq "${end_min}" ]; then
+                return 1
+            fi
+        fi
+    elif echo "${range}" | grep -qE '^[0-9]+-[0-9]+$'; then
+        local start_hour end_hour
+        start_hour=$(echo "${range}" | cut -d'-' -f1)
+        end_hour=$(echo "${range}" | cut -d'-' -f2)
+        if [ "${start_hour}" -eq "${end_hour}" ]; then
+            return 1
+        fi
+    fi
     
     return 0
 }

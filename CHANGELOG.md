@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Configure wizard back navigation:** "Go back to previous day" no longer unsets the previous day's loaded restrictions or lock hours, preventing silent data loss on save when returning to the menu without re-entering earlier days.
+- **Zero-length time ranges:** `validate_time_range` now rejects ranges where start equals end (e.g. `7-7`, `07:00-07:00`, `7am-7am`) across all supported formats.
+- **Popup timing on save:** Review and Save (option 13) now runs `validate_popup_timing_config` before writing the config file, blocking invalid min-display vs frequency combinations.
+- **`set -u` + unset `IFS`:** Time parsing and daily-cap helpers use safe `${IFS-}` capture/restore so scripts do not crash when `IFS` is unset.
+- **Uninstall verification EOF:** Text-mode uninstall verification prompts use `configure_read` instead of bare `read -p`, avoiding infinite spin on closed stdin.
+
 ### Added
 
 - **Harness Phase 1 (agent-agnostic):** `tests/tiers.yaml` and `scripts/run-tests.sh --tier a|b|c` — same PR gate for Cursor, Codex, Claude Code, OpenCode, Qwen, and CI; `run-security-scan.sh --with-tests` delegates to Tier-A. Docs: [dev-docs/development/agent-setup.md](dev-docs/development/agent-setup.md), [dev-docs/testing-assessments/test-tiers.md](dev-docs/testing-assessments/test-tiers.md). `CI_HEADLESS=1` skips GUI-only Tier-A scripts in sandbox/CI.

@@ -89,7 +89,7 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
         if [ -z "${csv}" ]; then
             return 0
         fi
-        local old_ifs="${IFS}"
+        local old_ifs="${IFS-}"
         IFS=','
         for _r in ${csv}; do
             _r=$(echo "${_r}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
@@ -102,7 +102,7 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
                 _out_ref+=("${_r}")
             fi
         done
-        IFS="${old_ifs}"
+        IFS="${old_ifs-$' \t\n'}"
     }
 
     # Every baseline range must appear unchanged in new (after normalize).

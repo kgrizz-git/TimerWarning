@@ -584,6 +584,16 @@ main() {
                         continue
                     fi
 
+                    # Validate popup timing (min display vs frequency) before save.
+                    if type validate_popup_timing_config >/dev/null 2>&1; then
+                        local timing_error
+                        timing_error=$(validate_popup_timing_config "${min_display_time}" "${check_interval}" 2>&1)
+                        if [ $? -ne 0 ]; then
+                            show_error_dialog "Configuration Error" "${timing_error}"
+                            continue
+                        fi
+                    fi
+
                     # Track safety-override flags (used for config-file comments only; no longer
                     # applied as part of the "warn" path — that path is removed).
                     local popup_size_overridden=""

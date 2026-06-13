@@ -268,10 +268,10 @@ convert_time_range_to_24hour() {
         return 1
     fi
     
-    local old_ifs="${IFS}"
+    local old_ifs="${IFS-}"
     IFS=' '
     local data_arr=(${range_data})
-    IFS="${old_ifs}"
+    IFS="${old_ifs-$' \t\n'}"
     
     if [ ${#data_arr[@]} -ne 6 ]; then return 1; fi
     
@@ -292,12 +292,12 @@ convert_time_range_to_24hour() {
 # Normalize range to HH:MM-HH:MM (handles multiple comma-separated ranges)
 normalize_time_range() {
     local input="$1"
-    local old_ifs="${IFS}"
+    local old_ifs="${IFS-}"
     local normalized_ranges=()
     
     IFS=','
     for range in ${input}; do
-        IFS="${old_ifs}"
+        IFS="${old_ifs-$' \t\n'}"
         range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         if [ -n "${range}" ]; then
             local norm
@@ -354,7 +354,7 @@ normalize_time_range() {
         fi
         IFS=','
     done
-    IFS="${old_ifs}"
+    IFS="${old_ifs-$' \t\n'}"
     
     local result=""
     local first=true

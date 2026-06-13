@@ -77,6 +77,36 @@ test_comparison_15min_overnight() {
     [ "${fail}" -eq 0 ] || exit 1
 }
 
+test_zero_length_ranges() {
+    echo "Testing zero-length range rejection..."
+    local pass=0 fail=0
+    _assert_invalid() {
+        local r="$1"
+        if validate_time_range "${r}"; then
+            echo "FAIL: '${r}' should be invalid"
+            fail=$((fail + 1))
+        else
+            pass=$((pass + 1))
+        fi
+    }
+    _assert_valid() {
+        local r="$1"
+        if validate_time_range "${r}"; then
+            pass=$((pass + 1))
+        else
+            echo "FAIL: '${r}' should be valid"
+            fail=$((fail + 1))
+        fi
+    }
+    _assert_invalid "7-7"
+    _assert_invalid "07:00-07:00"
+    _assert_invalid "7am-7am"
+    _assert_valid "7-23"
+    _assert_valid "11:30pm-5:30am"
+    echo "Zero-length ranges: ${pass} passed, ${fail} failed"
+    [ "${fail}" -eq 0 ] || exit 1
+}
+
 test_human_format() {
     echo "Testing human format..."
     format_range_human "23:30-05:30" "Monday"
@@ -94,6 +124,7 @@ test_range_normalization
 test_validation
 test_comparison
 test_comparison_15min_overnight
+test_zero_length_ranges
 test_human_format
 
 rm -f "${CONFIG_FILE}"

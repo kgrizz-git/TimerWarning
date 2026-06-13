@@ -64,11 +64,11 @@ if [ -z "${DAILY_CAPS_LOADED:-}" ]; then
 
         [ -z "${ranges_csv}" ] && return 0
 
-        local saved_IFS="${IFS}"
+        local saved_IFS="${IFS-}"
         local IFS=','
         local parts=()
         read -ra parts <<< "${ranges_csv}"
-        IFS="${saved_IFS}"
+        IFS="${saved_IFS-$' \t\n'}"
 
         local r
         for r in "${parts[@]}"; do

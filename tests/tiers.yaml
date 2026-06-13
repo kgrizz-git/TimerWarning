@@ -23,6 +23,10 @@ tier_a:
     - name: test-popup-safety-linux.sh
       platform: linux
     - test-configure-partial-lock.sh
+    - test-configure-back-navigation.sh
+    - test-ifs-set-u.sh
+    - test-popup-timing-save-validation.sh
+    - test-uninstall-verification-eof.sh
     - name: test-platform-darwin.sh
       platform: darwin
     - name: test-darwin-configure-gui.sh

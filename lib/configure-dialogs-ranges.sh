@@ -191,7 +191,7 @@ manage_ranges_dialog() {
     # Parse existing ranges into array
     local ranges_array=()
     if [ -n "${existing_ranges}" ]; then
-        local old_ifs="${IFS}"
+        local old_ifs="${IFS-}"
         IFS=','
         for range in ${existing_ranges}; do
             range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
@@ -199,7 +199,7 @@ manage_ranges_dialog() {
                 ranges_array+=("${range}")
             fi
         done
-        IFS="${old_ifs}"
+        IFS="${old_ifs-$' \t\n'}"
     fi
     
     # Main loop: show list and handle actions

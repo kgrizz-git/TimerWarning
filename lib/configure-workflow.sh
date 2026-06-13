@@ -109,12 +109,9 @@ configure_weekdays_section() {
             if [ "${range}" = "CANCELLED" ]; then
                 return 2  # Cancelled
             elif [ "${range}" = "back" ] || [ ${exit_code} -eq 2 ]; then
-                # User wants to go back
+                # User wants to go back — re-prompt previous day; keep loaded values intact
                 if [ "${i}" -gt 1 ]; then
                     i=$((i - 1))  # Go back to previous day
-                    # Remove previous day's entry if it was set
-                    unset config_lines_ref[${i}]
-                    unset summary_lines_ref[${i}]
                 else
                     # Back from first day - return to main menu
                     return 0
@@ -293,7 +290,6 @@ configure_lock_hours_section() {
         if [ "${range}" = "back" ] || [ ${exit_code} -eq 2 ]; then
             if [ "${day_index}" -gt 0 ]; then
                 day_index=$((day_index - 1))
-                unset lock_hours_lines_ref[${day_index}]
                 continue
             else
                 return 0
@@ -357,12 +353,9 @@ configure_weekends_section() {
             if [ "${range}" = "CANCELLED" ]; then
                 return 2  # Cancelled
             elif [ "${range}" = "back" ] || [ ${exit_code} -eq 2 ]; then
-                # User wants to go back
+                # User wants to go back — re-prompt previous day; keep loaded values intact
                 if [ "${weekend_day}" -eq 0 ]; then
                     weekend_day=6  # Go back to Saturday
-                    # Remove Saturday's entry if it was set
-                    unset config_lines_ref[6]
-                    unset summary_lines_ref[6]
                 else
                     # Back from Saturday - return to main menu
                     return 0

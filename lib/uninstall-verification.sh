@@ -98,9 +98,9 @@ verify_confirmation_phrase() {
                 echo "  \"${phrase}\"" >&2
             fi
             echo "" >&2
-            read -p "Enter phrase: " user_input
-            if [ -z "${user_input}" ]; then
-                # User cancelled (empty input)
+            configure_read -p "Enter phrase: " user_input
+            if [ -z "${user_input}" ] || [ "${user_input}" = "CANCELLED" ]; then
+                # User cancelled (empty input or EOF)
                 return 2
             fi
         fi
@@ -394,7 +394,10 @@ verify_uninstall_during_restrictions() {
         echo "" >&2
         echo "${explanation}" | sed 's/\\n/\n/g' >&2
         echo "" >&2
-        read -p "Do you want to proceed with verification? [y/n]: " proceed_choice
+        configure_read -p "Do you want to proceed with verification? [y/n]: " proceed_choice
+        if [ -z "${proceed_choice}" ] || [ "${proceed_choice}" = "CANCELLED" ]; then
+            return 2
+        fi
         if [ "${proceed_choice}" != "y" ] && [ "${proceed_choice}" != "Y" ] && [ "${proceed_choice}" != "yes" ] && [ "${proceed_choice}" != "YES" ]; then
             # User cancelled
             return 2
@@ -473,9 +476,9 @@ verify_uninstall_during_restrictions() {
                 echo "" >&2
                 echo "${question_text}" >&2
                 echo "" >&2
-                read -p "Enter your answer (integer): " user_answer
-                if [ -z "${user_answer}" ]; then
-                    # User cancelled (empty input)
+                configure_read -p "Enter your answer (integer): " user_answer
+                if [ -z "${user_answer}" ] || [ "${user_answer}" = "CANCELLED" ]; then
+                    # User cancelled (empty input or EOF)
                     return 2
                 fi
             fi
