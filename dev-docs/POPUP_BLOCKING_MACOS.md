@@ -134,8 +134,8 @@ All blocking approaches retain the existing safety guardrails:
 
 | Guardrail | Location | Behaviour |
 |---|---|---|
-| Hard watchdog | `lib/popup-safety.sh` | Kills popup process after `POPUP_ABSOLUTE_MAX_SECONDS` (default 120 s) |
-| Min display cap | `popup_safe_get_min_display_time()` | Capped at 60 s on macOS |
+| Hard watchdog | `lib/popup-safety.sh` | Kills popup process after `POPUP_ABSOLUTE_MAX_SECONDS` (default 330 s) |
+| Min display cap | `popup_safe_get_min_display_time()` | Capped at 300 s on macOS (same as Linux) |
 | Forced auto-close | `DARWIN_FORCE_AUTO_CLOSE=true` | Always closes; Python script mirrors this |
 | OK button | `popup-blocker-darwin.py` | Always present; enabled once min display elapses |
 | Pause button | `popup-blocker-darwin.py` | Shown when pause is configured; writes result to file |

@@ -89,7 +89,7 @@ The macOS build is designed so you are **not** left with a blocking dialog all d
    ```
    (This closes AppleScript dialogs system-wide.)
 
-3. **Watchdog:** Normally the popup is killed within ~120 seconds automatically. If not, note the time and check `warnings.log` for a bug report.
+3. **Watchdog:** Normally the popup is killed within `POPUP_ABSOLUTE_MAX_SECONDS` (default 330s) automatically. If not, note the time and check `warnings.log` for a bug report.
 
 4. **Edit config** (when not in configure-lock hours):
    ```bash

@@ -50,7 +50,7 @@ Older scans referenced **THRESHOLD_WARN** (6720 min/week) and **THRESHOLD_BLOCK*
 
 - **Window size**: minimum 384×216 px; maximum ~95% of screen (see `lib/config.sh` / `get_popup_dimensions()`)
 - **Partial configure lock**: during lock hours, configure is **tighten-only** (`lib/configure-partial-lock.sh`), not fully blocked — escape hatch unchanged
-- **macOS popup cap (current)**: `POPUP_ABSOLUTE_MAX_SECONDS=120` in `lib/popup-safety.sh` (expected to grow; invariant is “finite,” not “120 forever”)
+- **Popup absolute cap (current default)**: `POPUP_ABSOLUTE_MAX_SECONDS=330` in `lib/popup-safety.sh` (all platforms; expected to grow; invariant is “finite,” not a fixed small limit forever)
 
 ### Scan tiers
 

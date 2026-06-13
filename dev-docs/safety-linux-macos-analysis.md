@@ -126,7 +126,7 @@ Scheduler escape hatch is platform-specific but equivalent:
 
 | Prior principle | macOS addition | Key files |
 |-----------------|------------------|-----------|
-| P5 bounded popup | **`lib/popup-safety.sh`**: `POPUP_ABSOLUTE_MAX_SECONDS` (120), `popup_run_with_watchdog`, `popup_compute_watchdog_seconds` | Wired in `lib/popup-display-darwin.sh` |
+| P5 bounded popup | **`lib/popup-safety.sh`**: `POPUP_ABSOLUTE_MAX_SECONDS` (330), `popup_run_with_watchdog`, `popup_compute_watchdog_seconds` | Wired in `lib/popup-display-darwin.sh` |
 | P5 forced auto-close | `DARWIN_FORCE_AUTO_CLOSE=true` overrides config | `lib/popup-safety.sh`, install default in `lib/install-darwin.sh` |
 | P5 min display cap | Max 60 s on Darwin (`DARWIN_MAX_MIN_DISPLAY_TIME`) vs 300 s Linux | `popup_safe_get_min_display_time()` |
 | P5 fallback if GUI fails | Notification fallback when osascript spawn fails | `lib/popup-display-darwin.sh` |

@@ -16,7 +16,7 @@ alwaysApply: true
 
    Enforced at configure-time (hard block, no override) **and** runtime (fallback to safe defaults).
 
-2. **Popups must always end.** Every spawn path (Linux yad/zenity/kdialog, macOS Python blocker, macOS osascript fallback) must go through an absolute watchdog. The cap value may grow over time — `POPUP_ABSOLUTE_MAX_SECONDS=120` on macOS today is a temporary limit, not a permanent rule — but it is always finite.
+2. **Popups must always end.** Every spawn path (Linux yad/zenity/kdialog, macOS Python blocker, macOS osascript fallback) must go through an absolute watchdog. The cap value may grow over time — default `POPUP_ABSOLUTE_MAX_SECONDS=330` in `lib/popup-safety.sh` (all platforms; not a permanent ceiling) — but it is always finite.
 
 3. **Always-available escape hatch.** Documented `launchctl bootout` (macOS) and `systemctl --user stop/disable` (Linux) must always work. `sleep-warning-uninstall` must work for ≥ 8 hours/day (consequence of invariant #1).
 

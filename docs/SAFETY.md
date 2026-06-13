@@ -13,7 +13,7 @@ Sleep Warning is an impulse-control / time-management tool. The user *wants* to 
 What still must be true:
 
 1. The user cannot accidentally configure more than **16 hours per day** of any single lockout category. Hard, mechanical cap. Not weekly average.
-2. Popups have a finite maximum duration. That maximum may grow as the project matures (the current 120-second cap on macOS is a temporary limit, not a permanent rule), but it is always finite.
+2. Popups have a finite maximum duration. That maximum may grow as the project matures (the current default is `POPUP_ABSOLUTE_MAX_SECONDS=330` in `lib/popup-safety.sh` — not a permanent ceiling), but it is always finite.
 3. There is always at least one documented escape hatch the user can reach to disable the entire system.
 
 ## The per-day 16-hour cap (the central invariant)
@@ -58,7 +58,7 @@ Popups **must never** be:
 - Stacked unboundedly (the scheduler must not pile on a second popup while the first is still alive).
 - Silently absent: if the primary popup tool fails to start, the dispatcher must fall back to a working alternative, or surface a notification — not log success and move on.
 
-The current macOS hard cap is `POPUP_ABSOLUTE_MAX_SECONDS=120`. This number is expected to **grow** as we build longer-form lockouts. The invariant is "finite and bounded by an explicit cap," not "≤ 120 s forever."
+The absolute popup lifetime cap is `POPUP_ABSOLUTE_MAX_SECONDS` (default **330** seconds in `lib/popup-safety.sh`, all platforms). That default is sized for the largest configurable min-display (300s) plus auto-close delay (10s) and a watchdog buffer (~15s). The number is expected to **grow** if we add longer lockouts. The invariant is "finite and bounded by an explicit cap," not a fixed small limit forever.
 
 ## Always-available escape hatch (the third invariant)
 
