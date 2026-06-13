@@ -16,6 +16,8 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 
 ## Configure and UI
 
+- [ ] **Unify time display formatting** — `format_hour_12h` (uppercase `AM`/`PM`, Unicode arrow) vs `24hour_to_12hour` / `format_range_human` (`12:00am ->`); align UX and update grid/status goldens → [platform-test-matrix.md](../docs/development/platform-test-matrix.md)
+- [ ] **Refresh configure-comprehensive expect script** — verify all 10 scenarios on Linux + `expect` after `.exp` prompt fixes → [platform-test-matrix.md](../docs/development/platform-test-matrix.md)
 - [ ] **#16c** — Finish GUI multiple time ranges; test with yad, zenity, and kdialog → [enhancement-16c](enhancements/enhancement-16c-multiple-range-entry-gui.md)
 - [ ] **Configure GUI fallback** — Tighten `has_gui()` so configure falls back to text mode when no DISPLAY/Wayland socket
 - [ ] **Dialog tools** — Verify popup and pause dialogs with all three tools; no indefinite script block

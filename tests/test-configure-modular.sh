@@ -214,11 +214,11 @@ LIB_DIR="\${SCRIPT_DIR}/lib"
 source "\${LIB_DIR}/configure-core.sh" || exit 1
 source "\${LIB_DIR}/configure-config.sh" || exit 2
 
-# Check if config functions exist
+# Check if config functions exist (write_config in configure-config-write.sh via facade)
 declare -f load_existing_config >/dev/null || exit 3
-declare -f extract_user_comments >/dev/null || exit 4
-declare -f write_config >/dev/null || exit 5
-declare -f update_timer_file >/dev/null || exit 6
+declare -f write_config >/dev/null || exit 4
+declare -f update_timer_file >/dev/null || exit 5
+grep -q 'User comments are no longer preserved' "\${LIB_DIR}/configure-config-write.sh" || exit 6
 
 echo "SUCCESS"
 EOF

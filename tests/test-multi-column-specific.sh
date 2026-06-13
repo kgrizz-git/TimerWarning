@@ -11,8 +11,15 @@
 ###############################################################################
 
 # Determine script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+_TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "${_TESTS_DIR}/.." && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
+
+# shellcheck source=tests/lib/test-platform.sh
+source "${_TESTS_DIR}/lib/test-platform.sh"
+if test_skip_gui_manual "test-multi-column-specific.sh"; then
+    exit 0
+fi
 
 # Source required modules
 source "${LIB_DIR}/configure-core.sh" || exit 1

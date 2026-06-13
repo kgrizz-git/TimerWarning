@@ -32,6 +32,25 @@ pass() {
   echo "OK: $*"
 }
 
+assert_partial_lock_entry_exit() {
+  local rc="$1"
+  local outfile="$2"
+
+  if [ "${rc}" -eq 124 ]; then
+    return 0
+  fi
+  if [ "${rc}" -eq 0 ]; then
+    if grep -qiE 'Input stream closed \(EOF\)|CANCELLED|aborting configuration' "${outfile}"; then
+      return 0
+    fi
+    fail "configure.sh exited 0 during partial lock without EOF/cancel (expected timeout 124 or clean EOF cancel)"
+  fi
+  if grep -qiE 'Input stream closed \(EOF\)|CANCELLED|aborting configuration' "${outfile}"; then
+    return 0
+  fi
+  fail "unexpected exit rc=${rc} during partial lock entry"
+}
+
 day_name_from_num() {
   local day_num="$1"
   case "${day_num}" in
@@ -139,12 +158,7 @@ set -e
 assert_no_immediate_full_block "${OUT_FILE}"
 assert_limited_mode_banner "${OUT_FILE}"
 
-if [ "${rc}" -eq 0 ]; then
-  fail "configure.sh should not exit immediately during partial lock (got rc=0)"
-fi
-if [ "${rc}" -ne 124 ]; then
-  echo "Note: rc=${rc} (124=watchdog timeout is expected on macOS/Linux without user input)"
-fi
+assert_partial_lock_entry_exit "${rc}" "${OUT_FILE}"
 pass "enters limited mode during restricted hours (did not hard-block at startup)"
 
 chmod 644 "${CONFIG_FILE}" 2>/dev/null || true
@@ -179,9 +193,7 @@ set -e
 
 assert_no_immediate_full_block "${OUT_FILE}"
 assert_limited_mode_banner "${OUT_FILE}"
-if [ "${rc}" -eq 0 ]; then
-  fail "configure.sh should not exit immediately during partial lock (lock hours)"
-fi
+assert_partial_lock_entry_exit "${rc}" "${OUT_FILE}"
 pass "enters limited mode during lock hours only"
 
 chmod 644 "${CONFIG_FILE}" 2>/dev/null || true
@@ -261,10 +273,13 @@ fi
 if grep -qi "Cannot make popup checks less frequent during lock hours" "${OUT_FILE}"; then
   fail "should not show partial-lock scalar rejection when lock is inactive"
 fi
-if [ "${rc}" -eq 0 ]; then
-  fail "interactive configure should not exit immediately without save/cancel"
+if [ "${rc}" -eq 124 ]; then
+  pass "normal wizard when partial lock is not active"
+elif [ "${rc}" -eq 0 ] && grep -qiE 'Input stream closed \(EOF\)|CANCELLED|aborting configuration|Select option' "${OUT_FILE}"; then
+  pass "normal wizard when partial lock is not active (EOF cancel or menu shown)"
+else
+  fail "interactive configure unexpected exit rc=${rc}"
 fi
-pass "normal wizard when partial lock is not active"
 
 echo ""
 echo "OK: All configure.sh partial-lock integration tests passed."

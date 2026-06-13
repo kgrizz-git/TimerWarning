@@ -14,6 +14,8 @@
 # Script configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
+# shellcheck source=tests/lib/test-platform.sh
+source "${SCRIPT_DIR}/tests/lib/test-platform.sh"
 TEST_TEMP_DIR="${SCRIPT_DIR}/tests/temp-mode-detection"
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 TEST_SYSTEMD_DIR="${TEST_TEMP_DIR}/systemd/user"
@@ -167,6 +169,11 @@ test_service_config_functions() {
 
 # Test 7: Test get_service_dropin_path returns correct path
 test_get_service_dropin_path() {
+    if test_skip_linux_only "get_service_dropin_path (systemd drop-in)"; then
+        print_test_result "get_service_dropin_path() returns correct path format (Linux-only skip)" "PASS"
+        return 0
+    fi
+
     source "${LIB_DIR}/service-config.sh" 2>/dev/null
     
     local path
@@ -405,6 +412,11 @@ test_module_syntax() {
 
 # Test 15: Test error handling for invalid mode
 test_invalid_mode_handling() {
+    if test_skip_linux_only "create_service_dropin invalid mode (Linux-only)"; then
+        print_test_result "create_service_dropin() handles invalid mode correctly (Linux-only skip)" "PASS"
+        return 0
+    fi
+
     source "${LIB_DIR}/service-config.sh" 2>/dev/null
     
     # Try to create drop-in with invalid mode

@@ -28,7 +28,7 @@ expect {
             # Test 1: Popup display frequency (Enhancement #30)
             send "1\r"
             expect {
-                "display frequency in minutes" {
+                -re {Popup display frequency in minutes|display frequency in minutes} {
                     send "15\r"
                     expect "Select option"
                     send "13\r"
@@ -58,60 +58,40 @@ expect {
                 }
             }
         } elseif {$test_name == "test_window_behavior"} {
-            # Test 2: Window Behavior
+            # Test 2: Window Behavior submenu — always wait for configure_read prompts before send
             send "2\r"
+            expect -re {Select option \[1-6\]:}
+            send "1\r"
+            expect -re {Select mode \[1-2}
+            send "1\r"
+            expect -re {Select size \[1-7}
+            send "4\r"
+            expect -re {Select option \[1-6\]:}
+            send "2\r"
+            expect -re {Select position \[1-2}
+            send "2\r"
+            expect -re {Select option \[1-6\]:}
+            send "3\r"
+            expect -re {Minimum display time in seconds}
+            send "60\r"
+            expect -re {Select option \[1-6\]:}
+            send "4\r"
+            expect -re {Prevent window movement}
+            send "n\r"
+            expect -re {Select option \[1-6\]:}
+            send "6\r"
+            expect -re {Select option \[1-13\]:}
+            send "13\r"
+            expect "Save this configuration"
+            send "y\r"
             expect {
-                -re {Window Size Calculation Mode:|Select mode \[1-2, default: .*\]:} {
-                    # Enhancement #3: popup size mode prompt (fixed vs display-based)
-                    # Choose fixed (1) for deterministic test behavior.
-                    send "1\r"
-                    expect {
-                        -re {Popup Size Options:|Select size \[1-7, default: .*\]:} {
-                            # New size list includes xsmall..max; large is option 4.
-                            expect -re "Select size"
-                            send "4\r"
-                            expect -re "Popup Position Options:|Select position"
-                            send "2\r"
-                            expect -re "Minimum display time in seconds"
-                            send "60\r"
-                            expect -re "Prevent window movement\\?"
-                            send "n\r"
-                            # Auto-close prompt was added (Enhancement #15). Accept default.
-                            expect {
-                                -re "Enable auto-close\\?" {
-                                    send "\r"
-                                    exp_continue
-                                }
-                                -re "Select option|Configuration Menu" {
-                                    send "13\r"
-                                    expect "Save this configuration"
-                                    send "y\r"
-                                    expect {
-                                        "Configuration saved successfully" {
-                                            sleep 2
-                                            puts "PASS: Window behavior settings saved"
-                                            exit 0
-                                        }
-                                        timeout {
-                                            puts "ERROR: Save confirmation timeout"
-                                            exit 1
-                                        }
-                                    }
-                                }
-                                timeout {
-                                    puts "ERROR: Window behavior timeout - waiting for menu after window behavior prompts"
-                                    exit 1
-                                }
-                            }
-                        }
-                        timeout {
-                            puts "ERROR: Window behavior timeout - waiting for popup size prompt"
-                            exit 1
-                        }
-                    }
+                "Configuration saved successfully" {
+                    sleep 1
+                    puts "PASS: Window behavior settings saved"
+                    exit 0
                 }
                 timeout {
-                    puts "ERROR: Window behavior timeout - waiting for popup size prompt"
+                    puts "ERROR: Save confirmation timeout"
                     exit 1
                 }
             }
@@ -246,21 +226,33 @@ expect {
                 }
             }
         } elseif {$test_name == "test_config_persistence"} {
-            # Test 8: Config persistence
+            # Test 8: Config persistence (window behavior via submenu)
             send "1\r"
-            expect "display frequency in minutes"
+            expect -re {display frequency in minutes}
             send "20\r"
-            expect "Select option"
+            expect -re {Select option \[1-13\]:}
             send "2\r"
-            expect "Popup Size Options"
+            expect -re {Select option \[1-6\]:}
             send "1\r"
-            expect "Popup Position Options"
+            expect -re {Select mode \[1-2}
+            send "1\r"
+            expect -re {Select size \[1-7}
             send "2\r"
-            expect "Minimum display time in seconds"
+            expect -re {Select option \[1-6\]:}
+            send "2\r"
+            expect -re {Select position \[1-2}
+            send "2\r"
+            expect -re {Select option \[1-6\]:}
+            send "3\r"
+            expect -re {Minimum display time in seconds}
             send "45\r"
-            expect "Prevent window movement"
+            expect -re {Select option \[1-6\]:}
+            send "4\r"
+            expect -re {Prevent window movement}
             send "n\r"
-            expect "Configuration Menu"
+            expect -re {Select option \[1-6\]:}
+            send "6\r"
+            expect -re {Select option \[1-13\]:}
             send "3\r"
             expect "Use same hours for all weekdays"
             send "y\r"
@@ -268,13 +260,13 @@ expect {
             send "0-8\r"
             expect "Is this correct"
             send "y\r"
-            expect "Select option"
+            expect -re {Select option \[1-13\]:}
             send "13\r"
             expect "Save this configuration"
             send "y\r"
             expect {
                 "Configuration saved successfully" {
-                    sleep 2
+                    sleep 1
                     puts "PASS: Configuration saved"
                     exit 0
                 }
@@ -308,21 +300,33 @@ expect {
                 }
             }
         } elseif {$test_name == "test_menu_options"} {
-            # Test 10: Backward compatibility - all menu options
+            # Test 10: Backward compatibility — all menu options (window behavior via submenu)
             send "1\r"
-            expect "display frequency in minutes"
+            expect -re {display frequency in minutes}
             send "25\r"
-            expect "Select option"
+            expect -re {Select option \[1-13\]:}
             send "2\r"
-            expect "Popup Size Options"
+            expect -re {Select option \[1-6\]:}
+            send "1\r"
+            expect -re {Select mode \[1-2}
+            send "1\r"
+            expect -re {Select size \[1-7}
+            send "3\r"
+            expect -re {Select option \[1-6\]:}
             send "2\r"
-            expect "Popup Position Options"
+            expect -re {Select position \[1-2}
             send "2\r"
-            expect "Minimum display time in seconds"
+            expect -re {Select option \[1-6\]:}
+            send "3\r"
+            expect -re {Minimum display time in seconds}
             send "90\r"
-            expect "Prevent window movement"
+            expect -re {Select option \[1-6\]:}
+            send "4\r"
+            expect -re {Prevent window movement}
             send "y\r"
-            expect "Configuration Menu"
+            expect -re {Select option \[1-6\]:}
+            send "6\r"
+            expect -re {Select option \[1-13\]:}
             send "3\r"
             expect "Use same hours for all weekdays"
             send "y\r"
@@ -330,7 +334,7 @@ expect {
             send "1-4\r"
             expect "Is this correct"
             send "y\r"
-            expect "Select option"
+            expect -re {Select option \[1-13\]:}
             send "4\r"
             expect "Use same hours for both weekend days"
             send "y\r"
@@ -338,13 +342,13 @@ expect {
             send "2-7\r"
             expect "Is this correct"
             send "y\r"
-            expect "Select option"
+            expect -re {Select option \[1-13\]:}
             send "13\r"
             expect "Save this configuration"
             send "y\r"
             expect {
                 "Configuration saved successfully" {
-                    sleep 2
+                    sleep 1
                     puts "PASS: All menu options working"
                     exit 0
                 }

@@ -7,6 +7,13 @@
 # window sizes or auto-resize to fit content.
 ###############################################################################
 
+_TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=tests/lib/test-platform.sh
+source "${_TESTS_DIR}/lib/test-platform.sh"
+if test_skip_gui_manual "test-dialog-size-behavior.sh"; then
+    exit 0
+fi
+
 echo "=== Dialog Tool Size Behavior Test ==="
 echo ""
 echo "This test will display dialogs with different tools and requested sizes."

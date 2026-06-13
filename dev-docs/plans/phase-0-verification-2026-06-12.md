@@ -31,22 +31,9 @@ Getter functions under test: `get_popup_size_mode`, `get_popup_size_custom`, `ge
 | `tests/test-dialog-tool-selection.sh` | **PASS** (18/18) | Dialog tool getter / config |
 | `tests/test-configure-blocking.sh` | **FAIL** (pre-existing) | Expects configure.sh to stay open during partial lock; got rc=0 — unrelated to getter refactor baseline |
 
-## Pre-existing failures (do not regress passing cases)
+## Pre-existing failures
 
-Tracked across refactor verification; not introduced by Phases 1–10 unless noted.
-
-| Test | Score | Issue |
-|------|-------|-------|
-| `tests/test-configure-blocking.sh` | FAIL | Partial-lock tests expect `configure.sh --text` to stay running (not exit 0 immediately); exits early on this host |
-| `tests/test-configure-modular.sh` | 9/10 | Looks for `extract_user_comments` in `configure-config.sh`; function lives elsewhere after Phase 5 split |
-| `tests/test-grid-functions.sh` | 6/10 | Golden strings expect `12:00 AM → 5:00 AM`; code outputs `12:00am -> 5:00am` (format/time-display mismatch, not missing `get_time_display_format`) |
-| `tests/test-enhancement-03-integration.sh` | 19/20 | One display-based size calculation case fails (resolution-dependent) |
-| `tests/test-modular-refactor.sh` | 8/10 | `sleep-warning.sh` no longer inline-sources all 7 libs (uses loader); line count 383 > 300 threshold |
-| `tests/test-mode-detection.sh` | 13/15 | `get_service_dropin_path()` empty + invalid-mode drop-in on macOS (no Linux systemd user dir) |
-| `tests/test-configure-comprehensive.sh` | 0/10 | Headless macOS: GUI configure path never writes config (empty `MONDAY=`, etc.) |
-| `tests/test-dialog-abstraction.sh` | — | Interactive GUI; times out without dialog session |
-| `tests/test-multi-column-specific.sh` | — | Interactive GUI; times out headless |
-| `tests/test-dialog-size-behavior.sh` | SKIP | Requires yad/zenity/kdialog GUI |
+Full classification, remediation status, and skip rules: **[platform-test-matrix.md](../docs/development/platform-test-matrix.md)**.
 
 ## Exit status
 

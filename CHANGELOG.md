@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Platform test matrix:** [docs/development/platform-test-matrix.md](docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
+
 ### Changed
+
+- **Test remediation:** Pre-existing failure fixes — platform matrix doc, `tests/lib/test-platform.sh` skip helpers, updated golden strings (`test-grid-functions`), loader checks (`test-modular-refactor`), partial-lock EOF semantics (`test-configure-blocking`), Linux-only skips (`test-mode-detection`), display-resolution skip (`test-enhancement-03-integration`), GUI manual skips; `test-configure-comprehensive.exp` refreshed for window-behavior submenu and prompt-anchored `expect` flows (10/10 on macOS); PTY skip in `test-configure-comprehensive.sh`.
 
 - **Phase 10 refactor (`popup-display`):** Extracted Linux post-spawn lifecycle (spawn lock, existing-popup skip, watchdog, min-display respawn, auto-close, pause exit codes) to `lib/popup-display-linux.sh`; `show_warning()` 519→169 lines (orchestration only). Spawn/update remains in `popup-dialog-implementations.sh`. New `tests/test-popup-display-source.sh` direct-source smoke.
 
@@ -42,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Security scan tuning:** Fixed `.gitleaks.toml` for gitleaks 8.30+ (`[[allowlists]]`); Semgrep uses project rules only (`p/bash` 404); ShellCheck CI scope excludes `tests/` and uses `-S error` on production scripts.
 
 - **Partial configure during lock hours (tighten-only):** When configure-block or config-file lock is active, `configure.sh` and **Configure** in `manage.sh` open the wizard in limited mode instead of exiting. Users may increase lockout (more frequent popups, longer min display, add-only hours, enable locks) but not weaken existing settings. `POPUP_AUTO_CLOSE` may be toggled freely. Saves still enforce per-day 16 h caps and weekly backstop; config writes temporarily unlock chmod-locked files when needed. New module `lib/configure-partial-lock.sh`; tests `tests/test-configure-partial-lock.sh`.
+
+### Added
+
+- **Platform test matrix:** [docs/development/platform-test-matrix.md](docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
 
 ### Changed
 
@@ -128,6 +138,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **macOS GUI: remove range appeared to do nothing:** After selecting a range to remove, the confirmation step used `display alert`, which on macOS 13+ opens behind the terminal following a `choose from list` dialog — so the user never saw the prompt and removal never ran. New `show_confirm_dialog()` uses `choose from list` on macOS (same pattern as `confirm_cancel`). Applied to range removal and time-range confirmation in the configure wizard.
 
+### Added
+
+- **Platform test matrix:** [docs/development/platform-test-matrix.md](docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
+
 ### Changed — weekly-average lockout thresholds tightened (2026-05-24, evening pass)
 
 - `lib/configure-core.sh`: `HOURS_PER_DAY_BLOCK` lowered from **24 → 16** and `HOURS_PER_DAY_WARN` lowered from **16 → 12**. Comparison in `check_restriction_coverage` switched to strict `>` so configurations that exactly max the per-day 16-hour cap on every day (= 6720 min/week) still pass at the weekly check — the per-day cap (`lib/daily-caps.sh`) remains the primary hard enforcer; the weekly check is a defense-in-depth backstop.
@@ -169,6 +183,10 @@ The following bugs, identified in [dev-docs/code-assessments/bug-and-lockout-rev
 - `lib/sleep-detection-darwin.sh`: `check_system_resume` now emits the resume epoch timestamp to stdout and detects sleep/wake events by parsing `pmset -g log` for "Wake" entries, not just boot-time changes.
 - `tests/test-24-7-prevention-additional-hours.sh`: 11 new test cases covering HH:MM ranges, 17 h/day warn threshold, split-range 24/7 detection, overnight HH:MM, octal-safe inputs (08, 09), and lock+restriction merging.
 
+### Added
+
+- **Platform test matrix:** [docs/development/platform-test-matrix.md](docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
+
 ### Changed
 
 - **Safety model clarified (docs only — no code change yet):** [docs/SAFETY.md](docs/SAFETY.md), [.cursor/rules/safety-guardrails.mdc](.cursor/rules/safety-guardrails.mdc), and [AGENTS.md](AGENTS.md) restated around three invariants — **per-day 16 h cap per category** (restriction / configure-block / uninstall-block, merged, no double-count), **finite popup lifetime** (cap value may grow but is always bounded by `popup_run_with_watchdog`), and **always-available escape hatch**. Intentional lockout behaviors (focus stealing, `--topmost`, fullscreen overlay, periodic `focus_force`, respawn-on-dismiss during min-display) are explicitly **features**, not safety bugs. Older language implying "no stuck modals" / "no 24/7" was too narrow; the real invariant is per-day per-category cap.
@@ -188,6 +206,10 @@ The following bugs, identified in [dev-docs/code-assessments/bug-and-lockout-rev
 - Documentation: [user-docs/MACOS.md](user-docs/MACOS.md) with troubleshooting playbook.
 - Tests: `tests/test-platform-darwin.sh`, `tests/test-popup-safety-darwin.sh`.
 - **Git hooks:** `.githooks/pre-commit` + [scripts/prune-backups.sh](scripts/prune-backups.sh) (prune tracked `backups/` older than 3 commits); enable with [scripts/install-git-hooks.sh](scripts/install-git-hooks.sh).
+
+### Added
+
+- **Platform test matrix:** [docs/development/platform-test-matrix.md](docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
 
 ### Changed
 

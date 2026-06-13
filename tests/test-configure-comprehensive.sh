@@ -42,6 +42,12 @@ if ! command -v expect >/dev/null 2>&1; then
     exit 1
 fi
 
+# PTY required for expect spawn; skip cleanly in sandboxes without pseudo-ttys.
+if ! expect -c 'spawn true; expect eof' >/dev/null 2>&1; then
+    echo "SKIP: no PTY available (expect spawn failed); run outside sandbox or on a host with /dev/ptmx"
+    exit 0
+fi
+
 # Run under temp HOME so we never touch the real config.
 # Note: Create temp dirs under the repo so sandboxed runs can write to them.
 TMP_BASE="${PROJECT_ROOT}/tests/.tmp"

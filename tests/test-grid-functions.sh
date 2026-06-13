@@ -55,18 +55,18 @@ test_function "format_hour_12h(23)" "11:00 PM" "$(format_hour_12h 23)"
 test_function "format_hour_12h(5)" "5:00 AM" "$(format_hour_12h 5)"
 
 # Test format_range_human (single range, same day)
-# Note: Range 0-5 means 0:00 to 4:59, but function displays end hour as 5:00 AM
-test_function "format_range_human(0-5, Sunday)" "12:00 AM → 5:00 AM" "$(format_range_human "0-5" "Sunday")"
+# Golden strings match format_range_human() via 24hour_to_12hour (lowercase am/pm, ASCII arrow).
+# Follow-up: unify with format_hour_12h style — see dev-docs/TO_DO.md
+test_function "format_range_human(0-5, Sunday)" "12:00am -> 5:00am" "$(format_range_human "0-5" "Sunday")"
 
 # Test format_range_human (overnight range)
-# Note: Range 23-6 means 23:00 to 5:59, but function displays end hour as 6:00 AM
-test_function "format_range_human(23-6, Monday)" "11:00 PM → 6:00 AM (Tuesday)" "$(format_range_human "23-6" "Monday")"
+test_function "format_range_human(23-6, Monday)" "11:00pm -> 6:00am (Tuesday)" "$(format_range_human "23-6" "Monday")"
 
 # Test format_ranges_human (single range)
-test_function "format_ranges_human(0-5, Sunday)" "12:00 AM → 5:00 AM" "$(format_ranges_human "0-5" "Sunday")"
+test_function "format_ranges_human(0-5, Sunday)" "12:00am -> 5:00am" "$(format_ranges_human "0-5" "Sunday")"
 
 # Test format_ranges_human (multiple ranges)
-test_function "format_ranges_human(0-5,22-23, Monday)" "12:00 AM → 5:00 AM AND 10:00 PM → 11:00 PM" "$(format_ranges_human "0-5,22-23" "Monday")"
+test_function "format_ranges_human(0-5,22-23, Monday)" "12:00am -> 5:00am AND 10:00pm -> 11:00pm" "$(format_ranges_human "0-5,22-23" "Monday")"
 
 # Test format_range_human with empty/no restrictions
 test_function "format_range_human(empty)" "(no restrictions)" "$(format_range_human "" "Sunday")"

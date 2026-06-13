@@ -1,5 +1,7 @@
 # Test Suite for Sleep Warning Configuration
 
+**Platform matrix:** [docs/development/platform-test-matrix.md](../docs/development/platform-test-matrix.md) — macOS vs Linux, headless-safe vs GUI/manual, skip helpers.
+
 ## Overview
 
 Comprehensive automated test suite for `configure.sh --text` mode using `expect` for interactive testing.
@@ -14,6 +16,13 @@ These run on macOS (and Linux for platform detection branches) without GUI or mo
 | `tests/test-popup-safety-darwin.sh` | Popup watchdog kills hung child processes |
 | `tests/test-darwin-configure-gui.sh` | macOS configure GUI regressions (grid cache, table JSON, daemon protocol, time picker helpers, modal dialog wiring) — headless |
 | `tests/test-time-picker-minutes.sh` | GUI time picker minute helpers (`normalize_minute_for_picker`, YAD combobox builder) — headless, all platforms |
+| `tests/test-configure-modular.sh` | Configure module sourcing and public functions — headless |
+| `tests/test-grid-functions.sh` | Grid time-format helpers — headless |
+| `tests/test-modular-refactor.sh` | sleep-warning.sh loader and lib modules — headless |
+| `tests/test-configure-blocking.sh` | Partial-lock configure wizard — headless, temp `HOME` |
+| `tests/test-mode-detection.sh` | Mode detection (full suite Linux; 2 tests skipped on macOS) — headless |
+
+**Skip on headless / no GUI:** `test-dialog-abstraction.sh`, `test-multi-column-specific.sh`, `test-dialog-size-behavior.sh` (see platform matrix).
 
 ```bash
 bash tests/test-platform-darwin.sh

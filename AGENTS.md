@@ -34,7 +34,7 @@ Bash sleep-warning system: scheduled checks during restricted hours → modal wa
 | Install / scheduler | `install.sh`, `lib/service-config.sh`, `lib/service-config-{linux,darwin}.sh` |
 | Popups | `lib/popup-display.sh`, `lib/popup-display-linux.sh`, `lib/popup-safety.sh`, `lib/popup-*-darwin.sh` |
 | Configure wizard | `configure.sh`, `lib/configure-*.sh` |
-| Tests | [docs/development/testing.md](docs/development/testing.md), `tests/README.md` |
+| Tests | [docs/development/testing.md](docs/development/testing.md), [platform-test-matrix.md](docs/development/platform-test-matrix.md), `tests/README.md` |
 | Security scans (ShellCheck, Gitleaks, Semgrep) | [docs/development/security-scanning.md](docs/development/security-scanning.md), `scripts/run-security-scan.sh` |
 | Versioning / releases | [docs/development/versioning.md](docs/development/versioning.md) |
 | Backlog / enhancements | [dev-docs/README.md](dev-docs/README.md), [dev-docs/TO_DO.md](dev-docs/TO_DO.md) |
@@ -75,6 +75,7 @@ Source platform-specific libs from `sleep-warning.sh` / facades—do not assume 
 
 ## Testing quick reference
 
+- [Platform test matrix](docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI
 - Temp `HOME` for install/configure tests
 - `bash tests/test-configure-partial-lock.sh`
 - `bash tests/test-popup-safety-darwin.sh`

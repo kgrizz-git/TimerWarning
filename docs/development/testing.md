@@ -1,5 +1,7 @@
 # Development and testing
 
+**Platform matrix:** [platform-test-matrix.md](platform-test-matrix.md) — which tests run on macOS vs Linux, headless vs GUI, and known skip rules.
+
 ## Safety-first testing rules
 
 Full rules: [SAFETY.md](../SAFETY.md). Summary:
@@ -23,6 +25,8 @@ See [security-scanning.md](security-scanning.md). Before a PR:
 Enable staged checks on commit: `./scripts/install-git-hooks.sh`
 
 ## Recommended commands
+
+See [platform-test-matrix.md](platform-test-matrix.md) for the full macOS headless batch and Linux-only suites.
 
 ```bash
 # macOS / Linux — unit tests (safe, no GUI)
