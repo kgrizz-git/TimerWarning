@@ -8,6 +8,7 @@
 #
 # Functions:
 # - check_restriction_coverage()  - Check total restricted minutes across week
+# - check_input_time_daily_caps() - Per-day 16 h cap at wizard input (uses check_daily_caps)
 # - merge_overlapping_intervals() - Merge overlapping/adjacent time intervals
 #
 # Dependencies:
@@ -495,6 +496,110 @@ check_restriction_coverage() {
     else
         echo "ok"
     fi
+}
+
+###############################################################################
+# check_input_time_daily_caps — wizard input-time per-day 16 h cap (same math as save)
+#
+# Builds a proposed session from configure.sh globals, applies the new range(s)
+# for the affected day index(es), and runs check_daily_caps.
+#
+# Parameters:
+#   $1 - hours_kind: restriction | configure_lock | uninstall_lock
+#   $2 - day_index: primary day index (0-6); used when CONFIGURE_INPUT_APPLY_DAY_INDICES unset
+#   $3 - proposed_ranges: normalized comma-separated ranges (empty = no restrictions)
+#
+# Globals read:
+#   CONFIGURE_INPUT_APPLY_DAY_INDICES — optional comma-separated day indices
+#   config_lines[], lock_hours_lines[], uninstall_lock_hours_lines[]
+#   configure_block_enabled, uninstall_protection_mode
+#
+# Returns 0 if OK; on violation prints "Day|category|minutes" lines to stdout and returns 1.
+###############################################################################
+check_input_time_daily_caps() {
+    local hours_kind="${1:-restriction}"
+    local day_index="$2"
+    local proposed_ranges="${3:-}"
+
+    if ! type check_daily_caps >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if type ensure_day_vars >/dev/null 2>&1; then
+        ensure_day_vars
+    fi
+
+    local apply_spec="${CONFIGURE_INPUT_APPLY_DAY_INDICES:-${day_index}}"
+    local saved_ifs="${IFS-}"
+    local apply_indices=()
+    IFS=','
+    read -ra apply_indices <<< "${apply_spec}"
+    IFS="${saved_ifs-$' \t\n'}"
+
+    local restriction_vals=("" "" "" "" "" "" "")
+    local lock_vals=("" "" "" "" "" "" "")
+    local uninstall_vals=("" "" "" "" "" "" "")
+    local idx range_part
+
+    for idx in 0 1 2 3 4 5 6; do
+        if [ -n "${config_lines[${idx}]+set}" ] && [ -n "${config_lines[${idx}]}" ]; then
+            range_part=$(echo "${config_lines[${idx}]}" | cut -d'=' -f2-)
+            restriction_vals[${idx}]="${range_part}"
+        fi
+        if [ -n "${lock_hours_lines[${idx}]+set}" ] && [ -n "${lock_hours_lines[${idx}]}" ]; then
+            range_part=$(echo "${lock_hours_lines[${idx}]}" | cut -d'=' -f2-)
+            lock_vals[${idx}]="${range_part}"
+        fi
+        if [ -n "${uninstall_lock_hours_lines[${idx}]+set}" ] && [ -n "${uninstall_lock_hours_lines[${idx}]}" ]; then
+            range_part=$(echo "${uninstall_lock_hours_lines[${idx}]}" | cut -d'=' -f2-)
+            uninstall_vals[${idx}]="${range_part}"
+        fi
+    done
+
+    local apply_idx
+    for apply_idx in "${apply_indices[@]}"; do
+        apply_idx=$(echo "${apply_idx}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [ -z "${apply_idx}" ] && continue
+        case "${hours_kind}" in
+            restriction)
+                restriction_vals[${apply_idx}]="${proposed_ranges}"
+                ;;
+            configure_lock)
+                lock_vals[${apply_idx}]="${proposed_ranges}"
+                ;;
+            uninstall_lock)
+                uninstall_vals[${apply_idx}]="${proposed_ranges}"
+                ;;
+            *)
+                return 0
+                ;;
+        esac
+    done
+
+    local cap_args=()
+    local day_var
+    for idx in 0 1 2 3 4 5 6; do
+        day_var="${DAY_VARS[${idx}]}"
+        if [ -n "${restriction_vals[${idx}]}" ]; then
+            cap_args+=("${day_var}=${restriction_vals[${idx}]}")
+        fi
+        if [ -n "${lock_vals[${idx}]}" ]; then
+            cap_args+=("CONFIG_LOCK_HOURS_${day_var}=${lock_vals[${idx}]}")
+        fi
+        if [ -n "${uninstall_vals[${idx}]}" ]; then
+            cap_args+=("UNINSTALL_LOCK_HOURS_${day_var}=${uninstall_vals[${idx}]}")
+        fi
+    done
+
+    local cbe="${configure_block_enabled:-false}"
+    local upm="${uninstall_protection_mode:-none}"
+    local violations
+    violations=$(check_daily_caps "${cbe}" "${upm}" "${cap_args[@]}")
+    if [ -n "${violations}" ]; then
+        echo "${violations}"
+        return 1
+    fi
+    return 0
 }
 
 ###############################################################################

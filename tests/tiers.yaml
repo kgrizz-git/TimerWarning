@@ -24,6 +24,7 @@ tier_a:
       platform: linux
     - test-configure-partial-lock.sh
     - test-configure-back-navigation.sh
+    - test-input-time-cap-validation.sh
     - test-ifs-set-u.sh
     - test-popup-timing-save-validation.sh
     - test-uninstall-verification-eof.sh

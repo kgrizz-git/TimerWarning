@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Popup timing on save:** Review and Save (option 13) now runs `validate_popup_timing_config` before writing the config file, blocking invalid min-display vs frequency combinations.
 - **`set -u` + unset `IFS`:** Time parsing and daily-cap helpers use safe `${IFS-}` capture/restore so scripts do not crash when `IFS` is unset.
 - **Uninstall verification EOF:** Text-mode uninstall verification prompts use `configure_read` instead of bare `read -p`, avoiding infinite spin on closed stdin.
+- **Input-time 16 h cap:** Configure wizard now blocks over-cap restriction, configure-lock, and uninstall-lock hours immediately when a range is confirmed (same `check_daily_caps` math as save), e.g. `1am-11pm` on weekdays together.
 
 ### Added
 

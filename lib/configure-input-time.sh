@@ -209,6 +209,66 @@ get_check_interval() {
     fi
 }
 
+# Join normalized range strings into a comma-separated CSV.
+_join_day_ranges_array() {
+    local result=""
+    local first=true
+    local r
+    for r in "$@"; do
+        if [ "${first}" = "true" ]; then
+            result="${r}"
+            first=false
+        else
+            result="${result},${r}"
+        fi
+    done
+    echo "${result}"
+}
+
+# Block acceptance when proposed normalized ranges exceed the per-day 16 h cap.
+# Returns 0 if OK, 1 if cap violated (error dialog shown).
+_block_if_hours_cap_exceeded() {
+    local day_index="$1"
+    local use_gui="$2"
+    local ranges_csv="$3"
+
+    if [ -z "${ranges_csv}" ] || [ "${ranges_csv}" = "skip" ]; then
+        return 0
+    fi
+
+    if ! type check_input_time_daily_caps >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local violations
+    violations=$(check_input_time_daily_caps "${CONFIGURE_INPUT_HOURS_KIND:-restriction}" "${day_index}" "${ranges_csv}")
+    if [ -n "${violations}" ]; then
+        if type show_cap_violation_error >/dev/null 2>&1; then
+            show_cap_violation_error "${use_gui}" "${violations}"
+        elif type show_error_dialog >/dev/null 2>&1; then
+            show_error_dialog "Per-Day 16-Hour Cap Exceeded" "${violations}"
+        else
+            echo "ERROR: Per-day 16-hour cap exceeded." >&2
+            echo "${violations}" >&2
+        fi
+        return 1
+    fi
+    return 0
+}
+
+# Validate cap and echo ranges to stdout on success; return 1 on violation.
+_emit_day_hours_if_cap_ok() {
+    local day_index="$1"
+    local use_gui="$2"
+    local ranges_csv="$3"
+
+    if ! _block_if_hours_cap_exceeded "${day_index}" "${use_gui}" "${ranges_csv}"; then
+        return 1
+    fi
+    echo "${ranges_csv}"
+    return 0
+}
+
 get_day_hours() {
     local day_name="$1"
     local day_index="$2"
@@ -241,7 +301,11 @@ get_day_hours() {
                             continue
                         fi
                     fi
-                    echo "${managed_ranges}"
+                    local accepted_ranges
+                    if ! accepted_ranges=$(_emit_day_hours_if_cap_ok "${day_index}" "${use_gui}" "${managed_ranges}"); then
+                        continue
+                    fi
+                    echo "${accepted_ranges}"
                     return 0
                 fi
 
@@ -282,18 +346,13 @@ get_day_hours() {
                         esac
                     else
                         # Already have at least one range - cancel means done adding ranges
-                        # Return collected ranges immediately
-                        local result=""
-                        local first=true
-                        for r in "${collected_ranges[@]}"; do
-                            if [ "${first}" = "true" ]; then
-                                result="${r}"
-                                first=false
-                            else
-                                result="${result},${r}"
-                            fi
-                        done
-                        echo "${result}"
+                        local result
+                        result=$(_join_day_ranges_array "${collected_ranges[@]}")
+                        local accepted_ranges
+                        if ! accepted_ranges=$(_emit_day_hours_if_cap_ok "${day_index}" "${use_gui}" "${result}"); then
+                            continue
+                        fi
+                        echo "${accepted_ranges}"
                         return 0
                     fi
                 else
@@ -344,6 +403,9 @@ get_day_hours() {
                     fi
                     
                     if show_confirm_dialog "Confirm Time Range" "${confirm_text}" "Yes" "No, Edit" 600 350; then
+                        if ! _block_if_hours_cap_exceeded "${day_index}" "${use_gui}" "${preview_ranges}"; then
+                            continue
+                        fi
                         # Range confirmed - add to collection
                         collected_ranges+=("${normalized}")
                         range_confirmed=true
@@ -378,32 +440,24 @@ get_day_hours() {
                 local list_exit=$?
                 if [ ${list_exit} -ne 0 ] || [ -z "${next_choice}" ]; then
                     # Cancelled - treat as done, return current ranges
-                    local result=""
-                    local first=true
-                    for r in "${collected_ranges[@]}"; do
-                        if [ "${first}" = "true" ]; then
-                            result="${r}"
-                            first=false
-                        else
-                            result="${result},${r}"
-                        fi
-                    done
-                    echo "${result}"
+                    local result
+                    result=$(_join_day_ranges_array "${collected_ranges[@]}")
+                    local accepted_ranges
+                    if ! accepted_ranges=$(_emit_day_hours_if_cap_ok "${day_index}" "${use_gui}" "${result}"); then
+                        continue
+                    fi
+                    echo "${accepted_ranges}"
                     return 0
                 fi
                 case "${next_choice}" in
                     "No, Done")
-                        local result=""
-                        local first=true
-                        for r in "${collected_ranges[@]}"; do
-                            if [ "${first}" = "true" ]; then
-                                result="${r}"
-                                first=false
-                            else
-                                result="${result},${r}"
-                            fi
-                        done
-                        echo "${result}"
+                        local result
+                        result=$(_join_day_ranges_array "${collected_ranges[@]}")
+                        local accepted_ranges
+                        if ! accepted_ranges=$(_emit_day_hours_if_cap_ok "${day_index}" "${use_gui}" "${result}"); then
+                            continue
+                        fi
+                        echo "${accepted_ranges}"
                         return 0
                         ;;
                     "Remove last range")
@@ -457,7 +511,14 @@ get_day_hours() {
             
             echo "Preview: ${preview}" >&2
             configure_read -p "Is this correct? [Y/n]: " confirm
-            [[ "${confirm:-y}" =~ ^[yY] ]] && { echo "${normalized}"; return 0; }
+            if [[ "${confirm:-y}" =~ ^[yY] ]]; then
+                local accepted_ranges
+                if ! accepted_ranges=$(_emit_day_hours_if_cap_ok "${day_index}" "${use_gui}" "${normalized}"); then
+                    continue
+                fi
+                echo "${accepted_ranges}"
+                return 0
+            fi
         done
     fi
 }

@@ -6,9 +6,9 @@ Stable identifiers for configure-time **hard blocks** and runtime safety logs. U
 
 | ID | Category | Configure save | Runtime (`validate_config_safety`) |
 |----|----------|----------------|-------------------------------------|
-| `CAP-RESTRICTION-DAY` | Popup / restriction hours | `show_cap_violation_error` | Log + fallback |
-| `CAP-CONFIGURE-BLOCK-DAY` | Configure-block merged hours | `show_cap_violation_error` | Log + fallback |
-| `CAP-UNINSTALL-BLOCK-DAY` | Uninstall-block merged hours | `show_cap_violation_error` | Log + fallback |
+| `CAP-RESTRICTION-DAY` | Popup / restriction hours | `show_cap_violation_error` (save + wizard input) | Log + fallback |
+| `CAP-CONFIGURE-BLOCK-DAY` | Configure-block merged hours | `show_cap_violation_error` (save + wizard input) | Log + fallback |
+| `CAP-UNINSTALL-BLOCK-DAY` | Uninstall-block merged hours | `show_cap_violation_error` (save + wizard input) | Log + fallback |
 
 **SAFETY link:** [docs/SAFETY.md#the-per-day-16-hour-cap-the-central-invariant](../../docs/SAFETY.md#the-per-day-16-hour-cap-the-central-invariant)
 

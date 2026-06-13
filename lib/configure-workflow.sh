@@ -62,6 +62,20 @@ prompt_continue_day_flow() {
     fi
 }
 
+# Set wizard input-time cap context for get_day_hours (see check_input_time_daily_caps).
+_configure_input_hours_context_set() {
+    CONFIGURE_INPUT_HOURS_KIND="${1:-restriction}"
+    if [ -n "${2:-}" ]; then
+        CONFIGURE_INPUT_APPLY_DAY_INDICES="$2"
+    else
+        unset CONFIGURE_INPUT_APPLY_DAY_INDICES
+    fi
+}
+
+_configure_input_hours_context_clear() {
+    unset CONFIGURE_INPUT_HOURS_KIND CONFIGURE_INPUT_APPLY_DAY_INDICES
+}
+
 configure_weekdays_section() {
     local use_gui="$1"
     local -n config_lines_ref="$2"  # Pass by reference
@@ -76,8 +90,10 @@ configure_weekdays_section() {
     # Ask if configure together or separately
     if ask_weekday_together "${use_gui}"; then
         # Configure all weekdays together
+        _configure_input_hours_context_set restriction "1,2,3,4,5"
         weekday_range=$(get_day_hours "Weekdays (Monday-Friday)" 1 "${use_gui}" "false" "true")
         exit_code=$?
+        _configure_input_hours_context_clear
         
         if [ "${weekday_range}" = "CANCELLED" ] || [ ${exit_code} -eq 2 ]; then
             return 2  # Cancelled
@@ -103,8 +119,10 @@ configure_weekdays_section() {
             allow_back="false"
             [ "${i}" -gt 1 ] && allow_back="true"
             
+            _configure_input_hours_context_set restriction
             range=$(get_day_hours "${DAY_NAMES[${i}]}" "${i}" "${use_gui}" "${allow_back}" "true")
             exit_code=$?
+            _configure_input_hours_context_clear
             
             if [ "${range}" = "CANCELLED" ]; then
                 return 2  # Cancelled
@@ -183,9 +201,14 @@ configure_lock_hours_section() {
         configure_read -p "Press Enter to continue..."
     fi
     
+    CONFIGURE_INPUT_HOURS_KIND="configure_lock"
+    trap '_configure_input_hours_context_clear' RETURN
+    
     # Ask if same hours for all weekdays and/or both weekend days (main menu entry point)
     if ask_weekday_together "${use_gui}"; then
+        CONFIGURE_INPUT_APPLY_DAY_INDICES="1,2,3,4,5"
         weekday_range=$(get_day_hours "Weekdays (Monday-Friday) - Additional Block Hours" 1 "${use_gui}" "false" "true")
+        unset CONFIGURE_INPUT_APPLY_DAY_INDICES
         if [ "${weekday_range}" = "CANCELLED" ]; then
             return 2
         fi
@@ -199,7 +222,9 @@ configure_lock_hours_section() {
         done
         # Weekends
         if ask_weekend_together "${use_gui}"; then
+            CONFIGURE_INPUT_APPLY_DAY_INDICES="6,0"
             weekend_range=$(get_day_hours "Weekends (Saturday and Sunday) - Additional Block Hours" 6 "${use_gui}" "false" "true")
+            unset CONFIGURE_INPUT_APPLY_DAY_INDICES
             if [ "${weekend_range}" = "CANCELLED" ]; then
                 return 2
             fi
@@ -233,7 +258,9 @@ configure_lock_hours_section() {
     fi
     
     if ask_weekend_together "${use_gui}"; then
+        CONFIGURE_INPUT_APPLY_DAY_INDICES="6,0"
         weekend_range=$(get_day_hours "Weekends (Saturday and Sunday) - Additional Block Hours" 6 "${use_gui}" "false" "true")
+        unset CONFIGURE_INPUT_APPLY_DAY_INDICES
         if [ "${weekend_range}" = "CANCELLED" ]; then
             return 2
         fi
@@ -320,8 +347,10 @@ configure_weekends_section() {
     # Ask if configure together or separately
     if ask_weekend_together "${use_gui}"; then
         # Configure both weekend days together
+        _configure_input_hours_context_set restriction "6,0"
         weekend_range=$(get_day_hours "Weekends (Saturday and Sunday)" 6 "${use_gui}" "false" "true")
         exit_code=$?
+        _configure_input_hours_context_clear
         
         if [ "${weekend_range}" = "CANCELLED" ]; then
             return 2  # Cancelled
@@ -347,8 +376,10 @@ configure_weekends_section() {
             allow_back="false"
             [ "${weekend_day}" -eq 0 ] && allow_back="true"
             
+            _configure_input_hours_context_set restriction
             range=$(get_day_hours "${DAY_NAMES[${weekend_day}]}" "${weekend_day}" "${use_gui}" "${allow_back}" "true")
             exit_code=$?
+            _configure_input_hours_context_clear
             
             if [ "${range}" = "CANCELLED" ]; then
                 return 2  # Cancelled
@@ -433,8 +464,10 @@ configure_day_from_grid() {
             local config_line="${config_lines_ref[${day_index}]}"
             existing_range=$(echo "${config_line}" | cut -d'=' -f2-)
         fi
+        _configure_input_hours_context_set restriction
         range=$(get_day_hours "${day_name}" "${day_index}" "${use_gui}" "false" "true" "${existing_range}")
         exit_code=$?
+        _configure_input_hours_context_clear
 
         if [ "${range}" = "CANCELLED" ]; then
             return 2
@@ -461,8 +494,10 @@ configure_day_from_grid() {
         local existing_lock=""
         [ -n "${lock_hours_lines_ref[${day_index}]+set}" ] && [ -n "${lock_hours_lines_ref[${day_index}]}" ] && existing_lock=$(echo "${lock_hours_lines_ref[${day_index}]}" | cut -d'=' -f2-)
         # Reuse get_day_hours for consistent validation and UX (pass existing for multi-range manage dialog)
+        _configure_input_hours_context_set configure_lock
         lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "false" "true" "${existing_lock}")
         exit_code=$?
+        _configure_input_hours_context_clear
         
         if [ "${lock_range}" = "CANCELLED" ]; then
             return 2
@@ -488,8 +523,10 @@ configure_day_from_grid() {
         local existing_uninstall=""
         [ -n "${uninstall_lock_hours_lines_ref[${day_index}]+set}" ] && [ -n "${uninstall_lock_hours_lines_ref[${day_index}]}" ] && existing_uninstall=$(echo "${uninstall_lock_hours_lines_ref[${day_index}]}" | cut -d'=' -f2-)
         # Reuse get_day_hours for consistent validation and UX (pass existing for multi-range manage dialog)
+        _configure_input_hours_context_set uninstall_lock
         uninstall_lock_range=$(get_day_hours "${label}" "${day_index}" "${use_gui}" "false" "true" "${existing_uninstall}")
         exit_code=$?
+        _configure_input_hours_context_clear
         
         if [ "${uninstall_lock_range}" = "CANCELLED" ]; then
             return 2
@@ -556,9 +593,14 @@ configure_uninstall_lock_hours_section() {
         configure_read -p "Press Enter to continue..."
     fi
     
+    _configure_input_hours_context_set uninstall_lock
+    trap '_configure_input_hours_context_clear' RETURN
+    
     # Ask if same hours for all weekdays and/or both weekend days (main menu entry point)
     if ask_weekday_together "${use_gui}"; then
+        CONFIGURE_INPUT_APPLY_DAY_INDICES="1,2,3,4,5"
         weekday_range=$(get_day_hours "Weekdays (Monday-Friday) - Uninstall Lock Hours" 1 "${use_gui}" "false" "true")
+        unset CONFIGURE_INPUT_APPLY_DAY_INDICES
         if [ "${weekday_range}" = "CANCELLED" ]; then
             return 2
         fi
@@ -571,7 +613,9 @@ configure_uninstall_lock_hours_section() {
             fi
         done
         if ask_weekend_together "${use_gui}"; then
+            CONFIGURE_INPUT_APPLY_DAY_INDICES="6,0"
             weekend_range=$(get_day_hours "Weekends (Saturday and Sunday) - Uninstall Lock Hours" 6 "${use_gui}" "false" "true")
+            unset CONFIGURE_INPUT_APPLY_DAY_INDICES
             if [ "${weekend_range}" = "CANCELLED" ]; then
                 return 2
             fi
@@ -605,7 +649,9 @@ configure_uninstall_lock_hours_section() {
     fi
     
     if ask_weekend_together "${use_gui}"; then
+        CONFIGURE_INPUT_APPLY_DAY_INDICES="6,0"
         weekend_range=$(get_day_hours "Weekends (Saturday and Sunday) - Uninstall Lock Hours" 6 "${use_gui}" "false" "true")
+        unset CONFIGURE_INPUT_APPLY_DAY_INDICES
         if [ "${weekend_range}" = "CANCELLED" ]; then
             return 2
         fi
