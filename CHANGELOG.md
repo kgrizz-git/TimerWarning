@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Phase 8 refactor (config keys):** Added `lib/config-keys.sh` as single source of truth for scalar config keys and lock-hour prefixes; migrated `lib/config.sh`, `configure-config-{load,write}.sh`, and `configure-display.sh` grep/write paths. Facades source constants directly for test/module paths.
+
+- **Phase 7 refactor (`configure-dialogs`):** Toolkit dispatch extracted to `lib/configure-dialogs-dispatch.sh` (entry + multi-column yad/zenity/kdialog); range add/edit/delete helpers and `manage_ranges_dialog()` in `configure-dialogs-ranges.sh`. `configure-dialogs.sh` 923→496 lines.
+
 - **Phase 6 refactor (`status.sh`):** Extracted configuration display to `lib/status-config-display.sh` (`show_configuration()` plus time-format helpers); `status.sh` 883→367 lines. New `tests/test-status-display.sh` with fixture golden file.
 
 - **Phase 5 refactor (`configure-config`):** Split load and write paths into `lib/configure-config-load.sh` and `configure-config-write.sh`; facade `configure-config.sh` 871→82 lines (retains `update_timer_file()`). Tests: `test-atomic-write.sh`, `test-write-config-override-flags.sh`, `test-daily-caps.sh`, `test-config-locking.sh`.

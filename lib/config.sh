@@ -15,6 +15,12 @@
 ###############################################################################
 
 # Script configuration
+
+_CONFIG_KEYS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090
+source "${_CONFIG_KEYS_DIR}/config-keys.sh"
+unset _CONFIG_KEYS_DIR
+
 SCRIPT_NAME="sleep-warning"
 CONFIG_DIR="${HOME}/.config/sleep-warning"
 # Config file is now in a dedicated subdirectory for locking support (Enhancement #18)
@@ -140,9 +146,9 @@ get_popup_display_frequency() {
         return 0
     fi
     local val
-    val=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    val=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_DISPLAY_FREQUENCY}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     if [ -z "${val}" ] || ! [[ "${val}" =~ ^[0-9]+$ ]]; then
-        val=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        val=$(grep -E "^[[:space:]]*${CONFIG_KEY_CHECK_INTERVAL}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     fi
     if [ -n "${val}" ] && [[ "${val}" =~ ^[0-9]+$ ]] && [ "${val}" -ge 1 ] && [ "${val}" -le 60 ]; then
         echo "${val}"
@@ -217,7 +223,7 @@ get_popup_position() {
     
     # Read POPUP_POSITION from config file
     local position
-    position=$(grep -E "^[[:space:]]*POPUP_POSITION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    position=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_POSITION}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     
     if [ -z "${position}" ]; then
         echo "${DEFAULT_POPUP_POSITION}"
@@ -248,7 +254,7 @@ get_min_display_time() {
     
     # Read POPUP_MIN_DISPLAY_TIME from config file
     local min_time
-    min_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    min_time=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_MIN_DISPLAY_TIME}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     
     # Use constants if available (from configure-core.sh), otherwise use hardcoded values
     local min_display_time_val="${MIN_DISPLAY_TIME:-0}"
@@ -273,7 +279,7 @@ get_popup_immovable() {
     
     # Read POPUP_IMMOVABLE from config file
     local immovable
-    immovable=$(grep -E "^[[:space:]]*POPUP_IMMOVABLE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    immovable=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_IMMOVABLE}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     
     if [ "${immovable}" = "true" ] || [ "${immovable}" = "1" ] || [ "${immovable}" = "yes" ]; then
         echo "true"
@@ -302,7 +308,7 @@ get_popup_auto_close() {
     
     # Read POPUP_AUTO_CLOSE from config file
     local auto_close
-    auto_close=$(grep -E "^[[:space:]]*POPUP_AUTO_CLOSE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    auto_close=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_AUTO_CLOSE}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     
     if [ "${auto_close}" = "true" ] || [ "${auto_close}" = "1" ] || [ "${auto_close}" = "yes" ]; then
         echo "true"
@@ -329,7 +335,7 @@ get_configure_block_enabled() {
     
     # Read CONFIGURE_BLOCK_ENABLED from config file
     local block_enabled
-    block_enabled=$(grep -E "^[[:space:]]*CONFIGURE_BLOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    block_enabled=$(grep -E "^[[:space:]]*${CONFIG_KEY_CONFIGURE_BLOCK_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     
     if [ "${block_enabled}" = "true" ] || [ "${block_enabled}" = "1" ] || [ "${block_enabled}" = "yes" ]; then
         echo "true"
@@ -363,12 +369,12 @@ get_uninstall_protection_mode() {
     
     # Read UNINSTALL_PROTECTION_MODE from config file
     local protection_mode
-    protection_mode=$(grep -E "^[[:space:]]*UNINSTALL_PROTECTION_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    protection_mode=$(grep -E "^[[:space:]]*${CONFIG_KEY_UNINSTALL_PROTECTION_MODE}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     
     # Check for legacy UNINSTALL_BLOCK_ENABLED for backward compatibility
     if [ -z "${protection_mode}" ]; then
         local legacy_block_enabled
-        legacy_block_enabled=$(grep -E "^[[:space:]]*UNINSTALL_BLOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        legacy_block_enabled=$(grep -E "^[[:space:]]*${CONFIG_KEY_UNINSTALL_BLOCK_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [ "${legacy_block_enabled}" = "true" ] || [ "${legacy_block_enabled}" = "1" ] || [ "${legacy_block_enabled}" = "yes" ]; then
             # Legacy setting found - map to "difficult" (total block not available in Phase 1)
             echo "difficult"
@@ -402,7 +408,7 @@ get_dialog_tool_config() {
     
     # Read DIALOG_TOOL from config file
     local dialog_tool
-    dialog_tool=$(grep -E "^[[:space:]]*DIALOG_TOOL[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    dialog_tool=$(grep -E "^[[:space:]]*${CONFIG_KEY_DIALOG_TOOL}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     
     # Validate and normalize dialog tool value
     # Handle empty string (after trimming whitespace) as invalid
@@ -436,7 +442,7 @@ get_pause_enabled() {
     
     # Read PAUSE_ENABLED from config file
     local pause_enabled
-    pause_enabled=$(grep -E "^[[:space:]]*PAUSE_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    pause_enabled=$(grep -E "^[[:space:]]*${CONFIG_KEY_PAUSE_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     
     if [ "${pause_enabled}" = "true" ] || [ "${pause_enabled}" = "1" ] || [ "${pause_enabled}" = "yes" ]; then
         echo "true"
@@ -481,7 +487,7 @@ get_pause_duration() {
     
     # Read PAUSE_DURATION from config file
     local duration
-    duration=$(grep -E "^[[:space:]]*PAUSE_DURATION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    duration=$(grep -E "^[[:space:]]*${CONFIG_KEY_PAUSE_DURATION}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     
     if [ -n "${duration}" ] && [[ "${duration}" =~ ^[0-9]+$ ]]; then
         if pause_is_valid_duration_minutes "${duration}"; then
@@ -504,7 +510,7 @@ get_pause_cooldown_hours() {
     fi
 
     local cooldown_hours
-    cooldown_hours=$(grep -E "^[[:space:]]*PAUSE_COOLDOWN_HOURS=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    cooldown_hours=$(grep -E "^[[:space:]]*${CONFIG_KEY_PAUSE_COOLDOWN_HOURS}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
 
     if [ -n "${cooldown_hours}" ] && [[ "${cooldown_hours}" =~ ^[0-9]+$ ]]; then
         if pause_is_valid_cooldown_hours "${cooldown_hours}"; then
@@ -529,7 +535,7 @@ get_config_lock_enabled() {
     
     # Read CONFIG_LOCK_ENABLED from config file
     local lock_enabled
-    lock_enabled=$(grep -E "^[[:space:]]*CONFIG_LOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    lock_enabled=$(grep -E "^[[:space:]]*${CONFIG_KEY_CONFIG_LOCK_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     
     if [ "${lock_enabled}" = "true" ] || [ "${lock_enabled}" = "1" ] || [ "${lock_enabled}" = "yes" ]; then
         echo "true"
@@ -552,7 +558,7 @@ get_time_display_format() {
     fi
     
     local format
-    format=$(grep -E "^[[:space:]]*TIME_DISPLAY_FORMAT[[:space:]]*=" "${CONFIG_FILE}" | cut -d'=' -f2 | tr -d '[:space:]')
+    format=$(grep -E "^[[:space:]]*${CONFIG_KEY_TIME_DISPLAY_FORMAT}[[:space:]]*=" "${CONFIG_FILE}" | cut -d'=' -f2 | tr -d '[:space:]')
     
     if [ "${format}" = "24hour" ]; then
         echo "24hour"
@@ -569,10 +575,10 @@ set_time_display_format() {
         return 1
     fi
     
-    if grep -q "^[[:space:]]*TIME_DISPLAY_FORMAT[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null; then
-        sed -i "s|^[[:space:]]*TIME_DISPLAY_FORMAT[[:space:]]*=.*|TIME_DISPLAY_FORMAT=${format}|" "${CONFIG_FILE}"
+    if grep -q "^[[:space:]]*${CONFIG_KEY_TIME_DISPLAY_FORMAT}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null; then
+        sed -i "s|^[[:space:]]*${CONFIG_KEY_TIME_DISPLAY_FORMAT}[[:space:]]*=.*|${CONFIG_KEY_TIME_DISPLAY_FORMAT}=${format}|" "${CONFIG_FILE}"
     else
-        echo "TIME_DISPLAY_FORMAT=${format}" >> "${CONFIG_FILE}"
+        echo "${CONFIG_KEY_TIME_DISPLAY_FORMAT}=${format}" >> "${CONFIG_FILE}"
     fi
     return 0
 }
@@ -589,8 +595,8 @@ migrate_config_to_minute_format() {
     
     while IFS= read -r line || [ -n "${line}" ]; do
         if [[ "${line}" =~ ^[A-Z]+=[0-9]+-[0-9]+(,[0-9]+-[0-9]+)*$ ]] || \
-           [[ "${line}" =~ ^CONFIG_LOCK_HOURS_[A-Z]+=[0-9]+-[0-9]+(,[0-9]+-[0-9]+)*$ ]] || \
-           [[ "${line}" =~ ^UNINSTALL_LOCK_HOURS_[A-Z]+=[0-9]+-[0-9]+(,[0-9]+-[0-9]+)*$ ]]; then
+           [[ "${line}" =~ ^${CONFIG_KEY_PREFIX_CONFIG_LOCK_HOURS}_[A-Z]+=[0-9]+-[0-9]+(,[0-9]+-[0-9]+)*$ ]] || \
+           [[ "${line}" =~ ^${CONFIG_KEY_PREFIX_UNINSTALL_LOCK_HOURS}_[A-Z]+=[0-9]+-[0-9]+(,[0-9]+-[0-9]+)*$ ]]; then
             
             local key="${line%%=*}"
             local val="${line#*=}"
@@ -782,7 +788,7 @@ parse_lock_hours() {
     local resolved_day
 
     resolved_day=$(_resolve_lock_hours_day_num "${day_num}" "false") || return 1
-    _parse_config_hours_for_day "${resolved_day}" "CONFIG_LOCK_HOURS" "lock hours"
+    _parse_config_hours_for_day "${resolved_day}" "${CONFIG_KEY_PREFIX_CONFIG_LOCK_HOURS}" "lock hours"
 }
 
 # Parse uninstall lock hours from configuration file
@@ -807,5 +813,5 @@ parse_uninstall_lock_hours() {
     local resolved_day
 
     resolved_day=$(_resolve_lock_hours_day_num "${day_input}" "true") || return 1
-    _parse_config_hours_for_day "${resolved_day}" "UNINSTALL_LOCK_HOURS" "uninstall lock hours"
+    _parse_config_hours_for_day "${resolved_day}" "${CONFIG_KEY_PREFIX_UNINSTALL_LOCK_HOURS}" "uninstall lock hours"
 }

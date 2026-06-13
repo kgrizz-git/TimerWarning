@@ -25,8 +25,8 @@
 #     Third-to-last: configure_block_overridden ("true" if configure_block_enabled was disabled due to high restrictions)
 #     Second-to-last: lock_hours_cleared ("true" if lock_hours_lines were cleared due to high restrictions)
 #     Last: uninstall_lock_hours_cleared ("true" if uninstall_lock_hours_lines were cleared due to high restrictions)
-# Note: lock_hours_lines is detected by checking for "CONFIG_LOCK_HOURS_" prefix in arguments
-# Note: uninstall_lock_hours_lines is detected by checking for "UNINSTALL_LOCK_HOURS_" prefix in arguments
+# Note: lock_hours_lines is detected by checking for "${CONFIG_KEY_PREFIX_CONFIG_LOCK_HOURS}_" prefix in arguments
+# Note: uninstall_lock_hours_lines is detected by checking for "${CONFIG_KEY_PREFIX_UNINSTALL_LOCK_HOURS}_" prefix in arguments
 # Note: If pause settings are not provided (for backward compatibility), defaults will be used
 _write_config_header() {
     local check_interval="$1"
@@ -57,12 +57,12 @@ _write_config_header() {
     echo "#"
     echo "# POPUP_DISPLAY_FREQUENCY: How often to show warning popups (in minutes). Range 1-60. (Enhancement #30)"
     echo "# Default: 10 minutes"
-    echo "POPUP_DISPLAY_FREQUENCY=${check_interval}"
+    echo "${CONFIG_KEY_POPUP_DISPLAY_FREQUENCY}=${check_interval}"
     echo "#"
     echo "# POPUP_SIZE: Size of warning popup (xsmall, small, medium, large, xlarge, max, custom, or custom WIDTHxHEIGHT/WIDTH%xHEIGHT%)"
     echo "# Default: medium"
     echo "# Enhancement #3: New sizes available: xsmall, xlarge, max. Custom sizes support percentage format (WIDTH%xHEIGHT%)"
-    echo "POPUP_SIZE=${popup_size}"
+    echo "${CONFIG_KEY_POPUP_SIZE}=${popup_size}"
     # Add comment if popup size was restricted due to high restrictions
     if [ "${popup_size_overridden}" = "true" ]; then
         echo "# POPUP_SIZE has been restricted to xsmall/small/medium only because restrictions exceed 16 hours/day."
@@ -72,30 +72,30 @@ _write_config_header() {
     echo "# POPUP_SIZE_MODE: Window size calculation mode (Enhancement #3)"
     echo "# Options: fixed (absolute pixel sizes) or display-based (percentage-based)"
     echo "# Default: fixed (for backward compatibility)"
-    echo "POPUP_SIZE_MODE=${popup_size_mode}"
+    echo "${CONFIG_KEY_POPUP_SIZE_MODE}=${popup_size_mode}"
     echo "#"
     echo "# POPUP_SIZE_CUSTOM: Custom size configuration (Enhancement #3)"
     echo "# Format: PERCENT%xPERCENT% (e.g., 50%x50%) or WIDTHxHEIGHT (absolute pixels)"
     echo "# If percentage format, used in display-based mode; if pixel format, used as absolute fallback"
     echo "# Default: 50%x50%"
-    echo "POPUP_SIZE_CUSTOM=${popup_size_custom}"
+    echo "${CONFIG_KEY_POPUP_SIZE_CUSTOM}=${popup_size_custom}"
     echo "#"
     echo "# POPUP_SIZE_CUSTOM_ABSOLUTE: Absolute pixel fallback for custom size (Enhancement #3)"
     echo "# Used when resolution cannot be detected and custom size is percentage-based"
     echo "# Default: 1280x720 (50% of 2560x1440)"
-    echo "POPUP_SIZE_CUSTOM_ABSOLUTE=${popup_size_custom_absolute}"
+    echo "${CONFIG_KEY_POPUP_SIZE_CUSTOM_ABSOLUTE}=${popup_size_custom_absolute}"
     echo "#"
     echo "# POPUP_POSITION: Position of warning popup on screen"
     echo "# Default: center"
-    echo "POPUP_POSITION=${popup_position}"
+    echo "${CONFIG_KEY_POPUP_POSITION}=${popup_position}"
     echo "#"
     echo "# POPUP_MIN_DISPLAY_TIME: Minimum time popup must be visible before it can be closed (in seconds)"
     echo "# Default: 30 seconds"
-    echo "POPUP_MIN_DISPLAY_TIME=${min_display_time}"
+    echo "${CONFIG_KEY_POPUP_MIN_DISPLAY_TIME}=${min_display_time}"
     echo "#"
     echo "# POPUP_IMMOVABLE: Prevent popup window from being moved during minimum display time"
     echo "# Default: true"
-    echo "POPUP_IMMOVABLE=${popup_immovable}"
+    echo "${CONFIG_KEY_POPUP_IMMOVABLE}=${popup_immovable}"
     echo "#"
     echo "# POPUP_AUTO_CLOSE: Automatically close popup window 10 seconds after minimum display time completes"
     echo "# Default: true (enabled by default)"
@@ -104,7 +104,7 @@ _write_config_header() {
     echo "# If minimum display time is 0, auto-close happens after 10 seconds"
     echo "# Auto-close time is fixed at 10 seconds (not configurable)"
     echo "# This is Enhancement #15 (Auto-Close Popup Window)"
-    echo "POPUP_AUTO_CLOSE=${popup_auto_close}"
+    echo "${CONFIG_KEY_POPUP_AUTO_CLOSE}=${popup_auto_close}"
     echo "#"
     echo "# CONFIGURE_BLOCK_ENABLED: Restrict configure.sh and manage.sh to tighten-only edits during restricted hours"
     echo "# Default: false (opt-in feature)"
@@ -112,7 +112,7 @@ _write_config_header() {
     echo "# settings can be made stricter but not loosened, removed, or disabled, to prevent circumventing"
     echo "# restrictions. Disabling the service and uninstalling remain available (see docs/SAFETY.md)."
     echo "# This is Enhancement #19 (formerly full block; now tighten-only partial lock, lib/configure-partial-lock.sh)"
-    echo "CONFIGURE_BLOCK_ENABLED=${configure_block_enabled}"
+    echo "${CONFIG_KEY_CONFIGURE_BLOCK_ENABLED}=${configure_block_enabled}"
     # Add comment if configure block was disabled due to high restrictions
     if [ "${configure_block_overridden}" = "true" ]; then
         echo "# CONFIGURE_BLOCK_ENABLED has been disabled because restrictions exceed 16 hours/day."
@@ -128,24 +128,24 @@ _write_config_header() {
     echo "# users from circumventing restrictions by uninstalling the system."
     echo "# This is Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours)"
     echo "# Note: Total block mode may be considered as future phase"
-    echo "UNINSTALL_PROTECTION_MODE=${uninstall_protection_mode}"
+    echo "${CONFIG_KEY_UNINSTALL_PROTECTION_MODE}=${uninstall_protection_mode}"
     echo "#"
     echo "# PAUSE_ENABLED: Enable/disable pause feature for warning popups"
     echo "# Default: true"
     echo "# When enabled, users can pause warning popups for a configured duration"
     echo "# directly from the warning popup window. Pause only suppresses popups, not restrictions."
     echo "# This is Enhancement #21 (One-Time Pause Feature)"
-    echo "PAUSE_ENABLED=${pause_enabled}"
+    echo "${CONFIG_KEY_PAUSE_ENABLED}=${pause_enabled}"
     echo "#"
     echo "# PAUSE_DURATION: Duration of pause in minutes (1, 2, 3, 5, 10, or 15)"
     echo "# Default: 5 minutes"
     echo "# This controls how long warning popups are paused when user clicks pause button"
-    echo "PAUSE_DURATION=${pause_duration}"
+    echo "${CONFIG_KEY_PAUSE_DURATION}=${pause_duration}"
     echo "#"
     echo "# PAUSE_COOLDOWN_HOURS: Minimum hours between pause activations (6, 8, 12, or 24)"
     echo "# Default: 24 hours (matches prior once-per-calendar-day behavior when key is absent)"
     echo "# After a pause ends, another pause cannot start until this cooldown elapses."
-    echo "PAUSE_COOLDOWN_HOURS=${pause_cooldown_hours}"
+    echo "${CONFIG_KEY_PAUSE_COOLDOWN_HOURS}=${pause_cooldown_hours}"
     echo "#"
     echo "# DIALOG_TOOL: Dialog tool selection for popup windows"
     echo "# Default: auto (uses automatic priority: YAD → Zenity → KDialog)"
@@ -156,7 +156,7 @@ _write_config_header() {
     echo "#   kdialog - Force use of kdialog (if installed)"
     echo "# If selected tool is not installed, system falls back to automatic selection"
     echo "# This is Enhancement #25 (User-Selectable Dialog Tool)"
-    echo "DIALOG_TOOL=${dialog_tool}"
+    echo "${CONFIG_KEY_DIALOG_TOOL}=${dialog_tool}"
     echo "#"
     echo "# CONFIG_LOCK_ENABLED: Enable/disable config file locking during restricted hours"
     echo "# Default: false (opt-in feature)"
@@ -165,7 +165,7 @@ _write_config_header() {
     echo "# by changing settings. This is a deterrence mechanism, not true security."
     echo "# This is Enhancement #18 (Config File Locking During Restricted Hours)"
     echo "# Note: Automatically disabled if restrictions exceed ${THRESHOLD_WARN} minutes/week (> $(get_threshold_warn_description)) (Enhancement #22)"
-    echo "CONFIG_LOCK_ENABLED=${config_lock_enabled}"
+    echo "${CONFIG_KEY_CONFIG_LOCK_ENABLED}=${config_lock_enabled}"
     echo "#"
     echo "# This file was generated by the configuration wizard on $(date)"
 
@@ -284,8 +284,8 @@ write_config() {
     
     # Extract config_lines array, optional lock_hours_lines array, optional uninstall_lock_hours_lines array, and optional override flags
     # config_lines values are always "DAYVAR=RANGE" format (e.g., "MONDAY=0-5")
-    # lock_hours_lines values are always "CONFIG_LOCK_HOURS_DAYNAME=RANGE" format (e.g., "CONFIG_LOCK_HOURS_MONDAY=9-17")
-    # uninstall_lock_hours_lines values are always "UNINSTALL_LOCK_HOURS_DAYNAME=RANGE" format (e.g., "UNINSTALL_LOCK_HOURS_MONDAY=9-17")
+    # lock_hours_lines values are always "${CONFIG_KEY_PREFIX_CONFIG_LOCK_HOURS}_DAYNAME=RANGE" format (e.g., "CONFIG_LOCK_HOURS_MONDAY=9-17")
+    # uninstall_lock_hours_lines values are always "${CONFIG_KEY_PREFIX_UNINSTALL_LOCK_HOURS}_DAYNAME=RANGE" format (e.g., "UNINSTALL_LOCK_HOURS_MONDAY=9-17")
     # Override flags are always "true" or empty string, and never contain "="
     local popup_size_overridden=""
     local configure_block_overridden=""
@@ -297,18 +297,18 @@ write_config() {
     local all_args=("$@")
     local arg_count=${#all_args[@]}
     
-    # Find where lock_hours_lines start (first argument with "CONFIG_LOCK_HOURS_" prefix)
+    # Find where lock_hours_lines start (first argument with "${CONFIG_KEY_PREFIX_CONFIG_LOCK_HOURS}_" prefix)
     local lock_hours_start=-1
-    # Find where uninstall_lock_hours_lines start (first argument with "UNINSTALL_LOCK_HOURS_" prefix)
+    # Find where uninstall_lock_hours_lines start (first argument with "${CONFIG_KEY_PREFIX_UNINSTALL_LOCK_HOURS}_" prefix)
     local uninstall_lock_hours_start=-1
     local override_flags_start=-1
     
     for i in "${!all_args[@]}"; do
-        if [[ "${all_args[${i}]}" =~ ^CONFIG_LOCK_HOURS_ ]]; then
+        if [[ "${all_args[${i}]}" =~ ^${CONFIG_KEY_PREFIX_CONFIG_LOCK_HOURS}_ ]]; then
             if [ ${lock_hours_start} -eq -1 ]; then
                 lock_hours_start=${i}
             fi
-        elif [[ "${all_args[${i}]}" =~ ^UNINSTALL_LOCK_HOURS_ ]]; then
+        elif [[ "${all_args[${i}]}" =~ ^${CONFIG_KEY_PREFIX_UNINSTALL_LOCK_HOURS}_ ]]; then
             if [ ${uninstall_lock_hours_start} -eq -1 ]; then
                 uninstall_lock_hours_start=${i}
             fi

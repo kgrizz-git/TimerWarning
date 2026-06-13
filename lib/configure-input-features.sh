@@ -31,5 +31,7 @@ source "${_CONFIGURE_INPUT_FEATURES_DIR}/configure-input-security.sh"
 source "${_CONFIGURE_INPUT_FEATURES_DIR}/configure-input-pause.sh"
 # shellcheck disable=SC1090
 source "${_CONFIGURE_INPUT_FEATURES_DIR}/configure-input-dialog-tool.sh"
+# shellcheck disable=SC1090
+source "${_CONFIGURE_INPUT_FEATURES_DIR}/config-keys.sh"
 
 unset _CONFIGURE_INPUT_FEATURES_DIR

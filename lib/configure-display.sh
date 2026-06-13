@@ -68,7 +68,7 @@ _get_effective_popup_size_mode() {
         size_mode="${popup_size_mode_override}"
     elif [ "${CONFIGURE_ALLOW_DISK_FALLBACK:-}" = "1" ] && [ -f "${CONFIG_FILE}" ]; then
         local existing_mode
-        existing_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        existing_mode=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_SIZE_MODE}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [ "${existing_mode}" = "display-based" ]; then
             size_mode="display-based"
         fi
@@ -116,7 +116,7 @@ format_popup_size_display() {
                 if [ -n "${popup_size_custom_override}" ]; then
                     custom_size="${popup_size_custom_override}"
                 elif [ "${CONFIGURE_ALLOW_DISK_FALLBACK:-}" = "1" ] && [ -f "${CONFIG_FILE}" ]; then
-                    custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    custom_size=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_SIZE_CUSTOM}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
                 fi
                 if [ -n "${custom_size}" ]; then
                     popup_size_display="custom [${custom_size}]"
@@ -158,7 +158,7 @@ format_popup_size_display() {
                 if [ -n "${popup_size_custom_absolute_override}" ] && echo "${popup_size_custom_absolute_override}" | grep -qE '^[0-9]+x[0-9]+$'; then
                     custom_absolute="${popup_size_custom_absolute_override}"
                 elif [ "${CONFIGURE_ALLOW_DISK_FALLBACK:-}" = "1" ] && [ -f "${CONFIG_FILE}" ]; then
-                    custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+                    custom_absolute=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_SIZE_CUSTOM_ABSOLUTE}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
                 fi
                 if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
                     # Note: keep the original "WIDTHxHEIGHT" value in brackets.
@@ -186,6 +186,8 @@ format_popup_size_display() {
 
 
 _CONFIGURE_DISPLAY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090
+source "${_CONFIGURE_DISPLAY_DIR}/config-keys.sh"
 # shellcheck disable=SC1090
 source "${_CONFIGURE_DISPLAY_DIR}/configure-display-menu.sh"
 source "${_CONFIGURE_DISPLAY_DIR}/configure-display-grid.sh"

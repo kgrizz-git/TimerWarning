@@ -38,9 +38,9 @@ load_existing_config() {
     
     # Read popup display frequency (Enhancement #30); fallback to CHECK_INTERVAL for migration
     local existing_freq
-    existing_freq=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    existing_freq=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_DISPLAY_FREQUENCY}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     if [ -z "${existing_freq}" ] || ! [[ "${existing_freq}" =~ ^[0-9]+$ ]]; then
-        existing_freq=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        existing_freq=$(grep -E "^[[:space:]]*${CONFIG_KEY_CHECK_INTERVAL}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     fi
     if [ -n "${existing_freq}" ] && [[ "${existing_freq}" =~ ^[0-9]+$ ]] && [ "${existing_freq}" -ge 1 ] && [ "${existing_freq}" -le 60 ]; then
         declare -g check_interval="${existing_freq}"
@@ -48,14 +48,14 @@ load_existing_config() {
     
     # Read popup size
     local existing_size
-    existing_size=$(grep -E "^[[:space:]]*POPUP_SIZE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    existing_size=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_SIZE}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     if [ -n "${existing_size}" ]; then
         declare -g popup_size="${existing_size}"
     fi
     
     # Read popup size mode (Enhancement #3)
     local existing_size_mode
-    existing_size_mode=$(grep -E "^[[:space:]]*POPUP_SIZE_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    existing_size_mode=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_SIZE_MODE}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     if [ "${existing_size_mode}" = "display-based" ]; then
         declare -g popup_size_mode="display-based"
     else
@@ -65,35 +65,35 @@ load_existing_config() {
     
     # Read popup custom size (Enhancement #3)
     local existing_custom_size
-    existing_custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    existing_custom_size=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_SIZE_CUSTOM}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     if [ -n "${existing_custom_size}" ]; then
         declare -g popup_size_custom="${existing_custom_size}"
     fi
     
     # Read popup custom size absolute fallback (Enhancement #3)
     local existing_custom_absolute
-    existing_custom_absolute=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM_ABSOLUTE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    existing_custom_absolute=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_SIZE_CUSTOM_ABSOLUTE}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     if [ -n "${existing_custom_absolute}" ] && echo "${existing_custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
         declare -g popup_size_custom_absolute="${existing_custom_absolute}"
     fi
     
     # Read popup position
     local existing_position
-    existing_position=$(grep -E "^[[:space:]]*POPUP_POSITION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    existing_position=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_POSITION}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     if [ -n "${existing_position}" ]; then
         declare -g popup_position="${existing_position}"
     fi
     
     # Read minimum display time
     local existing_time
-    existing_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    existing_time=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_MIN_DISPLAY_TIME}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     if [ -n "${existing_time}" ] && [[ "${existing_time}" =~ ^[0-9]+$ ]] && [ "${existing_time}" -ge 0 ] && [ "${existing_time}" -le 300 ]; then
         declare -g min_display_time="${existing_time}"
     fi
     
     # Read popup immovable setting
     local existing_immovable
-    existing_immovable=$(grep -E "^[[:space:]]*POPUP_IMMOVABLE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    existing_immovable=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_IMMOVABLE}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     if [ -n "${existing_immovable}" ]; then
         if [ "${existing_immovable}" = "true" ] || [ "${existing_immovable}" = "1" ] || [ "${existing_immovable}" = "yes" ]; then
             declare -g popup_immovable="true"
@@ -104,7 +104,7 @@ load_existing_config() {
     
     # Read popup auto-close setting (Enhancement #15)
     local existing_auto_close
-    existing_auto_close=$(grep -E "^[[:space:]]*POPUP_AUTO_CLOSE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    existing_auto_close=$(grep -E "^[[:space:]]*${CONFIG_KEY_POPUP_AUTO_CLOSE}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     if [ -n "${existing_auto_close}" ]; then
         if [ "${existing_auto_close}" = "true" ] || [ "${existing_auto_close}" = "1" ] || [ "${existing_auto_close}" = "yes" ]; then
             declare -g popup_auto_close="true"
@@ -115,7 +115,7 @@ load_existing_config() {
     
     # Read configure block enabled setting (Enhancement #19)
     local existing_block_enabled
-    existing_block_enabled=$(grep -E "^[[:space:]]*CONFIGURE_BLOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    existing_block_enabled=$(grep -E "^[[:space:]]*${CONFIG_KEY_CONFIGURE_BLOCK_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     if [ -n "${existing_block_enabled}" ]; then
         if [ "${existing_block_enabled}" = "true" ] || [ "${existing_block_enabled}" = "1" ] || [ "${existing_block_enabled}" = "yes" ]; then
             declare -g configure_block_enabled="true"
@@ -126,12 +126,12 @@ load_existing_config() {
     
     # Read uninstall protection mode setting (Enhancement #26)
     local existing_protection_mode
-    existing_protection_mode=$(grep -E "^[[:space:]]*UNINSTALL_PROTECTION_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    existing_protection_mode=$(grep -E "^[[:space:]]*${CONFIG_KEY_UNINSTALL_PROTECTION_MODE}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     
     # Check for legacy UNINSTALL_BLOCK_ENABLED for backward compatibility
     if [ -z "${existing_protection_mode}" ]; then
         local legacy_block_enabled
-        legacy_block_enabled=$(grep -E "^[[:space:]]*UNINSTALL_BLOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        legacy_block_enabled=$(grep -E "^[[:space:]]*${CONFIG_KEY_UNINSTALL_BLOCK_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [ "${legacy_block_enabled}" = "true" ] || [ "${legacy_block_enabled}" = "1" ] || [ "${legacy_block_enabled}" = "yes" ]; then
             # Legacy setting found - map to "difficult" (total block not available in Phase 1)
             declare -g uninstall_protection_mode="difficult"
@@ -145,7 +145,7 @@ load_existing_config() {
     
     # Read pause enabled setting (Enhancement #21)
     local existing_pause_enabled
-    existing_pause_enabled=$(grep -E "^[[:space:]]*PAUSE_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    existing_pause_enabled=$(grep -E "^[[:space:]]*${CONFIG_KEY_PAUSE_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     if [ -n "${existing_pause_enabled}" ]; then
         if [ "${existing_pause_enabled}" = "true" ] || [ "${existing_pause_enabled}" = "1" ] || [ "${existing_pause_enabled}" = "yes" ]; then
             declare -g pause_enabled="true"
@@ -156,7 +156,7 @@ load_existing_config() {
     
     # Read pause duration setting (Enhancement #21)
     local existing_pause_duration
-    existing_pause_duration=$(grep -E "^[[:space:]]*PAUSE_DURATION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    existing_pause_duration=$(grep -E "^[[:space:]]*${CONFIG_KEY_PAUSE_DURATION}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     if [ -n "${existing_pause_duration}" ] && [[ "${existing_pause_duration}" =~ ^[0-9]+$ ]]; then
         if type pause_is_valid_duration_minutes >/dev/null 2>&1; then
             if pause_is_valid_duration_minutes "${existing_pause_duration}"; then
@@ -168,7 +168,7 @@ load_existing_config() {
     fi
 
     local existing_pause_cooldown_hours
-    existing_pause_cooldown_hours=$(grep -E "^[[:space:]]*PAUSE_COOLDOWN_HOURS=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    existing_pause_cooldown_hours=$(grep -E "^[[:space:]]*${CONFIG_KEY_PAUSE_COOLDOWN_HOURS}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
     if [ -n "${existing_pause_cooldown_hours}" ] && [[ "${existing_pause_cooldown_hours}" =~ ^[0-9]+$ ]]; then
         if type pause_is_valid_cooldown_hours >/dev/null 2>&1; then
             if pause_is_valid_cooldown_hours "${existing_pause_cooldown_hours}"; then
@@ -182,7 +182,7 @@ load_existing_config() {
     
     # Read dialog tool setting (Enhancement #25)
     local existing_dialog_tool
-    existing_dialog_tool=$(grep -E "^[[:space:]]*DIALOG_TOOL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    existing_dialog_tool=$(grep -E "^[[:space:]]*${CONFIG_KEY_DIALOG_TOOL}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     if [ -n "${existing_dialog_tool}" ]; then
         # Validate value
         case "${existing_dialog_tool}" in
@@ -195,7 +195,7 @@ load_existing_config() {
     
     # Read config lock enabled setting (Enhancement #18)
     local existing_config_lock_enabled
-    existing_config_lock_enabled=$(grep -E "^[[:space:]]*CONFIG_LOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    existing_config_lock_enabled=$(grep -E "^[[:space:]]*${CONFIG_KEY_CONFIG_LOCK_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
     if [ -n "${existing_config_lock_enabled}" ]; then
         if [ "${existing_config_lock_enabled}" = "true" ] || [ "${existing_config_lock_enabled}" = "1" ] || [ "${existing_config_lock_enabled}" = "yes" ]; then
             declare -g config_lock_enabled="true"
@@ -243,7 +243,7 @@ load_existing_config() {
     
     for i in 0 1 2 3 4 5 6; do
         local day_var="${DAY_VARS[${i}]}"
-        local lock_var="CONFIG_LOCK_HOURS_${day_var}"
+        local lock_var="${CONFIG_KEY_PREFIX_CONFIG_LOCK_HOURS}_${day_var}"
         
         # Check if lock hours line exists in config file (even if empty)
         local lock_line_exists
@@ -276,7 +276,7 @@ load_existing_config() {
     
     for i in 0 1 2 3 4 5 6; do
         local day_var="${DAY_VARS[${i}]}"
-        local uninstall_lock_var="UNINSTALL_LOCK_HOURS_${day_var}"
+        local uninstall_lock_var="${CONFIG_KEY_PREFIX_UNINSTALL_LOCK_HOURS}_${day_var}"
         
         # Check if uninstall lock hours line exists in config file (even if empty)
         local uninstall_lock_line_exists

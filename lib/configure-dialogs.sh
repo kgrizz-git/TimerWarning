@@ -14,7 +14,7 @@
 #   - show_info_dialog()      - Information message
 #   - show_question_dialog()  - Yes/No question
 #   - show_confirm_dialog()   - Yes/No after a list/time dialog (macOS z-order safe)
-#   - show_entry_dialog()     - Text input
+#   - show_entry_dialog()     - Text input (toolkit dispatch: configure-dialogs-dispatch.sh)
 #   - show_list_dialog()      - Selection from list
 #   - show_text_info_dialog() - Display text file/content
 #
@@ -125,6 +125,10 @@ _CONFIGURE_DIALOGS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "${_CONFIGURE_DIALOGS_DIR}/configure-dialogs-time.sh" ]; then
     source "${_CONFIGURE_DIALOGS_DIR}/configure-dialogs-time.sh"
 fi
+# shellcheck disable=SC1090
+if [ -f "${_CONFIGURE_DIALOGS_DIR}/configure-dialogs-dispatch.sh" ]; then
+    source "${_CONFIGURE_DIALOGS_DIR}/configure-dialogs-dispatch.sh"
+fi
 unset _CONFIGURE_DIALOGS_DIR
 
 # Show yes/no question dialog
@@ -203,83 +207,16 @@ show_entry_dialog() {
     
     case "${tool}" in
         yad)
-            if [ -n "${extra_button}" ]; then
-                # YAD supports --extra-button
-                local result
-                result=$(yad --entry --title="${title}" --text="${text}" \
-                    --entry-text="${default_value}" \
-                    --extra-button="${extra_button}" \
-                    --button="OK:0" --button="Cancel:1" \
-                    2>/dev/null)
-                local exit_code=$?
-                # YAD returns button label on extra button click
-                if [ ${exit_code} -eq 1 ] && [ "${result}" = "${extra_button}" ]; then
-                    echo "EXTRA_BUTTON:${extra_button}"
-                    return 1
-                elif [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
-                    # YAD may append button text, extract just the entry value
-                    echo "${result%%|*}"
-                    return 0
-                else
-                    return 1
-                fi
-            else
-                local result
-                result=$(yad --entry --title="${title}" --text="${text}" \
-                    --entry-text="${default_value}" \
-                    --button="OK:0" --button="Cancel:1" \
-                    2>/dev/null)
-                local exit_code=$?
-                if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
-                    # YAD may append button text, extract just the entry value
-                    echo "${result%%|*}"
-                fi
-                return ${exit_code}
-            fi
+            _show_entry_yad "${title}" "${text}" "${default_value}" "${extra_button}"
+            return $?
             ;;
         zenity)
-            if [ -n "${extra_button}" ]; then
-                # Zenity supports --extra-button
-                local tmpfile
-                tmpfile=$(mktemp)
-                zenity --entry --title="${title}" --text="${text}" \
-                    --entry-text="${default_value}" \
-                    --extra-button="${extra_button}" \
-                    > "${tmpfile}" 2>/dev/null
-                local exit_code=$?
-                local result=$(cat "${tmpfile}" 2>/dev/null)
-                rm -f "${tmpfile}"
-                # Zenity returns button label in result on extra button click
-                if [ ${exit_code} -eq 1 ] && [ "${result}" = "${extra_button}" ]; then
-                    echo "EXTRA_BUTTON:${extra_button}"
-                    return 1
-                elif [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
-                    echo "${result}"
-                    return 0
-                else
-                    return 1
-                fi
-            else
-                local result
-                result=$(zenity --entry --title="${title}" --text="${text}" \
-                    --entry-text="${default_value}" 2>/dev/null)
-                local exit_code=$?
-                if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
-                    echo "${result}"
-                fi
-                return ${exit_code}
-            fi
+            _show_entry_zenity "${title}" "${text}" "${default_value}" "${extra_button}"
+            return $?
             ;;
         kdialog)
-            # KDialog doesn't support extra buttons, so ignore extra_button parameter
-            local result
-            result=$(kdialog --title "${title}" --inputbox "${text}" "${default_value}" \
-                2>/dev/null)
-            local exit_code=$?
-            if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
-                echo "${result}"
-            fi
-            return ${exit_code}
+            _show_entry_kdialog "${title}" "${text}" "${default_value}"
+            return $?
             ;;
         *)
             return 1
@@ -453,16 +390,7 @@ show_multi_column_list_dialog() {
     
     # Helper function to check if argument looks like a column name
     is_likely_column_name() {
-        local arg="$1"
-        # Single letter is always a column name
-        [[ "${arg}" =~ ^[A-Za-z]$ ]] && return 0
-        # Single word (no spaces) and reasonable length (<=12 chars) - likely column name
-        [[ ! "${arg}" =~ \  ]] && [[ "${arg}" =~ ^[A-Za-z]+$ ]] && [ ${#arg} -le 12 ] && return 0
-        # Short phrase (letters/spaces only, reasonable length) - likely column name
-        # This must allow multi-word headers like "Restricted Hours" / "Config Lock Hours".
-        [[ "${arg}" =~ ^[A-Za-z][A-Za-z\ ]*[A-Za-z]$ ]] && [ ${#arg} -le 40 ] && return 0
-        # Otherwise, likely data
-        return 1
+        _dialog_is_likely_column_name "$1"
     }
     
     if [ $# -ge 4 ]; then
@@ -538,135 +466,19 @@ show_multi_column_list_dialog() {
     
     case "${tool}" in
         yad)
-            # YAD uses same format as Zenity: --column flags + flat data array
-            # YAD uses pipe (|) as default separator, so we need to handle it
-            # Use --fixed to enforce dimensions (prevents YAD from auto-resizing based on text)
-            local yad_args=("--list" "--title=${title}" "--text=${text}" \
-                "--width=${width}" "--height=${height}" \
-                "--fixed" \
-                "--print-column=${print_column}" \
-                "--separator=")
-            
-            # Add column definitions
-            for col_name in "${column_names[@]}"; do
-                yad_args+=("--column=${col_name}")
-            done
-            
-            # Add data (already in correct alternating format)
-            yad_args+=("${data[@]}")
-            
-            local result
-            result=$(yad "${yad_args[@]}" 2>/dev/null)
-            local exit_code=$?
-            
-            # YAD may still return pipe-separated values even with --separator=""
-            # Extract just the first column if multiple columns are returned
-            if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
-                # If result contains pipe, take only the part before the first pipe
-                echo "${result%%|*}"
-            else
-                echo "${result}"
-            fi
-            return ${exit_code}
+            _show_multi_column_list_yad "${title}" "${text}" "${width}" "${height}" \
+                "${print_column}" column_names data
+            return $?
             ;;
         zenity)
-            # Zenity uses same format: --column flags + flat data array
-            local zenity_args=("--list" "--title=${title}" "--text=${text}" \
-                "--width=${width}" "--height=${height}" \
-                "--print-column=${print_column}")
-            
-            # Add column definitions
-            for col_name in "${column_names[@]}"; do
-                zenity_args+=("--column=${col_name}")
-            done
-            
-            # Add data (already in correct alternating format)
-            zenity_args+=("${data[@]}")
-            
-            local result
-            result=$(zenity "${zenity_args[@]}" 2>/dev/null)
-            local exit_code=$?
-            if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
-                # Trim whitespace and newlines
-                result=$(echo "${result}" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                if [ -n "${result}" ]; then
-                    echo "${result}"
-                else
-                    # Result became empty after trimming - treat as cancellation
-                    return 1
-                fi
-            fi
-            return ${exit_code}
+            _show_multi_column_list_zenity "${title}" "${text}" "${width}" "${height}" \
+                "${print_column}" column_names data
+            return $?
             ;;
         kdialog)
-            # KDialog uses --menu with tag/item pairs
-            # For multi-column: use first column as tag, concatenate others as description
-            # Include column headers in the text parameter since kdialog --menu doesn't support column headers
-            local header_text="${text}"
-            if [ ${num_columns} -gt 1 ]; then
-                # Build column header line
-                local header_line=""
-                for col_idx in $(seq 0 $((num_columns - 1))); do
-                    if [ ${col_idx} -gt 0 ]; then
-                        header_line="${header_line} | "
-                    fi
-                    header_line="${header_line}${column_names[${col_idx}]}"
-                done
-                # Append header line to text (use $'\n' for newline in bash)
-                header_text="${text}"$'\n\n'"Columns: ${header_line}"
-            fi
-            local kdialog_args=("--title" "${title}" "--menu" "${header_text}")
-            local i=0
-            local num_data=${#data[@]}
-            
-            # Process data in chunks of num_columns
-            while [ $i -lt $num_data ]; do
-                local tag="${data[$i]}"
-                local desc=""
-                
-                # Build description from all columns in this row (including Day column)
-                # Format: "Day | value | value | value" (column headers are shown in text parameter above)
-                if [ ${num_columns} -gt 1 ]; then
-                    local col_idx=0
-                    while [ ${col_idx} -lt ${num_columns} ] && [ $((i + col_idx)) -lt ${num_data} ]; do
-                        if [ ${col_idx} -gt 0 ]; then
-                            desc="${desc} | "
-                        fi
-                        desc="${desc}${data[$((i + col_idx))]}"
-                        col_idx=$((col_idx + 1))
-                    done
-                else
-                    desc="${tag}"
-                fi
-                
-                kdialog_args+=("${tag}" "${desc}")
-                i=$((i + num_columns))
-            done
-            
-            local result
-            result=$(kdialog "${kdialog_args[@]}" 2>/dev/null)
-            local exit_code=$?
-            # Convert tag back to item (result is the tag, which is the first column value)
-            if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
-                # Find the row index where this tag appears
-                local row_idx=0
-                while [ ${row_idx} -lt ${num_data} ]; do
-                    if [ "${data[${row_idx}]}" = "${result}" ]; then
-                        # Found the row - return the value from the requested column
-                        local target_col_idx=$((print_column - 1))
-                        if [ $((row_idx + target_col_idx)) -lt ${num_data} ]; then
-                            echo "${data[$((row_idx + target_col_idx))]}"
-                        else
-                            echo "${result}"  # Fallback to tag if column doesn't exist
-                        fi
-                        return ${exit_code}
-                    fi
-                    row_idx=$((row_idx + num_columns))
-                done
-                # Tag not found in data - return tag itself as fallback
-                echo "${result}"
-            fi
-            return ${exit_code}
+            _show_multi_column_list_kdialog "${title}" "${text}" "${width}" "${height}" \
+                "${print_column}" column_names data
+            return $?
             ;;
         *)
             return 1
@@ -674,250 +486,11 @@ show_multi_column_list_dialog() {
     esac
 }
 
-# Manage multiple time ranges for a day (Phase 2 - Enhancement #16c)
-# Parameters:
-#   $1: day_name (e.g., "Monday" or "Additional Block Hours - Monday")
-#   $2: existing_ranges (comma-separated normalized ranges, e.g., "00:00-05:00,23:00-05:00" or empty)
-# Returns: comma-separated normalized ranges string, or empty string on cancel
-manage_ranges_dialog() {
-    local day_name="$1"
-    local existing_ranges="${2:-}"
-    
-    # Derive short day name and title context for clear UI (Enhancement #16c – display day for which time is being set)
-    local display_day="${day_name}"
-    if [[ "${day_name}" = *" - "* ]]; then
-        display_day="${day_name##* - }"
-    fi
-    local title_context="Time ranges"
-    if [[ "${day_name}" = "Additional Block Hours - "* ]]; then
-        title_context="Additional block hours"
-    elif [[ "${day_name}" = "Uninstall Lock Hours - "* ]]; then
-        title_context="Uninstall lock hours"
-    fi
-    
-    # Parse existing ranges into array
-    local ranges_array=()
-    if [ -n "${existing_ranges}" ]; then
-        local old_ifs="${IFS}"
-        IFS=','
-        for range in ${existing_ranges}; do
-            range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            if [ -n "${range}" ]; then
-                ranges_array+=("${range}")
-            fi
-        done
-        IFS="${old_ifs}"
-    fi
-    
-    # Main loop: show list and handle actions
-    while true; do
-        # Build list items for display
-        local list_items=()
-        local i=0
-        for range in "${ranges_array[@]}"; do
-            local formatted
-            formatted=$(format_range_human "${range}" "${display_day}")
-            list_items+=("Range $((i + 1))" "${formatted}")
-            i=$((i + 1))
-        done
-        
-        # Build dialog text (show day clearly – Enhancement #16c)
-        local dialog_text="${title_context} for ${display_day}:"
-        if [ ${#ranges_array[@]} -eq 0 ]; then
-            dialog_text="${dialog_text}\n\nNo ranges configured yet."
-        fi
-        dialog_text="${dialog_text}\n\nPress Cancel to skip this day."
-        
-        # Show action selection dialog (Add/Remove with +/− for visibility)
-        local actions=("Add range (+)" "Edit range" "Remove range (−)" "Done" "Cancel")
-        if type configure_partial_lock_mode_enabled >/dev/null 2>&1 && configure_partial_lock_mode_enabled; then
-            actions=("Add range (+)" "Done" "Cancel")
-        fi
-        local action
-        action=$(show_list_dialog "${title_context} – ${display_day}" "${dialog_text}" 600 400 "${actions[@]}")
-        local action_exit=$?
-        
-        if [ ${action_exit} -ne 0 ] || [ -z "${action}" ]; then
-            # User cancelled - return empty to indicate cancellation
-            return 1
-        fi
-        
-        case "${action}" in
-            "Add range (+)")
-                # Add a new range
-                local new_range_input
-                new_range_input=$(show_time_selection_dialog "Add Time Range - ${display_day}" "" "" "${display_day}")
-                local add_exit=$?
-                
-                if [ ${add_exit} -eq 0 ] && [ -n "${new_range_input}" ]; then
-                    # Validate and normalize
-                    if ! validate_time_range "${new_range_input}"; then
-                        show_error_dialog "Invalid Time Range" "The time range format is invalid. Please enter a valid range (e.g., 11:30pm-5:30am or 23:30-05:30)."
-                        continue
-                    fi
-                    
-                    local normalized
-                    normalized=$(normalize_time_range "${new_range_input}")
-                    
-                    if ! validate_time_range "${normalized}"; then
-                        show_error_dialog "Invalid Time Range" "The time range could not be normalized. Please try again."
-                        continue
-                    fi
-                    
-                    # Add to array
-                    ranges_array+=("${normalized}")
-                fi
-                ;;
-                
-            "Edit range")
-                if [ ${#ranges_array[@]} -eq 0 ]; then
-                    show_info_dialog "No Ranges" "There are no ranges to edit. Please add a range first."
-                    continue
-                fi
-                
-                # Show range selection dialog
-                local range_items=()
-                local idx=0
-                for range in "${ranges_array[@]}"; do
-                    local formatted
-                    formatted=$(format_range_human "${range}" "${display_day}")
-                    range_items+=("Range $((idx + 1))" "${formatted}")
-                    idx=$((idx + 1))
-                done
-                
-                local selected_range_label
-                selected_range_label=$(show_multi_column_list_dialog \
-                    "Select Range to Edit - ${display_day}" \
-                    "Select a range to edit:" \
-                    500 300 \
-                    1 \
-                    "Range" "Time Range" \
-                    "${range_items[@]}")
-                
-                if [ -z "${selected_range_label}" ]; then
-                    continue
-                fi
-                
-                # Extract index from "Range N"
-                local range_idx
-                range_idx=$(echo "${selected_range_label}" | sed 's/Range //')
-                range_idx=$((range_idx - 1))
-                
-                if [ ${range_idx} -ge 0 ] && [ ${range_idx} -lt ${#ranges_array[@]} ]; then
-                    local range_to_edit="${ranges_array[${range_idx}]}"
-                    
-                    # Parse range to extract start and end times
-                    local start_part end_part
-                    start_part=$(echo "${range_to_edit}" | cut -d'-' -f1)
-                    end_part=$(echo "${range_to_edit}" | cut -d'-' -f2)
-                    
-                    # Edit the range
-                    local edited_range_input
-                    edited_range_input=$(show_time_selection_dialog "Edit Time Range - ${display_day}" "${start_part}" "${end_part}" "${display_day}")
-                    local edit_exit=$?
-                    
-                    if [ ${edit_exit} -eq 0 ] && [ -n "${edited_range_input}" ]; then
-                        # Validate and normalize
-                        if ! validate_time_range "${edited_range_input}"; then
-                            show_error_dialog "Invalid Time Range" "The time range format is invalid. Please enter a valid range."
-                            continue
-                        fi
-                        
-                        local normalized
-                        normalized=$(normalize_time_range "${edited_range_input}")
-                        
-                        if ! validate_time_range "${normalized}"; then
-                            show_error_dialog "Invalid Time Range" "The time range could not be normalized. Please try again."
-                            continue
-                        fi
-                        
-                        # Replace in array
-                        ranges_array[${range_idx}]="${normalized}"
-                    fi
-                fi
-                ;;
-                
-            "Remove range (−)")
-                if [ ${#ranges_array[@]} -eq 0 ]; then
-                    show_info_dialog "No Ranges" "There are no ranges to remove."
-                    continue
-                fi
-                
-                # Show range selection dialog
-                local range_items=()
-                local idx=0
-                for range in "${ranges_array[@]}"; do
-                    local formatted
-                    formatted=$(format_range_human "${range}" "${display_day}")
-                    range_items+=("Range $((idx + 1))" "${formatted}")
-                    idx=$((idx + 1))
-                done
-                
-                local selected_range_label
-                selected_range_label=$(show_multi_column_list_dialog \
-                    "Select Range to Remove - ${display_day}" \
-                    "Select a range to remove:" \
-                    500 300 \
-                    1 \
-                    "Range" "Time Range" \
-                    "${range_items[@]}")
-                
-                if [ -z "${selected_range_label}" ]; then
-                    continue
-                fi
-                
-                # Extract index from "Range N"
-                local range_idx
-                range_idx=$(echo "${selected_range_label}" | sed 's/Range //')
-                range_idx=$((range_idx - 1))
-                
-                if [ ${range_idx} -ge 0 ] && [ ${range_idx} -lt ${#ranges_array[@]} ]; then
-                    local range_to_remove="${ranges_array[${range_idx}]}"
-                    local formatted_remove
-                    formatted_remove=$(format_range_human "${range_to_remove}" "${display_day}")
-                    
-                    # Confirm removal (use show_confirm_dialog — display alert hides behind
-                    # the terminal on macOS after choose-from-list; see configure-ui.sh).
-                    if show_confirm_dialog "Confirm Removal" "Remove this range?\n\n${formatted_remove}" "Yes, Remove" "Cancel" 500 200; then
-                        # Remove from array (create new array without this element)
-                        local new_array=()
-                        local i=0
-                        for r in "${ranges_array[@]}"; do
-                            if [ ${i} -ne ${range_idx} ]; then
-                                new_array+=("${r}")
-                            fi
-                            i=$((i + 1))
-                        done
-                        ranges_array=("${new_array[@]}")
-                    fi
-                fi
-                ;;
-                
-            "Done")
-                # Join ranges and return
-                if [ ${#ranges_array[@]} -eq 0 ]; then
-                    echo ""
-                    return 0
-                fi
-                
-                local result=""
-                local first=true
-                for r in "${ranges_array[@]}"; do
-                    if [ "${first}" = "true" ]; then
-                        result="${r}"
-                        first=false
-                    else
-                        result="${result},${r}"
-                    fi
-                done
-                echo "${result}"
-                return 0
-                ;;
-                
-            "Cancel")
-                # Return empty to indicate cancellation
-                return 1
-                ;;
-        esac
-    done
-}
+
+# Range add/edit/delete helpers and manage_ranges_dialog
+_CONFIGURE_DIALOGS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090
+if [ -f "${_CONFIGURE_DIALOGS_DIR}/configure-dialogs-ranges.sh" ]; then
+    source "${_CONFIGURE_DIALOGS_DIR}/configure-dialogs-ranges.sh"
+fi
+unset _CONFIGURE_DIALOGS_DIR

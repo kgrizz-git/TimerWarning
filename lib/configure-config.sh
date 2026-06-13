@@ -19,6 +19,8 @@
 
 _CONFIGURE_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1090
+source "${_CONFIGURE_CONFIG_DIR}/config-keys.sh"
+# shellcheck disable=SC1090
 source "${_CONFIGURE_CONFIG_DIR}/configure-config-load.sh"
 source "${_CONFIGURE_CONFIG_DIR}/configure-config-write.sh"
 unset _CONFIGURE_CONFIG_DIR

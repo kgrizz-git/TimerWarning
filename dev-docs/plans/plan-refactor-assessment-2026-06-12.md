@@ -244,21 +244,21 @@ Carried from May plan Phase 5. Blocked until Phase 0 `write_config()` gate passe
 
 **Target:** `lib/configure-dialogs.sh` (923 lines)
 
-- [ ] Extract toolkit dispatch helpers from `show_multi_column_list_dialog()` (~249 lines):
+- [x] Extract toolkit dispatch helpers from `show_multi_column_list_dialog()` (~249 lines):
   - `_show_multi_column_list_yad()`
   - `_show_multi_column_list_zenity()`
   - `_show_multi_column_list_kdialog()`
-- [ ] Extract from `manage_ranges_dialog()` (~242 lines):
+- [x] Extract from `manage_ranges_dialog()` (~242 lines):
   - `_manage_ranges_add()`
   - `_manage_ranges_edit()`
-  - `_manage_ranges_delete()`
-- [ ] Extract from `show_entry_dialog()` (99 lines):
+  - `_manage_ranges_delete()` (in `configure-dialogs-ranges.sh`)
+- [x] Extract from `show_entry_dialog()` (99 lines):
   - `_show_entry_yad()`, `_show_entry_zenity()`, `_show_entry_kdialog()`
-- [ ] Keep public API (`show_multi_column_list_dialog`, `manage_ranges_dialog`, `show_entry_dialog`) unchanged.
+- [x] Keep public API (`show_multi_column_list_dialog`, `manage_ranges_dialog`, `show_entry_dialog`) unchanged.
 
 ### Verification
 
-- [ ] Run: `tests/test-configure-text-mode.sh`, `tests/test-configure-gui-split.sh`, `tests/test-configure-dialogs.sh`
+- [x] Run: `tests/test-configure-text-mode.sh`, `tests/test-configure-gui-split.sh`, `tests/test-configure-dialogs.sh`
 - [ ] Manual smoke: range editing in yad, zenity, kdialog; text entry in all three
 
 **Exit criteria:** `configure-dialogs.sh` under 600 lines; new `lib/configure-dialogs-dispatch.sh` under 350 lines.
@@ -271,19 +271,19 @@ Carried from May plan Phase 5. Blocked until Phase 0 `write_config()` gate passe
 
 **Sequencing:** Run **after Phases 1–5** complete (not in parallel with active config-module refactors). Migrate file-by-file as each phase lands to avoid merge conflicts and missed references.
 
-- [ ] Create `lib/config-keys.sh`:
+- [x] Create `lib/config-keys.sh`:
   - Define constants for all config keys: `CONFIG_KEY_LOCK_HOURS`, `CONFIG_KEY_MIN_DISPLAY_TIME`, `CONFIG_KEY_DIALOG_TOOL`, etc.
   - Source directly from each migrated facade/module that uses the constants. Do not rely on `lib/config.sh` as the only source path because many tests source modules directly.
-- [ ] Migrate references in `lib/config.sh` first (highest density, ~79 references)
-- [ ] Migrate authoritative config access/formatting references in `lib/configure-config.sh`, `lib/configure-display.sh`, `lib/configure-input-features.sh`
-- [ ] Leave other files for incremental follow-up
+- [x] Migrate references in `lib/config.sh` first (highest density, ~79 references)
+- [x] Migrate authoritative config access/formatting references in `lib/configure-config.sh`, `lib/configure-display.sh`, `lib/configure-input-features.sh` (load/write submodules + display grep paths; features facade sources keys)
+- [ ] Leave other files for incremental follow-up (`status-config-display.sh`, etc.)
 
 ### Verification
 
-- [ ] Grep for remaining authoritative raw config key spellings in migrated config access/formatting logic. Comments, fixture strings, and intentional dynamic grep prefixes may remain if replacing them would reduce clarity.
-- [ ] Direct-source smoke for every migrated file that now depends on `config-keys.sh`.
-- [ ] All existing tests pass
-- [ ] `./scripts/run-security-scan.sh --ci`
+- [x] Grep for remaining authoritative raw config key spellings in migrated config access/formatting logic (comments/fixtures may retain literals)
+- [x] Direct-source smoke for every migrated file that now depends on `config-keys.sh`
+- [x] All existing tests pass (targeted: daily-caps, atomic-write, write-config-override, lock-hours, configure-text-mode)
+- [x] `./scripts/run-security-scan.sh --ci`
 
 **Exit criteria:** `lib/config-keys.sh` created; duplicated authoritative key spellings removed from `lib/config.sh`; migrated modules source constants directly and still pass direct-source smoke tests.
 
