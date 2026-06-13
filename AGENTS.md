@@ -101,3 +101,14 @@ After clone, enable repo hooks once:
 ```
 
 **pre-commit** runs [scripts/pre-commit-checks.sh](scripts/pre-commit-checks.sh): prune tracked `backups/` older than **3** commits, ShellCheck on staged `*.sh`, and `gitleaks protect --staged` when those tools are installed. Full scan: [scripts/run-security-scan.sh](scripts/run-security-scan.sh). Details: [docs/development/security-scanning.md](docs/development/security-scanning.md).
+
+## Learned User Preferences
+
+- Archive superseded implementation plans under `dev-docs/completed-plans/` (the repo's established archive, not a separate deferred folder).
+- Defer harness-engineering infrastructure work (CI tiers, Cursor rule hygiene, doc rehome) until the active refactor item in [dev-docs/TO_DO.md](dev-docs/TO_DO.md) is complete.
+- Keep `AGENTS.md` as a brief map; agent/harness detail belongs in `dev-docs/`, not in root `AGENTS.md`.
+
+## Learned Workspace Facts
+
+- Doc boundary: `docs/` is for end-users (safety, user-oriented reference); `dev-docs/` is for developers and coding agents (plans, assessments, harness workflow, backlog).
+- Post-refactor harness backlog is tracked in [dev-docs/TO_DO.md](dev-docs/TO_DO.md) under "Harness engineering (after refactor)".

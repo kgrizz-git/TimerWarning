@@ -200,22 +200,22 @@ Most `get_*_config()` functions share a read config → prompt → validate → 
 
 Carried from May plan Phase 5. Blocked until Phase 0 `write_config()` gate passes.
 
-- [ ] Create `lib/configure-config-load.sh`:
+- [x] Create `lib/configure-config-load.sh`:
   - Move `load_existing_config()` (~293 lines)
-  - Extract per-section parsers: `_parse_restricted_hours_section()`, `_parse_lock_hours_section()`, `_parse_pause_section()`, etc.
-- [ ] Create `lib/configure-config-write.sh`:
+  - Extract per-section parsers: `_parse_restricted_hours_section()`, `_parse_lock_hours_section()`, `_parse_pause_section()`, etc. — deferred (wholesale move first)
+- [x] Create `lib/configure-config-write.sh`:
   - Move `write_config()` (~242 lines)
-  - Extract per-section serializers: `_serialize_restricted_hours()`, `_serialize_lock_hours()`, `_serialize_pause()`, etc.
-  - `_write_config_header()` (142 lines) may stay or move depending on coupling
-- [ ] Keep `lib/configure-config.sh` as facade sourcing both submodules
-- [ ] Confirm serializers still invoke `configure-validation.sh` rules (16 h/day hard block unchanged)
-- [ ] Direct-source smoke: `source lib/configure-config.sh` exposes `load_existing_config` and `write_config` without requiring top-level `configure.sh`.
+  - Extract per-section serializers: `_serialize_restricted_hours()`, `_serialize_lock_hours()`, `_serialize_pause()`, etc. — existing `_write_*_section` helpers moved with write module
+  - `_write_config_header()` (142 lines) moved to write module
+- [x] Keep `lib/configure-config.sh` as facade sourcing both submodules (`update_timer_file()` retained in facade)
+- [x] Confirm serializers still invoke `configure-validation.sh` rules (16 h/day hard block unchanged) — validation unchanged; write path identical
+- [x] Direct-source smoke: `source lib/configure-config.sh` exposes `load_existing_config` and `write_config` without requiring top-level `configure.sh`.
 
 ### Verification
 
-- [ ] Run: `tests/test-atomic-write.sh`, `tests/test-write-config-override-flags.sh`, `tests/test-daily-caps.sh`, `tests/test-config-locking.sh`
+- [x] Run: `tests/test-atomic-write.sh`, `tests/test-write-config-override-flags.sh`, `tests/test-daily-caps.sh`, `tests/test-config-locking.sh`
 - [ ] Run: full configure wizard in text mode (bounded `configure.sh`)
-- [ ] ShellCheck; `./scripts/run-security-scan.sh --ci`
+- [x] ShellCheck; `./scripts/run-security-scan.sh --ci`
 
 **Exit criteria:** `configure-config.sh` under 500 lines; `write_config()` output byte-identical to pre-refactor for all test fixtures; no new implicit runtime sourcing in extracted config modules; validation hard blocks unchanged.
 
@@ -225,16 +225,16 @@ Carried from May plan Phase 5. Blocked until Phase 0 `write_config()` gate passe
 
 **Target:** `status.sh` (883 lines → ~400 facade + submodule)
 
-- [ ] Create `lib/status-config-display.sh`:
+- [x] Create `lib/status-config-display.sh`:
   - Move `show_configuration()` (~400 lines)
-  - Extract per-section formatters: `_format_restricted_hours_display()`, `_format_lock_hours_display()`, `_format_pause_display()`, etc.
-- [ ] Keep `status.sh` as thin entrypoint sourcing the submodule.
+  - Extract per-section formatters: `_format_restricted_hours_display()`, etc. — deferred; `format_*_human` helpers moved with display module
+- [x] Keep `status.sh` as thin entrypoint sourcing the submodule (installed + dev lib paths).
 
 ### Verification
 
-- [ ] Create `tests/test-status-display.sh` — capture `./status.sh` output before refactor; assert byte-identical after (no status tests currently exist)
-- [ ] Run: `tests/test-status-display.sh`
-- [ ] ShellCheck; `./scripts/run-security-scan.sh --ci`
+- [x] Create `tests/test-status-display.sh` — fixture + golden for `show_configuration()` output
+- [x] Run: `tests/test-status-display.sh`
+- [x] ShellCheck; `./scripts/run-security-scan.sh --ci`
 
 **Exit criteria:** `status.sh` under 450 lines; output text unchanged; `tests/test-status-display.sh` passes.
 

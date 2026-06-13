@@ -1,0 +1,29 @@
+
+=== CONFIGURATION ===
+  Popup display frequency:       10 minute(s)
+  Popup Size:                    medium
+  Popup Position:                center
+  Min Display Time:              30 seconds
+  Prevent Window Movement:       Enabled
+  Block Scripts During Restricted Hours: Disabled
+  Uninstall Protection:          Difficult Uninstall (Enabled)
+  Pause Feature:                 Enabled
+  Pause Duration:                5 minutes
+  Pause Cooldown:                24 hours
+
+=== PAUSE STATUS ===
+  Pause Status:                  Unable to check (pause-state.sh not available)
+  Dialog Tool:                   None available
+
+=== RESTRICTED HOURS ===
+  Monday:      7:00 AM → 11:00 PM
+
+=== LOCK HOURS (CONFIGURE/MANAGE SCRIPTS) ===
+  Tuesday:     9:00 AM → 5:00 PM
+
+
+=== UNINSTALL LOCK HOURS ===
+  No uninstall lock hours configured
+
+  → Use 'sleep-warning-configure' Uninstall Lock Hours menu to set optional uninstall lock hours
+  → Note: Uninstall lock hours only take effect when Uninstall Protection is set to 'difficult'

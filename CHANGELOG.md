@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Phase 6 refactor (`status.sh`):** Extracted configuration display to `lib/status-config-display.sh` (`show_configuration()` plus time-format helpers); `status.sh` 883→367 lines. New `tests/test-status-display.sh` with fixture golden file.
+
+- **Phase 5 refactor (`configure-config`):** Split load and write paths into `lib/configure-config-load.sh` and `configure-config-write.sh`; facade `configure-config.sh` 871→82 lines (retains `update_timer_file()`). Tests: `test-atomic-write.sh`, `test-write-config-override-flags.sh`, `test-daily-caps.sh`, `test-config-locking.sh`.
+
 - **Phase 3 refactor (`configure-display`):** Split menus, weekly grid, and summary into `lib/configure-display-menu.sh`, `configure-display-grid.sh`, and `configure-display-summary.sh`; facade `configure-display.sh` 1,338→193 lines. Grid module adds `_format_grid_row()` and `_validate_grid_edit()` for text-mode nesting reduction. Tests: `test-configure-text-mode.sh`, `test-enhancement-03-wizard.sh`, `test-configure-modular.sh`, `test-darwin-grid-cache.sh`, `test-daily-caps.sh`.
 
 - **Phase 2 refactor (`configure-ui`):** Extracted lock/cap/partial-lock error dialogs to `lib/configure-ui-errors.sh`; moved `calculate_restriction_end_time()` to `lib/time-calculations.sh`. `configure-ui.sh` 1,291→622 lines. Tests: `test-configure-partial-lock.sh`, cancel-menu tests, `test-configure-gui-split.sh`.

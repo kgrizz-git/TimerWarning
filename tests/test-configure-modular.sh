@@ -59,6 +59,9 @@ test_library_files_exist() {
     local expected_files=(
         "configure-core.sh"
         "configure-config.sh"
+        "configure-config-load.sh"
+        "configure-config-write.sh"
+        "status-config-display.sh"
         "configure-time.sh"
         "configure-ui.sh"
         "configure-input-basic.sh"
