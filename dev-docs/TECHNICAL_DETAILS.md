@@ -339,22 +339,25 @@ The `configure.sh` script provides a user-friendly way to set up restricted hour
 9. Confirm: "Save this configuration? (Yes/No)"
 10. Write to config file
 
-## 24/7 Restriction Prevention
+## Restriction validation (per-day cap + weekly backstop)
 
-The configuration wizard includes a critical safety feature that prevents users from accidentally configuring restrictions for all 24 hours, 7 days a week, which would effectively lock them out of their computer.
+The configuration wizard enforces the safety contract in [docs/SAFETY.md](../../docs/SAFETY.md).
 
-**Implementation Summary**:
-- Validation runs automatically when user attempts to save configuration (in `configure.sh`, case 6: "Review and Save")
-- Uses holistic time coverage analysis evaluating all 7 days together, including restriction hours, config lock hours, and uninstall lock hours
-- Detects and merges overlapping intervals (within-day, cross-day, and cross-type overlaps) to avoid double-counting
-- Compares total restricted minutes against thresholds:
-  - **>= 10080 minutes** (24/7): Configuration blocked, user must modify settings
-  - **> 6720 but < 10080 minutes** (16+ hours/day): Warning shown, automatic safety overrides applied if user confirms
-  - **<= 6720 minutes**: Configuration valid, proceeds normally
-- Handles overnight ranges, week wrap-around, and edge cases correctly
-- Module: `lib/configure-validation.sh` with `check_restriction_coverage()` function
+**Primary enforcer — per-day cap** (`lib/daily-caps.sh`, `check_daily_caps`):
+- On each calendar day, **restriction**, **configure-block**, and **uninstall-block** categories are checked independently.
+- Merged coverage per category must be ≤ 960 minutes (16 hours) per calendar day.
+- Violations **hard-block** save in the wizard; there is no override.
 
-**For detailed implementation information**, including validation algorithm, time range semantics, validation results, implementation details, edge cases, safety features, and related enhancements, see [enhancements/enhancement-22-prevent-24-7-restriction-configuration.md](enhancements/enhancement-22-prevent-24-7-restriction-configuration.md).
+**Defense in depth — weekly 24/7 backstop** (`lib/configure-validation.sh`, `check_restriction_coverage`):
+- Blocks saves when merged weekly totals indicate effective 24/7 lockout (≥ 10080 minutes across merged hour types).
+- May warn on high weekly totals between thresholds; the **per-day cap** is authoritative for any single calendar day.
+
+**Implementation summary**:
+- Validation runs when the user attempts to save (configure wizard review/save path).
+- Holistic merge across restriction, config lock, and uninstall lock hours; overnight and cross-day overlaps deduplicated.
+- Handles integer-hour (`7-23`) and `HH:MM` (`07:00-23:00`) formats consistently.
+
+**For historical enhancement context**, see [enhancements/enhancement-22-prevent-24-7-restriction-configuration.md](enhancements/enhancement-22-prevent-24-7-restriction-configuration.md).
 
 ## Config File Locking (Enhancement #18)
 
@@ -366,7 +369,7 @@ Config file locking is a deterrence feature that makes the configuration file an
 - **Self-Healing**: Runs on every timer tick to detect and restore tampering (config file deletion, permission changes)
 - **Integration**: Applied in `sleep-warning.sh` before restriction checking; checked in `configure.sh` before allowing edits; bypassed in `uninstall.sh` for safety
 - **Migration**: Automatically migrates config from `~/.config/sleep-warning/sleep-warning.conf` to `~/.config/sleep-warning/config/sleep-warning.conf` during installation
-- **Safety Features**: Automatically disabled if restrictions exceed 9660 minutes/week; uninstall script always works even during lock hours
+- **Safety Features**: Automatically disabled if per-day caps would be violated at runtime; uninstall script always works even during lock hours
 - **Limitations**: Deterrence-only feature; can be bypassed by stopping timer or changing permissions manually
 
 **For detailed implementation information**, including architecture, lock mechanism, lock state management, self-healing mechanism, integration points, migration process, safety features, edge cases, limitations, and testing, see [enhancements/enhancement-18-config-file-locking.md](enhancements/enhancement-18-config-file-locking.md).

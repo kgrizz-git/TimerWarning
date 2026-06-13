@@ -48,3 +48,4 @@ guard above applies regardless — treat any interactive script this way.
 
 - Changes are logged in [CHANGELOG.md](CHANGELOG.md) under `## [Unreleased]`.
 - Run `shellcheck -S error` on changed shell files (matches CI / pre-commit).
+- Developer harness: [dev-docs/README.md](dev-docs/README.md), [dev-docs/agent-workflow.md](dev-docs/agent-workflow.md). PR gate: `./scripts/run-tests.sh --tier a`.

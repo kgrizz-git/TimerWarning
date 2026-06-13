@@ -1,6 +1,8 @@
 # Copilot instructions — LinuxTimerWarning
 
-For the full agent guide see [AGENTS.md](../AGENTS.md) and [docs/SAFETY.md](../docs/SAFETY.md).
+For the full agent guide see [AGENTS.md](../AGENTS.md), [dev-docs/README.md](../dev-docs/README.md), and [docs/SAFETY.md](../docs/SAFETY.md).
+
+**Developer docs:** [dev-docs/development/agent-setup.md](../dev-docs/development/agent-setup.md) (tool-agnostic). **Tests:** `./scripts/run-tests.sh --tier a`.
 
 ## ⛔ Operational hazard — never run `configure.sh` unbounded
 

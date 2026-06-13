@@ -1,0 +1,30 @@
+---
+description: Bash project conventions — facades, tests, configure.sh safety, backups
+alwaysApply: true
+---
+
+# Project conventions (LinuxTimerWarning)
+
+Universal copy: [dev-docs/development/agent-setup.md](../../dev-docs/development/agent-setup.md). This rule is **Cursor-only**; other agents use `AGENTS.md` + `dev-docs/`.
+
+## Bash layout
+
+- Platform facades: `*-linux.sh`, `*-darwin.sh`; entry scripts source facades — do not assume systemd on macOS (`is_darwin` / `lib/platform.sh`).
+- New `lib/*.sh` modules: sourced by a facade; keep files under ~900 lines (allowlist exceptions documented in refactor/harness plans).
+- Match naming and style in surrounding files; smallest correct diff.
+
+## Configure / install tests
+
+- **Never** run `configure.sh` or `lib/configure-*.sh` menus unbounded — `timeout`, controlled stdin (`</dev/null` or finite input), bounded output. See `AGENTS.md` / `CLAUDE.md`.
+- Use temp `HOME` (`mktemp -d`) for install/configure tests; never edit live `~/.config/sleep-warning/` during restricted/blocked hours ([config-file-edits.mdc](config-file-edits.mdc)).
+- Verify: `./scripts/run-tests.sh --tier a`; `lib/` changes: `./scripts/run-security-scan.sh --ci` (or `--with-tests`).
+
+## Edits and quality
+
+- Backup production `lib/*.sh` and entry scripts to `backups/` before non-trivial refactors (per user workflow).
+- `shellcheck -S error` on changed shell files (matches pre-commit / CI).
+- Log user-visible changes in [CHANGELOG.md](../../CHANGELOG.md) under `[Unreleased]` ([dev-docs/development/versioning.md](../../dev-docs/development/versioning.md)).
+
+## Dialog tools (Linux)
+
+Support all three configure/popup tool paths where applicable: yad, zenity, kdialog — no tool-specific regressions.

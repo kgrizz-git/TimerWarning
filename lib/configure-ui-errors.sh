@@ -10,6 +10,15 @@
 # config.sh, time-parsing.sh, time-calculations.sh (calculate_restriction_end_time)
 ###############################################################################
 
+_configure_ui_errors_ensure_invariants() {
+    if type safety_invariant_footer >/dev/null 2>&1; then
+        return 0
+    fi
+    local _dir
+    _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # shellcheck disable=SC1091
+    [ -f "${_dir}/safety-invariants.sh" ] && source "${_dir}/safety-invariants.sh"
+}
 _configure_ui_errors_ensure_deps() {
     if type _configure_ui_ensure_time_parsing >/dev/null 2>&1; then
         _configure_ui_ensure_time_parsing
@@ -49,24 +58,30 @@ show_cap_violation_error() {
     local use_gui="$1"
     local violation_text="$2"
 
+    _configure_ui_errors_ensure_invariants
+
     local title="ERROR: Per-Day 16-Hour Cap Exceeded"
 
     # Build human-readable violation list
     local details=""
-    local line day cat mins
+    local line day cat mins inv_id
     while IFS='|' read -r day cat mins; do
         [ -z "${day}" ] && continue
         local hours=$(( mins / 60 ))
         local rem=$(( mins % 60 ))
         local cat_label
+        inv_id="$(safety_invariant_id_for_category "${cat}")"
         case "${cat}" in
             restriction)     cat_label="Restriction hours" ;;
             configure_block) cat_label="Configure-block hours" ;;
             uninstall_block) cat_label="Uninstall-block hours" ;;
             *)               cat_label="${cat}" ;;
         esac
-        details="${details}  • ${day}: ${cat_label} = ${hours}h ${rem}m (limit: 16h 0m)\n"
+        details="${details}  • [${inv_id}] ${day}: ${cat_label} = ${hours}h ${rem}m (limit: 16h 0m)\n"
     done <<< "${violation_text}"
+
+    local safety_footer
+    safety_footer="$(safety_invariant_footer "${INV_CAP_RESTRICTION_DAY}")"
 
     local message="🚫 Configuration cannot be saved.
 
@@ -80,7 +95,7 @@ Categories:
   • Configure-block hours — configure/manage lock (restriction + lock hours when enabled)
   • Uninstall-block hours — uninstall protection (restriction + uninstall-lock hours when enabled)
 
-Please reduce the configured hours to fix this before saving."
+Please reduce the configured hours to fix this before saving.${safety_footer}"
 
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         show_info_dialog "${title}" "${message}" 720 480
@@ -93,6 +108,8 @@ Please reduce the configured hours to fix this before saving."
         echo "${details}" | sed 's/\\n/\n/g' >&2
         echo "Each category may cover at most 16 hours per calendar day." >&2
         echo "Please reduce hours before saving." >&2
+        safety_invariant_tag "${INV_CAP_RESTRICTION_DAY}" >&2
+        safety_invariant_doc_link "${INV_CAP_RESTRICTION_DAY}" >&2
         echo "" >&2
         configure_read -rp "Press Enter to continue..."
     fi
@@ -102,12 +119,17 @@ Please reduce the configured hours to fix this before saving."
 show_partial_lock_violation_error() {
     local use_gui="$1"
     local violation_text="$2"
+
+    _configure_ui_errors_ensure_invariants
+
     local title="Change Not Allowed During Lock Hours"
+    local safety_footer
+    safety_footer="$(safety_invariant_footer "${INV_PARTIAL_LOCK_TIGHTEN}")"
     local message="Limited configuration mode is active. The following changes are not allowed:
 
 ${violation_text}
 
-During lock hours you may only tighten restrictions (more frequent popups, longer min display, add hours, enable locks)."
+During lock hours you may only tighten restrictions (more frequent popups, longer min display, add hours, enable locks).${safety_footer}"
 
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         show_info_dialog "${title}" "${message}" 720 420
@@ -115,6 +137,8 @@ During lock hours you may only tighten restrictions (more frequent popups, longe
         echo "" >&2
         echo "ERROR: Changes not allowed during lock hours (tighten-only mode):" >&2
         printf '%b\n' "${violation_text}" >&2
+        safety_invariant_tag "${INV_PARTIAL_LOCK_TIGHTEN}" >&2
+        safety_invariant_doc_link "${INV_PARTIAL_LOCK_TIGHTEN}" >&2
         echo "" >&2
         configure_read -rp "Press Enter to continue..."
     fi

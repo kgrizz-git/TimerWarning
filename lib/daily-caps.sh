@@ -197,7 +197,8 @@ if [ -z "${DAILY_CAPS_LOADED:-}" ]; then
     }
 
     ##########################################################################
-    # check_daily_caps — central safety invariant enforcer
+    # Violation lines: "DAY|category|minutes" (see dev-docs/development/invariants.md).
+    # Categories: restriction, configure_block, uninstall_block → CAP-*-DAY ids.
     #
     # Checks that no calendar day in any of the three restriction categories
     # exceeds 16 hours (960 minutes) of merged coverage.

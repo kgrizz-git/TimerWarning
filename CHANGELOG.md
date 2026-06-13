@@ -9,9 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Platform test matrix:** [docs/development/platform-test-matrix.md](docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
+- **Harness Phase 1 (agent-agnostic):** `tests/tiers.yaml` and `scripts/run-tests.sh --tier a|b|c` — same PR gate for Cursor, Codex, Claude Code, OpenCode, Qwen, and CI; `run-security-scan.sh --with-tests` delegates to Tier-A. Docs: [dev-docs/development/agent-setup.md](dev-docs/development/agent-setup.md), [dev-docs/testing-assessments/test-tiers.md](dev-docs/testing-assessments/test-tiers.md). `CI_HEADLESS=1` skips GUI-only Tier-A scripts in sandbox/CI.
+
+- **Harness Phase 4 (doc rehome):** Two-tree model — `docs/` for end-users ([SAFETY.md](docs/SAFETY.md), user index); `dev-docs/` for developers and all coding agents (architecture, testing, CI, harness). Moved pages leave stubs under `docs/`. Added [dev-docs/canonical-vs-archive.md](dev-docs/canonical-vs-archive.md), [dev-docs/harness-changelog.md](dev-docs/harness-changelog.md).
+
+- **Platform test matrix:** [dev-docs/development/platform-test-matrix.md](dev-docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures.
+
+- **Harness Phase 5 (doc drift):** `scripts/check-doc-drift.sh` — stale path/safety wording checks + link validation on agent entry docs; warn-only in CI `static-analysis` job. Aligned [user-docs/CONFIGURATION.md](user-docs/CONFIGURATION.md) and [dev-docs/TECHNICAL_DETAILS.md](dev-docs/TECHNICAL_DETAILS.md) with [docs/SAFETY.md](docs/SAFETY.md) per-day 16 h cap.
+
+- **Harness Phase 6 (invariant messages):** Stable safety IDs (`CAP-*-DAY`, `CAP-WEEKLY-247`, `PARTIAL-LOCK-TIGHTEN`, `POPUP-TIMING-MIN-DISPLAY`) in configure hard-blocks and runtime logs. New [lib/safety-invariants.sh](lib/safety-invariants.sh), [dev-docs/development/invariants.md](dev-docs/development/invariants.md), Tier-A `tests/test-invariant-messages.sh`.
+
+- **Harness Phase 7 (Linux popup Tier-A):** `test-popup-safety-linux.sh` in Tier-A on Linux CI (PID-file watchdog test + shared helpers); `test-popup-safety-darwin.sh` / `test-platform-darwin.sh` scoped to macOS. Updated [dev-docs/safety-linux-macos-analysis.md](dev-docs/safety-linux-macos-analysis.md) §5.1–5.2.
+
+- **Harness Phase 8 (contributor hygiene):** [dev-docs/CONTRIBUTING.md](dev-docs/CONTRIBUTING.md), root [CONTRIBUTING.md](CONTRIBUTING.md), [.github/pull_request_template.md](.github/pull_request_template.md), `scripts/check-file-sizes.sh`, opt-in pre-push Tier-A (`INSTALL_PRE_PUSH=1`).
 
 ### Changed
+
+- **run-security-scan.sh:** `--with-tests` now runs Tier-A via `scripts/run-tests.sh` (single manifest in `tests/tiers.yaml`). When `CI=true`, GUI-only Tier-A scripts are skipped automatically.
+
+- **Documentation layout:** Developer docs live under `dev-docs/`; `docs/` retains user safety + stubs.
+
+- **Cursor rules (Phase 3):** Trimmed always-on CodeGuard noise; added `project-conventions.mdc`. Policy in [dev-docs/development/agent-setup.md](dev-docs/development/agent-setup.md).
+
+- **GitHub Actions:** [`.github/workflows/security.yml`](.github/workflows/security.yml) split into `static-analysis` (Ubuntu) and `tier-a-tests` matrix (`ubuntu-latest` + `macos-latest`). Docs: [dev-docs/development/ci.md](dev-docs/development/ci.md).
 
 - **Test remediation:** Pre-existing failure fixes — platform matrix doc, `tests/lib/test-platform.sh` skip helpers, updated golden strings (`test-grid-functions`), loader checks (`test-modular-refactor`), partial-lock EOF semantics (`test-configure-blocking`), Linux-only skips (`test-mode-detection`), display-resolution skip (`test-enhancement-03-integration`), GUI manual skips; `test-configure-comprehensive.exp` refreshed for window-behavior submenu and prompt-anchored `expect` flows (10/10 on macOS); PTY skip in `test-configure-comprehensive.sh`.
 

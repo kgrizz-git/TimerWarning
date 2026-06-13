@@ -6,6 +6,9 @@
 # Run once after clone (or again if hooks were reset):
 #   ./scripts/install-git-hooks.sh
 #
+# Optional Tier-A pre-push (local only):
+#   INSTALL_PRE_PUSH=1 ./scripts/install-git-hooks.sh
+#
 # Sets: git config core.hooksPath .githooks (local to this repo)
 ###############################################################################
 
@@ -20,9 +23,12 @@ if ! git rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 chmod +x "${ROOT}/.githooks/pre-commit"
+chmod +x "${ROOT}/.githooks/pre-push"
 chmod +x "${ROOT}/scripts/prune-backups.sh"
 chmod +x "${ROOT}/scripts/pre-commit-checks.sh"
+chmod +x "${ROOT}/scripts/pre-push-checks.sh"
 chmod +x "${ROOT}/scripts/run-security-scan.sh"
+chmod +x "${ROOT}/scripts/run-tests.sh"
 
 git config core.hooksPath .githooks
 
@@ -31,6 +37,21 @@ echo "  pre-commit -> scripts/pre-commit-checks.sh"
 echo "    - prune tracked backups/ older than 3 commits"
 echo "    - ShellCheck on staged *.sh (if shellcheck installed)"
 echo "    - gitleaks protect --staged (if gitleaks installed)"
+
+if [ "${INSTALL_PRE_PUSH:-0}" = "1" ]; then
+    touch "${ROOT}/.githooks/enable-pre-push"
+    echo "  pre-push -> scripts/pre-push-checks.sh (ENABLED — Tier-A before push)"
+    echo "    Disable: rm .githooks/enable-pre-push"
+else
+    if [ -f "${ROOT}/.githooks/enable-pre-push" ]; then
+        echo "  pre-push -> scripts/pre-push-checks.sh (still enabled — rm .githooks/enable-pre-push to disable)"
+    else
+        echo "  pre-push -> (disabled; no-op until INSTALL_PRE_PUSH=1)"
+    fi
+fi
+
 echo ""
 echo "Optional: SKIP_SHELLCHECK=1 or SKIP_GITLEAKS=1 git commit ..."
-echo "Full scan (CI parity): ./scripts/run-security-scan.sh --ci --with-tests"
+echo "Optional: SKIP_PRE_PUSH_TESTS=1 git push ..."
+echo "Full scan (CI parity): CI_HEADLESS=1 ./scripts/run-tests.sh --tier a"
+echo "Contributor guide: dev-docs/CONTRIBUTING.md"

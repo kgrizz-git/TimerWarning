@@ -1,34 +1,6 @@
-# Core beliefs
+# Moved
 
-Principles for humans and agents working on Linux Sleep Warning System.
+This page moved to [dev-docs/core-beliefs.md](../dev-docs/core-beliefs.md).
 
-## 1. Safety before features
-
-See [SAFETY.md](SAFETY.md). If a change could trap a user behind modals or make the system unconfigurable, do not merge it.
-
-## 2. Repository knowledge is the system of record
-
-Decisions belong in versioned files under `docs/`, `AGENTS.md`, or enforced code—not only in chat, issues, or memory.
-
-## 3. Agents need a map, not an encyclopedia
-
-- Short [AGENTS.md](../AGENTS.md) = table of contents
-- Deep detail lives in `docs/` (progressive disclosure)
-
-## 4. Enforce invariants mechanically
-
-Prefer code (`lib/popup-safety.sh`, validation modules) and CI/tests over prose alone.
-
-## 5. Boring, legible bash
-
-- Small modules under `lib/`
-- Platform suffixes: `*-linux.sh`, `*-darwin.sh`, facades like `service-config.sh`
-- One responsibility per file where practical
-
-## 6. Continuous entropy control
-
-When agents copy patterns, bad patterns spread. Refactor toward [SAFETY.md](SAFETY.md) and [architecture/map.md](architecture/map.md) when touching related code.
-
-## 7. Humans steer, agents execute
-
-Humans prioritize, specify acceptance criteria, and validate outcomes. When agents fail, fix the **environment** (docs, tests, guardrails), not “try harder.”
+- **End-users:** [SAFETY.md](SAFETY.md)
+- **Developers / agents:** [dev-docs/README.md](../dev-docs/README.md)

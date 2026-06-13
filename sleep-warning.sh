@@ -174,7 +174,15 @@ validate_config_safety() {
             "${lock_hours_lines[@]}" \
             "${uninstall_lock_hours_lines[@]}")
         if [ -n "${violations}" ]; then
-            log_to_file "ERROR" "validate_config_safety: per-day cap violations detected:\n${violations}"
+            local vline vday vcat vmins vid
+            log_to_file "ERROR" "$(safety_invariant_tag "${INV_CAP_RESTRICTION_DAY}")"
+            log_to_file "ERROR" "$(safety_invariant_doc_link "${INV_CAP_RESTRICTION_DAY}")"
+            while IFS='|' read -r vday vcat vmins; do
+                [ -z "${vday}" ] && continue
+                vid="$(safety_invariant_id_for_category "${vcat}")"
+                vline="[${vid}] ${vday}|${vcat}|${vmins} min"
+                log_to_file "ERROR" "validate_config_safety: per-day cap violation: ${vline}"
+            done <<< "${violations}"
             return 1
         fi
     else
@@ -230,10 +238,14 @@ main() {
     # This prevents 24/7 restrictions from manual config file editing
     local use_defaults=false
     if ! validate_config_safety; then
-        # 24/7 restrictions detected in config file
-        # This is a critical safety issue - log error and fall back to defaults
-        log_message "error" "CRITICAL: 24/7 restrictions detected in config file (manual edit bypassed validation). Falling back to default restrictions for safety."
-        log_to_file "ERROR" "CRITICAL SAFETY ISSUE: 24/7 restrictions detected in config file. This would lock the user out of their system. Falling back to default restrictions. Please use configure.sh to fix the configuration."
+        # Per-day cap or weekly 24/7 violation in config file — fall back to safe defaults.
+        if type safety_invariant_tag >/dev/null 2>&1; then
+            log_message "error" "CRITICAL: unsafe config ($(safety_invariant_tag "${INV_CAP_RESTRICTION_DAY}")). Falling back to default restrictions."
+            log_to_file "ERROR" "validate_config_safety: unsafe config — falling back to defaults. $(safety_invariant_doc_link "${INV_CAP_RESTRICTION_DAY}")"
+        else
+            log_message "error" "CRITICAL: unsafe config detected in config file. Falling back to default restrictions for safety."
+            log_to_file "ERROR" "CRITICAL SAFETY ISSUE: config failed validate_config_safety. Falling back to default restrictions. Please use configure.sh to fix the configuration."
+        fi
         
         # Mark that we should use defaults instead of reading from config file
         use_defaults=true

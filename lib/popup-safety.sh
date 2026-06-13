@@ -100,7 +100,7 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
         done
 
         if type log_to_file >/dev/null 2>&1; then
-            log_to_file "WARNING" "Popup watchdog fired after ${watchdog_seconds}s; killing PID ${popup_pid}"
+            log_to_file "WARNING" "[POPUP-WATCHDOG] Popup watchdog fired after ${watchdog_seconds}s; killing PID ${popup_pid}"
         fi
         kill -TERM "${popup_pid}" 2>/dev/null
         sleep 1
@@ -134,7 +134,7 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
                 if [[ "${_wd_pid}" =~ ^[0-9]+$ ]] && kill -0 "${_wd_pid}" 2>/dev/null; then
                     if type log_to_file >/dev/null 2>&1; then
                         log_to_file "WARNING" \
-                            "Popup absolute watchdog fired after ${max_seconds}s; killing PID ${_wd_pid}"
+                            "[POPUP-WATCHDOG] Popup absolute watchdog fired after ${max_seconds}s; killing PID ${_wd_pid}"
                     fi
                     kill -TERM "${_wd_pid}" 2>/dev/null
                     sleep 1

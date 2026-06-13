@@ -20,6 +20,7 @@ dist/
 .vscode/
 .idea/
 .cursor/hooks/state/
+.githooks/enable-pre-push
 *.swp
 *.swo
 *~

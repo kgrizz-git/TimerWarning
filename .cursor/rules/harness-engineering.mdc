@@ -5,17 +5,17 @@ alwaysApply: true
 
 # Harness engineering
 
-This repo follows [OpenAI harness engineering](https://openai.com/index/harness-engineering/) (see [docs/harness-engineering.md](../../docs/harness-engineering.md)).
+This repo follows [OpenAI harness engineering](https://openai.com/index/harness-engineering/) (see [dev-docs/harness-engineering.md](../../dev-docs/harness-engineering.md)).
 
 ## Rules for agents
 
-1. **AGENTS.md is a map** — do not bloat it; add detail under `docs/`.
-2. **System of record = git** — encode decisions in `docs/`, code, or `.cursor/rules/`, not chat-only.
-3. **Progressive disclosure** — start at [docs/index.md](../../docs/index.md), then open one topic doc.
+1. **AGENTS.md is a map** — do not bloat it; add detail under `dev-docs/`.
+2. **System of record = git** — user safety in `docs/SAFETY.md`; developer detail in `dev-docs/`, code, or `.cursor/rules/`, not chat-only.
+3. **Progressive disclosure** — start at [AGENTS.md](../../AGENTS.md) and [dev-docs/README.md](../../dev-docs/README.md).
 4. **Mechanical invariants** — prefer tests + `lib/popup-safety.sh` + validation over prose alone.
 5. **Missing capability** — add doc/test/guardrail; don't only retry prompts.
 6. **Safety first** — [docs/SAFETY.md](../../docs/SAFETY.md) overrides velocity.
 
 ## Workflow
 
-[docs/agent-workflow.md](../../docs/agent-workflow.md)
+[dev-docs/agent-workflow.md](../../dev-docs/agent-workflow.md)

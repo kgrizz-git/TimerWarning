@@ -1,5 +1,7 @@
 # Plan: Refactor Assessment 2026-06-12 Follow-up
 
+**Status:** **Complete** (2026-06-12) — code phases 0–10 shipped; open checkboxes below are manual smoke / Linux-host verification only. Harness work unblocked: [plan-harness-engineering-improvements-2026-06-12.md](plan-harness-engineering-improvements-2026-06-12.md).
+
 **Source assessment:** [refactor-assessment-2026-06-12-001417.md](../refactor-assessments/refactor-assessment-2026-06-12-001417.md)
 
 **Continues:** [plan-refactor-assessment-2026-05-31.md](../completed-plans/plan-refactor-assessment-2026-05-31.md) (May plan; open items below re-evaluated against June data)
@@ -10,18 +12,19 @@
 
 ## Summary of changes since May assessment
 
-| Metric | May 2026 | June 2026 | Change |
-|--------|----------|-----------|--------|
-| `lib/configure-display.sh` | 1,309 lines | 1,338 lines | +29 |
-| `lib/configure-ui.sh` | 1,255 lines | 1,291 lines | +36 |
-| `lib/configure-input-features.sh` | 937 lines | 937 lines | unchanged |
-| Largest single function | `show_warning` 519 lines | `show_warning` 519 lines | Unchanged — still largest in codebase |
-| 4+ indent lines (display) | — | ~349 lines | New metric tracked (see note below) |
-| Config key string references | — | 300+ | New metric tracked |
+| Metric | May 2026 | June baseline | Post-refactor (shipped) |
+|--------|----------|---------------|-------------------------|
+| `lib/configure-display.sh` | 1,309 lines | 1,338 lines | **195** (facade + submodules) |
+| `lib/configure-ui.sh` | 1,255 lines | 1,291 lines | **621** (+ `configure-ui-errors.sh` 554) |
+| `lib/configure-input-features.sh` | 937 lines | 937 lines | **37** (facade + submodules) |
+| `install.sh` | — | 1,077 lines | **313** |
+| Largest single function | `show_warning` 519 lines | 519 lines | **`show_warning` 169 lines** |
+| 4+ indent lines (display) | — | ~349 lines | Reduced via grid/menu/summary splits |
+| Config key string references | — | 300+ | Phase 8 partial (see open items) |
 
 **Indent metric note:** Count non-comment, non-blank lines in `configure-display.sh` where nesting depth ≥ 4 (each tab = 1 level; each 4 leading spaces = 1 level). Re-measured 2026-06-12: **~349 lines**. The assessment figure of 675 may have used a different rule (e.g. counting all physical indent columns); use the definition above for before/after comparisons during this plan.
 
-May plan Phase 0 (verification gates) is still open. May plan Phase 4 (`show_warning`) is still open (this plan's **Phase 10**). Items carried forward and re-prioritized below.
+Phase 0 and Phases 1–10 code work are **shipped** (2026-06-12). Residual open verification items (manual smoke, Linux fresh install, byte-identical error fixtures) remain in phase sections below but do not block [harness engineering follow-up](plan-harness-engineering-improvements-2026-06-12.md).
 
 ---
 
@@ -396,4 +399,4 @@ Manual (when GUI session available): configure wizard review step; one popup per
 - **Supersedes:** [plan-refactor-assessment-2026-05-31.md](../completed-plans/plan-refactor-assessment-2026-05-31.md) (archived; open items merged into this plan)
 - **Assessment record:** [refactor-assessment-2026-06-12-001417.md](../refactor-assessments/refactor-assessment-2026-06-12-001417.md)
 
-**Last updated:** 2026-06-12 (review pass: test coverage, line targets, indent metric, sequencing)
+**Last updated:** 2026-06-12 (marked complete; post-refactor metrics; harness plan unblocked)

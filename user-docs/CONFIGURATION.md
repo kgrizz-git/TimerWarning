@@ -102,66 +102,51 @@ TUESDAY=0-5       # Tuesday midnight → 4:59 AM
 
 Both ranges cover Tuesday midnight to 4:59 AM. This is harmless (only one warning will be shown during the overlap), but redundant. The configuration wizard will warn you about overlaps when you save your settings.
 
-**24/7 Restriction Prevention (Safety Feature)**:
-The configuration wizard includes a critical safety feature that prevents you from accidentally configuring restrictions for all 24 hours, 7 days a week, which would effectively lock you out of your computer.
+**24/7 Restriction Prevention and Per-Day Cap (Safety Features)**:
+The configuration wizard enforces safety limits so you cannot accidentally lock yourself out of your computer. See [SAFETY.md](../docs/SAFETY.md) for the full contract.
 
-**How It Works**:
-- When you save your configuration, the system automatically checks the **combined total** of:
-  - **Restriction hours** (main schedule for sleep warnings)
-  - **Config lock hours** (additional hours for config locking and configure.sh blocking)
-  - **Uninstall lock hours** (additional hours for difficult uninstall verification)
-- If the combined total covers **all 24 hours, 7 days a week** (10080 minutes total), the configuration will be **blocked** and you'll see an error message
-- If the combined total exceeds **more than 16 hours per day** (> 6720 minutes total), you'll see a **warning** and can choose to save anyway or modify your settings
+**Per-day 16-hour cap (primary rule)**:
+On any single calendar day, each of these categories may cover **at most 16 hours** of merged time (overlapping intervals count once):
 
-**Why This Matters**:
-- Configuring 24/7 restrictions would leave no unrestricted time to modify settings or use your computer
-- The system prevents this accidental lockout scenario
-- If you need very high restriction levels (> 16 hours/day), you can still save, but safety features will be automatically applied (see below)
+| Category | What counts toward the 16 h/day limit |
+|----------|---------------------------------------|
+| **Restriction** (popup hours) | That day's schedule, plus overnight carry from the prior day |
+| **Configure block** | Config lock hours merged with restriction hours when configure blocking is enabled |
+| **Uninstall block** | Uninstall lock hours merged with restriction hours when uninstall protection is enabled |
+
+The three caps are **independent** — each may reach 16 hours on the same day as long as that category's merged total stays ≤ 16 hours.
+
+**At save time**:
+- If **any** day/category exceeds 16 hours → **blocked** (no "save anyway" override).
+- If merged hours indicate **24/7 lockout** across the week → **blocked** (weekly backstop).
+- At most **16 hours per day per category** is valid.
 
 **Examples**:
 ```
-# This configuration would be BLOCKED (24/7 restrictions):
+# BLOCKED — 24/7 restrictions (weekly backstop):
 SUNDAY=0-12,12-0    # 24 hours
 MONDAY=0-12,12-0    # 24 hours
-TUESDAY=0-12,12-0   # 24 hours
-WEDNESDAY=0-12,12-0 # 24 hours
-THURSDAY=0-12,12-0  # 24 hours
-FRIDAY=0-12,12-0    # 24 hours
-SATURDAY=0-12,12-0  # 24 hours
-# Total: 10080 minutes (24 hours × 7 days) - BLOCKED
+... (all days 24 h) ...
+# Total: 10080 minutes — BLOCKED
 
-# This configuration would show a WARNING (> 16 hours/day):
-SUNDAY=0-16         # 16 hours (00:00-15:59)
-MONDAY=0-16         # 16 hours
-TUESDAY=0-16        # 16 hours
-WEDNESDAY=0-16      # 16 hours
-THURSDAY=0-16       # 16 hours
-FRIDAY=0-16         # 16 hours
-SATURDAY=0-16,16-17 # 17 hours (0-16 + 16-17)
-# Total: 6721 minutes (> 16 hours/day) - WARNING shown
+# BLOCKED — more than 16 hours on one day (per-day cap):
+SATURDAY=0-16,16-17 # 17 hours on Saturday — BLOCKED
 
-# This configuration is VALID (<= 16 hours/day):
+# VALID — at most 16 hours per day per category:
 SUNDAY=0-16         # 16 hours
 MONDAY=0-16         # 16 hours
-TUESDAY=0-16        # 16 hours
-WEDNESDAY=0-16      # 16 hours
-THURSDAY=0-16       # 16 hours
-FRIDAY=0-16         # 16 hours
+...
 SATURDAY=0-16       # 16 hours
-# Total: 6720 minutes (exactly 16 hours/day) - VALID, no warning
+# Each day ≤ 16 h — VALID
 ```
 
-**Automatic Safety Overrides** (when high restrictions are detected):
-If the combined total of restriction hours and additional lock hours exceeds 16 hours per day and you choose to save anyway, the system automatically applies safety measures:
-- **Popup size restriction**: Popup size is limited to "xsmall", "small", or "medium" only (prevents overly intrusive popups when you have very limited unrestricted time)
-- **Config locking disabled**: Config file locking features are automatically disabled (prevents locking yourself out during very limited unrestricted time)
-- **Additional lock hours cleared**: Config lock hours and uninstall lock hours are automatically cleared (prevents accidental lockout when combined with restriction hours)
-- **Transparency**: The config file includes comments explaining why these safety features are disabled or cleared
+**Runtime fallback**:
+If an unsafe config is loaded outside the wizard, `sleep-warning` falls back to safe defaults and logs a warning.
 
 **Important Notes**:
-- The validation correctly handles overlapping ranges (both within the same day and across day boundaries) to accurately calculate total restricted time. For example, if you have Monday "23-6" and Tuesday "0-5", the overlap at hours 0-5 is correctly detected and counted only once.
-- The validation includes **all three types of hours** (restriction hours, config lock hours, and uninstall lock hours) in the combined total, even if the features that use them are disabled. This prevents dangerous configurations that could lock you out if you later enable those features.
-- If you configure restriction hours (8 hours/day) + config lock hours (16 hours/day), the total is 24 hours/day and will be blocked, even if `CONFIGURE_BLOCK_ENABLED=false`.
+- The validation correctly handles overlapping ranges (both within the same day and across day boundaries) to accurately calculate merged coverage per day.
+- The per-day cap applies to **each category independently** — restriction, configure-block, and uninstall-block are checked separately.
+- If you configure restriction hours (8 h/day) + config lock hours (16 h/day) on the same day, the configure-block category totals 24 h on that day and is **blocked**, even if `CONFIGURE_BLOCK_ENABLED=false` at save time (lock hours still count toward the category total).
 
 **Combining Multiple and Overnight Ranges**:
 You can combine multiple ranges, including overnight ranges:
@@ -562,7 +547,7 @@ CONFIG_LOCK_HOURS_WEDNESDAY=23-6     # Block overnight (11 PM to 5:59 AM)
   - `~/.config/sleep-warning/.config_locked_snapshot`
 
 **Safety**:
-- If you configure restrictions totaling **more than 9660 minutes per week** (> 23 hours/day), the configuration wizard automatically forces `CONFIG_LOCK_ENABLED=false` to prevent accidental lockout scenarios where you cannot modify your configuration during the very limited unrestricted time.
+- If configure-block or restriction categories would exceed **16 hours on any calendar day**, the wizard **blocks** the save (see [SAFETY.md](../docs/SAFETY.md)). Config file locking may be unavailable during very high restriction levels.
 - This safety mechanism is part of Enhancement #22 (Prevent 24/7 Restriction Configuration).
 
 **Limitations**:
@@ -868,8 +853,7 @@ DIALOG_TOOL=auto
 # When enabled, the configuration file becomes read-only during restricted hours and configured lock hours
 # This prevents users from modifying settings during restricted periods
 # IMPORTANT: This is a deterrence feature only - it can be bypassed by determined users
-# The system automatically disables this feature if restrictions exceed 9660 minutes per week (> 23 hours/day)
-# to prevent accidental lockout scenarios
+# Config file locking is disabled automatically when per-day caps would be violated at runtime
 # See "Configuration Lock (Tighten-Only) and Config File Locking" in the configuration wizard to enable/disable
 CONFIG_LOCK_ENABLED=false
 

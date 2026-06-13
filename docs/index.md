@@ -1,51 +1,33 @@
-# Documentation index
+# User documentation (`docs/`)
 
-This directory is the **system of record** for humans and coding agents working in this repository. Prefer updating these files over chat-only decisions.
+End-user and safety documentation for the Sleep Warning System. **Developers and coding agents** use [`dev-docs/`](../dev-docs/README.md) instead.
 
-## Read first (non-negotiable)
-
-| Doc | Why |
-|-----|-----|
-| [SAFETY.md](SAFETY.md) | **#1 priority:** avoid user lockout, stuck modals, 24/7 warnings, unrecoverable config |
-| [safety-linux-macos-analysis.md](safety-linux-macos-analysis.md) | Deep dive: Linux heritage vs macOS reproduction, gaps, and doc drift |
-| [core-beliefs.md](core-beliefs.md) | Operating principles including safety and agent-first norms |
-
-## Harness engineering (agent-first workflow)
+## Read first
 
 | Doc | Why |
 |-----|-----|
-| [harness-engineering.md](harness-engineering.md) | How we apply [OpenAI harness engineering](references/openai-harness-engineering.md) in this repo |
-| [agent-workflow.md](agent-workflow.md) | Day-to-day steps for agents: map → change → verify → document |
+| [SAFETY.md](SAFETY.md) | **Required:** per-day caps, popups must end, emergency stop — read before install or changing schedules |
+| [README.md](../README.md) | Project overview and quick start |
 
-## Architecture and platforms
-
-| Doc | Why |
-|-----|-----|
-| [architecture/map.md](architecture/map.md) | Module layout, platform adapters (Linux systemd vs macOS launchd) |
-| [architecture/platforms.md](architecture/platforms.md) | Linux vs macOS file matrix |
-| [development/testing.md](development/testing.md) | Safe test practices (temp HOME, timeouts, no live config during blocked hours) |
-| [development/platform-test-matrix.md](development/platform-test-matrix.md) | **Which tests run on macOS vs Linux**, headless vs GUI, skip rules |
-| [development/security-scanning.md](development/security-scanning.md) | ShellCheck, Gitleaks, Semgrep, git hooks, GitHub Actions |
-| [development/versioning.md](development/versioning.md) | Semver, CHANGELOG entries, release tagging |
-| [../dev-docs/CONFIGURE_GUI_FLOW.md](../dev-docs/CONFIGURE_GUI_FLOW.md) | Configure GUI dialog paths, cancel semantics, immovable prompt trap |
-
-## User-facing docs
+## User guides (`user-docs/`)
 
 | Doc | Audience |
 |-----|----------|
-| [../user-docs/MACOS.md](../user-docs/MACOS.md) | macOS install, troubleshooting, emergency stop |
-| [../user-docs/CONFIGURATION.md](../user-docs/CONFIGURATION.md) | Config file reference |
-| [../README.md](../README.md) | Project overview and quick start |
+| [MACOS.md](../user-docs/MACOS.md) | macOS install, troubleshooting, emergency stop |
+| [CONFIGURATION.md](../user-docs/CONFIGURATION.md) | Config file reference and safety features |
 
-## Developer backlog (`dev-docs/`)
+## Two documentation trees
 
-| Doc | Why |
-|-----|-----|
-| [../dev-docs/README.md](../dev-docs/README.md) | Map of plans, enhancements, templates, audits |
-| [../dev-docs/TO_DO.md](../dev-docs/TO_DO.md) | Short active priority queue |
-| [../dev-docs/FUTURE_ENHANCEMENTS.md](../dev-docs/FUTURE_ENHANCEMENTS.md) | Numbered enhancement catalog |
-| [../dev-docs/REMAINING_WORK_SUMMARY.md](../dev-docs/REMAINING_WORK_SUMMARY.md) | Detailed backlog (testing, phases, docs) |
+| Directory | Audience | Contents |
+|-----------|----------|----------|
+| **`docs/`** (here) | End-users | Safety contract, user-oriented index |
+| **`user-docs/`** | End-users | Install, configuration, platform guides |
+| **`dev-docs/`** | Developers and agents | Architecture, testing, CI, plans, harness workflow |
 
-## Maintenance
+Coding agents: start at [AGENTS.md](../AGENTS.md), then [dev-docs/README.md](../dev-docs/README.md).
 
-When you change behavior, update the relevant doc in the same PR. If a rule is important enough to enforce, encode it in code (`lib/popup-safety.sh`, validation) or in [`.cursor/rules/`](../.cursor/rules/), not only in prose.
+## Moved developer pages
+
+These formerly lived under `docs/` and now live under `dev-docs/` (stubs remain for one release cycle):
+
+- Architecture, development/testing, harness engineering, agent workflow → [dev-docs/README.md](../dev-docs/README.md)

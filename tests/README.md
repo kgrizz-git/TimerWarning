@@ -1,6 +1,13 @@
 # Test Suite for Sleep Warning Configuration
 
-**Platform matrix:** [docs/development/platform-test-matrix.md](../docs/development/platform-test-matrix.md) — macOS vs Linux, headless-safe vs GUI/manual, skip helpers.
+**Platform matrix:** [dev-docs/development/platform-test-matrix.md](../dev-docs/development/platform-test-matrix.md) — macOS vs Linux, headless-safe vs GUI/manual, skip helpers.
+
+**Test tiers (agent-agnostic):** [tests/tiers.yaml](tiers.yaml) · `./scripts/run-tests.sh --tier a|b|c` · [dev-docs/testing-assessments/test-tiers.md](../dev-docs/testing-assessments/test-tiers.md)
+
+```bash
+CI_HEADLESS=1 ./scripts/run-tests.sh --tier a   # PR gate (skips GUI-only on headless)
+./scripts/run-tests.sh --tier b               # pre-release module smokes
+```
 
 ## Overview
 

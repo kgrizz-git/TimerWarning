@@ -33,7 +33,7 @@ Getter functions under test: `get_popup_size_mode`, `get_popup_size_custom`, `ge
 
 ## Pre-existing failures
 
-Full classification, remediation status, and skip rules: **[platform-test-matrix.md](../docs/development/platform-test-matrix.md)**.
+Full classification, remediation status, and skip rules: **[platform-test-matrix.md](../development/platform-test-matrix.md)**.
 
 ## Exit status
 

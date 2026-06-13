@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# Optional pre-push: Tier-A tests (opt-in via install-git-hooks.sh INSTALL_PRE_PUSH=1)
+# Disable: rm .githooks/enable-pre-push
+#
+
+set -e
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+if [ ! -f "${ROOT}/.githooks/enable-pre-push" ]; then
+    exit 0
+fi
+
+exec "${ROOT}/scripts/pre-push-checks.sh"

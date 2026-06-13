@@ -118,6 +118,7 @@ When changing behavior, review these files together:
 
 - `lib/popup-safety.sh` — caps and watchdog (must be wired into all spawn paths)
 - `lib/popup-display.sh` / `lib/popup-display-darwin.sh` — spawn and wait
+- `lib/safety-invariants.sh` — stable invariant IDs in hard-block messages (catalog: `dev-docs/development/invariants.md`)
 - `lib/configure-validation.sh` — per-day per-category cap enforcement
 - `lib/configure-partial-lock.sh` — tighten-only edits during lock hours
 - `sleep-warning.sh` — runtime validation fallback (same per-day per-category logic)

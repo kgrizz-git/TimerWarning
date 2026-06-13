@@ -8,9 +8,9 @@
 #   ./scripts/run-security-scan.sh --ci         # fail if required tools missing
 #   ./scripts/run-security-scan.sh --with-tests # also run fast safety unit tests
 #
-# Tools (install locally for parity with CI): see docs/development/security-scanning.md
+# Tools (install locally for parity with CI): see dev-docs/development/security-scanning.md
 #
-# See: docs/development/security-scanning.md
+# See: dev-docs/development/security-scanning.md
 ###############################################################################
 
 set -euo pipefail
@@ -135,25 +135,17 @@ run_semgrep() {
 }
 
 run_safety_tests() {
-  echo "=== Tier-A safety tests ==="
-  local failed=0
-  if [ -f "${ROOT}/tests/test-daily-caps.sh" ]; then
-    bash "${ROOT}/tests/test-daily-caps.sh" || failed=1
+  if [ ! -x "${ROOT}/scripts/run-tests.sh" ]; then
+    echo "run-security-scan.sh: run-tests.sh missing; cannot run Tier-A" >&2
+    return 1
   fi
-  if [ -f "${ROOT}/tests/test-time-picker-minutes.sh" ]; then
-    bash "${ROOT}/tests/test-time-picker-minutes.sh" || failed=1
+  # Single source of truth: tests/tiers.yaml via run-tests.sh
+  # GitHub Actions and other CI set CI=true; skip GUI-only Tier-A scripts unless overridden.
+  if [ "${CI:-}" = "true" ] && [ -z "${CI_HEADLESS:-}" ] && [ -z "${SKIP_GUI_TESTS:-}" ]; then
+    CI_HEADLESS=1
   fi
-  # popup-safety unit tests (all platforms); use test-popup-safety-linux.sh as alias on Linux CI
-  if [ -f "${ROOT}/tests/test-popup-safety-darwin.sh" ]; then
-    bash "${ROOT}/tests/test-popup-safety-darwin.sh" || failed=1
-  fi
-  if [ -f "${ROOT}/tests/test-configure-partial-lock.sh" ]; then
-    bash "${ROOT}/tests/test-configure-partial-lock.sh" || failed=1
-  fi
-  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -f "${ROOT}/tests/test-darwin-configure-gui.sh" ]; then
-    bash "${ROOT}/tests/test-darwin-configure-gui.sh" || failed=1
-  fi
-  return "${failed}"
+  export CI_HEADLESS SKIP_GUI_TESTS
+  "${ROOT}/scripts/run-tests.sh" --tier a
 }
 
 main() {

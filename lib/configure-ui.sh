@@ -256,8 +256,8 @@ OVERLAPPING RANGES:
 SAFETY FEATURE - 24/7 Restriction Prevention:
   - The system prevents configuring restrictions for all 24 hours, 7 days a week
   - If you configure 24/7 restrictions, you'll see an error and cannot save
-  - If you configure > 16 hours/day, you'll see a warning and can choose to save anyway
-  - Safety features (popup size limits, config locking disabled) are automatically applied for high restriction levels
+  - If any day/category exceeds 16 hours, save is blocked (no override)
+  - See docs/SAFETY.md for the per-day 16-hour cap rules
 
 NAVIGATION:
   - Cancel: Exit without saving (available at any time)
@@ -315,8 +315,8 @@ both will cover Tuesday midnight-4:59 AM (redundant but harmless).
 SAFETY FEATURE:
 The system includes a safety feature that prevents you from accidentally
 configuring restrictions for all 24 hours, 7 days a week (which would
-lock you out). If you configure very high restriction levels (> 16 hours/day),
-you'll see a warning and safety features will be automatically applied.
+lock you out). No category may exceed 16 hours on any single calendar day;
+violations block save with no override. See docs/SAFETY.md.
 
 Examples:
 - '0-5' = Midnight to 4:59 AM (same day)
@@ -542,8 +542,12 @@ You can run this wizard again anytime to change your settings."
 # This is displayed when validation detects restrictions covering all 24 hours, 7 days a week
 show_24_7_error() {
     local use_gui="$1"
-    
+
+    _configure_ui_errors_ensure_invariants
+
     local title="ERROR: 24/7 Restrictions Detected"
+    local safety_footer
+    safety_footer="$(safety_invariant_footer "${INV_CAP_WEEKLY_247}")"
     local message="🚨 ⚠️  CRITICAL ERROR  ⚠️  🚨
 
 The combined total of restriction hours and additional lock hours covers all 24 hours, 7 days a week.
@@ -552,7 +556,7 @@ This would effectively lock you out of your computer.
 
 Please modify your settings to leave at least some unrestricted time.
 
-Configuration cannot be saved until you reduce the restriction level."
+Configuration cannot be saved until you reduce the restriction level.${safety_footer}"
     
     if [ "${use_gui}" = "true" ] && has_dialog_tool; then
         show_info_dialog "${title}" "${message}" 650 350
@@ -567,6 +571,8 @@ Configuration cannot be saved until you reduce the restriction level."
         echo "" >&2
         echo "Please modify your settings to leave at least some unrestricted time." >&2
         echo "Configuration cannot be saved until you reduce the restriction level." >&2
+        safety_invariant_tag "${INV_CAP_WEEKLY_247}" >&2
+        safety_invariant_doc_link "${INV_CAP_WEEKLY_247}" >&2
         echo "" >&2
         configure_read -p "Press Enter to continue..."
     fi

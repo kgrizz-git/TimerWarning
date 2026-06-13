@@ -4,8 +4,7 @@
 # test-popup-safety-darwin.sh - Popup safety watchdog unit tests (all platforms)
 #
 # Purpose: Verify popup_run_with_watchdog and popup_compute_watchdog_seconds.
-# Linux dialog spawn is not exercised here; see test-popup-safety-linux.sh alias
-# and dev-docs/TO_DO.md for Linux host checks.
+# Linux dialog spawn is not exercised here; see test-popup-safety-linux.sh on Linux CI
 # Last updated: 2026-05-30
 ###############################################################################
 

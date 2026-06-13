@@ -245,7 +245,7 @@ test_script_size() {
     main_lines=$(wc -l < "$MAIN_SCRIPT")
     
     # Original monolith was 1667 lines; loader-based entrypoint grew with platform branches.
-    # Budget < 450 (was 300) — see docs/development/platform-test-matrix.md
+    # Budget < 450 (was 300) — see dev-docs/development/platform-test-matrix.md
     if [ "$main_lines" -lt 450 ]; then
         echo "  Main script: $main_lines lines (reduced from 1667)"
         print_test_result "Main script significantly reduced in size" "PASS"

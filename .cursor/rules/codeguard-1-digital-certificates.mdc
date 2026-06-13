@@ -2,7 +2,7 @@
 description: Certificate Best Practices
 globs: **/*
 version: 1.0.1
-alwaysApply: true
+alwaysApply: false
 ---
 
 rule_id: codeguard-1-digital-certificates

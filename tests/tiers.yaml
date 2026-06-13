@@ -1,0 +1,60 @@
+# Test tiers — machine-readable manifest for scripts/run-tests.sh
+#
+# Agent-agnostic: any coding agent (Cursor, Codex, Claude Code, OpenCode, Qwen, etc.)
+# and CI use the same lists via ./scripts/run-tests.sh --tier a|b|c
+#
+# Script entries:
+#   - plain name: runs on all platforms when the file exists
+#   - platform: darwin | linux — skip on other OS
+#   - requires_gui: true — skip when SKIP_GUI_TESTS=1 or CI_HEADLESS=1
+#
+# Human guide: dev-docs/testing-assessments/test-tiers.md
+
+version: 1
+
+tier_a:
+  description: Fast headless PR gate; required on every PR
+  scripts:
+    - test-daily-caps.sh
+    - test-invariant-messages.sh
+    - test-time-picker-minutes.sh
+    - name: test-popup-safety-darwin.sh
+      platform: darwin
+    - name: test-popup-safety-linux.sh
+      platform: linux
+    - test-configure-partial-lock.sh
+    - name: test-platform-darwin.sh
+      platform: darwin
+    - name: test-darwin-configure-gui.sh
+      platform: darwin
+      requires_gui: true
+
+tier_b:
+  description: Temp-HOME / module smokes; optional PR, recommended pre-release
+  scripts:
+    - test-atomic-write.sh
+    - test-write-config-override-flags.sh
+    - test-config-locking.sh
+    - test-popup-display-source.sh
+    - test-status-display.sh
+    - test-install-linux-source.sh
+    - test-configure-text-mode.sh
+    - test-configure-modular.sh
+    - test-modular-refactor.sh
+    - test-configure-blocking.sh
+    - test-configure-gui-split.sh
+    - test-lock-hours-phase2.sh
+    - test-uninstall-lock-hours.sh
+    - test-uninstall-lock-hours-phase2.sh
+    - test-24-7-prevention-additional-hours.sh
+    - test-day-names-init.sh
+    - test-main-menu-cancel-menu.sh
+    - test-window-behavior-cancel-menu.sh
+    - test-darwin-grid-cache.sh
+    - test-darwin-table-json.sh
+    - test-popup-interval-message.sh
+    - test-pause-feature.sh
+
+tier_c:
+  description: Manual, GUI-heavy, or multi-host; document only
+  docs: dev-docs/development/platform-test-matrix.md

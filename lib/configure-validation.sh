@@ -24,6 +24,10 @@ _CONFIGURE_VALIDATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "${_CONFIGURE_VALIDATION_DIR}/daily-caps.sh" ]; then
     source "${_CONFIGURE_VALIDATION_DIR}/daily-caps.sh"
 fi
+if [ -f "${_CONFIGURE_VALIDATION_DIR}/safety-invariants.sh" ]; then
+    # shellcheck disable=SC1090
+    source "${_CONFIGURE_VALIDATION_DIR}/safety-invariants.sh"
+fi
 unset _CONFIGURE_VALIDATION_DIR
 
 ###############################################################################
@@ -541,8 +545,17 @@ validate_popup_timing_config() {
     
     # Check if min display time exceeds check interval
     if [ "${min_display_time}" -gt "${check_interval_seconds}" ]; then
-        # Conflict detected - return error message
+        local inv_tag doc_link
+        if type safety_invariant_tag >/dev/null 2>&1; then
+            inv_tag="$(safety_invariant_tag "${INV_POPUP_TIMING_MIN_DISPLAY}")"
+            doc_link="$(safety_invariant_doc_link "${INV_POPUP_TIMING_MIN_DISPLAY}")"
+        else
+            inv_tag="[${INV_POPUP_TIMING_MIN_DISPLAY:-POPUP-TIMING-MIN-DISPLAY}] Minimum display time exceeds popup frequency."
+            doc_link="docs/SAFETY.md#popup-lifetime-the-second-invariant"
+        fi
         echo "Error: Minimum display time (${min_display_time} seconds) is greater than popup display frequency (${check_interval} minutes = ${check_interval_seconds} seconds). This will cause multiple popups to appear simultaneously. Please adjust one of these values: either increase popup display frequency or decrease POPUP_MIN_DISPLAY_TIME." >&2
+        echo "${inv_tag}" >&2
+        echo "${doc_link}" >&2
         return 1
     fi
     

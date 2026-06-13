@@ -646,7 +646,7 @@ In the timestamped file record: **location** (file:line), **input** that trigger
 #### 18.1 Installed config during restricted hours
 - [ ] **Verify**: Scans and agents do not edit `~/.config/sleep-warning/` during user's live restricted/blocked hours
 - [ ] **Check**: Tests use `mktemp -d` for `HOME` (see `.cursor/rules/config-file-edits.mdc`)
-- [ ] **Test**: Configure/install tests use dummy config per [docs/development/testing.md](../../docs/development/testing.md)
+- [ ] **Test**: Configure/install tests use dummy config per [dev-docs/development/testing.md](../development/testing.md)
 
 #### 18.2 Cursor hooks and secret leakage (optional)
 - [ ] **Review**: [dev-docs/info/cursor-hooks-pii-secrets-scanning.md](../info/cursor-hooks-pii-secrets-scanning.md) — `beforeSubmitPrompt` / `beforeReadFile` for secrets in prompts and attachments
@@ -703,9 +703,10 @@ Implemented locally (verify still working):
 Repo includes `.github/workflows/security.yml` and `.github/dependabot.yml`:
 
 - [ ] **Dependabot**: Weekly GitHub Actions updates (review PRs; prefer SHA-pinned actions over time)
-- [ ] **CI workflow**: `./scripts/run-security-scan.sh --ci --with-tests` on PR/push to main
+- [x] **CI workflow**: `static-analysis` job — `./scripts/run-security-scan.sh --ci` on Ubuntu
+- [x] **CI workflow**: `tier-a-tests` matrix — `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a` on `ubuntu-latest` + `macos-latest`
 - [ ] **Verify**: CI does not use live `HOME` or upload config artifacts
-- [ ] **Docs**: [docs/development/security-scanning.md](../../docs/development/security-scanning.md) matches actual commands
+- [ ] **Docs**: [dev-docs/development/security-scanning.md](../development/security-scanning.md) and [dev-docs/development/ci.md](../development/ci.md) match actual commands
 
 Optional for bash dependencies (Homebrew/apt packages referenced in docs only):
 
@@ -785,7 +786,7 @@ After completing a safety scan (in your timestamped scan file):
 | Doc | Topic |
 |-----|--------|
 | [docs/SAFETY.md](../../docs/SAFETY.md) | **Authoritative** invariants, partial lock, PR checklist |
-| [docs/development/testing.md](../../docs/development/testing.md) | Test HOME, timeouts, safe limits |
+| [dev-docs/development/testing.md](../development/testing.md) | Test HOME, timeouts, safe limits |
 | [AGENTS.md](../../AGENTS.md) | Agent map, git hooks |
 | `lib/daily-caps.sh` | Per-day 16 h cap per category |
 | `lib/configure-validation.sh` | Wizard validation + weekly backstop |

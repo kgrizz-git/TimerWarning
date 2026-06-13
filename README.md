@@ -9,7 +9,7 @@ A monitoring system that displays interactive warning popups when your computer 
 | Audience | Start here |
 |----------|------------|
 | **Everyone** | [**docs/SAFETY.md**](docs/SAFETY.md) — no 24/7 warnings, popups must end, emergency stop |
-| **Developers / agents** | [AGENTS.md](AGENTS.md) → [docs/index.md](docs/index.md) |
+| **Developers / agents** | [AGENTS.md](AGENTS.md) → [dev-docs/CONTRIBUTING.md](dev-docs/CONTRIBUTING.md) |
 | **macOS users** | [user-docs/MACOS.md](user-docs/MACOS.md) (troubleshooting + `launchctl bootout` / `killall osascript`) |
 
 Do not save schedules that cover the entire week. If a popup will not dismiss, use the emergency steps in **docs/SAFETY.md** before changing code.
