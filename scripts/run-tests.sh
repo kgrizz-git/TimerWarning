@@ -104,6 +104,46 @@ _should_skip_gui() {
     return 1
 }
 
+# Run a command with a wall-clock limit. Exit 124 on timeout (GNU timeout convention).
+# macOS runners lack GNU timeout; Homebrew coreutils installs gtimeout; else bash watchdog.
+_run_with_timeout() {
+    local secs="$1"
+    shift
+
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "${secs}" "$@"
+        return $?
+    fi
+    if command -v gtimeout >/dev/null 2>&1; then
+        gtimeout "${secs}" "$@"
+        return $?
+    fi
+
+    local pid watcher rc=0
+    "$@" &
+    pid=$!
+    (
+        sleep "${secs}" || exit 0
+        if kill -0 "${pid}" 2>/dev/null; then
+            kill -TERM "${pid}" 2>/dev/null || true
+            sleep 2
+            kill -KILL "${pid}" 2>/dev/null || true
+        fi
+    ) &
+    watcher=$!
+
+    if ! wait "${pid}"; then
+        rc=$?
+    fi
+    kill "${watcher}" 2>/dev/null || true
+    wait "${watcher}" 2>/dev/null || true
+
+    case "${rc}" in
+        143|137) return 124 ;;
+        *) return "${rc}" ;;
+    esac
+}
+
 # Emit tab-separated rows: script platform requires_gui
 # Parses the small YAML subset in tests/tiers.yaml (no PyYAML dependency).
 _resolve_tier_scripts() {
@@ -233,7 +273,7 @@ main() {
         fi
 
         echo "--- ${script} ---"
-        if ! timeout 300 bash "${path}"; then
+        if ! _run_with_timeout 300 bash "${path}"; then
             echo "FAIL: ${script}" >&2
             failed=1
         fi

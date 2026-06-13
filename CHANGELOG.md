@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Uninstall verification EOF:** Text-mode uninstall verification prompts use `configure_read` instead of bare `read -p`, avoiding infinite spin on closed stdin.
 - **Input-time 16 h cap:** Configure wizard now blocks over-cap restriction, configure-lock, and uninstall-lock hours immediately when a range is confirmed (same `check_daily_caps` math as save), e.g. `1am-11pm` on weekdays together.
 - **Input-time cap error visibility:** Rejected ranges (e.g. `9pm-6pm`) now show a clear input-specific message via a scrollable dialog on macOS (tkinter, z-order safe after the time picker) instead of a hidden osascript alert with save-time wording.
+- **Tier-A on macOS CI:** `scripts/run-tests.sh` uses a portable timeout helper (`timeout`, `gtimeout`, or bash watchdog) because GitHub `macos-latest` runners do not ship GNU `timeout`.
 
 ### Added
 
