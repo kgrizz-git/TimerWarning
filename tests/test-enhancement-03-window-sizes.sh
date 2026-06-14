@@ -128,7 +128,9 @@ test_new_getter_functions() {
     local result
     result=$(cd "$SCRIPT_DIR" && bash -c '
 LIB_DIR="./lib"
+TEST_CONFIG_FILE="${CONFIG_FILE:-}"
 source "${LIB_DIR}/config.sh" 2>/dev/null || exit 1
+[ -n "${TEST_CONFIG_FILE}" ] && CONFIG_FILE="${TEST_CONFIG_FILE}"
 
 # Test that new functions exist
 type get_popup_size_mode >/dev/null 2>&1 || exit 1
@@ -156,7 +158,9 @@ test_popup_size_validation() {
     export CONFIG_FILE="${tmp_config}"
     result=$(cd "$SCRIPT_DIR" && bash -c '
 LIB_DIR="./lib"
+TEST_CONFIG_FILE="${CONFIG_FILE:-}"
 source "${LIB_DIR}/config.sh" 2>/dev/null || exit 1
+[ -n "${TEST_CONFIG_FILE}" ] && CONFIG_FILE="${TEST_CONFIG_FILE}"
 
 # Test new predefined sizes
 for size in xsmall small medium large xlarge max custom; do
@@ -207,7 +211,9 @@ test_popup_dimensions_fixed_mode() {
     export CONFIG_FILE="${tmp_config}"
     result=$(cd "$SCRIPT_DIR" && bash -c '
 LIB_DIR="./lib"
+TEST_CONFIG_FILE="${CONFIG_FILE:-}"
 source "${LIB_DIR}/config.sh" 2>/dev/null || exit 1
+[ -n "${TEST_CONFIG_FILE}" ] && CONFIG_FILE="${TEST_CONFIG_FILE}"
 source "${LIB_DIR}/resolution-detection.sh" 2>/dev/null || exit 1
 
 # Test xsmall in fixed mode (should return 384x216)
@@ -261,7 +267,9 @@ test_popup_dimensions_percentage() {
     export CONFIG_FILE="${tmp_config}"
     result=$(cd "$SCRIPT_DIR" && bash -c '
 LIB_DIR="./lib"
+TEST_CONFIG_FILE="${CONFIG_FILE:-}"
 source "${LIB_DIR}/config.sh" 2>/dev/null || exit 1
+[ -n "${TEST_CONFIG_FILE}" ] && CONFIG_FILE="${TEST_CONFIG_FILE}"
 source "${LIB_DIR}/resolution-detection.sh" 2>/dev/null || exit 1
 
 # Test percentage format (50%x50%)
@@ -312,7 +320,9 @@ test_popup_dimensions_custom() {
     export CONFIG_FILE="${tmp_config}"
     result=$(cd "$SCRIPT_DIR" && bash -c '
 LIB_DIR="./lib"
+TEST_CONFIG_FILE="${CONFIG_FILE:-}"
 source "${LIB_DIR}/config.sh" 2>/dev/null || exit 1
+[ -n "${TEST_CONFIG_FILE}" ] && CONFIG_FILE="${TEST_CONFIG_FILE}"
 source "${LIB_DIR}/resolution-detection.sh" 2>/dev/null || exit 1
 
 # Test custom size with percentage
@@ -418,7 +428,9 @@ test_validation_ranges() {
     export CONFIG_FILE="${tmp_config}"
     result=$(cd "$SCRIPT_DIR" && bash -c '
 LIB_DIR="./lib"
+TEST_CONFIG_FILE="${CONFIG_FILE:-}"
 source "${LIB_DIR}/config.sh" 2>/dev/null || exit 1
+[ -n "${TEST_CONFIG_FILE}" ] && CONFIG_FILE="${TEST_CONFIG_FILE}"
 source "${LIB_DIR}/resolution-detection.sh" 2>/dev/null || exit 1
 
 # Test minimum size (384x216 should be accepted)
@@ -461,10 +473,12 @@ test_backward_compatibility() {
     
     local result
     result=$(CONFIG_FILE="${tmp_config}" bash -c "
-cd '${SCRIPT_DIR}' || exit 1
-LIB_DIR='./lib'
-source \"\${LIB_DIR}/config.sh\" 2>/dev/null || exit 1
-source \"\${LIB_DIR}/resolution-detection.sh\" 2>/dev/null || exit 1
+	cd '${SCRIPT_DIR}' || exit 1
+	LIB_DIR='./lib'
+	TEST_CONFIG_FILE=\"\${CONFIG_FILE:-}\"
+	source \"\${LIB_DIR}/config.sh\" 2>/dev/null || exit 1
+	[ -n \"\${TEST_CONFIG_FILE}\" ] && CONFIG_FILE=\"\${TEST_CONFIG_FILE}\"
+	source \"\${LIB_DIR}/resolution-detection.sh\" 2>/dev/null || exit 1
 
 # Test old sizes still work
 for size in small medium large; do
@@ -517,7 +531,9 @@ test_resolution_integration() {
     export CONFIG_FILE="${tmp_config}"
     result=$(cd "$SCRIPT_DIR" && bash -c '
 LIB_DIR="./lib"
+TEST_CONFIG_FILE="${CONFIG_FILE:-}"
 source "${LIB_DIR}/config.sh" 2>/dev/null || exit 1
+[ -n "${TEST_CONFIG_FILE}" ] && CONFIG_FILE="${TEST_CONFIG_FILE}"
 source "${LIB_DIR}/resolution-detection.sh" 2>/dev/null || exit 1
 
 # Test that get_popup_dimensions can call get_display_resolution
@@ -562,10 +578,12 @@ test_size_interpretation() {
     local result
     export CONFIG_FILE="${tmp_config}"
     result=$(CONFIG_FILE="${tmp_config}" bash -c "
-cd '${SCRIPT_DIR}' || exit 1
-LIB_DIR='./lib'
-source \"\${LIB_DIR}/config.sh\" 2>/dev/null || exit 1
-source \"\${LIB_DIR}/resolution-detection.sh\" 2>/dev/null || exit 1
+	cd '${SCRIPT_DIR}' || exit 1
+	LIB_DIR='./lib'
+	TEST_CONFIG_FILE=\"\${CONFIG_FILE:-}\"
+	source \"\${LIB_DIR}/config.sh\" 2>/dev/null || exit 1
+	[ -n \"\${TEST_CONFIG_FILE}\" ] && CONFIG_FILE=\"\${TEST_CONFIG_FILE}\"
+	source \"\${LIB_DIR}/resolution-detection.sh\" 2>/dev/null || exit 1
 
 # Test 1: Values <= 100 in WIDTHxHEIGHT format (should be treated as pixels, not percentages)
 # Current implementation: WIDTHxHEIGHT is always pixels, regardless of value

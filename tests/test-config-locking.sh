@@ -91,6 +91,7 @@ export HOME="${tmp_home}"
 # Source the same modules the real scripts use.
 # (Do not source sleep-warning.sh or configure.sh; they may touch systemd/user session state.)
 source "${SCRIPT_DIR}/lib/config.sh"
+source "${SCRIPT_DIR}/lib/time-parsing.sh"
 source "${SCRIPT_DIR}/lib/time-validation.sh"
 source "${SCRIPT_DIR}/lib/config-locking.sh"
 
@@ -242,10 +243,14 @@ if [ "${current_hour}" -ge 0 ] && [ "${current_hour}" -lt 6 ]; then
   if ! is_config_lock_active; then
     fail "Expected is_config_lock_active to be active during first range (0-5)"
   fi
-elif [ "${current_hour}" -ge 22 ]; then
-  if ! is_config_lock_active; then
-    fail "Expected is_config_lock_active to be active during second range (22-23)"
-  fi
+fi
+
+if ! is_restricted_time "2230" "0-5,22-23"; then
+  fail "Expected 22:30 to be active during second range (22-23)"
+fi
+
+if is_restricted_time "2300" "0-5,22-23"; then
+  fail "Expected 23:00 to be inactive because range end times are exclusive"
 fi
 
 # Restore config to enabled + lock hours for the actual lock/unlock test below
@@ -500,4 +505,3 @@ EOF
 apply_config_directory_lock
 
 echo "OK: All edge case tests passed."
-

@@ -33,7 +33,7 @@ Bash sleep-warning system: scheduled checks during restricted hours → modal wa
 | Linux vs macOS | [dev-docs/architecture/platforms.md](dev-docs/architecture/platforms.md) |
 | Install / scheduler | `install.sh`, `lib/service-config.sh`, `lib/service-config-{linux,darwin}.sh` |
 | Popups | `lib/popup-display.sh`, `lib/popup-display-linux.sh`, `lib/popup-safety.sh`, `lib/popup-*-darwin.sh` |
-| Configure wizard | `configure.sh`, `lib/configure-*.sh` |
+| Configure wizard | [dev-docs/architecture/configure-flow.md](dev-docs/architecture/configure-flow.md), `configure.sh`, `lib/configure-*.sh` |
 | Tests | [dev-docs/development/testing.md](dev-docs/development/testing.md), [platform-test-matrix.md](dev-docs/development/platform-test-matrix.md), `tests/README.md` |
 | Security scans (ShellCheck, Gitleaks, Semgrep) | [dev-docs/development/security-scanning.md](dev-docs/development/security-scanning.md), `scripts/run-security-scan.sh` |
 | Versioning / releases | [dev-docs/development/versioning.md](dev-docs/development/versioning.md) |

@@ -50,6 +50,35 @@ configure.sh
 
 During restriction / configure-block / config-file lock hours, `configure.sh` and **Configure** in `manage.sh` stay open in **partial mode** (baseline captured at entry; loosening blocked for the session). Details: [docs/SAFETY.md](../../docs/SAFETY.md).
 
+For dialog navigation, cancel/back semantics, partial-lock save gates, and module
+ownership inside the wizard, see [configure-flow.md](configure-flow.md).
+
+## Configure wizard flow at a glance
+
+```
+configure.sh
+  → detect GUI/text mode
+  → start macOS dialog daemon when applicable
+  → detect partial-lock mode and show limited-mode banner when active
+  → load_existing_config
+  → main menu loop
+      1  popup frequency
+      2  window behavior submenu
+      3  weekdays
+      4  weekends
+      5  configure/config-file lock settings
+      6  additional configure-lock hours
+      7  uninstall protection
+      8  additional uninstall-lock hours
+      9  weekly grid editor
+      10 pause settings
+      11 dialog tool selection (Linux)
+      12 service mode (Linux)
+      13 review and save
+  → save gates: minute compatibility → daily caps → weekly backstop
+              → popup timing → partial-lock/full-lock validation → write_config
+```
+
 ## Safety-critical modules (read before editing popups/schedulers)
 
 - `lib/popup-safety.sh`

@@ -76,6 +76,25 @@ get_popup_size() {
     esac
 }
 
+clamp_popup_dimensions_to_safe_display_max() {
+    local width="$1"
+    local height="$2"
+    local screen_width="$3"
+    local screen_height="$4"
+
+    local max_width=$((screen_width * 95 / 100))
+    local max_height=$((screen_height * 95 / 100))
+
+    if [ "${width}" -gt "${max_width}" ]; then
+        width="${max_width}"
+    fi
+    if [ "${height}" -gt "${max_height}" ]; then
+        height="${max_height}"
+    fi
+
+    echo "${width} ${height}"
+}
+
 # Convert popup size to width and height
 # This is for Enhancement #3 (Enhanced Window Size Options)
 # Supports:
@@ -89,6 +108,7 @@ get_popup_dimensions() {
     local size_mode
     local custom_size
     local custom_absolute
+    local enforce_safe_max=false
     
     # Get size mode (fixed or display-based)
     size_mode=$(get_popup_size_mode)
@@ -264,37 +284,41 @@ get_popup_dimensions() {
                             if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
                                 width=$(echo "${custom_absolute}" | cut -d'x' -f1)
                                 height=$(echo "${custom_absolute}" | cut -d'x' -f2)
+                                enforce_safe_max=true
                             else
                                 # Default fallback
                                 width=1280
                                 height=720
                             fi
                         fi
-                else
-                    # Invalid percentage range, use fallback
-                    if type log_message >/dev/null 2>&1; then
-                        log_message "warning" "Invalid popup size percentage range: ${custom_size} (must be 15-95%). Using fallback."
-                    fi
-                    if type log_to_file >/dev/null 2>&1; then
-                        log_to_file "WARNING" "Invalid popup size percentage range: ${custom_size} (must be 15-95%). Using fallback."
-                    fi
-                    if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
-                        width=$(echo "${custom_absolute}" | cut -d'x' -f1)
-                        height=$(echo "${custom_absolute}" | cut -d'x' -f2)
                     else
-                        width=1280
-                        height=720
+                        # Invalid percentage range, use fallback
+                        if type log_message >/dev/null 2>&1; then
+                            log_message "warning" "Invalid popup size percentage range: ${custom_size} (must be 15-95%). Using fallback."
+                        fi
+                        if type log_to_file >/dev/null 2>&1; then
+                            log_to_file "WARNING" "Invalid popup size percentage range: ${custom_size} (must be 15-95%). Using fallback."
+                        fi
+                        if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
+                            width=$(echo "${custom_absolute}" | cut -d'x' -f1)
+                            height=$(echo "${custom_absolute}" | cut -d'x' -f2)
+                            enforce_safe_max=true
+                        else
+                            width=1280
+                            height=720
+                        fi
                     fi
-                fi
                 elif echo "${custom_size}" | grep -qE '^[0-9]+x[0-9]+$'; then
                     # Pixel format
                     width=$(echo "${custom_size}" | cut -d'x' -f1)
                     height=$(echo "${custom_size}" | cut -d'x' -f2)
+                    enforce_safe_max=true
                 else
                     # Invalid format, use fallback
                     if [ -n "${custom_absolute}" ] && echo "${custom_absolute}" | grep -qE '^[0-9]+x[0-9]+$'; then
                         width=$(echo "${custom_absolute}" | cut -d'x' -f1)
                         height=$(echo "${custom_absolute}" | cut -d'x' -f2)
+                        enforce_safe_max=true
                     else
                         width=1280
                         height=720
@@ -336,20 +360,7 @@ get_popup_dimensions() {
                     width=${min_width}
                     height=${min_height}
                 fi
-                # Check maximum (95% of screen) - validate at popup time if resolution can be detected (95% max ensures buttons remain visible)
-                local resolution
-                resolution=$(get_display_resolution 2>/dev/null)
-                if [ $? -eq 0 ] && [ -n "${resolution}" ]; then
-                    local screen_width screen_height
-                    screen_width=$(echo "${resolution}" | cut -d' ' -f1)
-                    screen_height=$(echo "${resolution}" | cut -d' ' -f2)
-                    if [ "${width}" -gt "${screen_width}" ]; then
-                        width=${screen_width}
-                    fi
-                    if [ "${height}" -gt "${screen_height}" ]; then
-                        height=${screen_height}
-                    fi
-                fi
+                enforce_safe_max=true
             elif echo "${size}" | grep -qE '^[0-9]+%x[0-9]+%$'; then
                 # Percentage format (WIDTH%xHEIGHT%)
                 local width_percent height_percent
@@ -391,6 +402,21 @@ get_popup_dimensions() {
             ;;
     esac
     
+    if [ "${enforce_safe_max}" = "true" ]; then
+        local resolution
+        resolution=$(get_display_resolution 2>/dev/null)
+        if [ $? -eq 0 ] && [ -n "${resolution}" ]; then
+            local screen_width screen_height
+            screen_width=$(echo "${resolution}" | cut -d' ' -f1)
+            screen_height=$(echo "${resolution}" | cut -d' ' -f2)
+
+            local clamped_dimensions
+            clamped_dimensions=$(clamp_popup_dimensions_to_safe_display_max "${width}" "${height}" "${screen_width}" "${screen_height}")
+            width="${clamped_dimensions%% *}"
+            height="${clamped_dimensions#* }"
+        fi
+    fi
+
     echo "${width} ${height}"
 }
 
@@ -468,4 +494,3 @@ get_popup_size_custom_absolute() {
         return 0
     fi
 }
-

@@ -24,6 +24,8 @@ echo "pre-push: Tier-A tests (CI_HEADLESS=1, timeout 600s)..." >&2
 
 if command -v timeout >/dev/null 2>&1; then
     CI_HEADLESS=1 timeout 600 "${ROOT}/scripts/run-tests.sh" --tier a
+elif command -v gtimeout >/dev/null 2>&1; then
+    CI_HEADLESS=1 gtimeout 600 "${ROOT}/scripts/run-tests.sh" --tier a
 else
     CI_HEADLESS=1 "${ROOT}/scripts/run-tests.sh" --tier a
 fi

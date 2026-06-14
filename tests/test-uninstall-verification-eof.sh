@@ -7,6 +7,9 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
 
+# shellcheck source=tests/lib/test-run-timeout.sh
+source "${SCRIPT_DIR}/tests/lib/test-run-timeout.sh"
+
 _PASS=0
 _FAIL=0
 
@@ -17,7 +20,7 @@ echo "=== Uninstall verification EOF safety tests ==="
 
 # verify_confirmation_phrase must exit quickly on EOF (not spin)
 tmp_out=$(mktemp)
-if timeout 5 bash -c '
+if test_run_with_timeout 5 bash -c '
     export HOME=$(mktemp -d)
     source "'"${LIB_DIR}"'/configure-core.sh"
     source "'"${LIB_DIR}"'/uninstall-verification.sh"

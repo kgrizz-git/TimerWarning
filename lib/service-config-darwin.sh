@@ -140,6 +140,29 @@ EOF
             || true   # "not found" is OK here; remove_launch_agent() checks more strictly
     }
 
+    launch_agent_bootout_strict() {
+        if ! command -v launchctl >/dev/null 2>&1; then
+            return 0
+        fi
+
+        local _domain
+        _domain="$(_launchd_domain)"
+
+        if launchctl bootout "${_domain}/${LAUNCH_AGENT_LABEL}" 2>/dev/null; then
+            return 0
+        fi
+        if launchctl bootout "${_domain}" "$(launch_agent_plist_path)" 2>/dev/null; then
+            return 0
+        fi
+
+        if launchctl print "${_domain}/${LAUNCH_AGENT_LABEL}" >/dev/null 2>&1; then
+            echo "ERROR: launchctl bootout failed for ${LAUNCH_AGENT_LABEL}" >&2
+            return 1
+        fi
+
+        return 0
+    }
+
     launch_agent_bootstrap() {
         if ! command -v launchctl >/dev/null 2>&1; then
             echo "Error: launchctl not found" >&2
@@ -238,7 +261,7 @@ EOF
     }
 
     disable_scheduled_service() {
-        launch_agent_bootout
+        launch_agent_bootout_strict
     }
 
     get_launch_agent_status_text() {

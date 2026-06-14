@@ -212,7 +212,7 @@ load_existing_config() {
         
         # Check if day line exists in config file (even if empty)
         local day_line_exists
-        day_line_exists=$(grep -E "^[[:space:]]*${day_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+        day_line_exists=$(grep -E "^[[:space:]]*${day_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | tail -n1)
         
         if [ -n "${day_line_exists}" ]; then
             # Day line exists - extract value (may be empty if explicitly skipped)
@@ -247,7 +247,7 @@ load_existing_config() {
         
         # Check if lock hours line exists in config file (even if empty)
         local lock_line_exists
-        lock_line_exists=$(grep -E "^[[:space:]]*${lock_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+        lock_line_exists=$(grep -E "^[[:space:]]*${lock_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | tail -n1)
         
         if [ -n "${lock_line_exists}" ]; then
             # Lock hours line exists - extract value (may be empty if explicitly disabled)
@@ -280,7 +280,7 @@ load_existing_config() {
         
         # Check if uninstall lock hours line exists in config file (even if empty)
         local uninstall_lock_line_exists
-        uninstall_lock_line_exists=$(grep -E "^[[:space:]]*${uninstall_lock_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | head -n1)
+        uninstall_lock_line_exists=$(grep -E "^[[:space:]]*${uninstall_lock_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null | tail -n1)
         
         if [ -n "${uninstall_lock_line_exists}" ]; then
             # Uninstall lock hours line exists - extract value (may be empty if explicitly disabled)

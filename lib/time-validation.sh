@@ -279,6 +279,47 @@ get_current_hour() {
     date +%H
 }
 
+# Check whether current HHMM falls in the post-midnight tail of any overnight
+# range from the previous day. This intentionally ignores whether the current
+# day has its own non-active range; previous-day overnight carry still applies.
+is_time_in_previous_day_overnight_tail() {
+    local current_time_hhmm="$1"
+    local prev_day_ranges="$2"
+
+    if [ -z "${prev_day_ranges}" ]; then
+        return 1
+    fi
+
+    local IFS=','
+    local range
+    for range in ${prev_day_ranges}; do
+        range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [ -n "${range}" ] || continue
+
+        local start_part="${range%%-*}"
+        local end_part="${range##*-}"
+        local start_time end_time
+
+        if [[ "${start_part}" =~ : ]]; then
+            start_time=$(echo "${start_part}" | tr -d ':')
+        else
+            start_time=$(printf "%02d00" "${start_part}")
+        fi
+
+        if [[ "${end_part}" =~ : ]]; then
+            end_time=$(echo "${end_part}" | tr -d ':')
+        else
+            end_time=$(printf "%02d00" "${end_part}")
+        fi
+
+        if [ "${start_time}" -gt "${end_time}" ] && [ "${current_time_hhmm}" -lt "${end_time}" ]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 # Check if current hour is within lock hours range(s) - supports comma-separated multiple ranges
 # This function checks if the current hour falls within configured lock hours
 # Lock hours are separate from restriction hours and used for blocking configure.sh and manage.sh
@@ -443,87 +484,21 @@ check_config_lock_time() {
         prev_day=$((current_day - 1))
     fi
     
-    # Check previous day's restriction hours (overnight ranges)
-    if [ -z "${restricted_range}" ]; then
-        # Current day is empty/skipped (no restrictions for this day)
-        # Check if previous day has an overnight range that extends into current day
+    # Check previous day's restriction hours for overnight ranges that carry into today.
+    if type parse_config >/dev/null 2>&1; then
         local prev_day_range
         prev_day_range=$(parse_config "${prev_day}")
-        
-        # Check if previous day has overnight ranges that extend into current day
-        if [ -n "${prev_day_range}" ]; then
-            # Check each range in previous day's configuration
-            local IFS=','
-            for range in ${prev_day_range}; do
-                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                
-                # Normalize range to HHMM format for comparison
-                local start_time end_time
-                local start_part="${range%%-*}"
-                local end_part="${range##*-}"
-                
-                if [[ "${start_part}" =~ : ]]; then
-                    start_time=$(echo "${start_part}" | tr -d ':')
-                else
-                    start_time=$(printf "%02d00" "${start_part}")
-                fi
-                
-                if [[ "${end_part}" =~ : ]]; then
-                    end_time=$(echo "${end_part}" | tr -d ':')
-                else
-                    end_time=$(printf "%02d00" "${end_part}")
-                fi
-                
-                # Check if this is an overnight range (start > end) that extends into current day
-                if [ "${start_time}" -gt "${end_time}" ]; then
-                    # Overnight range: check if current time falls within the end portion (before end_time)
-                    if [ "${current_time_hhmm}" -lt "${end_time}" ]; then
-                        # Current time is within overnight range from previous day - block execution
-                        return 1
-                    fi
-                fi
-            done
+        if is_time_in_previous_day_overnight_tail "${current_time_hhmm}" "${prev_day_range}"; then
+            return 1
         fi
     fi
     
-    # Check previous day's lock hours (overnight ranges) - Phase 2
-    if [ -z "${lock_hours_range}" ] && type parse_lock_hours >/dev/null 2>&1; then
+    # Check previous day's lock hours for overnight ranges that carry into today.
+    if type parse_lock_hours >/dev/null 2>&1; then
         local prev_day_lock_hours
         prev_day_lock_hours=$(parse_lock_hours "${prev_day}")
-        
-        # Check if previous day has overnight lock hours that extend into current day
-        if [ -n "${prev_day_lock_hours}" ]; then
-            # Check each range in previous day's lock hours
-            local IFS=','
-            for range in ${prev_day_lock_hours}; do
-                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                
-                # Normalize range to HHMM format for comparison
-                local start_time end_time
-                local start_part="${range%%-*}"
-                local end_part="${range##*-}"
-                
-                if [[ "${start_part}" =~ : ]]; then
-                    start_time=$(echo "${start_part}" | tr -d ':')
-                else
-                    start_time=$(printf "%02d00" "${start_part}")
-                fi
-                
-                if [[ "${end_part}" =~ : ]]; then
-                    end_time=$(echo "${end_part}" | tr -d ':')
-                else
-                    end_time=$(printf "%02d00" "${end_part}")
-                fi
-                
-                # Check if this is an overnight range (start > end) that extends into current day
-                if [ "${start_time}" -gt "${end_time}" ]; then
-                    # Overnight range: check if current time falls within the end portion (before end_time)
-                    if [ "${current_time_hhmm}" -lt "${end_time}" ]; then
-                        # Current time is within overnight lock hours from previous day - block execution
-                        return 1
-                    fi
-                fi
-            done
+        if is_time_in_previous_day_overnight_tail "${current_time_hhmm}" "${prev_day_lock_hours}"; then
+            return 1
         fi
     fi
     
@@ -588,47 +563,13 @@ check_uninstall_protection_time() {
         prev_day=$((current_day - 1))
     fi
     
-    # Check previous day's restriction hours (overnight ranges)
-    if [ -z "${restricted_range}" ] && type parse_config >/dev/null 2>&1; then
-        # Current day is empty/skipped (no restrictions for this day)
-        # Check if previous day has an overnight range that extends into current day
+    # Check previous day's restriction hours for overnight ranges that carry into today.
+    if type parse_config >/dev/null 2>&1; then
         local prev_day_range
         prev_day_range=$(parse_config "${prev_day}")
-        
-        # Check if previous day has overnight ranges that extend into current day
-        if [ -n "${prev_day_range}" ]; then
-            # Check each range in previous day's configuration
-            local IFS=','
-            for range in ${prev_day_range}; do
-                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                
-                # Normalize range to HHMM format for comparison
-                local start_time end_time
-                local start_part="${range%%-*}"
-                local end_part="${range##*-}"
-                
-                if [[ "${start_part}" =~ : ]]; then
-                    start_time=$(echo "${start_part}" | tr -d ':')
-                else
-                    start_time=$(printf "%02d00" "${start_part}")
-                fi
-                
-                if [[ "${end_part}" =~ : ]]; then
-                    end_time=$(echo "${end_part}" | tr -d ':')
-                else
-                    end_time=$(printf "%02d00" "${end_part}")
-                fi
-                
-                # Check if this is an overnight range (start > end) that extends into current day
-                if [ "${start_time}" -gt "${end_time}" ]; then
-                    # Overnight range: check if current time falls within the end portion (before end_time)
-                    if [ "${current_time_hhmm}" -lt "${end_time}" ]; then
-                        # Current time is within overnight range from previous day - return protection mode
-                        echo "${protection_mode}"
-                        return 0
-                    fi
-                fi
-            done
+        if is_time_in_previous_day_overnight_tail "${current_time_hhmm}" "${prev_day_range}"; then
+            echo "${protection_mode}"
+            return 0
         fi
     fi
     
@@ -648,47 +589,13 @@ check_uninstall_protection_time() {
         fi
     fi
     
-    # Check previous day's uninstall lock hours (overnight ranges) - Phase 2
-    if [ -z "${uninstall_lock_range}" ] && type parse_uninstall_lock_hours >/dev/null 2>&1; then
-        # Current day has no uninstall lock hours configured
-        # Check if previous day has overnight uninstall lock hours that extend into current day
+    # Check previous day's uninstall lock hours for overnight ranges that carry into today.
+    if type parse_uninstall_lock_hours >/dev/null 2>&1; then
         local prev_day_uninstall_lock_range
         prev_day_uninstall_lock_range=$(parse_uninstall_lock_hours "${prev_day}")
-        
-        # Check if previous day has overnight uninstall lock hours that extend into current day
-        if [ -n "${prev_day_uninstall_lock_range}" ]; then
-            # Check each range in previous day's uninstall lock hours
-            local IFS=','
-            for range in ${prev_day_uninstall_lock_range}; do
-                range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                
-                # Normalize range to HHMM format for comparison
-                local start_time end_time
-                local start_part="${range%%-*}"
-                local end_part="${range##*-}"
-                
-                if [[ "${start_part}" =~ : ]]; then
-                    start_time=$(echo "${start_part}" | tr -d ':')
-                else
-                    start_time=$(printf "%02d00" "${start_part}")
-                fi
-                
-                if [[ "${end_part}" =~ : ]]; then
-                    end_time=$(echo "${end_part}" | tr -d ':')
-                else
-                    end_time=$(printf "%02d00" "${end_part}")
-                fi
-                
-                # Check if this is an overnight range (start > end) that extends into current day
-                if [ "${start_time}" -gt "${end_time}" ]; then
-                    # Overnight range: check if current time falls within the end portion (before end_time)
-                    if [ "${current_time_hhmm}" -lt "${end_time}" ]; then
-                        # Current time is within overnight uninstall lock hours from previous day - return protection mode
-                        echo "${protection_mode}"
-                        return 0
-                    fi
-                fi
-            done
+        if is_time_in_previous_day_overnight_tail "${current_time_hhmm}" "${prev_day_uninstall_lock_range}"; then
+            echo "${protection_mode}"
+            return 0
         fi
     fi
     

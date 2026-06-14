@@ -23,6 +23,7 @@ See [canonical-vs-archive.md](canonical-vs-archive.md) for what is current vs hi
 | [**harness-engineering.md**](harness-engineering.md) | OpenAI harness patterns in this repo |
 | [**development/ci.md**](development/ci.md) | GitHub Actions jobs and local CI parity |
 | [**architecture/map.md**](architecture/map.md) | Module layout and enhancement index |
+| [**architecture/configure-flow.md**](architecture/configure-flow.md) | Configure wizard menu/dialog flow and save gates |
 | [**development/testing.md**](development/testing.md) | Safe test practices |
 | [**development/platform-test-matrix.md**](development/platform-test-matrix.md) | macOS vs Linux test matrix |
 | [**REMAINING_WORK_SUMMARY.md**](REMAINING_WORK_SUMMARY.md) | Detailed backlog (testing, docs, master-plan phases) |

@@ -23,12 +23,12 @@ if [ -z "${SCHEDULER_PLATFORM_LOADED:-}" ]; then
                 # shellcheck disable=SC1091
                 source "${lib_dir}/service-config-darwin.sh"
                 disable_scheduled_service
+                return $?
             fi
-            return 0
+            return 1
         fi
         systemctl --user stop sleep-warning.timer 2>/dev/null || true
-        systemctl --user disable sleep-warning.timer 2>/dev/null || true
-        sleep 2
+        systemctl --user disable sleep-warning.timer 2>/dev/null
     }
 
     scheduler_remove_files() {
@@ -39,8 +39,9 @@ if [ -z "${SCHEDULER_PLATFORM_LOADED:-}" ]; then
                 # shellcheck disable=SC1091
                 source "${lib_dir}/service-config-darwin.sh"
                 remove_launch_agent
+                return $?
             fi
-            return 0
+            return 1
         fi
         rm -f "${HOME}/.config/systemd/user/sleep-warning.service" 2>/dev/null
         rm -f "${HOME}/.config/systemd/user/sleep-warning.timer" 2>/dev/null

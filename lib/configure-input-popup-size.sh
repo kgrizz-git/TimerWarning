@@ -396,8 +396,8 @@ get_custom_popup_size_config() {
                     height_percent=$(echo "${dimensions}" | cut -d'x' -f2 | tr -d '%')
                     
                     # Validate range
-                    if [ "${width_percent}" -lt 15 ] || [ "${width_percent}" -gt 100 ] || \
-                       [ "${height_percent}" -lt 15 ] || [ "${height_percent}" -gt 100 ]; then
+                    if [ "${width_percent}" -lt 15 ] || [ "${width_percent}" -gt 95 ] || \
+                       [ "${height_percent}" -lt 15 ] || [ "${height_percent}" -gt 95 ]; then
                         echo "Percentage values must be between 15% and 95% (95% max ensures buttons remain visible)." >&2
                         continue
                     fi
@@ -463,4 +463,3 @@ get_custom_popup_size_config() {
         done
     fi
 }
-
