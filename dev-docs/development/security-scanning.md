@@ -53,9 +53,12 @@ pip install semgrep
 
 `pre-commit` runs [scripts/pre-commit-checks.sh](../../scripts/pre-commit-checks.sh):
 
-1. [scripts/prune-backups.sh](../../scripts/prune-backups.sh)
-2. ShellCheck on staged shell files (if installed)
-3. Gitleaks on staged changes (if installed)
+1. [scripts/prune-backups.sh](../../scripts/prune-backups.sh) — tracked `backups/` older than **5** commits
+2. [scripts/prune-dev-docs-archive.sh](../../scripts/prune-dev-docs-archive.sh) — report-only (dry-run); manual `--apply` for deletion
+3. ShellCheck on staged shell files (if installed)
+4. Gitleaks on staged changes (if installed)
+
+Retention policy: [doc-retention.md](doc-retention.md). Skip archive report: `SKIP_ARCHIVE_REPORT=1`.
 
 **pre-push** (opt-in): `INSTALL_PRE_PUSH=1 ./scripts/install-git-hooks.sh` enables Tier-A before push via [scripts/pre-push-checks.sh](../../scripts/pre-push-checks.sh). Disable: `rm .githooks/enable-pre-push`.
 

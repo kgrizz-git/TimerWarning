@@ -25,6 +25,9 @@ fi
 chmod +x "${ROOT}/.githooks/pre-commit"
 chmod +x "${ROOT}/.githooks/pre-push"
 chmod +x "${ROOT}/scripts/prune-backups.sh"
+chmod +x "${ROOT}/scripts/prune-dev-docs-archive.sh"
+chmod +x "${ROOT}/scripts/prune-completed-plans.sh"
+chmod +x "${ROOT}/scripts/check-stale-plans.sh"
 chmod +x "${ROOT}/scripts/pre-commit-checks.sh"
 chmod +x "${ROOT}/scripts/pre-push-checks.sh"
 chmod +x "${ROOT}/scripts/run-security-scan.sh"
@@ -34,7 +37,8 @@ git config core.hooksPath .githooks
 
 echo "Git hooks installed: core.hooksPath=.githooks"
 echo "  pre-commit -> scripts/pre-commit-checks.sh"
-echo "    - prune tracked backups/ older than 3 commits"
+echo "    - prune tracked backups/ older than 5 commits"
+echo "    - report dev-docs archive files eligible for pruning (dry-run)"
 echo "    - ShellCheck on staged *.sh (if shellcheck installed)"
 echo "    - gitleaks protect --staged (if gitleaks installed)"
 
@@ -51,7 +55,7 @@ else
 fi
 
 echo ""
-echo "Optional: SKIP_SHELLCHECK=1 or SKIP_GITLEAKS=1 git commit ..."
+echo "Optional: SKIP_SHELLCHECK=1 or SKIP_GITLEAKS=1 or SKIP_ARCHIVE_REPORT=1 git commit ..."
 echo "Optional: SKIP_PRE_PUSH_TESTS=1 git push ..."
 echo "Full scan (CI parity): CI_HEADLESS=1 ./scripts/run-tests.sh --tier a"
 echo "Contributor guide: dev-docs/CONTRIBUTING.md"

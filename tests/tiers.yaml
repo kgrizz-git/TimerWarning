@@ -28,6 +28,8 @@ tier_a:
     - test-ifs-set-u.sh
     - test-popup-timing-save-validation.sh
     - test-uninstall-verification-eof.sh
+    - test-prune-backups.sh
+    - test-prune-dev-docs-archive.sh
     - name: test-platform-darwin.sh
       platform: darwin
     - name: test-darwin-configure-gui.sh

@@ -35,6 +35,8 @@ Moved developer pages leave a short **Moved** stub under `docs/` for one release
 
 When archive text conflicts with [docs/SAFETY.md](../docs/SAFETY.md) or current `lib/` code, **code + SAFETY win**.
 
+Retention and pruning: [development/doc-retention.md](development/doc-retention.md).
+
 ## IDE-specific (optional)
 
 | Tool | Extra entry |

@@ -13,7 +13,7 @@
 #
 # Inputs:
 #   BACKUPS_DIR       — directory to scan (default: backups)
-#   MAX_COMMIT_AGE    — keep if last change is within this many commits (default: 3)
+#   MAX_COMMIT_AGE    — keep if last change is within this many commits (default: 5)
 #   --dry-run         — print actions only, do not delete or stage
 #
 # Requirements: git, bash
@@ -24,7 +24,7 @@
 set -euo pipefail
 
 BACKUPS_DIR="backups"
-MAX_COMMIT_AGE=3
+MAX_COMMIT_AGE=5
 DRY_RUN=false
 
 usage() {
@@ -32,7 +32,7 @@ usage() {
 Usage: prune-backups.sh [--dry-run] [BACKUPS_DIR] [MAX_COMMIT_AGE]
 
 Remove tracked files in BACKUPS_DIR whose last git commit is more than
-MAX_COMMIT_AGE commits behind HEAD. Default: backups/ and 3.
+MAX_COMMIT_AGE commits behind HEAD. Default: backups/ and 5.
 
 Examples:
   ./scripts/prune-backups.sh --dry-run

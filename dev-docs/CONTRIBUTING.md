@@ -60,14 +60,16 @@ CI=true ./scripts/run-security-scan.sh --ci --with-tests
 
 | Hook | Default | What it does |
 |------|---------|----------------|
-| **pre-commit** | On after `install-git-hooks.sh` | Prune old `backups/`, ShellCheck staged `*.sh`, gitleaks staged |
+| **pre-commit** | On after `install-git-hooks.sh` | Prune old `backups/` (5 commits), archive retention report (dry-run), ShellCheck staged `*.sh`, gitleaks staged |
 | **pre-push** | Opt-in (`INSTALL_PRE_PUSH=1`) | `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a` (10 min timeout) |
 
 Skip emergencies only:
 
 ```bash
-SKIP_SHELLCHECK=1 SKIP_GITLEAKS=1 git commit -m "..."
+SKIP_SHELLCHECK=1 SKIP_GITLEAKS=1 SKIP_ARCHIVE_REPORT=1 git commit -m "..."
 ```
+
+Doc retention: [development/doc-retention.md](development/doc-retention.md).
 
 Details: [development/security-scanning.md](development/security-scanning.md).
 

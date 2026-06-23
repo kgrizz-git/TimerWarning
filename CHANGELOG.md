@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Doc retention policy:** [dev-docs/development/doc-retention.md](dev-docs/development/doc-retention.md) — dual-threshold pruning for timestamped assessments/scans (30 days + 10 commits); completed-plans script (90 + 20); stale-plan linter. Pre-commit reports eligible archive files (dry-run); manual `--apply` to delete. Backups default retention raised to **5** commits.
+
 ### Fixed
 
 - **Configure wizard back navigation:** "Go back to previous day" no longer unsets the previous day's loaded restrictions or lock hours, preventing silent data loss on save when returning to the menu without re-entering earlier days.

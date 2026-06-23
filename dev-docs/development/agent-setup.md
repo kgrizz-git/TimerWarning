@@ -18,6 +18,10 @@ This repository is built for **any** coding agent or assistant that can read fil
 
 **Doc drift (warn-only in CI):** `./scripts/check-doc-drift.sh` — use `--strict` before release.
 
+**Doc retention:** `./scripts/prune-dev-docs-archive.sh` (dry-run; `--apply` to delete). Policy: [doc-retention.md](doc-retention.md).
+
+**Local Cursor cache:** `.cursor/hooks/state/` is gitignored runtime cache; safe to delete. Durable agent memory belongs in `AGENTS.md` and `dev-docs/`, not hook state files.
+
 **Invariant IDs:** Hard-block messages cite stable ids — see [invariants.md](invariants.md).
 
 ## What is agent-agnostic vs IDE-specific

@@ -2,6 +2,13 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-06-23 — Doc archive retention
+
+- [development/doc-retention.md](development/doc-retention.md) — policy for assessments, safety scans, completed plans, backups.
+- `scripts/prune-dev-docs-archive.sh` — dry-run default; pre-commit report-only.
+- `scripts/prune-completed-plans.sh`, `scripts/check-stale-plans.sh` — manual housekeeping.
+- Backups prune default: **5** commits (was 3).
+
 ## 2026-06-12 — Phase 8 contributor hygiene (plan complete)
 
 - [CONTRIBUTING.md](CONTRIBUTING.md), root pointer, PR template, `check-file-sizes.sh`, opt-in pre-push hook.

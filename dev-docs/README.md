@@ -56,7 +56,7 @@ See [canonical-vs-archive.md](canonical-vs-archive.md) for what is current vs hi
 | [`info/`](info/) | Reusable research (dialog tools, distribution, Wayland, etc.) |
 | [`notes/`](notes/) | One-off analyses and debug notes |
 | [`templates/`](templates/) | Copy-paste templates for assessments and safety scans |
-| `code-assessments/`, `doc-assessments/`, `refactor-assessments/`, `testing-assessments/`, `safety-scans/` | Timestamped audit records (historical) |
+| `code-assessments/`, `doc-assessments/`, `refactor-assessments/`, `testing-assessments/`, `safety-scans/` | Timestamped audit records (historical); retention: [development/doc-retention.md](development/doc-retention.md) |
 
 ## Conventions
 

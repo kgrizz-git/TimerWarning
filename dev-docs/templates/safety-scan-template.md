@@ -686,7 +686,7 @@ Run **Tier B** scans in addition to the manual checklist. Record tool versions a
 
 Current repo hook (after `./scripts/install-git-hooks.sh`):
 
-- **pre-commit** → `scripts/prune-backups.sh` (prune tracked `backups/` older than 3 commits)
+- **pre-commit** → `scripts/prune-backups.sh` (prune tracked `backups/` older than 5 commits); `scripts/prune-dev-docs-archive.sh` (report-only archive retention)
 
 Implemented locally (verify still working):
 

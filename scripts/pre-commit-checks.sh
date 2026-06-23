@@ -6,8 +6,9 @@
 # Called from .githooks/pre-commit (enable via scripts/install-git-hooks.sh)
 #
 # Environment:
-#   SKIP_SHELLCHECK=1   Skip ShellCheck on staged .sh files
-#   SKIP_GITLEAKS=1     Skip gitleaks protect --staged
+#   SKIP_SHELLCHECK=1      Skip ShellCheck on staged .sh files
+#   SKIP_GITLEAKS=1        Skip gitleaks protect --staged
+#   SKIP_ARCHIVE_REPORT=1  Skip dev-docs archive retention report
 ###############################################################################
 
 set -euo pipefail
@@ -17,6 +18,11 @@ cd "${ROOT}"
 
 echo "pre-commit: pruning old tracked backups..."
 "${ROOT}/scripts/prune-backups.sh"
+
+if [ "${SKIP_ARCHIVE_REPORT:-0}" != "1" ]; then
+    echo "pre-commit: checking dev-docs archive retention (report-only)..."
+    "${ROOT}/scripts/prune-dev-docs-archive.sh"
+fi
 
 # --- ShellCheck on staged shell scripts only ---
 if [ "${SKIP_SHELLCHECK:-0}" != "1" ] && command -v shellcheck >/dev/null 2>&1; then
