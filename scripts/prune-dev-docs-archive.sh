@@ -201,7 +201,10 @@ commit_age_for_file() {
         echo 0
         return
     fi
-    git rev-list --count "${last_commit}..HEAD" 2>/dev/null || echo 999
+    if ! git rev-list --count "${last_commit}..HEAD" 2>/dev/null; then
+        echo "Warning: could not compute commit age for ${relpath}; keeping archive file" >&2
+        echo -1
+    fi
 }
 
 # Collect newest timestamps per directory for keep-latest

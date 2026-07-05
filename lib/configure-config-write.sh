@@ -263,6 +263,12 @@ _write_uninstall_lock_hours_section() {
     fi
 }
 
+_finish_config_lock_wizard_write_if_available() {
+    if type config_lock_finish_wizard_write >/dev/null 2>&1; then
+        config_lock_finish_wizard_write || true
+    fi
+}
+
 write_config() {
     local check_interval="$1"
     local popup_size="$2"
@@ -490,18 +496,18 @@ write_config() {
     if [ $? -ne 0 ]; then
         # Write failed, clean up temp file
         rm -f "${temp_file}" 2>/dev/null
+        _finish_config_lock_wizard_write_if_available
         return 1
     fi
     
     # Atomically replace config file with temp file
     if mv "${temp_file}" "${CONFIG_FILE}" 2>/dev/null; then
-        if type config_lock_finish_wizard_write >/dev/null 2>&1; then
-            config_lock_finish_wizard_write || true
-        fi
+        _finish_config_lock_wizard_write_if_available
         return 0
     else
         # Move failed, clean up temp file
         rm -f "${temp_file}" 2>/dev/null
+        _finish_config_lock_wizard_write_if_available
         return 1
     fi
 }

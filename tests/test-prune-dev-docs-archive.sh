@@ -107,6 +107,35 @@ else
     _fail "--apply deletes eligible file"
 fi
 
+# --- fail closed when commit age cannot be computed ---
+setup_repo
+echo "# old" > dev-docs/testing-assessments/testing-assessment-2020-01-01-000000.md
+git add -A
+git commit -q -m "init"
+for i in 1 2 3 4 5 6 7 8 9 10 11; do
+    echo "c${i}" >> README.md
+    git add README.md
+    git commit -q -m "c${i}"
+done
+
+REAL_GIT="$(command -v git)"
+mkdir -p fake-bin
+cat > fake-bin/git <<EOF
+#!/usr/bin/env bash
+if [ "\${1:-}" = "rev-list" ]; then
+    exit 1
+fi
+exec "${REAL_GIT}" "\$@"
+EOF
+chmod +x fake-bin/git
+
+PATH="${PWD}/fake-bin:${PATH}" ARCHIVE_MIN_DAYS=0 ARCHIVE_MIN_COMMITS=0 ARCHIVE_KEEP_LATEST=0 ./prune-dev-docs-archive.sh --apply >/dev/null 2>&1 || true
+if [ -f dev-docs/testing-assessments/testing-assessment-2020-01-01-000000.md ]; then
+    _pass "--apply keeps file when commit age cannot be computed"
+else
+    _fail "--apply keeps file when commit age cannot be computed"
+fi
+
 # --- live repo smoke: script exits 0 ---
 cd "${ROOT}"
 if "${SCRIPT}" >/dev/null 2>&1; then

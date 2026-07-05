@@ -101,7 +101,10 @@ commit_age_for_file() {
     local last_commit
     last_commit="$(git log -1 --format=%H -- "${relpath}" 2>/dev/null || true)"
     [ -n "${last_commit}" ] || { echo 0; return; }
-    git rev-list --count "${last_commit}..HEAD" 2>/dev/null || echo 999
+    if ! git rev-list --count "${last_commit}..HEAD" 2>/dev/null; then
+        echo "Warning: could not compute commit age for ${relpath}; keeping completed plan" >&2
+        echo -1
+    fi
 }
 
 has_retain_frontmatter() {

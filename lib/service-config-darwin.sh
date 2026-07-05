@@ -215,11 +215,11 @@ EOF
             fi
         fi
 
-        rm -f "${_plist_path}" 2>/dev/null
-
         if [ "${_bootout_ok}" = "false" ]; then
             return 1
         fi
+
+        rm -f "${_plist_path}" 2>/dev/null
         return 0
     }
 
