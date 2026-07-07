@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Config-lock failed saves:** Configure wizard saves now re-apply the config-file lock even when the atomic temp-file write or rename fails, preventing a temporary writable config during active lock hours.
+- **macOS uninstall failure reporting:** `uninstall.sh` now exits non-zero when LaunchAgent stop/removal fails and preserves the plist if `launchctl bootout` cannot unload a still-loaded agent, avoiding false "complete" uninstall messages.
+- **Retention pruning data loss:** `scripts/prune-backups.sh` now skips backups with staged or unstaged changes, fails closed when commit age cannot be computed, and stages only the exact files it pruned. Manual dev-docs/completed-plan archive pruners also keep files when commit age cannot be computed.
 - **Configure wizard back navigation:** "Go back to previous day" no longer unsets the previous day's loaded restrictions or lock hours, preventing silent data loss on save when returning to the menu without re-entering earlier days.
 - **Zero-length time ranges:** `validate_time_range` now rejects ranges where start equals end (e.g. `7-7`, `07:00-07:00`, `7am-7am`) across all supported formats.
 - **Popup timing on save:** Review and Save (option 13) now runs `validate_popup_timing_config` before writing the config file, blocking invalid min-display vs frequency combinations.

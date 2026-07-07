@@ -212,9 +212,13 @@ restore_config_permissions() {
 stop_timer() {
     if type scheduler_stop_and_disable >/dev/null 2>&1 && scheduler_is_darwin; then
         print_info "Stopping LaunchAgent..."
-        scheduler_stop_and_disable
-        print_success "LaunchAgent stopped"
-        return 0
+        if scheduler_stop_and_disable; then
+            print_success "LaunchAgent stopped"
+            return 0
+        fi
+        print_error "Failed to stop LaunchAgent"
+        print_warning "Manual fix: launchctl bootout gui/\$(id -u)/com.sleep-warning"
+        return 1
     fi
     print_info "Stopping systemd timer..."
     
@@ -244,9 +248,13 @@ stop_timer() {
 remove_systemd_files() {
     if type scheduler_remove_files >/dev/null 2>&1 && scheduler_is_darwin; then
         print_info "Removing LaunchAgent plist..."
-        scheduler_remove_files
-        print_success "LaunchAgent removed"
-        return 0
+        if scheduler_remove_files; then
+            print_success "LaunchAgent removed"
+            return 0
+        fi
+        print_error "Failed to remove LaunchAgent"
+        print_warning "Manual fix: launchctl bootout gui/\$(id -u)/com.sleep-warning"
+        return 1
     fi
     print_info "Removing systemd service and timer files..."
     
@@ -560,14 +568,20 @@ main() {
     fi
     
     # Stop and disable timer
-    stop_timer
+    if ! stop_timer; then
+        print_error "Uninstall cancelled because the scheduled service could not be stopped."
+        exit 1
+    fi
 
     # Ensure config file/directory are writable before attempting removal
     # (Timer is stopped to prevent immediate re-locking)
     restore_config_permissions
     
     # Remove systemd files
-    remove_systemd_files
+    if ! remove_systemd_files; then
+        print_error "Uninstall cancelled because scheduler files could not be removed."
+        exit 1
+    fi
     
     # Remove scripts
     remove_scripts

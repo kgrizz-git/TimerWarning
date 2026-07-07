@@ -75,6 +75,7 @@ fi
 
 deleted=0
 kept=0
+pruned_paths=()
 
 for filepath in "${BACKUPS_DIR}"/*; do
     [ -e "${filepath}" ] || continue
@@ -89,6 +90,14 @@ for filepath in "${BACKUPS_DIR}"/*; do
         continue
     fi
 
+    # Do not prune backups with staged or unstaged user changes. Pre-commit runs
+    # before the commit lands, so HEAD may still make an updated backup look old.
+    if ! git diff --quiet -- "${relpath}" 2>/dev/null || \
+       ! git diff --cached --quiet -- "${relpath}" 2>/dev/null; then
+        kept=$((kept + 1))
+        continue
+    fi
+
     last_commit="$(git log -1 --format=%H -- "${relpath}" 2>/dev/null || true)"
     if [ -z "${last_commit}" ]; then
         kept=$((kept + 1))
@@ -96,7 +105,11 @@ for filepath in "${BACKUPS_DIR}"/*; do
     fi
 
     # Commits strictly after last_commit up to HEAD
-    commit_age="$(git rev-list --count "${last_commit}..HEAD" 2>/dev/null || echo 999)"
+    if ! commit_age="$(git rev-list --count "${last_commit}..HEAD" 2>/dev/null)"; then
+        echo "Warning: could not compute commit age for ${relpath}; keeping backup" >&2
+        kept=$((kept + 1))
+        continue
+    fi
 
     if [ "${commit_age}" -gt "${MAX_COMMIT_AGE}" ]; then
         if [ "${DRY_RUN}" = true ]; then
@@ -104,6 +117,7 @@ for filepath in "${BACKUPS_DIR}"/*; do
         else
             rm -f "${filepath}"
             echo "Pruned backup (${commit_age} commits since last change): ${relpath}"
+            pruned_paths+=("${relpath}")
         fi
         deleted=$((deleted + 1))
     else
@@ -112,7 +126,9 @@ for filepath in "${BACKUPS_DIR}"/*; do
 done
 
 if [ "${deleted}" -gt 0 ] && [ "${DRY_RUN}" = false ]; then
-    git add -u "${BACKUPS_DIR}" 2>/dev/null || true
+    for relpath in "${pruned_paths[@]}"; do
+        git add -u -- "${relpath}" 2>/dev/null || true
+    done
 fi
 
 if [ "${deleted}" -gt 0 ] || [ "${DRY_RUN}" = true ]; then
