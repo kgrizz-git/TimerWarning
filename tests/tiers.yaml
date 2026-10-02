@@ -22,6 +22,8 @@ tier_a:
       platform: darwin
     - name: test-popup-safety-linux.sh
       platform: linux
+    - name: test-popup-watchdog-cleanup.sh
+      platform: linux
     - test-configure-partial-lock.sh
     - test-configure-back-navigation.sh
     - test-input-time-cap-validation.sh

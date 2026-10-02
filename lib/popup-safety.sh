@@ -112,11 +112,19 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
 
     # Linux (and any path using POPUP_PID_FILE respawns): background watchdog reads the
     # PID file and kills the current dialog after max_seconds (TERM, then KILL).
-    # Prints the background subshell PID to stdout; caller stores it for cleanup.
-    # Usage: _wd_pid=$(popup_start_pid_file_watchdog seconds [pid_file])
+    #
+    # Sets POPUP_WATCHDOG_LAST_PID to the background subshell PID. Do not capture this
+    # function with command substitution ($( ... )) — bash waits for background jobs
+    # started inside substitutions, which would block show_warning() for max_seconds.
+    #
+    # Usage:
+    #   popup_start_pid_file_watchdog seconds [pid_file] >/dev/null
+    #   _wd_pid="${POPUP_WATCHDOG_LAST_PID}"
     popup_start_pid_file_watchdog() {
         local max_seconds="$1"
         local pid_file="${2:-${POPUP_PID_FILE:-}}"
+
+        POPUP_WATCHDOG_LAST_PID=""
 
         if [ -z "${pid_file}" ] || ! [[ "${max_seconds}" =~ ^[0-9]+$ ]]; then
             return 1
@@ -142,7 +150,8 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
                 fi
             fi
         ) &
-        echo $!
+        POPUP_WATCHDOG_LAST_PID=$!
+        echo "${POPUP_WATCHDOG_LAST_PID}"
     }
 
     popup_safe_get_min_display_time() {

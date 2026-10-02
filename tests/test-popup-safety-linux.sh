@@ -50,11 +50,16 @@ sleep 120 &
 _hung_pid=$!
 echo "${_hung_pid}" > "${_pid_file}"
 
-_wd_bg_pid="$(popup_start_pid_file_watchdog 4 "${_pid_file}")"
+_assign_start=$(date +%s)
+popup_start_pid_file_watchdog 4 "${_pid_file}" >/dev/null
+_wd_bg_pid="${POPUP_WATCHDOG_LAST_PID:-}"
+_assign_elapsed=$(($(date +%s) - _assign_start))
 if ! [[ "${_wd_bg_pid}" =~ ^[0-9]+$ ]]; then
     _fail "popup_start_pid_file_watchdog returned pid (${_wd_bg_pid})"
+elif [ "${_assign_elapsed}" -gt 2 ]; then
+    _fail "popup_start_pid_file_watchdog blocked caller for ${_assign_elapsed}s (command substitution wait)"
 else
-    _pass "popup_start_pid_file_watchdog started background watcher"
+    _pass "popup_start_pid_file_watchdog started background watcher without blocking caller"
 fi
 
 _start=$(date +%s)
