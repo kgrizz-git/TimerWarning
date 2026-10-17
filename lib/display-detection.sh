@@ -136,7 +136,7 @@ is_gaming_mode_enabled() {
     fi
     if [ -n "${GAMING_MODE_EXPERIMENTAL_ENABLED:-}" ]; then
         local env_val
-        env_val=$(echo "${GAMING_MODE_EXPERIMENTAL_ENABLED}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        env_val=$(echo "${GAMING_MODE_EXPERIMENTAL_ENABLED}" | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
         case "${env_val}" in
             true|1|yes) return 0 ;;
             *) return 1 ;;
@@ -145,7 +145,7 @@ is_gaming_mode_enabled() {
     local cfg_file="${CONFIG_FILE:-${HOME:-}/.config/sleep-warning/config/sleep-warning.conf}"
     if [ -f "${cfg_file}" ]; then
         local cfg_val
-        cfg_val=$(grep -E "^[[:space:]]*GAMING_MODE_EXPERIMENTAL_ENABLED=" "${cfg_file}" 2>/dev/null | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        cfg_val=$(grep -E "^[[:space:]]*GAMING_MODE_EXPERIMENTAL_ENABLED=" "${cfg_file}" 2>/dev/null | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
         if [ -n "${cfg_val}" ]; then
             case "${cfg_val}" in
                 true|1|yes) return 0 ;;

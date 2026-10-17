@@ -283,14 +283,14 @@ show_warning() {
     fi
     
     # Set display environment variables
-    POPUP_FORCE_X11_BACKEND="false"
+    export POPUP_FORCE_X11_BACKEND="false"
     if [ "${env_type}" = "x11" ]; then
         export DISPLAY="${display_env}"
     elif [ "${env_type}" = "gamescope" ]; then
         # For SteamOS Gaming Mode (gamescope), force Xwayland (:0) so xprop can tag STEAM_OVERLAY=1
         export DISPLAY="${display_env}"
         unset WAYLAND_DISPLAY
-        POPUP_FORCE_X11_BACKEND="true"
+        export POPUP_FORCE_X11_BACKEND="true"
     else
         # For Wayland, set both DISPLAY (for tools that need it) and WAYLAND_DISPLAY
         if [ -n "${display_id}" ] && [ "${display_id}" != "unknown" ]; then

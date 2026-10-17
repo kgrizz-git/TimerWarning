@@ -262,7 +262,7 @@ systemctl --user daemon-reload
 ### Linux Distributions
 - ✅ Steam OS (Arch-based)
   - **Desktop Mode**: Full functionality with X11. Limited testing indicates popups work with some full-screen games in Desktop Mode, but results vary by game. No guarantees for all games.
-  - **Gaming Mode**: Partially compatible - see [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md) for details
+  - **Gaming Mode (Experimental)**: Off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). Can be enabled in `sleep-warning-configure` (**Option 12: Service Mode**) to route dialogs through `gamescope`'s Xwayland overlay plane (`:0`) with `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1` atoms and forced auto-close safety — see [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md) for details.
 - ✅ Ubuntu (18.04+)
 - ✅ Debian (8+)
 - ✅ Fedora

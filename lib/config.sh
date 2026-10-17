@@ -827,7 +827,7 @@ parse_uninstall_lock_hours() {
 get_gaming_mode_experimental_enabled() {
     if [ -n "${GAMING_MODE_EXPERIMENTAL_ENABLED:-}" ]; then
         local env_val
-        env_val=$(echo "${GAMING_MODE_EXPERIMENTAL_ENABLED}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        env_val=$(echo "${GAMING_MODE_EXPERIMENTAL_ENABLED}" | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
         case "${env_val}" in
             true|1|yes)
                 echo "true"
@@ -842,7 +842,7 @@ get_gaming_mode_experimental_enabled() {
 
     if [ -f "${CONFIG_FILE}" ]; then
         local raw_val
-        raw_val=$(grep -E "^[[:space:]]*${CONFIG_KEY_GAMING_MODE_EXPERIMENTAL_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        raw_val=$(grep -E "^[[:space:]]*${CONFIG_KEY_GAMING_MODE_EXPERIMENTAL_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
         if [ -n "${raw_val}" ]; then
             case "${raw_val}" in
                 true|1|yes)

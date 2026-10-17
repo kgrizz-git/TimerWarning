@@ -211,7 +211,7 @@ load_existing_config() {
 
     # Read experimental SteamOS Gaming Mode overlay setting
     local existing_gaming_mode_experimental
-    existing_gaming_mode_experimental=$(grep -E "^[[:space:]]*${CONFIG_KEY_GAMING_MODE_EXPERIMENTAL_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    existing_gaming_mode_experimental=$(grep -E "^[[:space:]]*${CONFIG_KEY_GAMING_MODE_EXPERIMENTAL_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
     if [ -n "${existing_gaming_mode_experimental}" ]; then
         if [ "${existing_gaming_mode_experimental}" = "true" ] || [ "${existing_gaming_mode_experimental}" = "1" ] || [ "${existing_gaming_mode_experimental}" = "yes" ]; then
             declare -g gaming_mode_experimental_enabled="true"

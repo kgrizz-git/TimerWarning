@@ -25,6 +25,7 @@ tier_a:
     - name: test-popup-watchdog-cleanup.sh
       platform: linux
     - test-configure-partial-lock.sh
+    - test-gamescope-overlay.sh
     - test-configure-back-navigation.sh
     - test-input-time-cap-validation.sh
     - test-ifs-set-u.sh
