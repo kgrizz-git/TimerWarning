@@ -144,21 +144,9 @@ configure_service_mode() {
         done
     fi
 
-    # Enforce tighten-only partial lock mode during active lock hours:
-    # Enabling experimental Gaming Mode (false -> true) is allowed; disabling it (true -> false) is blocked.
-    if [ "${selected_mode}" = "desktop" ] && { [ "${current_exp}" = "true" ] || [ "${_baseline_gaming_mode_experimental_enabled:-false}" = "true" ]; }; then
-        if type configure_partial_lock_mode_enabled >/dev/null 2>&1 && configure_partial_lock_mode_enabled; then
-            local lock_err="Cannot disable Experimental Gaming Mode during lock hours."
-            if [ "${use_gui}" = "true" ] && type show_error_dialog >/dev/null 2>&1; then
-                show_error_dialog "Locked Setting" "${lock_err}"
-            elif [ "${use_gui}" = "true" ] && type show_info_dialog >/dev/null 2>&1; then
-                show_info_dialog "Locked Setting" "${lock_err}" 500 200
-            else
-                echo "Error: ${lock_err}" >&2
-            fi
-            return 1
-        fi
-    fi
+    # Experimental Gaming Mode is display routing, not restriction strength.
+    # Option 12 may enable or disable it during lock hours so a broken
+    # gamescope overlay can be turned off without waiting for the lock window.
 
     local new_exp="false"
     if [ "${selected_mode}" = "gaming" ]; then

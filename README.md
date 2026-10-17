@@ -33,7 +33,7 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 **Compatibility:**
 - Compatibility cannot be guaranteed for all systems
 - Some features may not work on all Linux distributions or desktop environments
-- SteamOS Gaming Mode compatibility is actively being developed but may have limitations
+- SteamOS Gaming Mode overlay support is experimental and off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). It needs on-device verification and may fail to appear over fullscreen games
 - On Wayland/gamescope, always-on-top behavior is best-effort and full-screen games may block popups
 
 **Support:**

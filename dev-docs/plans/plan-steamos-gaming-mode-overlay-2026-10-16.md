@@ -2,7 +2,9 @@
 
 **Date:** 2026-10-16  
 **Branch:** `chore/public-repo-prep`  
-**Status:** Reviewed by Cursor `composer-2.5` & `kilo/reflection/beam-free`, verified against codebase  
+**Status:** Implemented on this branch. On-device Steam Deck verification is still open.
+
+**Follow-up (2026-10-17):** A review found that the first implementation opted existing `mode-gaming.conf` installs in, treated static `GAMESCOPE_SESSION=1` as a live gamescope session, blocked turning the overlay off during lock hours, tagged the pause dialog with an empty PID, blocked the popup thread while polling `xprop`, and returned `:0` when that display was not accessible. Those are fixed in the tree. `mode-gaming.conf` no longer writes `GAMESCOPE_SESSION`. The step text below is the original plan and still describes the first approach (`mode-gaming.conf` fallback and tighten-only toggle).  
 **Safety Reference:** [docs/SAFETY.md](../../docs/SAFETY.md)
 
 ---

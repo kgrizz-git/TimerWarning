@@ -118,27 +118,45 @@ _popup_linux_on_spawn_failure() {
     return 1
 }
 
+# Tag the current popup for the gamescope overlay plane without blocking the
+# min-display loop. apply_gamescope_overlay_atoms polls for up to a few seconds;
+# that wait runs in this background job, then atoms are refreshed every 2s
+# until duration elapses or popup_pid exits. Each respawn gets its own job;
+# the previous job exits once its captured PID is gone.
+# Parameters: $1 duration in seconds (min-display or remaining countdown).
+_popup_linux_arm_gamescope_atoms() {
+    local duration="${1:-0}"
+    if [ "${env_type:-}" != "gamescope" ] || [ -z "${popup_pid:-}" ]; then
+        return 0
+    fi
+    if ! type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
+        return 0
+    fi
+    local title="${window_title}"
+    local tool="${window_tool:-}"
+    local pid="${popup_pid}"
+    (
+        apply_gamescope_overlay_atoms "${title}" "${tool}" "${pid}" || true
+        if [ -z "${tool}" ]; then
+            local elapsed=0
+            while [ "${elapsed}" -lt "${duration}" ] && kill -0 "${pid}" 2>/dev/null; do
+                sleep 2
+                elapsed=$((elapsed + 2))
+                if kill -0 "${pid}" 2>/dev/null; then
+                    apply_gamescope_overlay_atoms "${title}" "" "${pid}" >/dev/null 2>&1 || true
+                fi
+            done
+        fi
+    ) &
+}
+
 # Keep popup window on top after spawn.
 _popup_linux_start_stay_on_top() {
     local on_top_duration=${min_display_time}
     if [ "${on_top_duration}" -eq 0 ]; then
         on_top_duration=300
     fi
-    if [ "${env_type:-}" = "gamescope" ] && [ -n "${popup_pid}" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
-        apply_gamescope_overlay_atoms "${window_title}" "${window_tool:-}" "${popup_pid}" || true
-        if [ -z "${window_tool:-}" ]; then
-            (
-                local _gs_elapsed=0
-                while [ "${_gs_elapsed}" -lt "${on_top_duration}" ] && kill -0 "${popup_pid}" 2>/dev/null; do
-                    sleep 2
-                    _gs_elapsed=$((_gs_elapsed + 2))
-                    if kill -0 "${popup_pid}" 2>/dev/null; then
-                        apply_gamescope_overlay_atoms "${window_title}" "" "${popup_pid}" >/dev/null 2>&1 || true
-                    fi
-                done
-            ) &
-        fi
-    fi
+    _popup_linux_arm_gamescope_atoms "${on_top_duration}"
     if [ -n "${window_tool}" ] && [ -n "${popup_pid}" ]; then
         sleep 1.0
         keep_window_on_top "${window_title}" "${window_tool}"
@@ -164,21 +182,7 @@ _popup_linux_update_countdown() {
 
     _popup_spawn_warning_dialog "${updated_message}"
 
-    if [ "${env_type:-}" = "gamescope" ] && [ -n "${popup_pid}" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
-        apply_gamescope_overlay_atoms "${window_title}" "${window_tool:-}" "${popup_pid}" || true
-        if [ -z "${window_tool:-}" ]; then
-            (
-                local _gs_elapsed=0
-                while [ "${_gs_elapsed}" -lt "${remaining_seconds}" ] && kill -0 "${popup_pid}" 2>/dev/null; do
-                    sleep 2
-                    _gs_elapsed=$((_gs_elapsed + 2))
-                    if kill -0 "${popup_pid}" 2>/dev/null; then
-                        apply_gamescope_overlay_atoms "${window_title}" "" "${popup_pid}" >/dev/null 2>&1 || true
-                    fi
-                done
-            ) &
-        fi
-    fi
+    _popup_linux_arm_gamescope_atoms "${remaining_seconds}"
 
     if [ -n "${window_tool}" ]; then
         sleep 0.3

@@ -27,9 +27,6 @@ load_existing_config() {
     declare -g dialog_tool="auto"
     declare -g config_lock_enabled="false"
     declare -g gaming_mode_experimental_enabled="false"
-    if [ -f "${HOME}/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf" ]; then
-        declare -g gaming_mode_experimental_enabled="true"
-    fi
     
     # Clear existing arrays (they should already be declared as global by caller)
     config_lines=()

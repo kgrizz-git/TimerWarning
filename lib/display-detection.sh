@@ -116,29 +116,29 @@ detect_wayland_with_helpers() {
     return 1
 }
 
-# Detect if gamescope is running as the session compositor (best-effort)
+# Detect if gamescope is the session compositor (best-effort).
+# GAMESCOPE_SESSION is ignored. A unit file or an imported session variable
+# can stay set after the user leaves Gaming Mode, so it is not a live signal.
+# Returns 0 when XDG_CURRENT_DESKTOP names gamescope, or when the gamescope
+# process is running and the desktop name is unset. A named non-gamescope
+# desktop (for example KDE) returns 1 even if a nested gamescope process exists.
 is_gamescope_running() {
-    # If XDG_CURRENT_DESKTOP explicitly indicates a standard desktop session (e.g. KDE in SteamOS Desktop Mode),
-    # do not misclassify nested gamescope windows or static GAMESCOPE_SESSION=1 drop-ins as full-session Gaming Mode.
     if [ -n "${XDG_CURRENT_DESKTOP:-}" ]; then
         local _desktop_lower
         _desktop_lower=$(echo "${XDG_CURRENT_DESKTOP}" | tr '[:upper:]' '[:lower:]')
         case "${_desktop_lower}" in
-            *gamescope*) ;;
+            *gamescope*) return 0 ;;
             *) return 1 ;;
         esac
     fi
     if pgrep -x gamescope >/dev/null 2>&1; then
         return 0
     fi
-    if [ -n "${GAMESCOPE_SESSION:-}" ] && [ "${GAMESCOPE_SESSION}" != "0" ] && [ "${GAMESCOPE_SESSION}" != "false" ]; then
-        return 0
-    fi
     return 1
 }
 
 # Check whether Experimental Gaming Mode overlay support is enabled in settings/config.
-# Strictly honors GAMING_MODE_EXPERIMENTAL_ENABLED=false even if GAMESCOPE_SESSION=1 is set.
+# Honors GAMING_MODE_EXPERIMENTAL_ENABLED only. A gamescope session variable does not enable the overlay.
 is_gaming_mode_enabled() {
     if type get_gaming_mode_experimental_enabled >/dev/null 2>&1; then
         [ "$(get_gaming_mode_experimental_enabled)" = "true" ]
@@ -163,37 +163,27 @@ is_gaming_mode_enabled() {
             esac
         fi
     fi
-    if [ -n "${HOME:-}" ] && [ -f "${HOME}/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf" ]; then
-        return 0
-    fi
     return 1
 }
 
-# Resolve the Xwayland display for gamescope overlay windows.
-# On SteamOS Gaming Mode, :0 is the Steam UI / overlay Xwayland plane and :1 is the game Xwayland plane.
+# Resolve an accessible Xwayland display for gamescope overlay windows.
+# Prefer :0 (Steam UI / overlay plane), then a different accessible DISPLAY,
+# then :1 (game plane). Returns 1 and prints nothing when none of those
+# displays answer, so callers do not aim dialogs at a dead :0.
 get_gamescope_x11_display() {
-    if [ -S "/tmp/.X11-unix/X0" ] && is_x11_display_accessible ":0"; then
+    if is_x11_display_accessible ":0"; then
         echo ":0"
         return 0
     fi
-    if [ "${DISPLAY:-}" = ":0" ] && is_x11_display_accessible ":0"; then
-        echo ":0"
-        return 0
-    fi
-    if [ -n "${DISPLAY:-}" ] && validate_display_format "${DISPLAY}" && is_x11_display_accessible "${DISPLAY}"; then
+    if [ -n "${DISPLAY:-}" ] && [ "${DISPLAY}" != ":0" ] && validate_display_format "${DISPLAY}" && is_x11_display_accessible "${DISPLAY}"; then
         echo "${DISPLAY}"
         return 0
     fi
-    if [ -S "/tmp/.X11-unix/X0" ]; then
-        echo ":0"
-        return 0
-    fi
-    if [ -S "/tmp/.X11-unix/X1" ]; then
+    if is_x11_display_accessible ":1"; then
         echo ":1"
         return 0
     fi
-    echo ":0"
-    return 0
+    return 1
 }
 
 # Get a loginctl session id for the current user (prefer active non-tty)
@@ -370,8 +360,8 @@ get_display_identifier() {
             fi
             ;;
         gamescope)
-            local gs_x11
-            gs_x11=$(get_gamescope_x11_display)
+            local gs_x11=""
+            gs_x11=$(get_gamescope_x11_display || true)
             if [ -n "${gs_x11}" ]; then
                 echo "${gs_x11}"
                 return 0
@@ -430,8 +420,12 @@ get_display() {
             fi
             ;;
         gamescope)
-            get_gamescope_x11_display
-            return 0
+            local gs_display=""
+            gs_display=$(get_gamescope_x11_display || true)
+            if [ -n "${gs_display}" ]; then
+                echo "${gs_display}"
+                return 0
+            fi
             ;;
         wayland)
             local wayland_id

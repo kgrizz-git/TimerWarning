@@ -16,7 +16,7 @@ SteamOS Gaming Mode presents unique challenges for systemd-based warning systems
 
 1. **Settings Toggle (`GAMING_MODE_EXPERIMENTAL_ENABLED`)**:
    - Controlled via `sleep-warning-configure` → **Option 12: Service Mode (Desktop/Gaming - Experimental)** or in `~/.config/sleep-warning/config/sleep-warning.conf` (`GAMING_MODE_EXPERIMENTAL_ENABLED=true|false`, default `false`).
-   - During active lock hours, tighten-only partial lock (`lib/configure-partial-lock.sh`) allows enabling (`false` → `true`) and blocks disabling (`true` → `false`).
+   - During lock hours the toggle can be turned on or off. It is display routing, not a restriction-strength setting, so a broken overlay can be disabled without waiting for the lock window to end.
    - When disabled (`false`), `is_gaming_mode_enabled()` returns false and `detect_display_environment()` treats the session as standard `x11`/`wayland` even if `gamescope` is running.
 2. **Xwayland Display Detection (`:0`)**:
    - `gamescope` exposes two Xwayland displays (`:0` for the Steam UI / overlay plane and `:1` for the game plane) plus a `gamescope-0` Wayland socket.
@@ -29,6 +29,8 @@ SteamOS Gaming Mode presents unique challenges for systemd-based warning systems
    - `apply_gamescope_overlay_atoms()` sets `STEAM_OVERLAY=1` and `STEAM_INPUT_FOCUS=1` (`32c` cardinal atoms) via `xprop` on initial spawn, on every countdown respawn (`_popup_linux_update_countdown`), and on the "Pause Activated" confirmation dialog.
 5. **Safety Guardrails (`GAMESCOPE_FORCE_AUTO_CLOSE=true`)**:
    - `lib/popup-safety.sh` forces `auto_close="true"` when `env_type == "gamescope"`, ensuring popups always auto-close after `POPUP_MIN_DISPLAY_TIME + POPUP_AUTO_CLOSE_DELAY_SECONDS` in addition to the hard `POPUP_ABSOLUTE_MAX_SECONDS` watchdog.
+
+The percentage tables and “planned changes” sections later in this document are historical planning estimates from before the experimental overlay. They are not measurements. Current behavior is the opt-in path above. Gaming Mode is not fully compatible until it has been verified on a Steam Deck.
 
 ## Key Challenges
 
@@ -45,7 +47,7 @@ SteamOS Gaming Mode presents unique challenges for systemd-based warning systems
 - Wayland socket in `$XDG_RUNTIME_DIR` is named `gamescope-0` rather than `wayland-0`
 
 ### 2. Systemd User Services
-- User services work in Gaming Mode when configured with `mode-gaming.conf` (`PartOf=graphical-session.target`, `GAMESCOPE_SESSION=1`, `DISPLAY=:0`)
+- User services in Gaming Mode use `mode-gaming.conf` (`DISPLAY=:0` and `WAYLAND_DISPLAY`). The unit does not set `GAMESCOPE_SESSION`
 - Services persist across Desktop Mode ↔ Gaming Mode transitions
 - Services start automatically when booting directly into Gaming Mode
 
@@ -66,7 +68,7 @@ SteamOS Gaming Mode presents unique challenges for systemd-based warning systems
 
 **Implemented**:
 - [x] Detect `$WAYLAND_DISPLAY` environment variable and `gamescope-*` sockets
-- [x] Detect gamescope compositor (`pgrep -x gamescope` or `GAMESCOPE_SESSION`) gated by `is_gaming_mode_enabled()`
+- [x] Detect the gamescope session (`XDG_CURRENT_DESKTOP` contains `gamescope`, or `pgrep -x gamescope` when that variable is unset), gated by `is_gaming_mode_enabled()`. `GAMESCOPE_SESSION` is not consulted.
 - [x] Use `loginctl` to find sessions
 - [x] Resolve gamescope Xwayland display (`:0`) via `get_gamescope_x11_display()`
 - [x] Implement multi-protocol display detection (X11, Wayland, gamescope)
@@ -326,13 +328,13 @@ For testing requirements, see [plan-phase-4-testing.md](plans/phases/plan-phase-
 
 ## Path to Maximum Effectiveness
 
-### Phase 1: Planned Complementary Changes (Target: ~68% Overall Effectiveness)
+### Phase 1: Complementary Changes (historical ~68% estimate)
 
-**Implementation Required**:
-- [ ] Enhanced Display Detection (Wayland/gamescope)
-- [ ] Dialog Tool Priority System (environment-aware)
-- [ ] Systemd Service Robustness (mode transition handling)
-- [ ] Desktop Notification Fallback (notify-send)
+**In the repo now** (device verification still open):
+- [x] Gamescope display detection, gated by `GAMING_MODE_EXPERIMENTAL_ENABLED`
+- [x] Dialog tool priority (yad, then zenity, then kdialog) with an X11 backend on the gamescope path
+- [x] `mode-gaming.conf` service drop-in (`DISPLAY=:0`, `WAYLAND_DISPLAY`)
+- [x] Desktop notification fallback (`notify-send`) when GUI dialogs fail
 
 **Expected Results**:
 - ✅ No game running: ~95% effectiveness
@@ -410,15 +412,16 @@ May vary by game type, rendering technology, and full-screen mode
 
 ## Compatibility Status
 
-**Current Status**: ⚠️ **Partially Compatible - Requires Testing**
+**Current Status**: ⚙️ **Experimental overlay implemented, off by default, not verified on a Steam Deck**
 
-- ✅ Systemd user services: Should work (needs verification)
-- ⚠️ Display detection: Needs Wayland/gamescope support (implementation required)
-- ⚠️ Dialog popups: May work but needs extensive testing
-- ❌ Window manager tools: Not compatible (Wayland limitation)
-- ⚠️ Full-screen games: Unknown compatibility (critical testing required)
+- ✅ Opt-in flag `GAMING_MODE_EXPERIMENTAL_ENABLED` (default `false`; a leftover `mode-gaming.conf` does not turn it on)
+- ✅ Display detection returns `gamescope` only when that flag is on and the session is actually gamescope (`XDG_CURRENT_DESKTOP` contains `gamescope`, or the `gamescope` process is running)
+- ✅ Dialogs on that path use Xwayland with `GDK_BACKEND=x11` / `QT_QPA_PLATFORM=xcb`, `STEAM_OVERLAY=1`, and `STEAM_INPUT_FOCUS=1`
+- ✅ Popups still end: `GAMESCOPE_FORCE_AUTO_CLOSE` plus the absolute watchdog
+- ⚠️ On-device appearance over fullscreen games is unverified
+- ❌ `wmctrl` / `xdotool` do not manage gamescope stacking
 
-**Target Status**: ✅ **Fully Compatible** (after implementation and testing)
+**Target Status**: ✅ **Verified on SteamOS Gaming Mode** (still open)
 
 ## Testing Requirements
 
@@ -528,12 +531,6 @@ For implementation details, see [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md)
 
 ## Conclusion
 
-With the planned complementary changes, the Sleep Warning System can achieve **approximately 68% overall effectiveness** in SteamOS Gaming Mode. This represents a significant improvement over the current ~32% effectiveness and covers most common usage scenarios:
+Experimental Gaming Mode overlay support is implemented and **off by default**. It routes warning dialogs through gamescope's Xwayland `:0` plane and tags them with `STEAM_OVERLAY` / `STEAM_INPUT_FOCUS`. That path is covered by unit tests. It has not been verified on a Steam Deck, so fullscreen-game behavior is still unknown.
 
-- ✅ **Excellent** for no game, windowed, and borderless windowed scenarios
-- ⚠️ **Moderate** for full-screen (non-exclusive) games
-- ❌ **Limited** for exclusive full-screen games
-
-The remaining gap (exclusive full-screen games) can be addressed through Steam Overlay integration, which would bring overall effectiveness to approximately **95%**. However, this requires significant additional development effort using a different technology stack.
-
-**Recommendation**: Implement the planned complementary changes first to achieve good coverage for most scenarios, then evaluate Steam Overlay integration as a future enhancement based on user needs and development resources.
+The ~68% and ~95% figures earlier in this document were planning estimates, not measured results. A Steamworks overlay plugin remains a possible later approach for exclusive fullscreen games. Use Option 12 to turn the experimental path on, and turn it off again if dialogs do not appear. `systemctl --user stop sleep-warning.service` remains available during lock hours.

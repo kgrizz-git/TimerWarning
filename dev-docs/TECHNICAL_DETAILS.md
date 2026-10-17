@@ -477,7 +477,7 @@ The `install.sh` script automates the entire installation process, making it eas
    - Automatically detects system mode (Desktop Mode vs Gaming Mode)
    - Creates systemd drop-in files for mode-specific environment variables
    - Desktop Mode: Sets `DISPLAY` environment variable
-   - Gaming Mode: Sets `WAYLAND_DISPLAY` and `GAMESCOPE_SESSION` environment variables
+   - Gaming Mode: Sets `DISPLAY=:0` and `WAYLAND_DISPLAY`
    - Service works without mode-specific configuration (backward compatible)
    - Users can manually reconfigure via `sleep-warning-configure` (option 12)
    - For details, see [enhancements/enhancement-04-systemd-service-environment-detection.md](enhancements/enhancement-04-systemd-service-environment-detection.md)
@@ -626,9 +626,9 @@ The system uses `detect_system_mode()` function in `lib/display-detection.sh` to
 - Ensures X11 display is available to the service
 
 **Gaming Mode Configuration**:
-- Sets `Environment=WAYLAND_DISPLAY=wayland-0` (or detected value)
-- Sets `Environment=GAMESCOPE_SESSION=1`
-- Ensures Wayland display is available to the service
+- Sets `Environment=DISPLAY=:0` (gamescope overlay Xwayland)
+- Sets `Environment=WAYLAND_DISPLAY` to the detected Wayland socket
+- Does not set `GAMESCOPE_SESSION`. Session detection uses the live desktop name or the `gamescope` process
 
 ### Integration Points
 

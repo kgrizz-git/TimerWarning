@@ -1,5 +1,7 @@
 # Enhancement 4: Systemd Service Environment Detection
 
+**Current drop-in:** `mode-gaming.conf` sets `DISPLAY=:0` and `WAYLAND_DISPLAY` only. It does not set `GAMESCOPE_SESSION`. Checklist items below that name `GAMESCOPE_SESSION` are the original spec.
+
 ## Description
 
 Detect whether the system is running in **Desktop Mode** (X11/KDE Plasma) vs **Gaming Mode** (Wayland/gamescope) and configure the systemd service behavior accordingly. This ensures optimal service configuration, environment variable setup, and dependency management for each mode.

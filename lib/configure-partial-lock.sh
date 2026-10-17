@@ -40,7 +40,6 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
     declare -g _baseline_popup_size_custom_absolute=""
     declare -g _baseline_popup_position=""
     declare -g _baseline_dialog_tool=""
-    declare -g _baseline_gaming_mode_experimental_enabled=""
 
     # True when script-block or config-file lock window is active right now.
     configure_partial_lock_is_active() {
@@ -195,13 +194,6 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
                     return 1
                 fi
                 ;;
-            GAMING_MODE_EXPERIMENTAL_ENABLED|gaming_mode_experimental_enabled)
-                old_val=$(_configure_partial_lock_normalize_bool "${old_val}")
-                new_val=$(_configure_partial_lock_normalize_bool "${new_val}")
-                if [ "${old_val}" = "true" ] && [ "${new_val}" = "false" ]; then
-                    return 1
-                fi
-                ;;
             UNINSTALL_PROTECTION_MODE|uninstall_protection_mode)
                 if [ "${old_val}" = "difficult" ] && [ "${new_val}" = "none" ]; then
                     return 1
@@ -286,7 +278,6 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
         _baseline_popup_size_custom_absolute="${popup_size_custom_absolute:-1280x720}"
         _baseline_popup_position="${popup_position:-center}"
         _baseline_dialog_tool="${dialog_tool:-auto}"
-        _baseline_gaming_mode_experimental_enabled="${gaming_mode_experimental_enabled:-false}"
     }
 
     # Echo human-readable errors (one per line); empty = OK.
@@ -308,9 +299,6 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
         fi
         if ! configure_partial_lock_validate_scalar "config_lock_enabled" "${_baseline_config_lock_enabled}" "${config_lock_enabled:-false}"; then
             errors="${errors}Cannot disable config file locking during lock hours.\n"
-        fi
-        if ! configure_partial_lock_validate_scalar "gaming_mode_experimental_enabled" "${_baseline_gaming_mode_experimental_enabled:-false}" "${gaming_mode_experimental_enabled:-false}"; then
-            errors="${errors}Cannot disable Experimental Gaming Mode during lock hours.\n"
         fi
         if ! configure_partial_lock_validate_scalar "uninstall_protection_mode" "${_baseline_uninstall_protection_mode}" "${uninstall_protection_mode:-difficult}"; then
             errors="${errors}Cannot weaken uninstall protection during lock hours.\n"

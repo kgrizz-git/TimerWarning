@@ -3,7 +3,7 @@
 **Date:** 2026-10-16  
 **Branch:** `chore/public-repo-prep`  
 **Target New Repository:** `kgrizz-git/TimerWarning` (created `--private` initially)  
-**Status:** Ready for execution  
+**Status:** Not started. Phases 1–4 below (license, PayPal removal, doc/stub cleanup, history rewrite, new repo) are still open. This branch also contains the experimental gamescope overlay, which is separate from this plan. Tracked `backups/*` snapshots were removed; do not treat that as Phases 1–3 being complete.  
 **Safety Reference:** [docs/SAFETY.md](../../docs/SAFETY.md) (no runtime/safety behavior changes)
 
 ---

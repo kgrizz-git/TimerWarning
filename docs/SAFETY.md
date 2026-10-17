@@ -80,10 +80,11 @@ When restriction hours, configure-block hours, or config-file lock (`CONFIG_LOCK
 | More frequent popups (lower `POPUP_DISPLAY_FREQUENCY`) | Slower popup frequency |
 | Longer minimum display time | Shorter min display |
 | Add time ranges (existing ranges unchanged) | Remove, edit, or clear existing ranges |
-| Enable `CONFIGURE_BLOCK_ENABLED` / `CONFIG_LOCK_ENABLED` / `GAMING_MODE_EXPERIMENTAL_ENABLED` (Service Mode) | Disable those flags (or switch Service Mode back to desktop-only) |
+| Enable `CONFIGURE_BLOCK_ENABLED` / `CONFIG_LOCK_ENABLED` | Disable those flags |
 | Stronger uninstall protection (`none` → `difficult`) | Weaken protection |
 | Disable pause, shorter pause duration, larger popup | Enable pause, longer pause, smaller popup |
 | Toggle `POPUP_AUTO_CLOSE` either way | Change position, dialog tool |
+| Toggle `GAMING_MODE_EXPERIMENTAL_ENABLED` either way (SteamOS display routing only; does not change restriction hours) | — |
 
 `POPUP_AUTO_CLOSE=false` is **not** treated as loosening: popups still end via min-display and the absolute watchdog (`lib/popup-safety.sh`). On macOS (`DARWIN_FORCE_AUTO_CLOSE`) and SteamOS Gaming Mode (`GAMESCOPE_FORCE_AUTO_CLOSE`), auto-close is forced at runtime.
 

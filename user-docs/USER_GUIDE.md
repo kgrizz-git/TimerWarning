@@ -469,7 +469,7 @@ sudo pacman -S wmctrl xdotool
 **Limitations:**
 - Some exclusive full-screen games cannot be overlaid by window manager dialogs
 - This is a limitation of the windowing system, not the sleep warning system
-- SteamOS Gaming Mode may have additional limitations (see SteamOS-specific documentation)
+- SteamOS Gaming Mode overlay support is experimental, off unless `GAMING_MODE_EXPERIMENTAL_ENABLED=true`, and still needs on-device verification (see SteamOS-specific documentation)
 
 ### Problem: Timer Not Starting on Boot
 
@@ -664,7 +664,7 @@ Future versions may support custom messages per day or time range.
   2. Select **Option 12: Service Mode (Desktop/Gaming - Experimental)**
   3. Toggle Experimental Gaming Mode overlay support on (`true`) or off (`false`)
 - **How It Works When Enabled:**
-  - Configures the systemd user service drop-in (`~/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf`) with `GAMESCOPE_SESSION=1` and `DISPLAY=:0`
+  - Configures the systemd user service drop-in (`~/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf`) with `DISPLAY=:0` and the gamescope Wayland socket. Re-run Option 12 to rewrite a drop-in that still contains `GAMESCOPE_SESSION`
   - Forces GTK/Qt dialog tools (`yad`/`zenity`/`kdialog`) onto the X11/Xwayland backend (`:0`) instead of Wayland
   - Tags popup windows with `xprop` atoms `STEAM_OVERLAY=1` and `STEAM_INPUT_FOCUS=1` so `gamescope` composites the warning above fullscreen games and routes controller/touch input to the dialog
   - Forces popup auto-close (`GAMESCOPE_FORCE_AUTO_CLOSE=true`) in addition to the hard watchdog timeout so a dialog can never leave you stuck in Gaming Mode if controller focus is lost

@@ -820,9 +820,10 @@ parse_uninstall_lock_hours() {
     _parse_config_hours_for_day "${resolved_day}" "${CONFIG_KEY_PREFIX_UNINSTALL_LOCK_HOURS}" "uninstall lock hours"
 }
 
-# Get experimental SteamOS Gaming Mode overlay support setting
-# Checks GAMING_MODE_EXPERIMENTAL_ENABLED environment override first, then CONFIG_FILE,
-# then falls back to whether mode-gaming.conf systemd drop-in exists when key is absent.
+# Get experimental SteamOS Gaming Mode overlay support setting.
+# Checks GAMING_MODE_EXPERIMENTAL_ENABLED environment override first, then CONFIG_FILE.
+# A missing key stays off. mode-gaming.conf alone does not enable the overlay:
+# that drop-in can exist from an older install or from Option 12's service environment.
 # Returns: "true" or "false"
 get_gaming_mode_experimental_enabled() {
     if [ -n "${GAMING_MODE_EXPERIMENTAL_ENABLED:-}" ]; then
@@ -855,11 +856,6 @@ get_gaming_mode_experimental_enabled() {
                     ;;
             esac
         fi
-    fi
-
-    if [ -f "${HOME}/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf" ]; then
-        echo "true"
-        return 0
     fi
 
     echo "${DEFAULT_GAMING_MODE_EXPERIMENTAL_ENABLED}"

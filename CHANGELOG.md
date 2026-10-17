@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Experimental SteamOS Gaming Mode overlay (opt-in):** `GAMING_MODE_EXPERIMENTAL_ENABLED` (default `false`, Option 12) routes Linux warning dialogs through gamescope's Xwayland `:0` plane with `STEAM_OVERLAY` / `STEAM_INPUT_FOCUS` and forces auto-close on that path. Minor feature; restriction hours, the 16 h/day cap, and the popup watchdog are unchanged. Not verified on a Steam Deck.
+
+### Fixed
+
+- **Gaming Mode opt-in:** A missing `GAMING_MODE_EXPERIMENTAL_ENABLED` stays false even when `mode-gaming.conf` exists, so older Gaming Mode drop-ins do not enable the experimental overlay.
+- **Gamescope session detection:** The gaming service drop-in no longer sets `GAMESCOPE_SESSION`. That variable is not a live session signal. Detection uses `XDG_CURRENT_DESKTOP` naming gamescope, or a running `gamescope` process when the desktop name is unset. Re-run Option 12 to rewrite an existing `mode-gaming.conf` that still contains the old line.
+- **Experimental toggle during lock hours:** The overlay flag can be turned off during partial lock. It is display routing, not a restriction-strength setting.
+- **Gamescope pause notice:** The "Pause Activated" dialog is spawned first and tagged with that process's window id. On gamescope, kdialog uses `--msgbox` (a real window) instead of `--passivepopup`.
+- **Gamescope atom setup:** `xprop` polling runs in the background so countdown respawn is not stalled for the full poll.
+- **Gamescope display resolution:** `get_gamescope_x11_display` uses an accessible `:0`, then `DISPLAY`, then `:1`, and returns failure when none answer.
+
+### Added
+
 - **Doc retention policy:** [dev-docs/development/doc-retention.md](dev-docs/development/doc-retention.md) — dual-threshold pruning for timestamped assessments/scans (30 days + 10 commits); completed-plans script (90 + 20); stale-plan linter. Pre-commit reports eligible archive files (dry-run); manual `--apply` to delete. Backups default retention raised to **5** commits.
 
 ### Fixed

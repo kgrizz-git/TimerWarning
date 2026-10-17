@@ -243,7 +243,8 @@ test_create_gaming_dropin() {
         # File was created successfully
         local dropin_file="${dropin_dir}/mode-gaming.conf"
         if grep -q "Environment=WAYLAND_DISPLAY=wayland-0" "${dropin_file}" && \
-           grep -q "Environment=GAMESCOPE_SESSION=1" "${dropin_file}"; then
+           grep -q "Environment=DISPLAY=:0" "${dropin_file}" && \
+           ! grep -q "GAMESCOPE_SESSION" "${dropin_file}"; then
             print_test_result "create_service_dropin() creates gaming mode drop-in correctly" "PASS"
         else
             print_test_result "create_service_dropin() creates gaming mode drop-in correctly" "FAIL"

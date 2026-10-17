@@ -198,6 +198,75 @@ _popup_spawn_warning_dialog() {
     esac
 }
 
+# Show the "Pause Activated" notice.
+# On gamescope, spawn a real X11 window in the background, tag it by that PID,
+# then wait. Desktop kdialog keeps a passive notification (no X window to tag).
+# Uses caller locals _dlg_prefix, _pause_info_timeout, dialog_tool, env_type, window_tool.
+# Parameters: $1 pause end time (HH:MM or "unknown")
+_popup_show_pause_activated_notice() {
+    local pause_end_time="$1"
+    local title="Pause Activated"
+    local text="Warning popups paused until ${pause_end_time}"
+
+    if [ "${dialog_tool}" = "kdialog" ] && [ "${env_type:-}" != "gamescope" ]; then
+        ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --passivepopup \
+            "${text}" "${_pause_info_timeout}" 2>/dev/null
+        return 0
+    fi
+
+    local info_pid=""
+    case "${dialog_tool}" in
+        zenity)
+            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity --info \
+                --title="${title}" \
+                --text="${text}" \
+                --width=400 \
+                --height=150 \
+                --timeout="${_pause_info_timeout}" \
+                2>/dev/null &
+            info_pid=$!
+            ;;
+        yad)
+            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --info \
+                --title="${title}" \
+                --text="${text}" \
+                --width=400 \
+                --height=150 \
+                --button="OK:0" \
+                --timeout="${_pause_info_timeout}" \
+                2>/dev/null &
+            info_pid=$!
+            ;;
+        kdialog)
+            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${title}" --msgbox "${text}" 2>/dev/null &
+            info_pid=$!
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+
+    if [ -n "${info_pid}" ] && [ "${env_type:-}" = "gamescope" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
+        apply_gamescope_overlay_atoms "${title}" "${window_tool:-}" "${info_pid}" || true
+    fi
+
+    if [ "${dialog_tool}" = "kdialog" ] && [ -n "${info_pid}" ]; then
+        (
+            sleep "${_pause_info_timeout}"
+            kill "${info_pid}" 2>/dev/null || true
+        ) &
+        local killer_pid=$!
+        wait "${info_pid}" 2>/dev/null || true
+        kill "${killer_pid}" 2>/dev/null || true
+        wait "${killer_pid}" 2>/dev/null || true
+        return 0
+    fi
+
+    if [ -n "${info_pid}" ]; then
+        wait "${info_pid}" 2>/dev/null || true
+    fi
+}
+
 # Handle pause button/menu actions after a popup closes.
 #
 # Parameters:
@@ -247,17 +316,7 @@ _popup_maybe_handle_pause_click() {
                             local pause_end_time
                             pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
 
-                            if [ "${env_type:-}" = "gamescope" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
-                                ( apply_gamescope_overlay_atoms "Pause Activated" "${window_tool:-}" "" >/dev/null 2>&1 ) &
-                            fi
-
-                            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity --info \
-                                --title="Pause Activated" \
-                                --text="Warning popups paused until ${pause_end_time}" \
-                                --width=400 \
-                                --height=150 \
-                                --timeout="${_pause_info_timeout}" \
-                                2>/dev/null
+                            _popup_show_pause_activated_notice "${pause_end_time}"
 
                             if [ -n "${popup_pid}" ]; then
                                 cleanup_popup_pid "${popup_pid}"
@@ -281,18 +340,7 @@ _popup_maybe_handle_pause_click() {
                     local pause_end_time
                     pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
 
-                    if [ "${env_type:-}" = "gamescope" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
-                        ( apply_gamescope_overlay_atoms "Pause Activated" "${window_tool:-}" "" >/dev/null 2>&1 ) &
-                    fi
-
-                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --info \
-                        --title="Pause Activated" \
-                        --text="Warning popups paused until ${pause_end_time}" \
-                        --width=400 \
-                        --height=150 \
-                        --button="OK:0" \
-                        --timeout="${_pause_info_timeout}" \
-                        2>/dev/null
+                    _popup_show_pause_activated_notice "${pause_end_time}"
 
                     if [ -n "${popup_pid}" ]; then
                         cleanup_popup_pid "${popup_pid}"
@@ -313,11 +361,7 @@ _popup_maybe_handle_pause_click() {
                     pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null \
                         || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null \
                         || echo "unknown")
-                    if [ "${env_type:-}" = "gamescope" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
-                        ( apply_gamescope_overlay_atoms "Pause Activated" "${window_tool:-}" "" >/dev/null 2>&1 ) &
-                    fi
-                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "Pause Activated" --passivepopup \
-                        "Warning popups paused until ${pause_end_time}" "${_pause_info_timeout}" 2>/dev/null
+                    _popup_show_pause_activated_notice "${pause_end_time}"
                     if [ -n "${popup_pid}" ]; then
                         cleanup_popup_pid "${popup_pid}"
                     fi

@@ -175,8 +175,6 @@ _write_config_header() {
     if [ -z "${effective_gaming_mode_experimental}" ]; then
         if type get_gaming_mode_experimental_enabled >/dev/null 2>&1; then
             effective_gaming_mode_experimental=$(get_gaming_mode_experimental_enabled)
-        elif [ -f "${HOME}/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf" ]; then
-            effective_gaming_mode_experimental="true"
         else
             effective_gaming_mode_experimental="false"
         fi
