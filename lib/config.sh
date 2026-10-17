@@ -86,6 +86,10 @@ DEFAULT_PAUSE_COOLDOWN_HOURS=24
 # This controls whether config file locking is enabled during restricted hours (Enhancement #18)
 DEFAULT_CONFIG_LOCK_ENABLED=false
 
+# Default experimental SteamOS Gaming Mode overlay support setting
+# When true, enables Xwayland (:0) + STEAM_OVERLAY/STEAM_INPUT_FOCUS tagging when gamescope is running
+DEFAULT_GAMING_MODE_EXPERIMENTAL_ENABLED=false
+
 # Pause state file location - stores pause state and last pause date
 # This file tracks when pause expires and when pause was last used (Enhancement #21)
 PAUSE_STATE_FILE="${CONFIG_DIR}/.pause_state"
@@ -814,4 +818,50 @@ parse_uninstall_lock_hours() {
 
     resolved_day=$(_resolve_lock_hours_day_num "${day_input}" "true") || return 1
     _parse_config_hours_for_day "${resolved_day}" "${CONFIG_KEY_PREFIX_UNINSTALL_LOCK_HOURS}" "uninstall lock hours"
+}
+
+# Get experimental SteamOS Gaming Mode overlay support setting
+# Checks GAMING_MODE_EXPERIMENTAL_ENABLED environment override first, then CONFIG_FILE,
+# then falls back to whether mode-gaming.conf systemd drop-in exists when key is absent.
+# Returns: "true" or "false"
+get_gaming_mode_experimental_enabled() {
+    if [ -n "${GAMING_MODE_EXPERIMENTAL_ENABLED:-}" ]; then
+        local env_val
+        env_val=$(echo "${GAMING_MODE_EXPERIMENTAL_ENABLED}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        case "${env_val}" in
+            true|1|yes)
+                echo "true"
+                return 0
+                ;;
+            false|0|no)
+                echo "false"
+                return 0
+                ;;
+        esac
+    fi
+
+    if [ -f "${CONFIG_FILE}" ]; then
+        local raw_val
+        raw_val=$(grep -E "^[[:space:]]*${CONFIG_KEY_GAMING_MODE_EXPERIMENTAL_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ -n "${raw_val}" ]; then
+            case "${raw_val}" in
+                true|1|yes)
+                    echo "true"
+                    return 0
+                    ;;
+                false|0|no)
+                    echo "false"
+                    return 0
+                    ;;
+            esac
+        fi
+    fi
+
+    if [ -f "${HOME}/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf" ]; then
+        echo "true"
+        return 0
+    fi
+
+    echo "${DEFAULT_GAMING_MODE_EXPERIMENTAL_ENABLED}"
+    return 0
 }

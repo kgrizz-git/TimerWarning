@@ -248,7 +248,7 @@ main() {
     # This is a sparse array indexed 0-6 (Sunday-Saturday) with entries like:
     #   UNINSTALL_LOCK_HOURS_MONDAY=9-17
     declare -g -a uninstall_lock_hours_lines=()
-    declare -g check_interval popup_size popup_size_mode popup_size_custom popup_size_custom_absolute popup_position min_display_time popup_immovable popup_auto_close configure_block_enabled uninstall_protection_mode pause_enabled pause_duration pause_cooldown_hours dialog_tool config_lock_enabled
+    declare -g check_interval popup_size popup_size_mode popup_size_custom popup_size_custom_absolute popup_position min_display_time popup_immovable popup_auto_close configure_block_enabled uninstall_protection_mode pause_enabled pause_duration pause_cooldown_hours dialog_tool config_lock_enabled gaming_mode_experimental_enabled
     
     # Load existing configuration
     # Function sets global variables and populates global arrays directly
@@ -279,6 +279,11 @@ main() {
         # Get current service mode for menu display (option 12)
         local current_service_mode
         current_service_mode=$(get_current_service_mode)
+        if [ "${gaming_mode_experimental_enabled:-false}" = "true" ]; then
+            current_service_mode="gaming"
+        elif [ "${current_service_mode}" = "gaming" ] && [ "${gaming_mode_experimental_enabled:-}" = "false" ]; then
+            current_service_mode="desktop"
+        fi
         local service_mode_status="[${current_service_mode}]"
         
         # Calculate dialog tool status for menu display (in-memory dialog_tool)

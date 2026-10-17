@@ -421,6 +421,18 @@ show_configuration() {
     fi
     
     print_status "Dialog Tool" "${dialog_tool_display}" "${dialog_tool_status}"
+
+    if ! type is_darwin >/dev/null 2>&1 || ! is_darwin; then
+        local gaming_exp_enabled="false"
+        if type get_gaming_mode_experimental_enabled >/dev/null 2>&1; then
+            gaming_exp_enabled=$(get_gaming_mode_experimental_enabled)
+        fi
+        if [ "${gaming_exp_enabled}" = "true" ]; then
+            print_status "Experimental Gaming Mode" "Enabled (SteamOS gamescope overlay active when running)" "good"
+        else
+            print_status "Experimental Gaming Mode" "Disabled (Desktop Mode only)"
+        fi
+    fi
     
     # Read restricted hours
     print_header "RESTRICTED HOURS"
