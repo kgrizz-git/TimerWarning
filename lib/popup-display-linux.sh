@@ -166,6 +166,18 @@ _popup_linux_update_countdown() {
 
     if [ "${env_type:-}" = "gamescope" ] && [ -n "${popup_pid}" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
         apply_gamescope_overlay_atoms "${window_title}" "${window_tool:-}" "${popup_pid}" || true
+        if [ -z "${window_tool:-}" ]; then
+            (
+                local _gs_elapsed=0
+                while [ "${_gs_elapsed}" -lt "${remaining_seconds}" ] && kill -0 "${popup_pid}" 2>/dev/null; do
+                    sleep 2
+                    _gs_elapsed=$((_gs_elapsed + 2))
+                    if kill -0 "${popup_pid}" 2>/dev/null; then
+                        apply_gamescope_overlay_atoms "${window_title}" "" "${popup_pid}" >/dev/null 2>&1 || true
+                    fi
+                done
+            ) &
+        fi
     fi
 
     if [ -n "${window_tool}" ]; then

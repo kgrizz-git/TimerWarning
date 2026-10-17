@@ -150,7 +150,7 @@ configure_service_mode() {
         if type configure_partial_lock_mode_enabled >/dev/null 2>&1 && configure_partial_lock_mode_enabled; then
             local lock_err="Cannot disable Experimental Gaming Mode during lock hours."
             if [ "${use_gui}" = "true" ] && type show_error_dialog >/dev/null 2>&1; then
-                show_error_dialog "${lock_err}"
+                show_error_dialog "Locked Setting" "${lock_err}"
             elif [ "${use_gui}" = "true" ] && type show_info_dialog >/dev/null 2>&1; then
                 show_info_dialog "Locked Setting" "${lock_err}" 500 200
             else
@@ -170,7 +170,7 @@ configure_service_mode() {
         if ! update_gaming_mode_config_in_place "${new_exp}"; then
             local save_err="Failed to save Experimental Gaming Mode setting to configuration file."
             if [ "${use_gui}" = "true" ] && type show_error_dialog >/dev/null 2>&1; then
-                show_error_dialog "${save_err}"
+                show_error_dialog "Error" "${save_err}"
             elif [ "${use_gui}" = "true" ] && type show_info_dialog >/dev/null 2>&1; then
                 show_info_dialog "Error" "${save_err}" 500 200
             else
