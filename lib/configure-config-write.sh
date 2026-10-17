@@ -526,9 +526,10 @@ write_config() {
     fi
 }
 
-# Atomically update GAMING_MODE_EXPERIMENTAL_ENABLED in an existing CONFIG_FILE
+# Atomically update GAMING_MODE_EXPERIMENTAL_ENABLED in CONFIG_FILE.
 # Used by Option 12 (configure_service_mode) so toggling Gaming Mode persists immediately
 # even if the user exits the wizard without selecting Option 13 (Save & Exit).
+# When the config file does not exist yet, create it with only this key.
 # Parameters:
 #   $1 - new value ("true" or "false")
 update_gaming_mode_config_in_place() {
@@ -538,7 +539,11 @@ update_gaming_mode_config_in_place() {
     fi
 
     if [ ! -f "${CONFIG_FILE}" ]; then
-        return 0
+        local config_parent
+        config_parent=$(dirname "${CONFIG_FILE}")
+        if [ ! -d "${config_parent}" ]; then
+            mkdir -p "${config_parent}" || return 1
+        fi
     fi
 
     if type config_lock_prepare_for_wizard_write >/dev/null 2>&1; then
@@ -548,15 +553,21 @@ update_gaming_mode_config_in_place() {
     local temp_file
     temp_file=$(mktemp "${CONFIG_FILE}.tmp.XXXXXX" 2>/dev/null || echo "${CONFIG_FILE}.tmp")
 
-    if grep -qE "^[[:space:]]*${CONFIG_KEY_GAMING_MODE_EXPERIMENTAL_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null; then
+    if [ -f "${CONFIG_FILE}" ] && grep -qE "^[[:space:]]*${CONFIG_KEY_GAMING_MODE_EXPERIMENTAL_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null; then
         awk -v key="${CONFIG_KEY_GAMING_MODE_EXPERIMENTAL_ENABLED}" -v val="${new_val}" '
             $0 ~ "^[[:space:]]*" key "=" { print key "=" val; next }
             { print }
         ' "${CONFIG_FILE}" > "${temp_file}" 2>/dev/null
-    else
+    elif [ -f "${CONFIG_FILE}" ]; then
         {
             cat "${CONFIG_FILE}"
             echo ""
+            echo "# GAMING_MODE_EXPERIMENTAL_ENABLED: Enable/disable experimental SteamOS Gaming Mode (gamescope) overlay support"
+            echo "${CONFIG_KEY_GAMING_MODE_EXPERIMENTAL_ENABLED}=${new_val}"
+        } > "${temp_file}" 2>/dev/null
+    else
+        {
+            echo "# Created by Option 12 before the first full wizard save."
             echo "# GAMING_MODE_EXPERIMENTAL_ENABLED: Enable/disable experimental SteamOS Gaming Mode (gamescope) overlay support"
             echo "${CONFIG_KEY_GAMING_MODE_EXPERIMENTAL_ENABLED}=${new_val}"
         } > "${temp_file}" 2>/dev/null

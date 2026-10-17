@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Experimental toggle during lock hours:** The overlay flag can be turned off during partial lock. It is display routing, not a restriction-strength setting.
 - **Gamescope pause notice:** The "Pause Activated" dialog is spawned first and tagged with that process's window id. On gamescope, kdialog uses `--msgbox` (a real window) instead of `--passivepopup`.
 - **Gamescope atom setup:** `xprop` polling runs in the background so countdown respawn is not stalled for the full poll.
-- **Gamescope display resolution:** `get_gamescope_x11_display` uses an accessible `:0`, then `DISPLAY`, then `:1`, and returns failure when none answer.
+- **Gamescope display resolution:** `get_gamescope_x11_display` uses an accessible `:0`, then `DISPLAY`, then `:1`, and returns failure when none answer. `get_display` for gamescope does not fall back to a leftover `:0` socket.
+- **Option 12 on a missing config:** The experimental gaming toggle creates `sleep-warning.conf` with `GAMING_MODE_EXPERIMENTAL_ENABLED` when the file does not exist yet, so the choice survives leaving the wizard before Save.
 
 ### Added
 

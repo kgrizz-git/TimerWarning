@@ -159,6 +159,8 @@ assert_eq "get_gamescope_x11_display falls through to accessible :1" ":1" "${_gs
 is_x11_display_accessible() { return 1; }
 _gs_none="$(get_gamescope_x11_display || true)"
 assert_eq "get_gamescope_x11_display prints nothing when no display is accessible" "" "${_gs_none}"
+_gs_display_none="$(get_display "gamescope" || true)"
+assert_eq "get_display gamescope does not fall back to a dead :0 socket" "" "${_gs_display_none}"
 is_x11_display_accessible() { return 0; }
 export DISPLAY=":0"
 
@@ -365,6 +367,14 @@ unset GAMING_MODE_EXPERIMENTAL_ENABLED
 assert_eq "update_gaming_mode_config_in_place appends GAMING_MODE_EXPERIMENTAL_ENABLED=true when absent" "true" "$(get_gaming_mode_experimental_enabled)"
 update_gaming_mode_config_in_place "false"
 assert_eq "update_gaming_mode_config_in_place updates GAMING_MODE_EXPERIMENTAL_ENABLED=false in place" "false" "$(get_gaming_mode_experimental_enabled)"
+rm -f "${CONFIG_FILE}"
+update_gaming_mode_config_in_place "true"
+assert_eq "update_gaming_mode_config_in_place creates CONFIG_FILE when missing" "true" "$(get_gaming_mode_experimental_enabled)"
+if [ -f "${CONFIG_FILE}" ]; then
+    _pass "update_gaming_mode_config_in_place writes a config file on first Option 12 toggle"
+else
+    _fail "update_gaming_mode_config_in_place did not create ${CONFIG_FILE}"
+fi
 
 # Test Option 12 (configure_service_mode) surfaces save failure and keeps state consistent
 # shellcheck disable=SC1091

@@ -443,12 +443,13 @@ get_display() {
             ;;
     esac
     
-    # Last resort: try common X11 display values
-    if [ -S "/tmp/.X11-unix/X0" ]; then
+    # Last resort for desktop X11/Wayland only. A gamescope path that already
+    # failed the accessibility check must not aim dialogs at a leftover :0 socket.
+    if [ "${env_type}" != "gamescope" ] && [ -S "/tmp/.X11-unix/X0" ]; then
         echo ":0"
         return 0
     fi
-    
+
     return 1
 }
 
