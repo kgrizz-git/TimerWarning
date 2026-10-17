@@ -97,7 +97,8 @@ _popup_linux_on_spawn_success() {
         _popup_watchdog_seconds="${POPUP_ABSOLUTE_MAX_SECONDS:-120}"
     fi
     if type popup_start_pid_file_watchdog >/dev/null 2>&1; then
-        _popup_watchdog_pid=$(popup_start_pid_file_watchdog "${_popup_watchdog_seconds}" "${POPUP_PID_FILE}")
+        popup_start_pid_file_watchdog "${_popup_watchdog_seconds}" "${POPUP_PID_FILE}" >/dev/null
+        _popup_watchdog_pid="${POPUP_WATCHDOG_LAST_PID:-}"
     else
         _popup_watchdog_pid=""
     fi
@@ -195,6 +196,7 @@ _popup_linux_enforce_min_display_time() {
 
             if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                 if _popup_maybe_handle_pause_click "${popup_exit_code}"; then
+                    _popup_linux_cancel_watchdog
                     return 0
                 fi
             fi
@@ -265,6 +267,7 @@ _popup_linux_wait_after_min_display() {
 
         if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
             if _popup_maybe_handle_pause_click "${popup_exit_code}"; then
+                _popup_linux_cancel_watchdog
                 return 0
             fi
         fi
@@ -307,6 +310,7 @@ _popup_linux_wait_without_min_display() {
 
             if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                 if _popup_maybe_handle_pause_click "${popup_exit_code}"; then
+                    _popup_linux_cancel_watchdog
                     return 0
                 fi
             fi

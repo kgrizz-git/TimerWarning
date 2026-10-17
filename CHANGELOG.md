@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Linux popup watchdog startup:** `popup_start_pid_file_watchdog` is no longer invoked via command substitution (which made bash wait for the full watchdog sleep before continuing `show_warning()`). The helper now sets `POPUP_WATCHDOG_LAST_PID` for callers; pause early-return paths cancel the watchdog so a stale timer cannot kill a later popup PID.
 - **Config-lock failed saves:** Configure wizard saves now re-apply the config-file lock even when the atomic temp-file write or rename fails, preventing a temporary writable config during active lock hours.
 - **macOS uninstall failure reporting:** `uninstall.sh` now exits non-zero when LaunchAgent stop/removal fails and preserves the plist if `launchctl bootout` cannot unload a still-loaded agent, avoiding false "complete" uninstall messages.
 - **Retention pruning data loss:** `scripts/prune-backups.sh` now skips backups with staged or unstaged changes, fails closed when commit age cannot be computed, and stages only the exact files it pruned. Manual dev-docs/completed-plan archive pruners also keep files when commit age cannot be computed.
