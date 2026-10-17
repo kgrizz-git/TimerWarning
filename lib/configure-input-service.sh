@@ -160,16 +160,29 @@ configure_service_mode() {
         fi
     fi
 
-    # Configure service drop-in for selected mode first; persist config toggle on success
+    local new_exp="false"
+    if [ "${selected_mode}" = "gaming" ]; then
+        new_exp="true"
+    fi
+
+    # Persist config toggle first so a write failure is caught before modifying the drop-in
+    if type update_gaming_mode_config_in_place >/dev/null 2>&1; then
+        if ! update_gaming_mode_config_in_place "${new_exp}"; then
+            local save_err="Failed to save Experimental Gaming Mode setting to configuration file."
+            if [ "${use_gui}" = "true" ] && type show_error_dialog >/dev/null 2>&1; then
+                show_error_dialog "${save_err}"
+            elif [ "${use_gui}" = "true" ] && type show_info_dialog >/dev/null 2>&1; then
+                show_info_dialog "Error" "${save_err}" 500 200
+            else
+                echo "Error: ${save_err}" >&2
+            fi
+            return 1
+        fi
+    fi
+
+    # Configure service drop-in for selected mode; roll back config toggle on failure
     if configure_service_for_mode "${selected_mode}"; then
-        if [ "${selected_mode}" = "gaming" ]; then
-            declare -g gaming_mode_experimental_enabled="true"
-        else
-            declare -g gaming_mode_experimental_enabled="false"
-        fi
-        if type update_gaming_mode_config_in_place >/dev/null 2>&1; then
-            update_gaming_mode_config_in_place "${gaming_mode_experimental_enabled}" || true
-        fi
+        declare -g gaming_mode_experimental_enabled="${new_exp}"
         local success_msg="Service configured for ${selected_mode} mode (Experimental Gaming Mode: ${gaming_mode_experimental_enabled})."
         if [ "${use_gui}" = "true" ] && type show_info_dialog >/dev/null 2>&1; then
             show_info_dialog "Success" "${success_msg}" 520 200
@@ -180,6 +193,9 @@ configure_service_mode() {
         fi
         return 0
     else
+        if type update_gaming_mode_config_in_place >/dev/null 2>&1; then
+            update_gaming_mode_config_in_place "${current_exp}" || true
+        fi
         local error_msg="Failed to configure service for ${selected_mode} mode."
         if [ "${use_gui}" = "true" ] && type show_info_dialog >/dev/null 2>&1; then
             show_info_dialog "Error" "${error_msg}" 500 200

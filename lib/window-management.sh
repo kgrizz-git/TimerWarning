@@ -309,8 +309,20 @@ apply_gamescope_overlay_atoms() {
         return 1
     fi
 
-    xprop -id "${window_id}" -f STEAM_OVERLAY 32c -set STEAM_OVERLAY 1 2>/dev/null || true
-    xprop -id "${window_id}" -f STEAM_INPUT_FOCUS 32c -set STEAM_INPUT_FOCUS 1 2>/dev/null || true
+    local overlay_ok=true
+    if ! xprop -id "${window_id}" -f STEAM_OVERLAY 32c -set STEAM_OVERLAY 1 2>/dev/null; then
+        overlay_ok=false
+    fi
+    if ! xprop -id "${window_id}" -f STEAM_INPUT_FOCUS 32c -set STEAM_INPUT_FOCUS 1 2>/dev/null; then
+        overlay_ok=false
+    fi
+
+    if [ "${overlay_ok}" != "true" ]; then
+        if type log_to_file >/dev/null 2>&1; then
+            log_to_file "WARNING" "Failed to apply gamescope STEAM_OVERLAY / STEAM_INPUT_FOCUS atoms to window ${window_id} (PID: ${target_pid:-unknown})"
+        fi
+        return 1
+    fi
 
     if type log_to_file >/dev/null 2>&1; then
         log_to_file "INFO" "Applied gamescope STEAM_OVERLAY=1 and STEAM_INPUT_FOCUS=1 to window ${window_id} (PID: ${target_pid:-unknown})"

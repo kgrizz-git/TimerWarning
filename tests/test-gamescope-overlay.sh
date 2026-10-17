@@ -190,6 +190,26 @@ else
     _fail "apply_gamescope_overlay_atoms did not set STEAM_INPUT_FOCUS=1 (log: $(cat "${_xprop_log}"))"
 fi
 
+# Verify apply_gamescope_overlay_atoms returns 1 when xprop -set fails (e.g. window disappears before write)
+cat > "${_mock_bin}/xprop" <<EOF
+#!/usr/bin/env bash
+if [ "\${1:-}" = "-root" ] && [ "\${2:-}" = "_NET_CLIENT_LIST" ]; then
+    echo "_NET_CLIENT_LIST(WINDOW): window id # 0x40000a"
+    exit 0
+fi
+if [ "\${1:-}" = "-id" ] && [ "\${2:-}" = "0x40000a" ] && [ "\${3:-}" = "_NET_WM_PID" ]; then
+    echo "_NET_WM_PID(CARDINAL) = ${_dummy_popup_pid}"
+    exit 0
+fi
+if [ "\${4:-}" = "STEAM_OVERLAY" ] || [ "\${4:-}" = "STEAM_INPUT_FOCUS" ]; then
+    exit 1
+fi
+exit 0
+EOF
+chmod +x "${_mock_bin}/xprop"
+assert_rc "apply_gamescope_overlay_atoms returns 1 when xprop property write fails" 1 \
+    apply_gamescope_overlay_atoms "Sleep Warning" "none" "${_dummy_popup_pid}"
+
 kill "${_dummy_popup_pid}" 2>/dev/null || true
 wait "${_dummy_popup_pid}" 2>/dev/null || true
 
@@ -301,6 +321,21 @@ unset GAMING_MODE_EXPERIMENTAL_ENABLED
 assert_eq "update_gaming_mode_config_in_place appends GAMING_MODE_EXPERIMENTAL_ENABLED=true when absent" "true" "$(get_gaming_mode_experimental_enabled)"
 update_gaming_mode_config_in_place "false"
 assert_eq "update_gaming_mode_config_in_place updates GAMING_MODE_EXPERIMENTAL_ENABLED=false in place" "false" "$(get_gaming_mode_experimental_enabled)"
+
+# Test Option 12 (configure_service_mode) surfaces save failure and keeps state consistent
+# shellcheck disable=SC1091
+source "${PROJECT_DIR}/lib/configure-input-service.sh"
+CONFIGURE_PARTIAL_LOCK_MODE=false
+gaming_mode_experimental_enabled="false"
+update_gaming_mode_config_in_place() { return 1; }
+configure_read() {
+    local _var="${!#}"
+    printf -v "${_var}" '%s' "2"
+    return 0
+}
+assert_rc "configure_service_mode returns 1 when update_gaming_mode_config_in_place fails" 1 \
+    configure_service_mode "false"
+assert_eq "configure_service_mode keeps gaming_mode_experimental_enabled unchanged on save failure" "false" "${gaming_mode_experimental_enabled}"
 
 echo ""
 echo "Results: ${pass} passed, ${fail} failed"
