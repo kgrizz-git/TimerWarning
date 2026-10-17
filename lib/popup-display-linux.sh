@@ -120,16 +120,28 @@ _popup_linux_on_spawn_failure() {
 
 # Keep popup window on top after spawn.
 _popup_linux_start_stay_on_top() {
+    local on_top_duration=${min_display_time}
+    if [ "${on_top_duration}" -eq 0 ]; then
+        on_top_duration=300
+    fi
     if [ "${env_type:-}" = "gamescope" ] && [ -n "${popup_pid}" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
         apply_gamescope_overlay_atoms "${window_title}" "${window_tool:-}" "${popup_pid}" || true
+        if [ -z "${window_tool:-}" ]; then
+            (
+                local _gs_elapsed=0
+                while [ "${_gs_elapsed}" -lt "${on_top_duration}" ] && kill -0 "${popup_pid}" 2>/dev/null; do
+                    sleep 2
+                    _gs_elapsed=$((_gs_elapsed + 2))
+                    if kill -0 "${popup_pid}" 2>/dev/null; then
+                        apply_gamescope_overlay_atoms "${window_title}" "" "${popup_pid}" >/dev/null 2>&1 || true
+                    fi
+                done
+            ) &
+        fi
     fi
     if [ -n "${window_tool}" ] && [ -n "${popup_pid}" ]; then
         sleep 1.0
         keep_window_on_top "${window_title}" "${window_tool}"
-        local on_top_duration=${min_display_time}
-        if [ "${on_top_duration}" -eq 0 ]; then
-            on_top_duration=300
-        fi
         keep_window_on_top_periodic "${window_title}" "${window_tool}" "${popup_pid}" "${on_top_duration}" &
     fi
 }

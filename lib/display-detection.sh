@@ -116,8 +116,18 @@ detect_wayland_with_helpers() {
     return 1
 }
 
-# Detect if gamescope is running (best-effort)
+# Detect if gamescope is running as the session compositor (best-effort)
 is_gamescope_running() {
+    # If XDG_CURRENT_DESKTOP explicitly indicates a standard desktop session (e.g. KDE in SteamOS Desktop Mode),
+    # do not misclassify nested gamescope windows or static GAMESCOPE_SESSION=1 drop-ins as full-session Gaming Mode.
+    if [ -n "${XDG_CURRENT_DESKTOP:-}" ]; then
+        local _desktop_lower
+        _desktop_lower=$(echo "${XDG_CURRENT_DESKTOP}" | tr '[:upper:]' '[:lower:]')
+        case "${_desktop_lower}" in
+            *gamescope*) ;;
+            *) return 1 ;;
+        esac
+    fi
     if pgrep -x gamescope >/dev/null 2>&1; then
         return 0
     fi
@@ -139,7 +149,7 @@ is_gaming_mode_enabled() {
         env_val=$(echo "${GAMING_MODE_EXPERIMENTAL_ENABLED}" | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
         case "${env_val}" in
             true|1|yes) return 0 ;;
-            *) return 1 ;;
+            false|0|no) return 1 ;;
         esac
     fi
     local cfg_file="${CONFIG_FILE:-${HOME:-}/.config/sleep-warning/config/sleep-warning.conf}"
@@ -149,7 +159,7 @@ is_gaming_mode_enabled() {
         if [ -n "${cfg_val}" ]; then
             case "${cfg_val}" in
                 true|1|yes) return 0 ;;
-                *) return 1 ;;
+                false|0|no) return 1 ;;
             esac
         fi
     fi
@@ -162,7 +172,7 @@ is_gaming_mode_enabled() {
 # Resolve the Xwayland display for gamescope overlay windows.
 # On SteamOS Gaming Mode, :0 is the Steam UI / overlay Xwayland plane and :1 is the game Xwayland plane.
 get_gamescope_x11_display() {
-    if [ -S "/tmp/.X11-unix/X0" ]; then
+    if [ -S "/tmp/.X11-unix/X0" ] && is_x11_display_accessible ":0"; then
         echo ":0"
         return 0
     fi
@@ -172,6 +182,10 @@ get_gamescope_x11_display() {
     fi
     if [ -n "${DISPLAY:-}" ] && validate_display_format "${DISPLAY}" && is_x11_display_accessible "${DISPLAY}"; then
         echo "${DISPLAY}"
+        return 0
+    fi
+    if [ -S "/tmp/.X11-unix/X0" ]; then
+        echo ":0"
         return 0
     fi
     if [ -S "/tmp/.X11-unix/X1" ]; then

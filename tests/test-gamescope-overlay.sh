@@ -78,6 +78,7 @@ echo "=== 1. Toggle Behavior & Display Detection ==="
 # Mock X11 display accessibility so DISPLAY=:0 is considered accessible headlessly
 is_x11_display_accessible() { return 0; }
 
+unset XDG_CURRENT_DESKTOP
 export DISPLAY=":0"
 export GAMESCOPE_SESSION="1"
 
@@ -91,7 +92,16 @@ export GAMING_MODE_EXPERIMENTAL_ENABLED="true"
 env_detected="$(detect_display_environment)"
 assert_eq "GAMING_MODE_EXPERIMENTAL_ENABLED=true detects gamescope with DISPLAY=:0 + GAMESCOPE_SESSION=1" "gamescope" "${env_detected}"
 
-# 1c. Toggle in config file (including quoted value)
+# 1c. Desktop session (XDG_CURRENT_DESKTOP=KDE) prevents nested gamescope / static drop-in misclassification
+export XDG_CURRENT_DESKTOP="KDE"
+env_detected="$(detect_display_environment)"
+assert_eq "XDG_CURRENT_DESKTOP=KDE forces x11 even when GAMESCOPE_SESSION=1 and toggle=true" "x11" "${env_detected}"
+export XDG_CURRENT_DESKTOP="gamescope"
+env_detected="$(detect_display_environment)"
+assert_eq "XDG_CURRENT_DESKTOP=gamescope detects gamescope when toggle=true" "gamescope" "${env_detected}"
+unset XDG_CURRENT_DESKTOP
+
+# 1d. Toggle in config file (including quoted value)
 unset GAMING_MODE_EXPERIMENTAL_ENABLED
 printf 'GAMING_MODE_EXPERIMENTAL_ENABLED="true"\n' > "${CONFIG_FILE}"
 assert_eq "get_gaming_mode_experimental_enabled parses quoted true" "true" "$(get_gaming_mode_experimental_enabled)"
@@ -103,7 +113,7 @@ assert_eq "get_gaming_mode_experimental_enabled parses quoted false" "false" "$(
 env_detected="$(detect_display_environment)"
 assert_eq "Config file GAMING_MODE_EXPERIMENTAL_ENABLED=\"false\" disables gamescope detection" "x11" "${env_detected}"
 
-# 1d. Display resolution for gamescope
+# 1e. Display resolution for gamescope
 export GAMING_MODE_EXPERIMENTAL_ENABLED="true"
 assert_eq "get_display gamescope resolves to :0" ":0" "$(get_display "gamescope")"
 assert_eq "get_display_identifier gamescope resolves to :0" ":0" "$(get_display_identifier "gamescope")"
@@ -281,6 +291,16 @@ if [ -n "${_lock_errors}" ]; then
 else
     _fail "configure_partial_lock_validate_proposed failed to block disabling gaming_mode_experimental_enabled"
 fi
+
+# Test update_gaming_mode_config_in_place (append when absent + update in-place when present)
+# shellcheck disable=SC1091
+source "${PROJECT_DIR}/lib/configure-config-write.sh"
+printf 'CHECK_INTERVAL=10\nMONDAY=22-6\n' > "${CONFIG_FILE}"
+update_gaming_mode_config_in_place "true"
+unset GAMING_MODE_EXPERIMENTAL_ENABLED
+assert_eq "update_gaming_mode_config_in_place appends GAMING_MODE_EXPERIMENTAL_ENABLED=true when absent" "true" "$(get_gaming_mode_experimental_enabled)"
+update_gaming_mode_config_in_place "false"
+assert_eq "update_gaming_mode_config_in_place updates GAMING_MODE_EXPERIMENTAL_ENABLED=false in place" "false" "$(get_gaming_mode_experimental_enabled)"
 
 echo ""
 echo "Results: ${pass} passed, ${fail} failed"

@@ -285,7 +285,7 @@ apply_gamescope_overlay_atoms() {
         return 1
     fi
 
-    local max_attempts=15
+    local max_attempts=30
     local attempt=0
     local window_id=""
 

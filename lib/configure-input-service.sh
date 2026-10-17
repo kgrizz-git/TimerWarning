@@ -146,7 +146,7 @@ configure_service_mode() {
 
     # Enforce tighten-only partial lock mode during active lock hours:
     # Enabling experimental Gaming Mode (false -> true) is allowed; disabling it (true -> false) is blocked.
-    if [ "${selected_mode}" = "desktop" ] && { [ "${current_exp}" = "true" ] || [ "${current_mode}" = "gaming" ]; }; then
+    if [ "${selected_mode}" = "desktop" ] && { [ "${current_exp}" = "true" ] || [ "${_baseline_gaming_mode_experimental_enabled:-false}" = "true" ]; }; then
         if type configure_partial_lock_mode_enabled >/dev/null 2>&1 && configure_partial_lock_mode_enabled; then
             local lock_err="Cannot disable Experimental Gaming Mode during lock hours."
             if [ "${use_gui}" = "true" ] && type show_error_dialog >/dev/null 2>&1; then
@@ -160,18 +160,16 @@ configure_service_mode() {
         fi
     fi
 
-    if [ "${selected_mode}" = "gaming" ]; then
-        declare -g gaming_mode_experimental_enabled="true"
-    else
-        declare -g gaming_mode_experimental_enabled="false"
-    fi
-
-    if type update_gaming_mode_config_in_place >/dev/null 2>&1; then
-        update_gaming_mode_config_in_place "${gaming_mode_experimental_enabled}" || true
-    fi
-
-    # Configure service drop-in for selected mode
+    # Configure service drop-in for selected mode first; persist config toggle on success
     if configure_service_for_mode "${selected_mode}"; then
+        if [ "${selected_mode}" = "gaming" ]; then
+            declare -g gaming_mode_experimental_enabled="true"
+        else
+            declare -g gaming_mode_experimental_enabled="false"
+        fi
+        if type update_gaming_mode_config_in_place >/dev/null 2>&1; then
+            update_gaming_mode_config_in_place "${gaming_mode_experimental_enabled}" || true
+        fi
         local success_msg="Service configured for ${selected_mode} mode (Experimental Gaming Mode: ${gaming_mode_experimental_enabled})."
         if [ "${use_gui}" = "true" ] && type show_info_dialog >/dev/null 2>&1; then
             show_info_dialog "Success" "${success_msg}" 520 200

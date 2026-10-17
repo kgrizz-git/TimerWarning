@@ -313,7 +313,10 @@ _popup_maybe_handle_pause_click() {
                     pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null \
                         || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null \
                         || echo "unknown")
-                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --passivepopup \
+                    if [ "${env_type:-}" = "gamescope" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
+                        ( apply_gamescope_overlay_atoms "Pause Activated" "${window_tool:-}" "" >/dev/null 2>&1 ) &
+                    fi
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "Pause Activated" --passivepopup \
                         "Warning popups paused until ${pause_end_time}" "${_pause_info_timeout}" 2>/dev/null
                     if [ -n "${popup_pid}" ]; then
                         cleanup_popup_pid "${popup_pid}"
