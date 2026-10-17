@@ -120,6 +120,9 @@ _popup_linux_on_spawn_failure() {
 
 # Keep popup window on top after spawn.
 _popup_linux_start_stay_on_top() {
+    if [ "${env_type:-}" = "gamescope" ] && [ -n "${popup_pid}" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
+        apply_gamescope_overlay_atoms "${window_title}" "${window_tool:-}" "${popup_pid}" || true
+    fi
     if [ -n "${window_tool}" ] && [ -n "${popup_pid}" ]; then
         sleep 1.0
         keep_window_on_top "${window_title}" "${window_tool}"
@@ -148,6 +151,10 @@ _popup_linux_update_countdown() {
     fi
 
     _popup_spawn_warning_dialog "${updated_message}"
+
+    if [ "${env_type:-}" = "gamescope" ] && [ -n "${popup_pid}" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
+        apply_gamescope_overlay_atoms "${window_title}" "${window_tool:-}" "${popup_pid}" || true
+    fi
 
     if [ -n "${window_tool}" ]; then
         sleep 0.3

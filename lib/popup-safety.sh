@@ -19,6 +19,7 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
         DARWIN_MAX_MIN_DISPLAY_TIME=300
     fi
     DARWIN_FORCE_AUTO_CLOSE="${DARWIN_FORCE_AUTO_CLOSE:-true}"
+    GAMESCOPE_FORCE_AUTO_CLOSE="${GAMESCOPE_FORCE_AUTO_CLOSE:-true}"
     POPUP_AUTO_CLOSE_DELAY_SECONDS="${POPUP_AUTO_CLOSE_DELAY_SECONDS:-10}"
 
     _popup_darwin_max_min_cap() {
@@ -33,7 +34,11 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
         [ "$(uname -s 2>/dev/null)" = "Darwin" ]
     }
 
-    # Clamp min display and force auto-close on darwin
+    popup_is_gamescope() {
+        [ "${env_type:-}" = "gamescope" ]
+    }
+
+    # Clamp min display and force auto-close on darwin / gamescope
     popup_assert_safe_config() {
         local min_display="$1"
         local auto_close="$2"
@@ -47,6 +52,9 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
             if [ "${DARWIN_FORCE_AUTO_CLOSE}" = "true" ]; then
                 auto_close="true"
             fi
+        fi
+        if popup_is_gamescope && [ "${GAMESCOPE_FORCE_AUTO_CLOSE}" = "true" ]; then
+            auto_close="true"
         fi
         echo "${min_display}|${auto_close}"
     }
@@ -179,6 +187,9 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
             auto_close="true"
         fi
         if popup_is_darwin && [ "${DARWIN_FORCE_AUTO_CLOSE}" = "true" ]; then
+            auto_close="true"
+        fi
+        if popup_is_gamescope && [ "${GAMESCOPE_FORCE_AUTO_CLOSE}" = "true" ]; then
             auto_close="true"
         fi
         echo "${auto_close}"

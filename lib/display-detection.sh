@@ -118,7 +118,10 @@ detect_wayland_with_helpers() {
 
 # Detect if gamescope is running (best-effort)
 is_gamescope_running() {
-    if pgrep -x gamescope >/dev/null 2>&1 || [ "${GAMESCOPE_SESSION:-}" = "1" ] || [ "${GAMESCOPE_SESSION:-}" = "true" ]; then
+    if pgrep -x gamescope >/dev/null 2>&1; then
+        return 0
+    fi
+    if [ -n "${GAMESCOPE_SESSION:-}" ] && [ "${GAMESCOPE_SESSION}" != "0" ] && [ "${GAMESCOPE_SESSION}" != "false" ]; then
         return 0
     fi
     return 1
@@ -139,7 +142,18 @@ is_gaming_mode_enabled() {
             *) return 1 ;;
         esac
     fi
-    if [ -f "${HOME}/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf" ]; then
+    local cfg_file="${CONFIG_FILE:-${HOME:-}/.config/sleep-warning/config/sleep-warning.conf}"
+    if [ -f "${cfg_file}" ]; then
+        local cfg_val
+        cfg_val=$(grep -E "^[[:space:]]*GAMING_MODE_EXPERIMENTAL_ENABLED=" "${cfg_file}" 2>/dev/null | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        if [ -n "${cfg_val}" ]; then
+            case "${cfg_val}" in
+                true|1|yes) return 0 ;;
+                *) return 1 ;;
+            esac
+        fi
+    fi
+    if [ -n "${HOME:-}" ] && [ -f "${HOME}/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf" ]; then
         return 0
     fi
     return 1

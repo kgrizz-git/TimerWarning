@@ -212,11 +212,122 @@ make_window_unclosable() {
     esac
 }
 
+# Find X11 window ID for a popup dialog using _NET_WM_PID (xprop), wmctrl/xdotool, or xwininfo.
+# Parameters:
+#   $1: window_title
+#   $2: tool (wmctrl, xdotool, or empty)
+#   $3: popup_pid (optional numeric PID)
+find_window_id_for_popup() {
+    local window_title="$1"
+    local tool="${2:-}"
+    local target_pid="${3:-}"
+    local wid=""
+
+    # 1) Prefer PID match via xprop _NET_CLIENT_LIST -> _NET_WM_PID (works without wmctrl/xdotool)
+    if [ -n "${target_pid}" ] && [[ "${target_pid}" =~ ^[0-9]+$ ]] && command -v xprop >/dev/null 2>&1; then
+        local client_list
+        client_list=$(xprop -root _NET_CLIENT_LIST 2>/dev/null | cut -d'#' -f2 | tr ',' ' ')
+        local candidate_wid wpid
+        for candidate_wid in ${client_list}; do
+            wpid=$(xprop -id "${candidate_wid}" _NET_WM_PID 2>/dev/null | awk -F'=' '{print $2}' | tr -d '[:space:]')
+            if [ "${wpid}" = "${target_pid}" ]; then
+                echo "${candidate_wid}"
+                return 0
+            fi
+        done
+    fi
+
+    # 2) Fallback to wmctrl / xdotool title match
+    case "${tool}" in
+        wmctrl)
+            if command -v wmctrl >/dev/null 2>&1 && [ -n "${window_title}" ]; then
+                wid=$(wmctrl -l 2>/dev/null | grep -F "${window_title}" | head -n1 | awk '{print $1}')
+            fi
+            ;;
+        xdotool)
+            if command -v xdotool >/dev/null 2>&1 && [ -n "${window_title}" ]; then
+                wid=$(xdotool search --name "${window_title}" 2>/dev/null | head -n1)
+            fi
+            ;;
+    esac
+    if [ -n "${wid}" ]; then
+        echo "${wid}"
+        return 0
+    fi
+
+    # 3) Fallback to xwininfo title match (part of standard X11 utilities on SteamOS)
+    if command -v xwininfo >/dev/null 2>&1 && [ -n "${window_title}" ]; then
+        wid=$(xwininfo -root -tree 2>/dev/null | grep -F "\"${window_title}\"" | head -n1 | awk '{print $1}')
+        if [ -n "${wid}" ]; then
+            echo "${wid}"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+# Apply SteamOS Gaming Mode (gamescope) overlay atoms so the X11 dialog is composited
+# above fullscreen games and receives controller/touch input focus.
+# Parameters:
+#   $1: window_title
+#   $2: tool (wmctrl/xdotool or empty)
+#   $3: popup_pid (optional numeric PID)
+apply_gamescope_overlay_atoms() {
+    local window_title="$1"
+    local tool="${2:-}"
+    local target_pid="${3:-}"
+
+    if ! command -v xprop >/dev/null 2>&1; then
+        if type log_to_file >/dev/null 2>&1; then
+            log_to_file "WARNING" "xprop not available; cannot set STEAM_OVERLAY atoms for gamescope"
+        fi
+        return 1
+    fi
+
+    local max_attempts=15
+    local attempt=0
+    local window_id=""
+
+    while [ "${attempt}" -lt "${max_attempts}" ]; do
+        window_id=$(find_window_id_for_popup "${window_title}" "${tool}" "${target_pid}") || true
+        if [ -n "${window_id}" ]; then
+            break
+        fi
+        if [ -n "${target_pid}" ] && [[ "${target_pid}" =~ ^[0-9]+$ ]] && ! kill -0 "${target_pid}" 2>/dev/null; then
+            window_id=$(find_window_id_for_popup "${window_title}" "${tool}" "${target_pid}") || true
+            break
+        fi
+        sleep 0.1
+        attempt=$((attempt + 1))
+    done
+
+    if [ -z "${window_id}" ]; then
+        if type log_to_file >/dev/null 2>&1; then
+            log_to_file "WARNING" "Could not find X11 window ID for gamescope overlay (title: ${window_title}, PID: ${target_pid:-none})"
+        fi
+        return 1
+    fi
+
+    xprop -id "${window_id}" -f STEAM_OVERLAY 32c -set STEAM_OVERLAY 1 2>/dev/null || true
+    xprop -id "${window_id}" -f STEAM_INPUT_FOCUS 32c -set STEAM_INPUT_FOCUS 1 2>/dev/null || true
+
+    if type log_to_file >/dev/null 2>&1; then
+        log_to_file "INFO" "Applied gamescope STEAM_OVERLAY=1 and STEAM_INPUT_FOCUS=1 to window ${window_id} (PID: ${target_pid:-unknown})"
+    fi
+    return 0
+}
+
 # Keep window on top of other windows (with retries for reliability)
 keep_window_on_top() {
     local window_title="$1"
     local tool="$2"
     local max_attempts="${3:-5}"  # Default 5 attempts if not specified
+    local target_pid="${4:-${popup_pid:-}}"
+
+    if [ "${env_type:-}" = "gamescope" ]; then
+        apply_gamescope_overlay_atoms "${window_title}" "${tool}" "${target_pid}" || true
+    fi
     
     if [ -z "${tool}" ]; then
         return 0
