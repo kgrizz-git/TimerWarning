@@ -219,6 +219,15 @@ assert_eq "_popup_spawn_warning_dialog sets QT_QPA_PLATFORM=xcb" "xcb" "${_logge
 assert_eq "_popup_spawn_warning_dialog unsets WAYLAND_DISPLAY" "UNSET" "${_logged_wayland}"
 assert_eq "_popup_spawn_warning_dialog preserves exact dialog PID via env exec" "${popup_pid}" "${_logged_pid}"
 
+# Also verify POPUP_FORCE_X11_BACKEND=false works under set -u (Bash 3.2 empty-array safety)
+export POPUP_FORCE_X11_BACKEND="false"
+export WAYLAND_DISPLAY="wayland-0"
+popup_pid=""
+_popup_spawn_warning_dialog "Warning msg normal"
+wait "${popup_pid}" 2>/dev/null || true
+_logged_wayland_normal="$(grep '^WAYLAND_DISPLAY=' "${_zenity_env_log}" | cut -d'=' -f2-)"
+assert_eq "_popup_spawn_warning_dialog with POPUP_FORCE_X11_BACKEND=false preserves WAYLAND_DISPLAY under set -u" "wayland-0" "${_logged_wayland_normal}"
+
 export PATH="${_orig_path}"
 
 echo ""
