@@ -242,6 +242,11 @@ collect_keep_latest() {
 is_keep_latest() {
     local relpath="$1"
     local k
+    # bash 3.2 with set -u treats "${empty[@]}" as unbound. An empty keep
+    # list means nothing is protected.
+    if [ "${#KEEP_LIST[@]}" -eq 0 ]; then
+        return 1
+    fi
     for k in "${KEEP_LIST[@]}"; do
         if [ "${k}" = "${relpath}" ]; then
             return 0

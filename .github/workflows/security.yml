@@ -51,6 +51,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Install Bash 4+ (macOS)
+        if: runner.os == 'macOS'
+        run: brew install bash
+
       - name: Tier-A tests (headless)
         env:
           CI: true

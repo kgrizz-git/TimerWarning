@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Option 12 in a non-UTF-8 locale:** The Desktop Mode list entry matches after the em dash is sanitized, so the GUI can turn the overlay off when `LANG=C`.
 - **No display:** If gamescope (or any Linux session) has no usable display, the warning tries `notify-send` and succeeds only when that command accepts the message. Patch fix; the 16 h/day cap and the popup watchdog are unchanged.
 - **Option 12 rollback:** A missing config getter no longer treats a leftover gaming drop-in as the overlay being on.
+- **macOS Tier-A:** The test runner reports the real script exit code and uses Bash 4 or newer. macOS `/bin/bash` 3.2 was hiding failures (`declare -g`, namerefs) and aborting archive pruning on an empty keep-list.
 
 ### Added
 

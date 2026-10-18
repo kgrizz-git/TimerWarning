@@ -14,7 +14,20 @@
 #   CI_HEADLESS=1 ./scripts/run-tests.sh --tier a      # same as SKIP_GUI_TESTS
 #
 # See: dev-docs/testing-assessments/test-tiers.md
+#
+# Tier-A sources libraries that need bash >= 4 (declare -g, namerefs). macOS
+# /bin/bash is 3.2. Re-exec with Homebrew bash when this shell is older.
 ###############################################################################
+
+if [ -z "${BASH_VERSINFO:-}" ] || [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+    for _bash4 in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+        if [ -x "${_bash4}" ] && [ "$("${_bash4}" -c 'echo "${BASH_VERSINFO[0]}"')" -ge 4 ]; then
+            exec "${_bash4}" "$0" "$@"
+        fi
+    done
+    echo "run-tests.sh: bash >= 4 is required (this shell is ${BASH_VERSION:-unknown}). On macOS: brew install bash" >&2
+    exit 1
+fi
 
 set -euo pipefail
 
