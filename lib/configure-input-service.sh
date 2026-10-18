@@ -55,12 +55,12 @@ configure_service_mode() {
     detected_mode=$(detect_system_mode)
     local current_mode
     current_mode=$(get_current_service_mode)
+    # A leftover gaming drop-in is not the overlay toggle. If the getter is
+    # missing, stay off rather than treating the drop-in as enabled.
     local current_exp="${gaming_mode_experimental_enabled:-}"
     if [ -z "${current_exp}" ]; then
         if type get_gaming_mode_experimental_enabled >/dev/null 2>&1; then
             current_exp=$(get_gaming_mode_experimental_enabled)
-        elif [ "${current_mode}" = "gaming" ]; then
-            current_exp="true"
         else
             current_exp="false"
         fi
@@ -96,12 +96,27 @@ configure_service_mode() {
             return 0
         fi
 
+        # show_list_dialog returns dialog_safe_text output. In a non-UTF-8
+        # locale the em dash in the desktop label becomes "-", so compare
+        # against the same sanitized strings the dialog returns.
+        local opt_desktop_match="${opt_desktop}"
+        local opt_gaming_match="${opt_gaming}"
+        local opt_back_match="${opt_back}"
+        if type dialog_safe_text >/dev/null 2>&1; then
+            opt_desktop_match="$(dialog_safe_text "${opt_desktop}")"
+            opt_gaming_match="$(dialog_safe_text "${opt_gaming}")"
+            opt_back_match="$(dialog_safe_text "${opt_back}")"
+        fi
+
         case "${mode_choice}" in
-            "${opt_desktop}")
+            "${opt_desktop_match}")
                 selected_mode="desktop"
                 ;;
-            "${opt_gaming}")
+            "${opt_gaming_match}")
                 selected_mode="gaming"
+                ;;
+            "${opt_back_match}")
+                return 0
                 ;;
             *)
                 return 0

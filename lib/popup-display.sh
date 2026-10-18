@@ -278,7 +278,11 @@ show_warning() {
     display_env=$(get_display "${env_type}")
     if [ -z "${display_env}" ]; then
         log_message "warning" "No display available, cannot show warning popup"
-        log_to_file "WARNING" "No display available, cannot show warning popup. Detection path: ${DISPLAY_DETECTION_PATH}. ${DISPLAY_DETECTION_NOTE}"
+        log_to_file "WARNING" "No display available, cannot show warning popup. Detection path: ${DISPLAY_DETECTION_PATH:-}. ${DISPLAY_DETECTION_NOTE:-}"
+        if type _popup_linux_notify_send_fallback >/dev/null 2>&1; then
+            _popup_linux_notify_send_fallback
+            return $?
+        fi
         return 1
     fi
     

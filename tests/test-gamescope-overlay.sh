@@ -105,6 +105,16 @@ pgrep() {
 }
 env_detected="$(detect_display_environment)"
 assert_eq "pgrep gamescope with toggle=true detects gamescope when XDG_CURRENT_DESKTOP is unset" "gamescope" "${env_detected}"
+
+# Session classification for the systemd drop-in stays "gaming" even when the
+# overlay toggle is off. Overlay routing and the drop-in are separate.
+export GAMING_MODE_EXPERIMENTAL_ENABLED="false"
+unset XDG_CURRENT_DESKTOP
+env_detected="$(detect_display_environment)"
+assert_eq "toggle=false keeps overlay routing off while gamescope is running and XDG_CURRENT_DESKTOP is unset" "x11" "${env_detected}"
+_session_mode="$(detect_system_mode)"
+assert_eq "detect_system_mode still reports gaming for the drop-in when the overlay toggle is off" "gaming" "${_session_mode}"
+export GAMING_MODE_EXPERIMENTAL_ENABLED="true"
 pgrep() { return 1; }
 
 export XDG_CURRENT_DESKTOP="gamescope"
@@ -148,6 +158,26 @@ mkdir -p "${HOME}/.config/systemd/user/sleep-warning.service.d"
 touch "${HOME}/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf"
 assert_eq "absent GAMING_MODE_EXPERIMENTAL_ENABLED stays false when mode-gaming.conf exists" "false" "$(get_gaming_mode_experimental_enabled)"
 rm -f "${HOME}/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf"
+
+# Getter missing: env still decides, and a drop-in does not enable the overlay.
+unset -f get_gaming_mode_experimental_enabled
+export GAMING_MODE_EXPERIMENTAL_ENABLED="false"
+touch "${HOME}/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf"
+if is_gaming_mode_enabled; then
+    _fail "is_gaming_mode_enabled without getter treats env false as enabled"
+else
+    _pass "is_gaming_mode_enabled without getter honors env false"
+fi
+export GAMING_MODE_EXPERIMENTAL_ENABLED="true"
+if is_gaming_mode_enabled; then
+    _pass "is_gaming_mode_enabled without getter honors env true"
+else
+    _fail "is_gaming_mode_enabled without getter ignored env true"
+fi
+unset GAMING_MODE_EXPERIMENTAL_ENABLED
+rm -f "${HOME}/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf"
+# shellcheck disable=SC1091
+source "${PROJECT_DIR}/lib/config.sh"
 
 # 1g. Inaccessible :0 falls through to an accessible :1, and a dead display resolves to nothing
 is_x11_display_accessible() {
@@ -324,6 +354,14 @@ assert_rc "partial lock allows GAMING_MODE_EXPERIMENTAL_ENABLED true -> true" 0 
     configure_partial_lock_validate_scalar GAMING_MODE_EXPERIMENTAL_ENABLED true true
 assert_rc "partial lock allows GAMING_MODE_EXPERIMENTAL_ENABLED true -> false" 0 \
     configure_partial_lock_validate_scalar GAMING_MODE_EXPERIMENTAL_ENABLED true false
+# declare -f pretty-prints case patterns with spaces around "|".
+if declare -f configure_partial_lock_validate_scalar | grep -q 'GAMING_MODE_EXPERIMENTAL_ENABLED | gaming_mode_experimental_enabled'; then
+    _pass "partial lock names GAMING_MODE_EXPERIMENTAL_ENABLED as an explicit allow"
+else
+    _fail "partial lock is missing the explicit GAMING_MODE_EXPERIMENTAL_ENABLED allow arm"
+fi
+assert_rc "partial lock still blocks disabling CONFIGURE_BLOCK_ENABLED" 1 \
+    configure_partial_lock_validate_scalar CONFIGURE_BLOCK_ENABLED true false
 
 # Full session validation check
 config_lines=()
@@ -376,6 +414,38 @@ else
     _fail "update_gaming_mode_config_in_place did not create ${CONFIG_FILE}"
 fi
 
+printf 'CHECK_INTERVAL=10\nPOPUP_SIZE=medium\n' > "${CONFIG_FILE}"
+update_gaming_mode_config_in_place "true"
+if grep -q '^CHECK_INTERVAL=10$' "${CONFIG_FILE}" && grep -q '^POPUP_SIZE=medium$' "${CONFIG_FILE}" && grep -q '^GAMING_MODE_EXPERIMENTAL_ENABLED=true$' "${CONFIG_FILE}"; then
+    _pass "update_gaming_mode_config_in_place append keeps unrelated keys"
+else
+    _fail "update_gaming_mode_config_in_place append dropped unrelated keys ($(cat "${CONFIG_FILE}"))"
+fi
+
+gaming_mode_experimental_enabled="true"
+_header="$(
+    _write_config_header 10 medium center 30 true true false difficult true 5 24 auto false fixed "50%x50%" "1280x720" "" ""
+)"
+if printf '%s\n' "${_header}" | grep -q '^GAMING_MODE_EXPERIMENTAL_ENABLED=true$'; then
+    _pass "_write_config_header persists GAMING_MODE_EXPERIMENTAL_ENABLED from the wizard value"
+else
+    _fail "_write_config_header did not write GAMING_MODE_EXPERIMENTAL_ENABLED=true"
+fi
+
+printf 'CHECK_INTERVAL=10\n' > "${CONFIG_FILE}"
+chmod 000 "${CONFIG_FILE}"
+if update_gaming_mode_config_in_place "true"; then
+    _fail "update_gaming_mode_config_in_place reported success when the config could not be read"
+else
+    _pass "update_gaming_mode_config_in_place fails when the config cannot be read"
+fi
+chmod 644 "${CONFIG_FILE}" 2>/dev/null || chmod u+r "${CONFIG_FILE}"
+if grep -q '^CHECK_INTERVAL=10$' "${CONFIG_FILE}" && ! grep -q '^GAMING_MODE_EXPERIMENTAL_ENABLED=' "${CONFIG_FILE}"; then
+    _pass "unreadable config is left unchanged"
+else
+    _fail "unreadable config was replaced ($(cat "${CONFIG_FILE}" 2>/dev/null))"
+fi
+
 # Test Option 12 (configure_service_mode) surfaces save failure and keeps state consistent
 # shellcheck disable=SC1091
 source "${PROJECT_DIR}/lib/configure-input-service.sh"
@@ -407,6 +477,50 @@ configure_read() {
 assert_rc "configure_service_mode allows disabling experimental gaming mode during partial lock" 0 \
     configure_service_mode "false"
 assert_eq "configure_service_mode persists experimental gaming mode false during partial lock" "false" "${gaming_mode_experimental_enabled}"
+
+# GUI list dialogs return dialog_safe_text output. Non-UTF-8 turns the em dash
+# into "-", which must still select Desktop Mode.
+# shellcheck disable=SC1091
+source "${PROJECT_DIR}/lib/unicode-dialog-safety.sh"
+DIALOG_SAFETY_FORCE_ASCII=1
+DIALOG_UTF8_CONFIRMED=""
+_desktop_raw="Desktop Mode Only (Default — Gaming Mode Overlay Disabled)"
+_desktop_sanitized="$(dialog_safe_text "${_desktop_raw}")"
+if [ "${_desktop_raw}" != "${_desktop_sanitized}" ]; then
+    _pass "non-UTF-8 sanitizer rewrites the Option 12 desktop em dash"
+else
+    _fail "non-UTF-8 sanitizer left the Option 12 desktop label unchanged"
+fi
+show_list_dialog() {
+    printf '%s\n' "${_desktop_sanitized}"
+    return 0
+}
+show_info_dialog() { return 0; }
+gaming_mode_experimental_enabled="true"
+printf 'GAMING_MODE_EXPERIMENTAL_ENABLED=true\n' > "${CONFIG_FILE}"
+assert_rc "Option 12 GUI desktop choice disables the overlay when the label is sanitized" 0 \
+    configure_service_mode "true"
+assert_eq "sanitized Desktop Mode label persists experimental gaming mode false" "false" "$(get_gaming_mode_experimental_enabled)"
+unset DIALOG_SAFETY_FORCE_ASCII
+DIALOG_UTF8_CONFIRMED=""
+
+# Missing getter must not treat a gaming drop-in as the current overlay value.
+unset -f get_gaming_mode_experimental_enabled
+gaming_mode_experimental_enabled=""
+get_current_service_mode() { echo "gaming"; }
+configure_service_for_mode() { return 1; }
+configure_read() {
+    local _var="${!#}"
+    printf -v "${_var}" '%s' "1"
+    return 0
+}
+printf 'GAMING_MODE_EXPERIMENTAL_ENABLED=false\n' > "${CONFIG_FILE}"
+assert_rc "Option 12 text disable rolls back to false when the getter is missing" 1 \
+    configure_service_mode "false"
+assert_eq "missing getter does not roll the overlay back to enabled" "false" "$(grep '^GAMING_MODE_EXPERIMENTAL_ENABLED=' "${CONFIG_FILE}" | cut -d'=' -f2)"
+# shellcheck disable=SC1091
+source "${PROJECT_DIR}/lib/config.sh"
+configure_service_for_mode() { return 0; }
 
 echo ""
 echo "=== 6. mode-gaming.conf sets DISPLAY=:0 ==="
@@ -508,6 +622,49 @@ while [ "${_i}" -lt 20 ]; do
     _i=$((_i + 1))
 done
 assert_eq "arm_gamescope_atoms applies atoms for the popup PID in the background" "yes" "${_seen}"
+
+echo ""
+echo "=== 9. No usable display falls back to notify-send ==="
+log_message() { return 0; }
+log_to_file() { printf '%s\n' "$*" >> "${_test_dir}/popup-log.txt"; }
+# shellcheck disable=SC1091
+source "${PROJECT_DIR}/lib/popup-display.sh"
+is_darwin() { return 1; }
+detect_display_environment() { echo "gamescope"; }
+get_display_identifier() { echo ""; return 0; }
+get_display() { echo ""; return 1; }
+_notify_bin="${_test_dir}/notify-bin"
+mkdir -p "${_notify_bin}"
+_notify_marker="${_test_dir}/notify-sent"
+cat > "${_notify_bin}/notify-send" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" > "${_notify_marker}"
+exit 0
+EOF
+chmod +x "${_notify_bin}/notify-send"
+export PATH="${_notify_bin}:${PATH}"
+rm -f "${_notify_marker}"
+assert_rc "show_warning uses notify-send when gamescope has no accessible display" 0 show_warning
+if [ -s "${_notify_marker}" ]; then
+    _pass "notify-send fallback received the alert text"
+else
+    _fail "notify-send fallback did not run"
+fi
+
+cat > "${_notify_bin}/notify-send" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+chmod +x "${_notify_bin}/notify-send"
+assert_rc "show_warning returns 1 when notify-send fails" 1 show_warning
+
+export PATH="/usr/bin:/bin"
+hash -r 2>/dev/null || true
+if command -v notify-send >/dev/null 2>&1; then
+    _pass "host notify-send present; skipped the missing-binary assertion"
+else
+    assert_rc "show_warning returns 1 when notify-send is not installed" 1 show_warning
+fi
 
 echo ""
 echo "Results: ${pass} passed, ${fail} failed"

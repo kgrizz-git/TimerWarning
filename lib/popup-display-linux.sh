@@ -104,18 +104,29 @@ _popup_linux_on_spawn_success() {
     fi
 }
 
+# Last-resort non-modal alert when no dialog can be shown (spawn failure or
+# no usable display). Returns 0 only when notify-send accepts the message.
+# Gaming Mode often has no notification daemon; a missing or failing
+# notify-send is logged and returns 1.
+_popup_linux_notify_send_fallback() {
+    if ! command -v notify-send >/dev/null 2>&1; then
+        log_to_file "ERROR" "notify-send fallback unavailable"
+        return 1
+    fi
+    if notify-send "ALERT: Restricted time window" "You are using your computer during restricted hours. Please consider resting." >/dev/null 2>&1; then
+        log_to_file "WARNING" "notify-send fallback used (non-modal)"
+        return 0
+    fi
+    log_to_file "ERROR" "notify-send fallback failed"
+    return 1
+}
+
 # Handle spawn failure: release lock, optional notify-send fallback.
 # Returns 0 on notify-send fallback success, 1 on hard failure.
 _popup_linux_on_spawn_failure() {
     log_to_file "ERROR" "Failed to display popup, Dialog tool: ${dialog_tool}"
     _popup_linux_release_spawn_lock
-    if command -v notify-send >/dev/null 2>&1; then
-        notify-send "ALERT: Restricted time window" "You are using your computer during restricted hours. Please consider resting." >/dev/null 2>&1
-        log_to_file "WARNING" "notify-send fallback used (non-modal)"
-        return 0
-    fi
-    log_to_file "ERROR" "notify-send fallback unavailable"
-    return 1
+    _popup_linux_notify_send_fallback
 }
 
 # Tag the current popup for the gamescope overlay plane without blocking the

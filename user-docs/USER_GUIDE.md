@@ -661,7 +661,7 @@ Future versions may support custom messages per day or time range.
 - Disabled by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false` in `sleep-warning.conf`)
 - **How to Enable or Disable:**
   1. Run `sleep-warning-configure`
-  2. Select **Option 12: Service Mode (Desktop/Gaming - Experimental)**
+  2. Select **Option 12: Service Mode Configuration**
   3. Toggle Experimental Gaming Mode overlay support on (`true`) or off (`false`)
 - **How It Works When Enabled:**
   - Configures the systemd user service drop-in (`~/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf`) with `DISPLAY=:0` and the gamescope Wayland socket. Re-run Option 12 to rewrite a drop-in that still contains `GAMESCOPE_SESSION`

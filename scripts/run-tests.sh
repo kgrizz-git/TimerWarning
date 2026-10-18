@@ -132,9 +132,9 @@ _run_with_timeout() {
     ) &
     watcher=$!
 
-    if ! wait "${pid}"; then
-        rc=$?
-    fi
+    # Do not write rc=$? inside `if ! wait`. The ! negation makes $? 0, so a
+    # failing test would be reported as success on macOS (no timeout/gtimeout).
+    wait "${pid}" || rc=$?
     kill "${watcher}" 2>/dev/null || true
     wait "${watcher}" 2>/dev/null || true
 

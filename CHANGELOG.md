@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Gamescope atom setup:** `xprop` polling runs in the background so countdown respawn is not stalled for the full poll.
 - **Gamescope display resolution:** `get_gamescope_x11_display` uses an accessible `:0`, then `DISPLAY`, then `:1`, and returns failure when none answer. `get_display` for gamescope does not fall back to a leftover `:0` socket.
 - **Option 12 on a missing config:** The experimental gaming toggle creates `sleep-warning.conf` with `GAMING_MODE_EXPERIMENTAL_ENABLED` when the file does not exist yet, so the choice survives leaving the wizard before Save.
+- **Option 12 in a non-UTF-8 locale:** The Desktop Mode list entry matches after the em dash is sanitized, so the GUI can turn the overlay off when `LANG=C`.
+- **No display:** If gamescope (or any Linux session) has no usable display, the warning tries `notify-send` and succeeds only when that command accepts the message. Patch fix; the 16 h/day cap and the popup watchdog are unchanged.
+- **Option 12 rollback:** A missing config getter no longer treats a leftover gaming drop-in as the overlay being on.
 
 ### Added
 

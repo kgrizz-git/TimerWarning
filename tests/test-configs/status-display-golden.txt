@@ -14,6 +14,7 @@
 === PAUSE STATUS ===
   Pause Status:                  Unable to check (pause-state.sh not available)
   Dialog Tool:                   None available
+  Experimental Gaming Mode:      Disabled (Desktop Mode only)
 
 === RESTRICTED HOURS ===
   Monday:      7:00 AM → 11:00 PM

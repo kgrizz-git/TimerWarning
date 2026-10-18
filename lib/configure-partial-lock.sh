@@ -246,6 +246,10 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
                     return 1
                 fi
                 ;;
+            # Display routing only. Enabling or disabling the overlay is allowed
+            # during lock hours; this arm is intentional, not an unknown key.
+            GAMING_MODE_EXPERIMENTAL_ENABLED|gaming_mode_experimental_enabled)
+                ;;
             *)
                 ;;
         esac

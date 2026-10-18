@@ -465,10 +465,11 @@ get_display() {
 # Returns: "desktop", "gaming", or "unknown" (if detection fails)
 # Exit code: 0 if mode detected, 1 if unknown
 #
-# This function leverages existing display detection functions to determine
-# the system mode. Gaming Mode is detected when gamescope is running or when
-# Wayland is detected in a SteamOS-like environment. Desktop Mode is detected
-# when X11 is the primary display protocol.
+# This classifies the session so install and Option 12 can write the matching
+# systemd drop-in (DISPLAY / WAYLAND_DISPLAY). It is independent of
+# GAMING_MODE_EXPERIMENTAL_ENABLED. That flag only selects overlay routing in
+# detect_display_environment(); a gamescope session still reports "gaming"
+# while the overlay stays off.
 detect_system_mode() {
     # Primary detection: Check for gamescope (strongest indicator of Gaming Mode)
     if is_gamescope_running; then

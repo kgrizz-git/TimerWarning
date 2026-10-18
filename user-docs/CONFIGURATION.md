@@ -795,6 +795,33 @@ DIALOG_TOOL=kdialog   # Force use of kdialog (if installed)
 - A warning is logged when fallback occurs
 - The system continues to work normally with the best available tool
 
+### Experimental Gaming Mode Overlay
+
+**Option**: `GAMING_MODE_EXPERIMENTAL_ENABLED`
+
+**Purpose**: On Linux, route warning dialogs through gamescope's Xwayland overlay plane when you are in SteamOS Gaming Mode.
+
+**Default**: `false` (Desktop Mode dialogs only)
+
+**Valid Values**:
+- `true` — enable the experimental overlay path
+- `false` — keep normal desktop dialog routing
+
+**Example**:
+```
+GAMING_MODE_EXPERIMENTAL_ENABLED=false
+```
+
+**How to Change**:
+- Recommended: `sleep-warning-configure` → **Option 12: Service Mode Configuration**
+- Manual: edit `~/.config/sleep-warning/config/sleep-warning.conf`
+
+**Notes**:
+- Off unless this key is `true`. An older `mode-gaming.conf` drop-in does not turn it on.
+- Option 12 can turn it on or off during lock hours. It does not change restriction hours.
+- If no usable display can be found, the warning tries `notify-send` instead of a modal dialog. Gaming Mode may not have a notification daemon.
+- Not verified on a Steam Deck. See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md).
+
 ## Complete Configuration Example
 
 Here is a complete example configuration file with all options:
@@ -847,6 +874,10 @@ UNINSTALL_PROTECTION_MODE=difficult
 # kdialog = Force use of kdialog (if installed)
 # If selected tool is not installed, system falls back to automatic selection
 DIALOG_TOOL=auto
+
+# Experimental SteamOS Gaming Mode overlay (true/false). Default false.
+# Does not change restriction hours. Option 12 can toggle this during lock hours.
+GAMING_MODE_EXPERIMENTAL_ENABLED=false
 
 # Config file locking: Lock the configuration file during restricted hours (and lock hours) (true/false)
 # This is an opt-in deterrence feature - disabled by default

@@ -15,9 +15,10 @@ SteamOS Gaming Mode presents unique challenges for systemd-based warning systems
 ### How the Experimental `gamescope` Overlay Works
 
 1. **Settings Toggle (`GAMING_MODE_EXPERIMENTAL_ENABLED`)**:
-   - Controlled via `sleep-warning-configure` → **Option 12: Service Mode (Desktop/Gaming - Experimental)** or in `~/.config/sleep-warning/config/sleep-warning.conf` (`GAMING_MODE_EXPERIMENTAL_ENABLED=true|false`, default `false`).
+   - Controlled via `sleep-warning-configure` → **Option 12: Service Mode Configuration** or in `~/.config/sleep-warning/config/sleep-warning.conf` (`GAMING_MODE_EXPERIMENTAL_ENABLED=true|false`, default `false`).
    - During lock hours the toggle can be turned on or off. It is display routing, not a restriction-strength setting, so a broken overlay can be disabled without waiting for the lock window to end.
    - When disabled (`false`), `is_gaming_mode_enabled()` returns false and `detect_display_environment()` treats the session as standard `x11`/`wayland` even if `gamescope` is running.
+   - `detect_system_mode()` is separate. It still reports `gaming` when gamescope is the session so install and Option 12 can write the matching service drop-in. That classification does not turn the overlay on.
 2. **Xwayland Display Detection (`:0`)**:
    - `gamescope` exposes two Xwayland displays (`:0` for the Steam UI / overlay plane and `:1` for the game plane) plus a `gamescope-0` Wayland socket.
    - When `is_gaming_mode_enabled && is_gamescope_running` is true, `detect_display_environment()` returns `"gamescope"` (including when `DISPLAY=:0` is already set in the environment), and `get_gamescope_x11_display()` resolves `:0`.
@@ -55,7 +56,7 @@ The percentage tables and “planned changes” sections later in this document 
 - Without `STEAM_OVERLAY=1`, `zenity`/`yad`/`kdialog` do not appear over fullscreen games in `gamescope`
 - Without `STEAM_INPUT_FOCUS=1`, dialogs cannot receive Steam Deck controller (`A`/`B`/touch) input
 - Classic EWMH window manager tools (`wmctrl`/`xdotool`) are not installed by default on SteamOS and do not manage `gamescope` overlay stacking
-- Fallback: if all GUI dialogs fail, a non-modal notification (`notify-send`) is attempted and logged
+- Fallback: if the dialog cannot be spawned, or gamescope has no accessible Xwayland display, a non-modal notification (`notify-send`) is attempted and logged. The fallback counts only when `notify-send` accepts the message. Gaming Mode often has no notification daemon, so this can fail and is then logged as a hard failure.
 
 ### 4. Performance Considerations
 - Timer checks should not impact game performance
