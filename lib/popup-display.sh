@@ -262,12 +262,9 @@ show_warning() {
     local env_type
     local display_id
 
-    # Prefer UTF-8 locale when available; otherwise we will sanitize dialog text.
-    if type dialog_prepare_utf8_locale >/dev/null 2>&1; then
-        dialog_prepare_utf8_locale
-    else
-        ensure_utf8_locale_for_dialogs
-    fi
+    # Prefer portable UTF-8 via ensure_utf8_locale_for_dialogs (resets the
+    # prepare cache and delegates to dialog_prepare_utf8_locale when loaded).
+    ensure_utf8_locale_for_dialogs
     
     # Detect display environment type
     env_type=$(detect_display_environment)
