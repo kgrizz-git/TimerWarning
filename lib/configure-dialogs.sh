@@ -257,9 +257,9 @@ show_list_dialog() {
             for item in "${items[@]}"; do
                 yad_args+=("${item}")
             done
-            local _yad_lc="${LC_ALL:-C.UTF-8}"
+            # Inherit LC_ALL from parent-shell prepare above; do not invent C.UTF-8.
             local result
-            result=$(LC_ALL="${_yad_lc}" LANG="${_yad_lc}" LC_CTYPE="${_yad_lc}" yad --list --title="${title}" --text="${text}" \
+            result=$(yad --list --title="${title}" --text="${text}" \
                 --width="${width}" --height="${height}" \
                 --fixed \
                 --column="Option" "${yad_args[@]}" \

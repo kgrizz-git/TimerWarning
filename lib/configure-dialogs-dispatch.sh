@@ -123,15 +123,11 @@ _show_multi_column_list_yad() {
     done
     yad_args+=("${_data[@]}")
 
-    # Defense in depth: force portable UTF-8 on the yad process even if a caller
-    # forgot to prepare locale in the parent shell (Steam Deck / Nix yad).
-    if type dialog_prepare_utf8_locale >/dev/null 2>&1; then
-        dialog_prepare_utf8_locale
-    fi
-    local _yad_lc="${LC_ALL:-C.UTF-8}"
-
+    # Parent-shell prepare (show_multi_column_list_dialog) exports LC_ALL for this
+    # child. Do not invent LC_ALL=C.UTF-8 here — a missing C.UTF-8 would make glibc
+    # fall back to plain C and reintroduce the em-dash crash.
     local result
-    result=$(LC_ALL="${_yad_lc}" LANG="${_yad_lc}" LC_CTYPE="${_yad_lc}" yad "${yad_args[@]}" 2>/dev/null)
+    result=$(yad "${yad_args[@]}" 2>/dev/null)
     local exit_code=$?
     if [ ${exit_code} -eq 0 ] && [ -n "${result}" ]; then
         echo "${result%%|*}"

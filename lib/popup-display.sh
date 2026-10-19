@@ -51,23 +51,23 @@ fi
 #   "Unable to parse command line: Invalid byte sequence in conversion input"
 # This results in yad exiting immediately, which then triggers respawn loops.
 #
-# This function attempts to set a UTF-8 locale (preferring C.UTF-8) only when the
-# current locale does not already appear to be UTF-8.
+# Prefer portable C.UTF-8 even when host LANG already reports UTF-8 (Nix yad
+# otherwise falls back to plain C and rejects Unicode argv). Delegates to
+# dialog_prepare_utf8_locale when available.
 ensure_utf8_locale_for_dialogs() {
-    # If locale(1) isn't available, we can't safely detect; do nothing.
-    command -v locale >/dev/null 2>&1 || return 0
-
-    # If any locale category is already UTF-8, do nothing.
-    if locale 2>/dev/null | grep -qi "utf-8"; then
+    if type dialog_prepare_utf8_locale >/dev/null 2>&1; then
+        DIALOG_UTF8_CONFIRMED=""
+        dialog_prepare_utf8_locale
         return 0
     fi
 
-    # Prefer widely-available UTF-8 locales.
+    # Fallback when unicode-dialog-safety.sh did not load.
+    command -v locale >/dev/null 2>&1 || return 0
+
     local candidate
-    for candidate in "C.UTF-8" "en_US.UTF-8"; do
-        if locale -a 2>/dev/null | tr -d '\r' | grep -qx "${candidate}"; then
+    for candidate in "C.UTF-8" "C.utf8" "en_US.UTF-8" "en_US.utf8"; do
+        if LC_ALL="${candidate}" locale charmap 2>/dev/null | grep -qi "utf-8"; then
             export LC_ALL="${candidate}"
-            # Keep LANG consistent if it's unset/empty.
             if [ -z "${LANG:-}" ]; then
                 export LANG="${candidate}"
             fi
@@ -78,7 +78,6 @@ ensure_utf8_locale_for_dialogs() {
         fi
     done
 
-    # No known UTF-8 locale found; proceed without changing environment.
     return 0
 }
 

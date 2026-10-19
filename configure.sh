@@ -123,18 +123,17 @@ source_required_lib "service-config.sh" || exit 1
 # Nix-packaged yad, which falls back to plain C and then rejects em dashes.
 ensure_utf8_locale() {
     if type dialog_prepare_utf8_locale >/dev/null 2>&1; then
-        # Reset so a stale empty/partial decision cannot skip the portable switch.
+        # Clear any inherited yes/no so we recompute and prefer portable C.UTF-8.
         DIALOG_UTF8_CONFIRMED=""
         dialog_prepare_utf8_locale
         return
     fi
 
-    # If locale command is missing, there's nothing we can do
+    # Fallback when unicode-dialog-safety.sh did not load (should be rare).
     if ! command -v locale >/dev/null 2>&1; then
         return
     fi
 
-    # Prefer portable C.* UTF-8 even when the current charmap already looks UTF-8.
     local candidate
     for candidate in "C.UTF-8" "C.utf8" "en_US.UTF-8" "en_US.utf8"; do
         if LC_ALL="${candidate}" locale charmap 2>/dev/null | grep -qi 'utf-8'; then
