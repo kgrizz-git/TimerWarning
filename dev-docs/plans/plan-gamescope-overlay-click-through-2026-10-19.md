@@ -6,9 +6,8 @@
 |---|---|
 | **Created** | 2026-10-19 |
 | **Related** | [plan-steamos-gaming-mode-overlay-2026-10-16.md](plan-steamos-gaming-mode-overlay-2026-10-16.md), [STEAMOS_GAMING_MODE.md](../STEAMOS_GAMING_MODE.md) |
-| **Claude Opus CLI review** | 2026-10-19 — **needs-rework** applied below; human approval still required before implementation |
-| **On-device evidence** | 2026-10-19 Steam Deck Gaming Mode: popup **visible and stayed up**; **buttons not clickable** — clicks/taps hit the game underneath |
-| **Docked display** | Same session family: Deck **plugged into a large external monitor** — dialog looked **very magnified**, took **most of the screen**, text **blocky** (despite config `Size: small`) |
+| **Claude Opus CLI review** | 2026-10-19 initial (**needs-rework** applied); **docked follow-up** same session (`4a274368…`) — **approve-with-fixes** applied below |
+| **On-device evidence** | 2026-10-19: popup **visible / stayed up**; **buttons not clickable**. Magnification reported while **docked** to a large monitor (same session family — confirm undocked separately) |
 | **Device context** | `gamescope` **3.16.23.6**; dialog tool from log: **zenity**, `Size: small`; atoms logged as applied |
 | **Safety** | [docs/SAFETY.md](../../docs/SAFETY.md) — do not weaken watchdog, 16 h cap, or escape hatch; auto-close / finite lifetime remain mandatory in gamescope |
 
@@ -27,37 +26,39 @@ From `~/.config/sleep-warning/warnings.log` (~12:54 session) and host tools:
 
 **Interpretation:** Visibility proves `STEAM_OVERLAY` landed on a real top-level window. Click-through with atoms also logged strongly suggests gamescope classified the dialog as a **notification** (drawn) rather than the **interactive overlay** (input), not a failed `xprop -set`.
 
-### Docked / large-monitor magnification (2026-10-19)
+### Why the dialog is magnified (Opus follow-up — corrected)
 
-User report: on an external large display, the warning filled most of the screen and text looked blocky/pixelated, even though the log said `Size: small` (fixed small is only ~400×250 in our config helpers).
+User report (docked large monitor): warning filled most of the screen; text looked blocky/soft despite log `Size: small` (~400×250 fixed).
 
-**Likely cause (gamescope nested framebuffer upscale), not “we requested a huge zenity size”:**
+**Real cause on gamescope 3.16.23 (per-window fit-to-canvas scaling), not “whole nested FB blown up to the TV” and not nearest-neighbor filtering:**
 
-1. Gaming Mode runs clients (and our X11 overlay) inside gamescope’s **nested** resolution (often near Deck-native ~1280×800, or the game’s internal res) on Xwayland `:0`.
-2. gamescope then **scales that whole nested output** up to the external panel. A modest nested-pixel dialog becomes large and soft/blocky on a 1440p/4K TV.
-3. Overlay paint uses gamescope’s upscale path; integer/nearest filtering can make fonts look chunky when scale ≫ 1.
+1. Notifications/overlays are painted scaled against **their own buffer size** so they **fit the gamescope nested canvas** (`g_nNestedWidth/Height`, usually matching `:0` root on Deck).
+2. `calc_scale_factor` roughly does `min(canvasW/srcW, canvasH/srcH)` (fit), optionally clamped by `g_flMaxWindowScale` (defined outside `steamcompmgr.cpp` — unverified value), then applies output/nested ratio.
+3. Overlay/notification paint uses **`NoFilter` → smooth (linear) scaling**. Soft/blocky text is from stretching a ~400 px-wide buffer ~3–4×, not integer nearest.
+4. **Not docking-specific:** the same small dialog should also look screen-filling **undocked** on the Deck panel (unless max-scale clamps). The TV mostly makes softness easier to notice.
+5. Extra root props `STEAM_SCREEN_SCALE` / `STEAM_SCREEN_MAGNIFICATION` can add more zoom (minor; record if set).
 
-**Confirm next session (optional):**
+**Worked examples:** 400×250 on 1280×800 canvas ≈ **3.2×**; on 1920×1080 ≈ **4.3×** — fills most of the view either way.
+
+### Stream B also fixes magnification (no design tension)
+
+A dialog **as wide as the canvas** with modest height scales at **1.0** for the width axis (e.g. 1280×350 on 1280×800 → `min(1.0, 800/350)=1.0`) → sharp 1:1 in nested space, **and** clears `nWidth > 1200`.
+
+So the click-through fix and the sharpness fix are the **same change**. Remaining softness after that is only canvas→TV (shared with the game and Steam UI).
+
+**Width rule (revised):** `width = :0 root/canvas width` (never less than 1201; if root &lt; 1201 use `max(1201, root_w)` only as a last resort). **Do not** use widths in (1201, canvas_w) — those still get magnified (e.g. 1201 on 1920 ≈ 1.6×). Height modest (≤ ~½ root height). Never size to the TV’s native pixels.
+
+**Confirm next session:**
 
 ```bash
-DISPLAY=:0 xwininfo -root | rg 'Width|Height'          # nested root
-DISPLAY=:0 xwininfo -id "$WID" | rg 'Width|Height'    # dialog in nested px
-# Compare to the physical TV resolution (Steam → Display, or drm connector)
+DISPLAY=:0 xwininfo -root | rg 'Width|Height'
+DISPLAY=:0 xwininfo -id "$WID" | rg 'Width|Height'   # actual buffer; zenity may ignore --height
+xprop -root GAMESCOPE_SCALING_FILTER STEAM_SCREEN_SCALE STEAM_SCREEN_MAGNIFICATION
+tr '\0' ' ' </proc/$(pgrep -x gamescope | head -n1)/cmdline; echo
+# Note docked vs undocked for click-through vs magnification symptoms
 ```
 
-If nested root ≪ TV size and dialog width is only hundreds of nested pixels but still fills the TV, upscale is confirmed.
-
-### Design tension with Stream B (width > 1200)
-
-On gamescope **3.16.23**, interactive input needs nested width **> 1200**. On a ~1280-wide nested session that means the dialog is **almost full nested width** before TV upscale — so fixing click-through will likely make the docked “fills the TV / blocky text” problem **worse**, not better, unless we also address nested resolution / scaling.
-
-Plan implications (for review):
-
-- Stream B remains the leading **input** fix; treat **sharpness / docked size** as a coupled UX problem.
-- Prefer width `max(1201, min(root_w, …))` with **modest height** (not a full nested framebuffer takeover) so less of the upscaled frame is soft UI chrome.
-- Investigate whether we can read nested root vs output size and document “Gaming Mode on external display may look magnified” as expected gamescope behavior.
-- Do **not** size against the TV’s native pixels via `xrandr` on a different DISPLAY if that yields dimensions larger than the nested root (would clip or confuse gamescope). Always size in **nested Xwayland `:0` coordinates**.
-- Optional later spike: higher nested render res (user/Steam setting) improves sharpness of everything, including our overlay — out of our control in code, but worth documenting.
+Also check undocked: does a current **small** dialog already fill most of the Deck panel? That cheaply confirms per-window scaling.
 
 ## Is clickable UI even possible?
 
@@ -149,22 +150,24 @@ zenity was used in the failing session; retest yad/kdialog only after geometry f
 
 ## Proposed workstreams
 
-### Stream B — Force interactive geometry (**primary fix path**)
+### Stream B — Force interactive geometry (**primary fix path** — also fixes magnification)
 
-Gamescope-only: spawn the warning (and pause confirmation) with nested width **> 1200**, preferably **`max(1201, …)` capped by nested `xwininfo -root` width** (never size to the external TV’s native resolution).
+Gamescope-only: spawn the warning (and pause confirmation) at **full `:0` root/canvas width** with **modest height**.
 
 1. Gate on `env_type=gamescope` only; Desktop Mode sizes unchanged.
-2. Width must clear the 1200 rule; **keep height modest** (centered overlay) to limit how much of the upscaled TV frame is soft dialog chrome — especially when docked.
+2. **Width = root width on `:0`** (must be &gt; 1200; Deck 1280 is fine). Height modest (≤ ~½ root height). Never TV-native pixels; never a partial width like 1201 on a wider canvas.
 3. Keep `STEAM_OVERLAY=1` and `STEAM_INPUT_FOCUS=1` (value **1**, not 2).
 4. Optionally set `_NET_WM_WINDOW_OPACITY=0xffffffff` to reduce H2 ties.
 5. Keep `GAMESCOPE_FORCE_AUTO_CLOSE` + absolute watchdog.
-6. **Docked UX:** accept that on large external displays the dialog may still look large/blocky (nested→TV upscale). Document it; do not chase TV-native pixel sizes inside `:0`.
-7. **Safety note:** once we hold input, the game (and possibly Steam QAM) will not receive input for the popup lifetime — intentional modal behavior; still bounded by auto-close/watchdog. No `docs/SAFETY.md` invariant change.
+6. Confirm zenity/yad/kdialog actually honor the requested geometry (`xwininfo` read-back); GTK4 zenity may ignore `--height` or enforce minima.
+7. Leave `GDK_SCALE` / HiDPI unset in the gamescope popup env so buffer size matches window size.
+8. **After fix:** expect ~1:1 sharpness in nested space; docked TV softness should match Steam UI / game (not worse). If read-back still shows scale ≫ 1, fall back to documenting residual blur.
+9. **Safety note:** once we hold input, the game (and possibly Steam QAM) will not receive input for the popup lifetime — intentional modal behavior; still bounded by auto-close/watchdog. No `docs/SAFETY.md` invariant change.
 
 ### Stream A — Diagnostics / lookup hardening (**supporting**)
 
-1. Log: resolved WID, lookup path (`_NET_CLIENT_LIST` / xdotool / xwininfo), geometry (width×height), atom set + read-back.
-2. Prefer `xdotool search --pid` / `xwininfo -root -children` when `_NET_CLIENT_LIST` is empty — do **not** require xdotool for the atom path to work if `xwininfo` can find the title; keep xprop-only workable.
+1. Log: resolved WID, lookup path (`_NET_CLIENT_LIST` / xdotool / xwininfo), **actual** geometry (width×height from `xwininfo`), atom set + read-back.
+2. Prefer `xdotool search --pid` / `xwininfo -root -children` when `_NET_CLIENT_LIST` is empty — keep an xprop/`xwininfo`-only path workable.
 3. Do not rely on “tag all `_NET_WM_PID` via `_NET_CLIENT_LIST`” under gamescope.
 
 ### Stream C — `GAMESCOPE_EXTERNAL_OVERLAY`
@@ -183,7 +186,7 @@ If a >1200-wide overlay still cannot receive clicks on this SteamOS build:
 
 | Item | Action |
 |------|--------|
-| `tests/test-gamescope-overlay.sh` | Mock/assert gamescope spawn path requests width > 1200 or root width; keep atom regression tests |
+| `tests/test-gamescope-overlay.sh` | Mock/assert gamescope spawn path requests **width = mocked root width** (not merely &gt; 1200); keep atom regression tests |
 | Tier | Tier-A for unit mocks; on-device checklist manual |
 | `STEAMOS_GAMING_MODE.md` | Record click-through + 3.16.23 `> 1200` rule; update when fixed |
 | `user-docs/` | Gaming Mode caveat if buttons remain unreliable |
@@ -194,17 +197,19 @@ If a >1200-wide overlay still cannot receive clicks on this SteamOS build:
 
 - [x] Popup visible over fullscreen game (2026-10-19)
 - [x] Popup stays up for min-display / until auto-close (2026-10-19)
-- [ ] `xwininfo` width **> 1200** after fix (or confirm ≤ 1200 before fix)
+- [ ] Before fix: `xwininfo` width **≤ 1200**; note **docked vs undocked**
+- [ ] After fix: `xwininfo` width **equals `:0` root width** (and &gt; 1200)
 - [ ] `xprop` shows `STEAM_OVERLAY=1` and `STEAM_INPUT_FOCUS=1` on dialog WID
-- [ ] Touch on button dismisses / pauses (finger under button — scaling)
+- [ ] Touch on button dismisses / pauses (accuracy under finger after overlay is input target)
 - [ ] Trackpad click on button works
 - [ ] Controller focus + A activates button (optional)
 - [ ] Countdown respawn still receives input
 - [ ] Pause confirmation receives input
 - [ ] Steam QAM usable again **after** auto-close / dismiss
 - [ ] Watchdog / auto-close still ends popup if user cannot click
-- [ ] **Docked large monitor:** note nested vs TV size; dialog may remain large/blocky after width fix — confirm still usable
-- [ ] **Undocked Deck panel:** check size/sharpness separately from docked TV
+- [ ] **Undocked:** after fix, dialog appears ~1:1 (not magnified vs current small)
+- [ ] **Undocked (pre-fix check):** does current small dialog already fill most of the panel?
+- [ ] **Docked:** after fix, dialog no softer than Steam UI / game (canvas→TV only)
 
 ## Out of scope
 
@@ -216,7 +221,7 @@ If a >1200-wide overlay still cannot receive clicks on this SteamOS build:
 ## Implementation sketch (post-approval)
 
 1. Optional: one more on-device `xwininfo`/`xprop` dump while small popup is up (confirm H1).
-2. Implement Stream B (gamescope-only width > 1200 / root width) + Stream A logging.
+2. Implement Stream B (gamescope-only **full root width** + modest height) + Stream A logging.
 3. Retest checklist on Deck (zenity + yad if available).
 4. If still click-through → check H2 opacity / Stream D docs.
 5. Update TO_DO / STEAMOS_GAMING_MODE / CHANGELOG.
@@ -225,7 +230,8 @@ If a >1200-wide overlay still cannot receive clicks on this SteamOS build:
 
 - [x] Primary hypothesis: **width ≤ 1200 → notification → click-through** on gamescope 3.16.23 (Opus CLI)
 - [x] `STEAM_INPUT_FOCUS=1` (not `2`) for modal dialogs
-- [x] Stream B (wide/fullscreen gamescope-only) is the first code fix; Stream C rejected
+- [x] Stream B (full canvas width, modest height) is the first code fix; Stream C rejected
+- [x] Magnification is **per-window fit scaling** on 3.16.23; full-width dialog fixes click + sharpness together (Opus follow-up)
 - [x] Stream D allowed if compositor still blocks input
 - [x] No SAFETY.md invariant changes
 - [ ] **Human approve** before code changes (status stays NEEDS REVIEW)
@@ -233,7 +239,7 @@ If a >1200-wide overlay still cannot receive clicks on this SteamOS build:
 ## References
 
 - Code: `lib/window-management.sh`, `lib/popup-display-linux.sh`
-- Gamescope tag: **3.16.23** / device **3.16.23.6** — `nWidth > 1200` overlay vs notification
+- Gamescope tag: **3.16.23** / device **3.16.23.6** — `nWidth > 1200` overlay vs notification; per-window `calc_scale_factor` fit scaling
 - Parent overlay plan: [plan-steamos-gaming-mode-overlay-2026-10-16.md](plan-steamos-gaming-mode-overlay-2026-10-16.md)
 - TO_DO: [TO_DO.md](../TO_DO.md)
-- Opus CLI review (archived): [gamescope-clickthrough-plan-review-opus-2026-10-19.md](../code-assessments/gamescope-clickthrough-plan-review-opus-2026-10-19.md)
+- Opus CLI reviews (archived): [initial](../code-assessments/gamescope-clickthrough-plan-review-opus-2026-10-19.md) · [docked follow-up](../code-assessments/gamescope-clickthrough-plan-review-opus-docked-followup-2026-10-19.md)

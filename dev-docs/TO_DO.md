@@ -37,7 +37,7 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 
 - [ ] **SteamOS Gaming Mode** — Full validation with full-screen games → [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md), [phase 4 plan](plans/phases/plan-phase-4-testing.md)
   - [x] **2026-10-19 on-device:** popup **displays and stays up** in Gaming Mode (experimental overlay on)
-  - [ ] **Click-through:** buttons not clickable (input hits game underneath). Likely gamescope 3.16.23 treats width ≤ 1200 overlays as notifications — plan: force width &gt; 1200 in gamescope only → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md) (**needs review**; Opus CLI review applied). **Also:** docked large monitor shows magnified/blocky dialog (nested→TV upscale); width fix may worsen that — plan notes the tradeoff
+  - [ ] **Click-through + magnification:** buttons not clickable; small dialog looks huge/soft (esp. noticeable when docked). gamescope 3.16.23: width ≤ 1200 → notification (no input); small windows are fit-scaled to the canvas. Plan: gamescope-only **full `:0` root width** + modest height → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md) (**needs review**; Opus CLI + docked follow-up applied)
   - [ ] **Minor log bug (separate):** after auto-close SIGTERM, log may say `User closed popup manually` then exit 143 — fix classification when convenient
 - [ ] **Desktop Mode, no external display** — Run test suite on Steam Deck internal display only
 - [ ] **Multi-distribution install** — Debian/Ubuntu, Fedora/RHEL, Arch/SteamOS, openSUSE, Alpine → [phase 3 plan](plans/phases/plan-phase-3-installation.md)
