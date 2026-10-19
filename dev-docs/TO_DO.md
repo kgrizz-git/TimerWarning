@@ -28,6 +28,7 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
   - [ ] Manual: `POPUP_AUTO_CLOSE=false` + stuck dialog → must terminate within `POPUP_ABSOLUTE_MAX_SECONDS`
   - Plan: [plans/plan-safety-scan-fixes-2026-05-30.md](plans/plan-safety-scan-fixes-2026-05-30.md) · Analysis: [safety-linux-macos-analysis.md](safety-linux-macos-analysis.md) §5.1
 - [ ] **Additional hours on unrestricted days** — Lock/uninstall hours should not apply when a day has no restrictions (opt-in override) → [plan](plans/plan-additional-hours-no-restrictions.md)
+- [ ] **Popup frequency early tolerance** — Allow last-popup-time gate to fire up to `min(5% of POPUP_DISPLAY_FREQUENCY, 5 min)` early so 10-min settings do not slip to ~15 min on the 5-min timer grid. **Plan needs human review (Grok 4.7 approve-with-fixes applied) — do not implement yet.** → [plan](plans/plan-popup-frequency-early-tolerance-2026-10-19.md)
 - [ ] **#29** — kdialog window size via `--textbox` + `--geometry` → [enhancement-29](enhancements/enhancement-29-kdialog-window-size-control.md)
 - [ ] **#10** — Audio alerts → [enhancement-10](enhancements/enhancement-10-audio-alerts.md)
 - [x] **Configurable pause cooldown and duration** — Pause disabled, or cooldown every N hours (N = 6, 8, 12, 24; default 24); pause length 1/2/3/5/10/15 min → [plan](plans/plan-configurable-pause-interval.md) (scope: [enhancement-21 pause](enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md))
@@ -63,4 +64,4 @@ Track detail in [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#mostly-imp
 
 **Plans index:** [Master plan](plans/master/linux-warning-system-plan.md) · [Active plans](plans/) · [Completed plans](completed-plans/)
 
-**Last updated:** 2026-06-12 (refactor complete; harness plan active)
+**Last updated:** 2026-10-19 (added popup frequency early-tolerance plan — needs review)
