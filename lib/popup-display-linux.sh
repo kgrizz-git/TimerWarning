@@ -25,6 +25,13 @@ _popup_linux_release_spawn_lock() {
 _popup_linux_acquire_spawn_lock() {
     _popup_lock_fd=""
     local _popup_lock_file="${CONFIG_DIR}/.popup.lock"
+    # A killed parent cannot run normal marker cleanup. Never remove a recent
+    # expiry latch that a still-running popup session may be consulting.
+    local marker
+    for marker in "${CONFIG_DIR}"/.popup_pid.expired.*; do
+        [ -f "${marker}" ] || continue
+        find "${marker}" -mmin +10 -delete 2>/dev/null || true
+    done
     if command -v flock >/dev/null 2>&1; then
         exec {_popup_lock_fd}>"${_popup_lock_file}" 2>/dev/null || true
         if [ -n "${_popup_lock_fd}" ]; then
@@ -89,8 +96,6 @@ _popup_linux_on_spawn_success() {
             auto_close_status="enabled (10s after popup appears)"
         fi
     fi
-    log_to_file "INFO" "Popup displayed successfully (PID: ${popup_pid}), Dialog tool: ${dialog_tool}, Size: ${popup_size}, Position: ${popup_position}, Min display time: ${min_display_time}s, Auto-close: ${auto_close_status}"
-
     if ! save_popup_pid "${popup_pid}"; then
         close_popup_process "${popup_pid}" "${dialog_tool}" || true
         _popup_linux_release_spawn_lock
@@ -107,13 +112,30 @@ _popup_linux_on_spawn_success() {
     if type popup_start_pid_file_watchdog >/dev/null 2>&1; then
         _popup_watchdog_expired_file=$(mktemp "${POPUP_PID_FILE}.expired.XXXXXX") || {
             close_popup_process "${popup_pid}" "${dialog_tool}" || true
+            cleanup_popup_pid "${popup_pid}"
             return 1
         }
-        popup_start_pid_file_watchdog "${_popup_watchdog_seconds}" "${POPUP_PID_FILE}" "${_popup_watchdog_expired_file}" >/dev/null
+        if ! popup_start_pid_file_watchdog "${_popup_watchdog_seconds}" "${POPUP_PID_FILE}" "${_popup_watchdog_expired_file}" >/dev/null; then
+            close_popup_process "${popup_pid}" "${dialog_tool}" || true
+            cleanup_popup_pid "${popup_pid}"
+            _popup_linux_cancel_watchdog
+            return 1
+        fi
         _popup_watchdog_pid="${POPUP_WATCHDOG_LAST_PID:-}"
+        if ! [[ "${_popup_watchdog_pid}" =~ ^[0-9]+$ ]] || ! kill -0 "${_popup_watchdog_pid}" 2>/dev/null; then
+            close_popup_process "${popup_pid}" "${dialog_tool}" || true
+            cleanup_popup_pid "${popup_pid}"
+            _popup_linux_cancel_watchdog
+            return 1
+        fi
     else
         _popup_watchdog_pid=""
+        close_popup_process "${popup_pid}" "${dialog_tool}" || true
+        cleanup_popup_pid "${popup_pid}"
+        return 1
     fi
+    log_to_file "INFO" "Popup displayed successfully (PID: ${popup_pid}), Dialog tool: ${dialog_tool}, Size: ${popup_size}, Position: ${popup_position}, Min display time: ${min_display_time}s, Auto-close: ${auto_close_status}"
+    return 0
 }
 
 # Last-resort non-modal alert when no dialog can be shown (spawn failure or
@@ -211,9 +233,30 @@ _popup_linux_update_countdown() {
         return 1
     fi
 
-    _popup_spawn_warning_dialog "${updated_message}"
+    local spawn_attempt
+    for spawn_attempt in 1 2 3; do
+        if [ -n "${_popup_watchdog_expired_file:-}" ] && [ -s "${_popup_watchdog_expired_file}" ]; then
+            return 1
+        fi
+        _popup_spawn_warning_dialog "${updated_message}" || true
+        [ -z "${popup_pid}" ] || break
+        [ "${spawn_attempt}" -ge 3 ] || sleep 1
+    done
     if [ -z "${popup_pid}" ]; then
         _popup_linux_notify_send_fallback || true
+        return 1
+    fi
+
+    # Register immediately, before window-tool delays. Expiry may have raced
+    # with spawning while the previous PID file was absent: in that case the
+    # one-shot watchdog has already ended, so terminate this new child here.
+    if ! save_popup_pid "${popup_pid}"; then
+        close_popup_process "${popup_pid}" "${dialog_tool}" || true
+        return 1
+    fi
+    if [ -n "${_popup_watchdog_expired_file:-}" ] && [ -s "${_popup_watchdog_expired_file}" ]; then
+        close_popup_process "${popup_pid}" "${dialog_tool}" || true
+        cleanup_popup_pid "${popup_pid}"
         return 1
     fi
 
@@ -227,7 +270,6 @@ _popup_linux_update_countdown() {
     fi
 
     if [ -n "${popup_pid}" ] && [[ "${popup_pid}" =~ ^[0-9]+$ ]]; then
-        save_popup_pid "${popup_pid}"
         if type log_to_file >/dev/null 2>&1; then
             log_to_file "INFO" "Popup respawned: Old PID ${old_pid} cleaned up, new PID ${popup_pid} saved"
         fi

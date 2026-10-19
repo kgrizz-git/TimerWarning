@@ -273,7 +273,6 @@ else
 fi
 
 echo "=== macOS watchdog rc 124 is not a spawn failure ==="
-export POPUP_DARWIN_SKIP_MODULE_SOURCE=1
 detect_display_environment() { echo "aqua"; }
 get_display_identifier() { echo "1"; }
 get_popup_display_frequency() { echo 10; }

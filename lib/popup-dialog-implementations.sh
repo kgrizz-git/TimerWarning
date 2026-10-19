@@ -33,6 +33,7 @@ _popup_spawn_warning_dialog() {
 
     # Ensure caller sees a cleared PID on failure.
     popup_pid=""
+    local zenity_stderr_file=""
 
     local -a _dlg_prefix=()
     if [ "${POPUP_FORCE_X11_BACKEND:-false}" = "true" ]; then
@@ -46,6 +47,7 @@ _popup_spawn_warning_dialog() {
             if [ -z "${zenity_output_file:-}" ]; then
                 zenity_output_file=$(mktemp)
             fi
+            zenity_stderr_file=$(mktemp) || return 1
 
             if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                 # Add pause button based on configured duration
@@ -57,7 +59,7 @@ _popup_spawn_warning_dialog() {
                     --width="${width}" \
                     --height="${height}" \
                     --extra-button="${pause_button_label}" \
-                    > "${zenity_output_file}" 2>/dev/null &
+                    > "${zenity_output_file}" 2>"${zenity_stderr_file}" &
                 popup_pid=$!
             else
                 # No pause button
@@ -67,7 +69,7 @@ _popup_spawn_warning_dialog() {
                     --modal \
                     --width="${width}" \
                     --height="${height}" \
-                    > "${zenity_output_file}" 2>/dev/null &
+                    > "${zenity_output_file}" 2>"${zenity_stderr_file}" &
                 popup_pid=$!
             fi
 
@@ -206,7 +208,17 @@ _popup_spawn_warning_dialog() {
             local startup_rc=0
             wait "${popup_pid}" 2>/dev/null || startup_rc=$?
             case "${dialog_tool}:${startup_rc}" in
-                yad:0|yad:252|zenity:0|zenity:1) ;;
+                yad:0|yad:252|zenity:0) ;;
+                zenity:1)
+                    # GTK initialization failures and ordinary Cancel both use
+                    # status 1. A startup diagnostic distinguishes the failure;
+                    # an explicit extra-button result remains a genuine pause.
+                    if [ -s "${zenity_stderr_file}" ] && \
+                        ! grep -qxF "Pause ${pause_duration} min" "${zenity_output_file}"; then
+                        log_to_file "ERROR" "zenity failed at startup (exit 1 with diagnostic)"
+                        popup_pid=""
+                    fi
+                    ;;
                 *)
                     if [ "${pause_available}" != "true" ] || [ "${dialog_tool}" != "yad" ] || [ "${startup_rc}" != "42" ]; then
                         log_to_file "ERROR" "${dialog_tool} failed at startup (exit ${startup_rc})"
@@ -216,6 +228,8 @@ _popup_spawn_warning_dialog() {
             esac
         fi
     fi
+    [ -z "${zenity_stderr_file}" ] || rm -f "${zenity_stderr_file}"
+    return 0
 }
 
 # Show the "Pause Activated" notice.

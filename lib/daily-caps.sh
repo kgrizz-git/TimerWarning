@@ -304,8 +304,10 @@ if [ -z "${DAILY_CAPS_LOADED:-}" ]; then
         local arg dname range_val day_idx
         for arg in "$@"; do
             if [[ "${arg}" == CONFIG_LOCK_ENABLED=* ]]; then
-                case "${arg#*=}" in
-                    true|1|yes|TRUE|YES) config_file_lock_enabled="true" ;;
+                local _file_lock_norm
+                _file_lock_norm=$(printf '%s' "${arg#*=}" | tr '[:upper:]' '[:lower:]')
+                case "${_file_lock_norm}" in
+                    true|1|yes) config_file_lock_enabled="true" ;;
                     *) config_file_lock_enabled="false" ;;
                 esac
             elif [[ "${arg}" =~ ^CONFIG_LOCK_HOURS_(SUNDAY|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY)=(.*)$ ]]; then

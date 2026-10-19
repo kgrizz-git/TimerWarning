@@ -291,6 +291,9 @@ _finish_config_lock_wizard_write_if_available() {
 }
 
 write_config() {
+    # Return 2 for a safety rejection and 1 for filesystem failures. The wizard
+    # can display the actual cap error instead of suggesting permission changes.
+    CONFIG_WRITE_CAP_VIOLATIONS=""
     local check_interval="$1"
     local popup_size="$2"
     local popup_position="$3"
@@ -476,11 +479,11 @@ write_config() {
     if type append_missing_restriction_default_lines >/dev/null 2>&1; then
         append_missing_restriction_default_lines cap_defaults "${config_lines[@]}"
     fi
-    if ! check_daily_caps "${configure_block_enabled}" "${uninstall_protection_mode}" \
+    if ! CONFIG_WRITE_CAP_VIOLATIONS=$(check_daily_caps "${configure_block_enabled}" "${uninstall_protection_mode}" \
         "CONFIG_LOCK_ENABLED=${config_lock_enabled}" \
         "${config_lines[@]}" "${lock_hours_lines[@]}" \
-        "${uninstall_lock_hours_lines[@]}" "${cap_defaults[@]}"; then
-        return 1
+        "${uninstall_lock_hours_lines[@]}" "${cap_defaults[@]}"); then
+        return 2
     fi
 
     # Create config directory if it doesn't exist

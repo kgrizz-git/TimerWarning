@@ -726,7 +726,7 @@ calculate_restriction_end_time() {
         range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         
         # Check if current hour is in this range
-        if type is_hour_in_single_range >/dev/null 2>&1; then
+        if type is_time_in_single_range >/dev/null 2>&1; then
             if is_time_in_single_range "$(printf '%02d00' "${current_hour}")" "${range}" self; then
                 local start_part end_part end_12h
                 start_part="${range%%-*}"

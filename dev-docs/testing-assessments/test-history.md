@@ -23,6 +23,7 @@ When a test is run again, **update the date/time and findings** for that test en
 - `./scripts/run-security-scan.sh --ci --with-tests`: ShellCheck, Gitleaks, Semgrep, and Tier A passed (19 scripts; 3 expected platform/GUI skips). The first sandbox run could not bind the gamescope test's temporary local socket; the elevated run passed.
 - Additional passes: config locking, configure blocking, writer override flags, overnight carry, Linux popup safety and watchdog cleanup, next-unrestricted HH:MM, range endpoints, popup module sourcing, and popup interval text.
 - `test-safety-review-fixes.sh` covers day-specific overnight evaluation, config-file-lock cap accounting, unsafe-config fallback for standalone gates, direct writer rejection, TERM-ignoring redraw termination, startup failure notification, fast pause clicks, macOS live PID registration, and Linux disable failures.
+- Review follow-ups add expiry-during-spawn, bounded respawn retries, watchdog setup failure, stale-marker cleanup, quiet/distinct writer rejection, Zenity status-1 diagnostics, valid YAD dismissal, and TERM-ignoring osascript-child coverage. Full security/Tier-A verification passed again after these fixes; review dispositions are in [safety-fix-reviews-2026-10-18.md](../code-assessments/safety-fix-reviews-2026-10-18.md).
 - `git diff --check` and strict library line budgets passed. No real installed config or live scheduler was changed; GUI backends were stubbed.
 
 ---

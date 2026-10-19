@@ -660,6 +660,11 @@ main() {
                         fi
                         exit 0
                     else
+                        local write_rc=$?
+                        if [ "${write_rc}" -eq 2 ]; then
+                            show_cap_violation_error "${use_gui}" "${CONFIG_WRITE_CAP_VIOLATIONS}"
+                            continue
+                        fi
                         local error_msg="Error: Failed to write configuration file.\n\nPlease check permissions for:\n${CONFIG_DIR}"
                         if [ "${use_gui}" = "true" ] && has_dialog_tool; then
                             show_info_dialog "Error" "${error_msg}" 600 250

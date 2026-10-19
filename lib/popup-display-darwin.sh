@@ -7,11 +7,13 @@
 show_warning_darwin() {
     local _pd_dir
     _pd_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    # Tests set this so they can stub the watchdog without the source below
-    # replacing the stub. Production runs always load the modules.
-    if [ "${POPUP_DARWIN_SKIP_MODULE_SOURCE:-}" != "1" ]; then
+    # Preserve already-loaded implementations (including direct-source callers)
+    # without a production environment flag that can skip safety loading.
+    if ! type popup_run_with_watchdog >/dev/null 2>&1; then
         # shellcheck disable=SC1091
         [ -f "${_pd_dir}/popup-safety.sh" ] && source "${_pd_dir}/popup-safety.sh"
+    fi
+    if ! type _popup_spawn_warning_dialog_darwin >/dev/null 2>&1; then
         # shellcheck disable=SC1091
         [ -f "${_pd_dir}/popup-dialog-implementations-darwin.sh" ] && source "${_pd_dir}/popup-dialog-implementations-darwin.sh"
     fi

@@ -255,7 +255,13 @@ JSON
         (
             _inner_osc_pid=""
             trap '
-                [ -n "${_inner_osc_pid}" ] && kill "${_inner_osc_pid}" 2>/dev/null
+                # The watchdog is already at the absolute deadline. Killing
+                # only this wrapper (or sending TERM to an unresponsive child)
+                # must not leave the actual dialog alive after the wrapper exits.
+                if [ -n "${_inner_osc_pid}" ]; then
+                    kill -KILL "${_inner_osc_pid}" 2>/dev/null || true
+                    wait "${_inner_osc_pid}" 2>/dev/null || true
+                fi
                 exit 0
             ' TERM INT
 
