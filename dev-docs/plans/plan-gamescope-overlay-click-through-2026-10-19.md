@@ -1,12 +1,12 @@
 # Plan: Gamescope Overlay Click-Through (Buttons Not Clickable)
 
-**Status: NEEDS REVIEW — do not implement until reviewed and approved.**
+**Status: READY TO IMPLEMENT** — Claude Opus CLI **approved** the current text (2026-10-19, session `4a274368…`). Coding still waits on an explicit human go-ahead; nothing implemented yet.
 
 | | |
 |---|---|
 | **Created** | 2026-10-19 |
 | **Related** | [plan-steamos-gaming-mode-overlay-2026-10-16.md](plan-steamos-gaming-mode-overlay-2026-10-16.md), [STEAMOS_GAMING_MODE.md](../STEAMOS_GAMING_MODE.md) |
-| **Claude Opus CLI review** | 2026-10-19 initial (**needs-rework** applied); **docked follow-up** same session (`4a274368…`) — **approve-with-fixes** applied below |
+| **Claude Opus CLI review** | Initial needs-rework → docked approve-with-fixes (applied) → **final approve** of this file (STATUS_CHANGE: remove NEEDS REVIEW) |
 | **On-device evidence** | 2026-10-19: popup **visible / stayed up**; **buttons not clickable**. Magnification reported while **docked** to a large monitor (same session family — confirm undocked separately) |
 | **Device context** | `gamescope` **3.16.23.6**; dialog tool from log: **zenity**, `Size: small`; atoms logged as applied |
 | **Safety** | [docs/SAFETY.md](../../docs/SAFETY.md) — do not weaken watchdog, 16 h cap, or escape hatch; auto-close / finite lifetime remain mandatory in gamescope |
@@ -117,7 +117,8 @@ Small zenity + `STEAM_OVERLAY` → `notificationWindow` → game keeps `inputFoc
 **Confirm on next show:**
 
 ```bash
-# While popup is up (DISPLAY for gamescope Xwayland, usually :0):
+# While popup is up (gamescope Xwayland, usually :0):
+export DISPLAY=:0
 WID=$(xdotool search --name "Sleep Warning" | head -n1)   # or title actually used
 xwininfo -id "$WID" | rg 'Width|Height|Absolute'
 xprop -id "$WID" STEAM_OVERLAY STEAM_INPUT_FOCUS _NET_WM_WINDOW_OPACITY WM_NAME _NET_WM_PID
@@ -147,6 +148,17 @@ zenity was used in the failing session; retest yad/kdialog only after geometry f
 
 - **“Set atoms earlier / 50ms poll”** — atoms are re-read on PropertyNotify; timing does not flip notification vs overlay when width ≤ 1200.
 - **`GAMESCOPE_EXTERNAL_OVERLAY` as input path** — no input assignment on 3.16.23.
+
+## Phased implementation
+
+| Phase | What | Go / no-go |
+|-------|------|------------|
+| **0 — Confirm** | On-device `xwininfo`/`xprop` while small popup is up (H1: width ≤ 1200, atoms = 1); note docked vs undocked; optional undocked “does small already fill the panel?” | Proceed if H1 holds (or document surprise) |
+| **1 — Fix** | Stream B (full `:0` root width + modest height, gamescope-only) + Stream A logging; quote global input-pick code from installed gamescope at implement time | Unit tests green; log shows width = root |
+| **2 — Retest** | Full [manual checklist](#manual-verification-checklist-on-deck) on Deck (zenity ± yad) | Clicks work; ~1:1 sharpness nested; docked no worse than Steam UI |
+| **3 — Fallback** | If still click-through → H2 opacity check; if still fail → Stream D docs (display + auto-close only) | Product decision documented |
+
+Stream C (`GAMESCOPE_EXTERNAL_OVERLAY`) stays **rejected** on 3.16.23.
 
 ## Proposed workstreams
 
@@ -218,13 +230,9 @@ If a >1200-wide overlay still cannot receive clicks on this SteamOS build:
 - Changing Desktop Mode window stacking
 - Fixing unrelated log misclassification (`User closed popup manually` after SIGTERM 143) — track separately in TO_DO if desired, not this plan
 
-## Implementation sketch (post-approval)
+## Implementation sketch
 
-1. Optional: one more on-device `xwininfo`/`xprop` dump while small popup is up (confirm H1).
-2. Implement Stream B (gamescope-only **full root width** + modest height) + Stream A logging.
-3. Retest checklist on Deck (zenity + yad if available).
-4. If still click-through → check H2 opacity / Stream D docs.
-5. Update TO_DO / STEAMOS_GAMING_MODE / CHANGELOG.
+Follow [Phased implementation](#phased-implementation): Phase 0 confirm → Phase 1 Streams B+A → Phase 2 checklist → Phase 3 only if needed → update TO_DO / STEAMOS_GAMING_MODE / CHANGELOG.
 
 ## Review checklist
 
@@ -234,7 +242,8 @@ If a >1200-wide overlay still cannot receive clicks on this SteamOS build:
 - [x] Magnification is **per-window fit scaling** on 3.16.23; full-width dialog fixes click + sharpness together (Opus follow-up)
 - [x] Stream D allowed if compositor still blocks input
 - [x] No SAFETY.md invariant changes
-- [ ] **Human approve** before code changes (status stays NEEDS REVIEW)
+- [x] **Claude Opus CLI approved** current plan text (2026-10-19) — NEEDS REVIEW removed
+- [ ] **Human go-ahead** before coding (optional gate; plan is ready)
 
 ## References
 
@@ -242,4 +251,4 @@ If a >1200-wide overlay still cannot receive clicks on this SteamOS build:
 - Gamescope tag: **3.16.23** / device **3.16.23.6** — `nWidth > 1200` overlay vs notification; per-window `calc_scale_factor` fit scaling
 - Parent overlay plan: [plan-steamos-gaming-mode-overlay-2026-10-16.md](plan-steamos-gaming-mode-overlay-2026-10-16.md)
 - TO_DO: [TO_DO.md](../TO_DO.md)
-- Opus CLI reviews (archived): [initial](../code-assessments/gamescope-clickthrough-plan-review-opus-2026-10-19.md) · [docked follow-up](../code-assessments/gamescope-clickthrough-plan-review-opus-docked-followup-2026-10-19.md)
+- Opus CLI reviews (archived): [initial](../code-assessments/gamescope-clickthrough-plan-review-opus-2026-10-19.md) · [docked follow-up](../code-assessments/gamescope-clickthrough-plan-review-opus-docked-followup-2026-10-19.md) · [final approve](../code-assessments/gamescope-clickthrough-plan-review-opus-final-approve-2026-10-19.md)
