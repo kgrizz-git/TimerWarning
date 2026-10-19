@@ -1,6 +1,6 @@
 # Plan: Gamescope Overlay Click-Through (Buttons Not Clickable)
 
-**Status: READY TO IMPLEMENT** — Claude Opus CLI **approved** the current text (2026-10-19, session `4a274368…`). Coding still waits on an explicit human go-ahead; nothing implemented yet.
+**Status: IMPLEMENTED (code) — awaiting on-device Deck retest** — Streams A+B landed 2026-10-19 (Grok-reviewed chunks). Manual checklist below still open.
 
 | | |
 |---|---|
@@ -243,7 +243,8 @@ Follow [Phased implementation](#phased-implementation): Phase 0 confirm → Phas
 - [x] Stream D allowed if compositor still blocks input
 - [x] No SAFETY.md invariant changes
 - [x] **Claude Opus CLI approved** current plan text (2026-10-19) — NEEDS REVIEW removed
-- [ ] **Human go-ahead** before coding (optional gate; plan is ready)
+- [x] **Human go-ahead / coding** — Streams A+B implemented 2026-10-19 (Grok-reviewed chunks)
+- [ ] **On-device Deck retest** (clicks + sharpness, docked and undocked)
 
 ## References
 

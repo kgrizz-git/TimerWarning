@@ -820,6 +820,7 @@ GAMING_MODE_EXPERIMENTAL_ENABLED=false
 - Off unless this key is `true`. An older `mode-gaming.conf` drop-in does not turn it on.
 - Option 12 can turn it on or off during lock hours. It does not change restriction hours.
 - If no usable display can be found, the warning tries `notify-send` instead of a modal dialog. Gaming Mode may not have a notification daemon.
+- When the overlay path is active, zenity/yad warning dialogs request the full gamescope nested (`:0`) width (gamescope 3.16.x treats narrower `STEAM_OVERLAY` windows as non-interactive notifications). Desktop Mode sizes are unchanged. Click/touch and sharpness still need a Steam Deck retest after this sizing change.
 - Not verified on a Steam Deck. See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md).
 
 ## Complete Configuration Example

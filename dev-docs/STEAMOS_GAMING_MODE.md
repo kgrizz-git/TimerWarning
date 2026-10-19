@@ -424,7 +424,8 @@ May vary by game type, rendering technology, and full-screen mode
 - ✅ Display detection returns `gamescope` only when that flag is on and the session is actually gamescope (`XDG_CURRENT_DESKTOP` contains `gamescope`, or the `gamescope` process is running)
 - ✅ Dialogs on that path use Xwayland with `GDK_BACKEND=x11` / `QT_QPA_PLATFORM=xcb`, `STEAM_OVERLAY=1`, and `STEAM_INPUT_FOCUS=1`
 - ✅ Popups still end: `GAMESCOPE_FORCE_AUTO_CLOSE` plus the absolute watchdog
-- ⚠️ On-device appearance over fullscreen games is unverified
+- ✅ On-device appearance over fullscreen games verified (2026-10-19)
+- ✅ Code requests full `:0` root width for zenity/yad interactive overlays (click/sharpness retest still open)
 - ❌ `wmctrl` / `xdotool` do not manage gamescope stacking
 
 **Target Status**: ✅ **Verified on SteamOS Gaming Mode** (still open)
@@ -539,6 +540,6 @@ For implementation details, see [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md)
 
 Experimental Gaming Mode overlay support is implemented and **off by default**. It routes warning dialogs through gamescope's Xwayland `:0` plane and tags them with `STEAM_OVERLAY` / `STEAM_INPUT_FOCUS`. That path is covered by unit tests.
 
-**On-device (2026-10-19):** With the experimental toggle on in Gaming Mode, the warning **appeared and stayed visible** over a fullscreen game. **Dialog buttons did not receive clicks** — input appeared to go to the game underneath. Visibility is therefore verified; interactive input is not. A **small** dialog also looked **heavily magnified / soft** (reported while docked to a large monitor) — gamescope 3.16.23 **fit-scales** overlay/notification windows to the nested canvas (a ~400 px dialog becomes ~3×), not merely “TV upscale of the whole nested FB.” Making the dialog **full canvas width** is expected to fix both click-through (`width > 1200`) and that magnification. Plan: [plans/plan-gamescope-overlay-click-through-2026-10-19.md](plans/plan-gamescope-overlay-click-through-2026-10-19.md).
+**On-device (2026-10-19):** With the experimental toggle on in Gaming Mode, the warning **appeared and stayed visible** over a fullscreen game, but **buttons were not clickable** (notification classification) and a **small** dialog looked **heavily magnified** (per-window fit scaling). **Code fix (same day):** gamescope-only dialogs now request **full `:0` root width** + modest height, keep `STEAM_OVERLAY` / `STEAM_INPUT_FOCUS=1`, and log geometry/atom read-back. Re-test clicks and sharpness on Deck (docked and undocked). Plan: [plans/plan-gamescope-overlay-click-through-2026-10-19.md](plans/plan-gamescope-overlay-click-through-2026-10-19.md).
 
 The ~68% and ~95% figures earlier in this document were planning estimates, not measured results. A Steamworks overlay plugin remains a possible later approach for exclusive fullscreen games. Use Option 12 to turn the experimental path on, and turn it off again if dialogs do not appear. `systemctl --user stop sleep-warning.service` remains available during lock hours.
