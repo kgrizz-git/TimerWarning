@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Daily safety caps:** Runtime overnight checks now match calendar-day cap accounting, and config-file locking counts toward configure-block coverage. Unsafe hand-edited schedules release configure locks and uninstall protection while popups use safe defaults. The config writer also checks caps before touching the file.
+- **Popup watchdog and startup:** Linux countdown redraws keep hung dialogs registered for the watchdog and stop respawning after absolute expiry. Failed YAD/Zenity startups trigger notification fallback; YAD startup errors cannot activate a one-minute pause.
+- **Popup lifecycle:** Already-exited pause clicks are processed, failed countdown respawns notify the user, and macOS registers its popup PID while the watchdog is waiting instead of after the popup closes.
+- **Disable failure reporting:** Linux management and scheduler helpers report failed stop operations even if disabling succeeds, and uninstall stops when a timer stop or disable fails.
+
+- **Runtime 16 h cap:** Hand-edited configs are checked with the same hours and flags the features use. Spaced and mixed spellings (`22:00 - 06:00`, `22-06:00`, `22:00-6`) are normalized before the check, matching `parse_config`. A missing uninstall mode counts as `difficult`, `CONFIGURE_BLOCK_ENABLED=1` or `yes` counts as on, days left out of the file include the built-in restriction hours, and `24:00` is the end of the day. A range that cannot be parsed counts as a full day on that day instead of zero minutes; it does not also fill the next day. The wizard save and input-time checks count those same built-in hours for days the session never set, so a save is not accepted and then ignored on the next run. Patch fix; the cap stays 16 h per category.
+- **Uninstall cancel:** Cancelling verification (exit 2) prints the cancel message and exits 0. A bare status call under `set -e` was aborting the script before that message. Failure still exits 1 with the verification-failed message.
+- **macOS popup watchdog:** A popup closed by the watchdog is logged as a watchdog close. It no longer shows the "failed to display" notification.
+- **Popup stacking fallback:** `pgrep` now alternates zenity, yad, and kdialog. The old pattern looked for a literal pipe.
+- **Overnight check:** The comma split used for the previous day's range no longer stays in effect for the rest of the popup, so window ids split on spaces again.
+- **Gamescope window tools:** Stay-on-top and unclosable wmctrl/xdotool loops do not run on the gamescope path. Overlay atoms stay on the background poll, and a successful tag is logged once per window.
+- **Dead display probe:** When neither `xdpyinfo` nor `xset` is installed, a display counts as reachable only when its X socket exists (`:1` is `/tmp/.X11-unix/X1`). A missing socket stays unanswered so the notify-send fallback can run.
+- **Overlay off in Gaming Mode:** A gaming drop-in that sets `DISPLAY=:0` keeps Wayland routing while the experimental overlay is off and a Wayland socket is present.
+- **Headless notify-send:** The no-display notification fallback runs for X11, Wayland, and gamescope sessions, and when `DISPLAY` is set but the session type could not be probed. It stays quiet when `DISPLAY` is unset.
 - **Gaming Mode opt-in:** A missing `GAMING_MODE_EXPERIMENTAL_ENABLED` stays false even when `mode-gaming.conf` exists, so older Gaming Mode drop-ins do not enable the experimental overlay.
 - **Gamescope session detection:** The gaming service drop-in no longer sets `GAMESCOPE_SESSION`. That variable is not a live session signal. Detection uses `XDG_CURRENT_DESKTOP` naming gamescope, or a running `gamescope` process when the desktop name is unset. Re-run Option 12 to rewrite an existing `mode-gaming.conf` that still contains the old line.
 - **Experimental toggle during lock hours:** The overlay flag can be turned off during partial lock. It is display routing, not a restriction-strength setting.

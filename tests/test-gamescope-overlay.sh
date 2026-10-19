@@ -90,6 +90,18 @@ export XDG_CURRENT_DESKTOP="gamescope"
 env_detected="$(detect_display_environment)"
 assert_eq "GAMING_MODE_EXPERIMENTAL_ENABLED=false forces x11 even when the session is gamescope" "x11" "${env_detected}"
 
+# Overlay off, but the gaming drop-in still exports DISPLAY=:0. A live Wayland
+# socket must keep Wayland routing instead of becoming plain X11.
+_env_off_wayland="$(
+    is_wayland_display_accessible() { return 0; }
+    export WAYLAND_DISPLAY="wayland-0"
+    export GAMING_MODE_EXPERIMENTAL_ENABLED="false"
+    export XDG_CURRENT_DESKTOP="gamescope"
+    export DISPLAY=":0"
+    detect_display_environment
+)"
+assert_eq "overlay off with a Wayland socket stays wayland when DISPLAY=:0" "wayland" "${_env_off_wayland}"
+
 # 1b. An inherited GAMESCOPE_SESSION=1 is not a session detector
 export GAMING_MODE_EXPERIMENTAL_ENABLED="true"
 unset XDG_CURRENT_DESKTOP
@@ -193,6 +205,24 @@ _gs_display_none="$(get_display "gamescope" || true)"
 assert_eq "get_display gamescope does not fall back to a dead :0 socket" "" "${_gs_display_none}"
 is_x11_display_accessible() { return 0; }
 export DISPLAY=":0"
+
+_probe_bin="$(mktemp -d)"
+_sockdir="$(mktemp -d)"
+_probe_display() {
+    local disp="$1"
+    X11_UNIX_DIR="${_sockdir}" /bin/bash -c 'export PATH="'"${_probe_bin}"'"; export X11_UNIX_DIR="'"${_sockdir}"'"; source "'"${PROJECT_DIR}"'/lib/display-detection.sh"; is_x11_display_accessible "'"${disp}"'"; echo $?'
+}
+_probe_rc="$(_probe_display ":1")"
+assert_eq "display with no probe tools and no socket is unanswered" "1" "${_probe_rc}"
+python3 -c 'import socket,sys; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); s.close()' "${_sockdir}/X1"
+_probe_rc="$(_probe_display ":1")"
+assert_eq "display :1 with no probe tools uses socket X1" "0" "${_probe_rc}"
+python3 -c 'import socket,sys; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); s.close()' "${_sockdir}/X0"
+_probe_rc="$(_probe_display ":0.0")"
+assert_eq "display :0.0 with no probe tools uses socket X0" "0" "${_probe_rc}"
+_probe_rc="$(_probe_display "localhost:1")"
+assert_eq "non-local display form stays unanswered without probe tools" "1" "${_probe_rc}"
+rm -rf "${_probe_bin}" "${_sockdir}"
 
 echo ""
 echo "=== 2. Popup Safety Auto-Close Override in gamescope ==="
@@ -394,6 +424,11 @@ if [ -z "${_lock_errors}" ]; then
     _pass "configure_partial_lock_validate_proposed allows disabling gaming_mode_experimental_enabled"
 else
     _fail "configure_partial_lock_validate_proposed blocked disabling gaming_mode_experimental_enabled (${_lock_errors})"
+fi
+if declare -f configure_partial_lock_validate_proposed | grep -q 'GAMING_MODE_EXPERIMENTAL_ENABLED'; then
+    _pass "validate_proposed checks the experimental overlay flag"
+else
+    _fail "validate_proposed never passes GAMING_MODE_EXPERIMENTAL_ENABLED"
 fi
 
 # Test update_gaming_mode_config_in_place (append when absent + update in-place when present)
@@ -664,6 +699,38 @@ if command -v notify-send >/dev/null 2>&1; then
     _pass "host notify-send present; skipped the missing-binary assertion"
 else
     assert_rc "show_warning returns 1 when notify-send is not installed" 1 show_warning
+fi
+
+detect_display_environment() { echo "unknown"; }
+get_display() { return 1; }
+rm -f "${_notify_marker}"
+cat > "${_notify_bin}/notify-send" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" > "${_notify_marker}"
+exit 0
+EOF
+chmod +x "${_notify_bin}/notify-send"
+export PATH="${_notify_bin}:${PATH}"
+_saved_display="${DISPLAY-}"
+unset DISPLAY
+assert_rc "headless unknown session does not call notify-send" 1 show_warning
+if [ -s "${_notify_marker}" ]; then
+    _fail "notify-send ran for an unknown headless session"
+else
+    _pass "notify-send skipped for an unknown headless session"
+fi
+export DISPLAY=":0"
+rm -f "${_notify_marker}"
+assert_rc "unprobed DISPLAY still tries notify-send" 0 show_warning
+if [ -s "${_notify_marker}" ]; then
+    _pass "notify-send ran when DISPLAY is set and the session type is unknown"
+else
+    _fail "notify-send did not run for an unprobed DISPLAY"
+fi
+if [ -n "${_saved_display}" ]; then
+    export DISPLAY="${_saved_display}"
+else
+    unset DISPLAY
 fi
 
 echo ""

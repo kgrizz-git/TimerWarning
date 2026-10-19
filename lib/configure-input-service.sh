@@ -168,6 +168,19 @@ configure_service_mode() {
         new_exp="true"
     fi
 
+    if type configure_partial_lock_validate_scalar >/dev/null 2>&1; then
+        if ! configure_partial_lock_validate_scalar "GAMING_MODE_EXPERIMENTAL_ENABLED" \
+            "${gaming_mode_experimental_enabled:-false}" "${new_exp}"; then
+            local lock_err="Cannot change Experimental Gaming Mode during lock hours."
+            if [ "${use_gui}" = "true" ] && type show_error_dialog >/dev/null 2>&1; then
+                show_error_dialog "Error" "${lock_err}"
+            else
+                echo "Error: ${lock_err}" >&2
+            fi
+            return 1
+        fi
+    fi
+
     # Persist config toggle first so a write failure is caught before modifying the drop-in
     if type update_gaming_mode_config_in_place >/dev/null 2>&1; then
         if ! update_gaming_mode_config_in_place "${new_exp}"; then

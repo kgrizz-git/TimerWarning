@@ -228,6 +228,7 @@ stop_timer() {
             sleep 2
         else
             print_warning "Failed to stop timer (may not be running)"
+            return 1
         fi
     else
         print_info "Timer is not running"
@@ -238,6 +239,7 @@ stop_timer() {
             print_success "Timer disabled"
         else
             print_warning "Failed to disable timer"
+            return 1
         fi
     else
         print_info "Timer is not enabled"
@@ -539,8 +541,11 @@ main() {
         
         # Require verification
         if type verify_uninstall_during_restrictions >/dev/null 2>&1; then
-            if ! verify_uninstall_during_restrictions "${use_gui}" 2>/dev/null; then
-                local exit_code=$?
+            # `cmd || rc=$?` keeps set -e from aborting before the status is stored.
+            # A bare call would exit the script on cancel (2) or failure (1).
+            local exit_code=0
+            verify_uninstall_during_restrictions "${use_gui}" 2>/dev/null || exit_code=$?
+            if [ "${exit_code}" -ne 0 ]; then
                 if [ ${exit_code} -eq 2 ]; then
                     # User cancelled
                     print_info "Uninstall cancelled by user."

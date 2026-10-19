@@ -207,6 +207,7 @@ is_restricted_hour() {
 is_restricted_time() {
     local current_time_hhmm="$1"
     local ranges="$2"
+    local day_role="${3:-both}"
     
     # Handle empty range (no restrictions)
     if [ -z "${ranges}" ]; then
@@ -220,7 +221,7 @@ is_restricted_time() {
         range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         
         # Check if current time is within this range
-        if is_time_in_single_range "${current_time_hhmm}" "${range}"; then
+        if is_time_in_single_range "${current_time_hhmm}" "${range}" "${day_role}"; then
             return 0
         fi
     done
@@ -233,6 +234,9 @@ is_restricted_time() {
 is_time_in_single_range() {
     local current_time_hhmm="$1"
     local range="$2"
+    # For a named day's own ranges, only the evening part belongs to that day.
+    # The morning tail is checked separately against the previous day's ranges.
+    local day_role="${3:-both}"
     
     # Normalize range to HHMM-HHMM
     local start_time end_time
@@ -255,6 +259,10 @@ is_time_in_single_range() {
     
     # Handle overnight ranges (start > end, spans midnight)
     if [ "${start_time}" -gt "${end_time}" ]; then
+        if [ "${day_role}" = "self" ]; then
+            [ "${current_time_hhmm}" -ge "${start_time}" ]
+            return $?
+        fi
         # Overnight range: current time >= start OR current time < end
         if [ "${current_time_hhmm}" -ge "${start_time}" ] || [ "${current_time_hhmm}" -lt "${end_time}" ]; then
             return 0
@@ -431,6 +439,10 @@ is_uninstall_lock_hour() {
 # This is for Enhancement #19 (Prevent configure.sh and manage.sh Execution)
 # Dependencies: config.sh (for get_configure_block_enabled, parse_config, parse_lock_hours)
 check_config_lock_time() {
+    # Unsafe hand edits must not leave configure locked beyond the daily cap.
+    if type runtime_daily_caps_are_safe >/dev/null 2>&1 && ! runtime_daily_caps_are_safe; then
+        return 0
+    fi
     # Check if configure blocking is enabled
     local block_enabled
     block_enabled=$(get_configure_block_enabled)
@@ -459,14 +471,14 @@ check_config_lock_time() {
     fi
     
     # Check if current time is within restricted range for current day
-    if is_restricted_time "${current_time_hhmm}" "${restricted_range}"; then
+    if is_restricted_time "${current_time_hhmm}" "${restricted_range}" self; then
         # Current time is restricted - block execution
         return 1
     fi
     
     # Check if current time is within lock hours for current day (Phase 2)
     if [ -n "${lock_hours_range}" ] && type is_restricted_time >/dev/null 2>&1; then
-        if is_restricted_time "${current_time_hhmm}" "${lock_hours_range}"; then
+        if is_restricted_time "${current_time_hhmm}" "${lock_hours_range}" self; then
             # Current time is in lock hours - block execution
             return 1
         fi
@@ -518,6 +530,10 @@ check_config_lock_time() {
 # Exit Codes:
 #   0 - Success (always returns successfully, check return value)
 check_uninstall_protection_time() {
+    if type runtime_daily_caps_are_safe >/dev/null 2>&1 && ! runtime_daily_caps_are_safe; then
+        echo "none"
+        return 0
+    fi
     # Get uninstall protection mode from config
     local protection_mode="none"
     if type get_uninstall_protection_mode >/dev/null 2>&1; then
@@ -546,7 +562,7 @@ check_uninstall_protection_time() {
     
     # Check if current time is within restricted range for current day
     if [ -n "${restricted_range}" ] && type is_restricted_time >/dev/null 2>&1; then
-        if is_restricted_time "${current_time_hhmm}" "${restricted_range}"; then
+        if is_restricted_time "${current_time_hhmm}" "${restricted_range}" self; then
             # Current time is restricted - return protection mode
             echo "${protection_mode}"
             return 0
@@ -582,7 +598,7 @@ check_uninstall_protection_time() {
     
     # Check if current time is within uninstall lock hours for current day
     if [ -n "${uninstall_lock_range}" ] && type is_restricted_time >/dev/null 2>&1; then
-        if is_restricted_time "${current_time_hhmm}" "${uninstall_lock_range}"; then
+        if is_restricted_time "${current_time_hhmm}" "${uninstall_lock_range}" self; then
             # Current time is in uninstall lock hours - return protection mode
             echo "${protection_mode}"
             return 0

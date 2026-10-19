@@ -39,9 +39,26 @@ validate_display_format() {
     return 1
 }
 
+# Socket path for an X11 display (:0 -> .../X0, :1.0 -> .../X1).
+# X11_UNIX_DIR overrides the directory so tests can use a temp socket dir.
+_x11_socket_path_for_display() {
+    local display_value="$1"
+    local num socket_dir
+    if [[ ! "${display_value}" =~ ^:([0-9]+)(\.[0-9]+)?$ ]]; then
+        return 1
+    fi
+    num=$((10#${BASH_REMATCH[1]}))
+    socket_dir="${X11_UNIX_DIR:-/tmp/.X11-unix}"
+    printf '%s\n' "${socket_dir}/X${num}"
+}
+
 # Check X11 display accessibility (best-effort)
+# With xdpyinfo or xset, those tools decide. Without them, a matching
+# listener socket counts as reachable (:1 is /tmp/.X11-unix/X1). A missing
+# socket stays unanswered so the notify-send fallback can run.
 is_x11_display_accessible() {
     local display_value="$1"
+    local socket_path=""
     if command -v xdpyinfo >/dev/null 2>&1; then
         DISPLAY="${display_value}" xdpyinfo >/dev/null 2>&1
         return $?
@@ -50,8 +67,10 @@ is_x11_display_accessible() {
         DISPLAY="${display_value}" xset q >/dev/null 2>&1
         return $?
     fi
-    # If no tool is available, assume accessible
-    return 0
+    if socket_path=$(_x11_socket_path_for_display "${display_value}") && [ -S "${socket_path}" ]; then
+        return 0
+    fi
+    return 1
 }
 
 # Check Wayland socket accessibility
@@ -231,6 +250,14 @@ detect_display_environment() {
                 if is_gaming_mode_enabled && is_gamescope_running; then
                     append_display_detection_step "gamescope:process"
                     echo "gamescope"
+                    return 0
+                fi
+                # The gaming drop-in sets DISPLAY=:0 even when the overlay is off.
+                # Prefer the Wayland socket so that install does not silently
+                # route Gaming Mode popups as plain X11.
+                if is_gamescope_running && [ -n "${WAYLAND_DISPLAY:-}" ] && is_wayland_display_accessible "${WAYLAND_DISPLAY}"; then
+                    append_display_detection_step "wayland:overlay-off"
+                    echo "wayland"
                     return 0
                 fi
                 echo "x11"

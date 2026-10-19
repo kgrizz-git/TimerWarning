@@ -57,7 +57,47 @@ if [ -z "${DAILY_CAPS_LOADED:-}" ]; then
     #   "carry" non-overnight:        ignored
     #
     # All arithmetic uses 10# prefix to avoid octal interpretation.
+    #
+    # An end of 24:00 (or integer 24) is the end of the calendar day (1440).
+    # That matches runtime checks, which treat 00:00-24:00 as the whole day.
+    # Any other unparseable endpoint makes this function return 1 so the cap
+    # check fails closed instead of counting the range as zero minutes.
     ##########################################################################
+    # Echo minutes since midnight. role is "start" or "end".
+    # Returns 1 when the token is not a real clock time.
+    _daily_caps_token_minutes() {
+        local token="$1"
+        local role="$2"
+        local hour minute
+
+        if [[ "${token}" == *":"* ]]; then
+            hour="${token%%:*}"
+            minute="${token##*:}"
+            if ! [[ "${hour}" =~ ^[0-9]+$ && "${minute}" =~ ^[0-9]+$ ]]; then
+                return 1
+            fi
+            if [ "$((10#${minute}))" -gt 59 ]; then
+                return 1
+            fi
+        else
+            if ! [[ "${token}" =~ ^[0-9]+$ ]]; then
+                return 1
+            fi
+            hour="${token}"
+            minute=0
+        fi
+
+        if [ "${role}" = "end" ] && [ "$((10#${hour}))" -eq 24 ] && [ "$((10#${minute}))" -eq 0 ]; then
+            echo 1440
+            return 0
+        fi
+        if [ "$((10#${hour}))" -gt 23 ]; then
+            return 1
+        fi
+        echo $(( 10#${hour} * 60 + 10#${minute} ))
+        return 0
+    }
+
     _parse_range_to_minute_intervals() {
         local ranges_csv="$1"
         local day_role="${2:-self}"
@@ -71,41 +111,30 @@ if [ -z "${DAILY_CAPS_LOADED:-}" ]; then
         IFS="${saved_IFS-$' \t\n'}"
 
         local r
+        local _unparseable=0
         for r in "${parts[@]}"; do
-            # Trim whitespace
-            r="${r## }"
-            r="${r%% }"
+            # Drop every space so "22:00 - 06:00" matches the clock check.
+            # Each side may be H or HH:MM ("22-06:00", "22:00-6").
+            r="${r//[[:space:]]/}"
             [ -z "${r}" ] && continue
 
             local start_part end_part
-            # Try HH:MM-HH:MM first, then H-H / HH-HH
-            if [[ "${r}" =~ ^([0-9]{1,2}:[0-9]{2})-([0-9]{1,2}:[0-9]{2})$ ]]; then
+            if [[ "${r}" =~ ^([0-9]{1,2}(:[0-9]{2})?)-([0-9]{1,2}(:[0-9]{2})?)$ ]]; then
                 start_part="${BASH_REMATCH[1]}"
-                end_part="${BASH_REMATCH[2]}"
-            elif [[ "${r}" =~ ^([0-9]{1,2})-([0-9]{1,2})$ ]]; then
-                start_part="${BASH_REMATCH[1]}"
-                end_part="${BASH_REMATCH[2]}"
+                end_part="${BASH_REMATCH[3]}"
             else
-                continue  # Unrecognised format — skip silently
+                _unparseable=1
+                continue
             fi
 
             local start_min end_min
-            if [[ "${start_part}" == *":"* ]]; then
-                local _sh="${start_part%%:*}" _sm="${start_part##*:}"
-                (( 10#${_sh} > 23 || 10#${_sm} > 59 )) && continue
-                start_min=$(( 10#${_sh} * 60 + 10#${_sm} ))
-            else
-                (( 10#${start_part} > 23 )) && continue
-                start_min=$(( 10#${start_part} * 60 ))
+            if ! start_min=$(_daily_caps_token_minutes "${start_part}" "start"); then
+                _unparseable=1
+                continue
             fi
-
-            if [[ "${end_part}" == *":"* ]]; then
-                local _eh="${end_part%%:*}" _em="${end_part##*:}"
-                (( 10#${_eh} > 23 || 10#${_em} > 59 )) && continue
-                end_min=$(( 10#${_eh} * 60 + 10#${_em} ))
-            else
-                (( 10#${end_part} > 23 )) && continue
-                end_min=$(( 10#${end_part} * 60 ))
+            if ! end_min=$(_daily_caps_token_minutes "${end_part}" "end"); then
+                _unparseable=1
+                continue
             fi
 
             if [ "${day_role}" = "self" ]; then
@@ -123,6 +152,7 @@ if [ -z "${DAILY_CAPS_LOADED:-}" ]; then
                 fi
             fi
         done
+        return "${_unparseable}"
     }
 
     ##########################################################################
@@ -143,15 +173,28 @@ if [ -z "${DAILY_CAPS_LOADED:-}" ]; then
         local self_ranges="$1"
         local prev_ranges="$2"
         local intervals_text=""
+        local _self_failed=0
 
         local more
         if [ -n "${self_ranges}" ]; then
-            more=$(_parse_range_to_minute_intervals "${self_ranges}" "self")
+            if ! more=$(_parse_range_to_minute_intervals "${self_ranges}" "self"); then
+                _self_failed=1
+            fi
             [ -n "${more}" ] && intervals_text="${intervals_text}${more}"$'\n'
         fi
-        if [ -n "${prev_ranges}" ]; then
-            more=$(_parse_range_to_minute_intervals "${prev_ranges}" "carry")
-            [ -n "${more}" ] && intervals_text="${intervals_text}${more}"$'\n'
+        # An unparseable previous day is already a violation on that day.
+        # Do not copy it onto this day as a 1440-minute carry.
+        if [ "${_self_failed}" -eq 0 ] && [ -n "${prev_ranges}" ]; then
+            if more=$(_parse_range_to_minute_intervals "${prev_ranges}" "carry"); then
+                [ -n "${more}" ] && intervals_text="${intervals_text}${more}"$'\n'
+            fi
+        fi
+
+        # A hand-edited range on this day that the clock check can still honor
+        # must not count as zero minutes. Treat this day as fully covered.
+        if [ "${_self_failed}" -ne 0 ]; then
+            echo 1440
+            return
         fi
 
         if [ -z "${intervals_text}" ]; then
@@ -235,17 +278,37 @@ if [ -z "${DAILY_CAPS_LOADED:-}" ]; then
         local uninstall_protection_mode="${2:-none}"
         shift 2
 
+        # Accept the same truthy spellings get_configure_block_enabled() accepts.
+        local _cbe_norm
+        _cbe_norm=$(printf '%s' "${configure_block_enabled}" | tr '[:upper:]' '[:lower:]')
+        case "${_cbe_norm}" in
+            true|1|yes) configure_block_enabled="true" ;;
+            *) configure_block_enabled="false" ;;
+        esac
+        local _upm_norm
+        _upm_norm=$(printf '%s' "${uninstall_protection_mode}" | tr '[:upper:]' '[:lower:]')
+        case "${_upm_norm}" in
+            difficult) uninstall_protection_mode="difficult" ;;
+            *) uninstall_protection_mode="none" ;;
+        esac
+
         local _NAMES=("Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday")
         local _UPPER=("SUNDAY" "MONDAY" "TUESDAY" "WEDNESDAY" "THURSDAY" "FRIDAY" "SATURDAY")
 
         local restriction_ranges=("" "" "" "" "" "" "")
         local lock_ranges=("" "" "" "" "" "" "")
         local uninstall_ranges=("" "" "" "" "" "" "")
+        local config_file_lock_enabled="false"
 
         # Parse all incoming line strings into per-day arrays
         local arg dname range_val day_idx
         for arg in "$@"; do
-            if [[ "${arg}" =~ ^CONFIG_LOCK_HOURS_(SUNDAY|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY)=(.*)$ ]]; then
+            if [[ "${arg}" == CONFIG_LOCK_ENABLED=* ]]; then
+                case "${arg#*=}" in
+                    true|1|yes|TRUE|YES) config_file_lock_enabled="true" ;;
+                    *) config_file_lock_enabled="false" ;;
+                esac
+            elif [[ "${arg}" =~ ^CONFIG_LOCK_HOURS_(SUNDAY|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY)=(.*)$ ]]; then
                 dname="${BASH_REMATCH[1]}"
                 range_val="${BASH_REMATCH[2]}"
                 case "${dname}" in
@@ -307,7 +370,7 @@ if [ -z "${DAILY_CAPS_LOADED:-}" ]; then
 
             # ---- Category: configure_block ------------------------------------
             local cfg_self cfg_prev cfg_mins
-            if [ "${configure_block_enabled}" = "true" ]; then
+            if [ "${configure_block_enabled}" = "true" ] || [ "${config_file_lock_enabled}" = "true" ]; then
                 cfg_self=$(_join_ranges_csv "${self_r}" "${self_l}")
                 cfg_prev=$(_join_ranges_csv "${prev_r}" "${prev_l}")
             else

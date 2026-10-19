@@ -141,12 +141,12 @@ SATURDAY=0-16       # 16 hours
 ```
 
 **Runtime fallback**:
-If an unsafe config is loaded outside the wizard, `sleep-warning` falls back to safe defaults and logs a warning.
+If an unsafe config is loaded outside the wizard, `sleep-warning` uses the built-in restriction hours for that run (weekdays midnight–4:59, weekends 1:00–4:59) and logs a warning. It does not rewrite configure-block or uninstall settings in the file. The check uses the same flags as the features (`true`/`1`/`yes` enable configure-block; a missing uninstall mode is `difficult`) and counts restriction days that are absent from the file, because those days still use the built-in hours.
 
 **Important Notes**:
 - The validation correctly handles overlapping ranges (both within the same day and across day boundaries) to accurately calculate merged coverage per day.
 - The per-day cap applies to **each category independently** — restriction, configure-block, and uninstall-block are checked separately.
-- If you configure restriction hours (8 h/day) + config lock hours (16 h/day) on the same day, the configure-block category totals 24 h on that day and is **blocked**, even if `CONFIGURE_BLOCK_ENABLED=false` at save time (lock hours still count toward the category total).
+- If configure-block is on (`true`, `1`, or `yes`) and you configure restriction hours (8 h/day) plus config lock hours (16 h/day) on the same day, the configure-block category totals 24 h and is **blocked**. When the flag is off, only the extra lock hours count toward that category.
 
 **Combining Multiple and Overnight Ranges**:
 You can combine multiple ranges, including overnight ranges:
@@ -1062,8 +1062,8 @@ vim ~/.config/sleep-warning/config/sleep-warning.conf
 
 The script automatically validates configuration values:
 
-- **Hours**: Must be integers between 0 and 23
-- **Hour ranges**: Start hour must be less than end hour
+- **Hours**: Start times are 0–23. An end of `24:00` (or `24`) means the end of that calendar day. `00:00-24:00` is the full day and exceeds the 16 h cap.
+- **Hour ranges**: A start earlier than the end stays on the same day. A start later than the end is an overnight range (for example `23-6`).
 - **CHECK_INTERVAL**: Must be between 1 and 60
 - **POPUP_SIZE**: Must be `xsmall`, `small`, `medium`, `large`, `xlarge`, `max`, `custom`, or match `WIDTHxHEIGHT` (pixel) or `WIDTH%xHEIGHT%` (percentage) format
 - **POPUP_SIZE_MODE**: Must be `fixed` or `display-based` (default: `fixed`). The value `display-based` is shown as "percentage" in the configuration wizard.

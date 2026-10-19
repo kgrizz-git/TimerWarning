@@ -556,7 +556,23 @@ check_input_time_daily_caps() {
         fi
     done
 
+    # Days the session never set still use the built-in restriction hours at
+    # runtime. Count those here so a save is not accepted and then ignored.
+    local _applied=()
     local apply_idx
+    for apply_idx in "${apply_indices[@]}"; do
+        apply_idx=$(echo "${apply_idx}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [ -z "${apply_idx}" ] && continue
+        _applied[${apply_idx}]=1
+    done
+    if type get_default_hours_for_day >/dev/null 2>&1; then
+        for idx in 0 1 2 3 4 5 6; do
+            if [ -z "${config_lines[${idx}]+set}" ] && [ -z "${_applied[${idx}]+set}" ]; then
+                restriction_vals[${idx}]=$(get_default_hours_for_day "${idx}")
+            fi
+        done
+    fi
+
     for apply_idx in "${apply_indices[@]}"; do
         apply_idx=$(echo "${apply_idx}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         [ -z "${apply_idx}" ] && continue
@@ -594,7 +610,7 @@ check_input_time_daily_caps() {
     local cbe="${configure_block_enabled:-false}"
     local upm="${uninstall_protection_mode:-none}"
     local violations
-    violations=$(check_daily_caps "${cbe}" "${upm}" "${cap_args[@]}")
+    violations=$(check_daily_caps "${cbe}" "${upm}" "CONFIG_LOCK_ENABLED=${config_lock_enabled:-false}" "${cap_args[@]}")
     if [ -n "${violations}" ]; then
         echo "${violations}"
         return 1

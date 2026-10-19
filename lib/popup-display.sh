@@ -279,9 +279,15 @@ show_warning() {
     if [ -z "${display_env}" ]; then
         log_message "warning" "No display available, cannot show warning popup"
         log_to_file "WARNING" "No display available, cannot show warning popup. Detection path: ${DISPLAY_DETECTION_PATH:-}. ${DISPLAY_DETECTION_NOTE:-}"
-        if type _popup_linux_notify_send_fallback >/dev/null 2>&1; then
-            _popup_linux_notify_send_fallback
-            return $?
+        # notify-send is for a graphical session whose display did not answer
+        # (including gamescope, and a DISPLAY we could not probe). A headless
+        # or SSH check has no DISPLAY and must not log a notify-send error
+        # on every interval.
+        if [ "${env_type}" = "gamescope" ] || [ "${env_type}" = "x11" ] || [ "${env_type}" = "wayland" ] || [ -n "${DISPLAY:-}" ]; then
+            if type _popup_linux_notify_send_fallback >/dev/null 2>&1; then
+                _popup_linux_notify_send_fallback
+                return $?
+            fi
         fi
         return 1
     fi
@@ -406,6 +412,7 @@ show_warning() {
     
     local popup_pid
     local _popup_watchdog_pid=""
+    local _popup_watchdog_expired_file=""
     local zenity_output_file
     local window_title="ALERT: Restricted time window"
     local _popup_lock_fd=""
@@ -420,7 +427,10 @@ show_warning() {
     _popup_spawn_warning_dialog "${message}"
 
     if [ -n "${popup_pid}" ]; then
-        _popup_linux_on_spawn_success
+        if ! _popup_linux_on_spawn_success; then
+            _popup_linux_on_spawn_failure
+            return $?
+        fi
     else
         if _popup_linux_on_spawn_failure; then
             return 0

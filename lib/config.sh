@@ -121,18 +121,6 @@ LAST_POPUP_TIME_FILE="${STATE_DIR}/last-popup-time"
 # Range 1-60; user-facing "how often to show popups"
 DEFAULT_POPUP_DISPLAY_FREQUENCY=10
 
-# Default restricted hours (used if config file missing or invalid)
-# day_number: 0=Sunday .. 6=Saturday (bash 3.2 compatible — no associative arrays)
-get_default_hours_for_day() {
-    local day_num="$1"
-    case "${day_num}" in
-        0) echo "1-5" ;;       # Sunday: 1:00 AM to 4:59 AM
-        1|2|3|4|5) echo "0-5" ;;  # Mon–Fri: midnight to 4:59 AM
-        6) echo "1-5" ;;       # Saturday: 1:00 AM to 4:59 AM
-        *) return 1 ;;
-    esac
-}
-
 # Get check interval from configuration file (no args; read-only).
 # After Enhancement #30, user-facing popup frequency is POPUP_DISPLAY_FREQUENCY;
 # legacy CHECK_INTERVAL is read as fallback inside get_popup_display_frequency().
@@ -359,8 +347,10 @@ get_configure_block_enabled() {
 # This is for Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours)
 #
 # Returns:
-#   "none" - No protection (default)
-#   "difficult" - Difficult uninstall (verification required)
+#   "none" - No protection
+#   "difficult" - Difficult uninstall (verification required). This is also the
+#                 value used when the key is missing or invalid
+#                 (DEFAULT_UNINSTALL_PROTECTION_MODE).
 #
 # Exit Codes:
 #   0 - Success
@@ -861,3 +851,9 @@ get_gaming_mode_experimental_enabled() {
     echo "${DEFAULT_GAMING_MODE_EXPERIMENTAL_ENABLED}"
     return 0
 }
+
+# Shared safety inputs and cap gates are kept separate from config getters.
+_CONFIG_SAFETY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${_CONFIG_SAFETY_DIR}/config-safety.sh"
+unset _CONFIG_SAFETY_DIR

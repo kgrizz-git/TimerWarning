@@ -56,7 +56,7 @@ The percentage tables and “planned changes” sections later in this document 
 - Without `STEAM_OVERLAY=1`, `zenity`/`yad`/`kdialog` do not appear over fullscreen games in `gamescope`
 - Without `STEAM_INPUT_FOCUS=1`, dialogs cannot receive Steam Deck controller (`A`/`B`/touch) input
 - Classic EWMH window manager tools (`wmctrl`/`xdotool`) are not installed by default on SteamOS and do not manage `gamescope` overlay stacking
-- Fallback: if the dialog cannot be spawned, or gamescope has no accessible Xwayland display, a non-modal notification (`notify-send`) is attempted and logged. The fallback counts only when `notify-send` accepts the message. Gaming Mode often has no notification daemon, so this can fail and is then logged as a hard failure.
+- Fallback: if the dialog cannot be spawned, or gamescope has no accessible Xwayland display, a non-modal notification (`notify-send`) is attempted and logged. The fallback counts only when `notify-send` accepts the message. Gaming Mode often has no notification daemon, so this can fail and is then logged as a hard failure. When `xdpyinfo` and `xset` are both missing, accessibility is the X socket for that display (`:0` is `/tmp/.X11-unix/X0`, `:1` is `/tmp/.X11-unix/X1`). A missing socket is unanswered.
 
 ### 4. Performance Considerations
 - Timer checks should not impact game performance

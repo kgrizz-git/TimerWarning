@@ -16,6 +16,8 @@ tier_a:
   description: Fast headless PR gate; required on every PR
   scripts:
     - test-daily-caps.sh
+    - test-review-regressions.sh
+    - test-safety-review-fixes.sh
     - test-invariant-messages.sh
     - test-time-picker-minutes.sh
     - name: test-popup-safety-darwin.sh

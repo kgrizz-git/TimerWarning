@@ -11,7 +11,7 @@ alwaysApply: true
 
 1. **Per-day 16 h cap, per category, mechanical.** For every calendar day, none of these merged totals may exceed 16 hours:
    - Restriction hours (popup hours).
-   - Configure-block hours = `CONFIG_LOCK_HOURS_*` ∪ (restriction hours when `CONFIGURE_BLOCK_ENABLED=true`).
+   - Configure-block hours = `CONFIG_LOCK_HOURS_*` ∪ (restriction hours when `CONFIGURE_BLOCK_ENABLED=true` or `CONFIG_LOCK_ENABLED=true`).
    - Uninstall-block hours = `UNINSTALL_LOCK_HOURS_*` ∪ (restriction hours when uninstall protection is enabled).
 
    Enforced at configure-time (hard block, no override) **and** runtime (fallback to safe defaults).

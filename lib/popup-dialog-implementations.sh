@@ -96,7 +96,7 @@ _popup_spawn_warning_dialog() {
                         --center \
                         --fixed \
                         --on-top \
-                        --button="Pause ${pause_duration} min:${pause_duration}" \
+                        --button="Pause ${pause_duration} min:42" \
                         --button="OK:0" \
                         2>/dev/null &
                     popup_pid=$!
@@ -134,7 +134,7 @@ _popup_spawn_warning_dialog() {
                         --posy="${pos_y}" \
                         --fixed \
                         --on-top \
-                        --button="Pause ${pause_duration} min:${pause_duration}" \
+                        --button="Pause ${pause_duration} min:42" \
                         --button="OK:0" \
                         2>/dev/null &
                     popup_pid=$!
@@ -196,6 +196,26 @@ _popup_spawn_warning_dialog() {
             fi
             ;;
     esac
+
+    # A background command has a PID even when GTK fails immediately. Treat
+    # non-dismissal startup errors as failure so the dispatcher notifies users.
+    # Preserve normal OK/cancel/pause statuses from a quickly dismissed dialog.
+    if [ -n "${popup_pid}" ] && [ "${dialog_tool}" != "kdialog" ]; then
+        sleep 0.2
+        if ! kill -0 "${popup_pid}" 2>/dev/null; then
+            local startup_rc=0
+            wait "${popup_pid}" 2>/dev/null || startup_rc=$?
+            case "${dialog_tool}:${startup_rc}" in
+                yad:0|yad:252|zenity:0|zenity:1) ;;
+                *)
+                    if [ "${pause_available}" != "true" ] || [ "${dialog_tool}" != "yad" ] || [ "${startup_rc}" != "42" ]; then
+                        log_to_file "ERROR" "${dialog_tool} failed at startup (exit ${startup_rc})"
+                        popup_pid=""
+                    fi
+                    ;;
+            esac
+        fi
+    fi
 }
 
 # Show the "Pause Activated" notice.
@@ -330,8 +350,8 @@ _popup_maybe_handle_pause_click() {
             ;;
 
         yad)
-            # yad: exit code matches button value
-            if [ ${popup_exit_code} -eq "${pause_duration}" ]; then
+            # Use a reserved button status so GTK startup error 1 cannot become a pause.
+            if [ ${popup_exit_code} -eq 42 ]; then
                 # Pause button was clicked
                 if activate_pause "${pause_duration}"; then
                     # Show confirmation dialog

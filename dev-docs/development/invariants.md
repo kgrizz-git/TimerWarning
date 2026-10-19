@@ -61,7 +61,7 @@ docs/SAFETY.md#the-per-day-16-hour-cap-the-central-invariant
 
 ## Runtime validation
 
-`sleep-warning.sh` → `validate_config_safety()` uses `check_daily_caps()` with restriction, configure-lock, and uninstall-lock lines (same categories as configure-time save). See [safety-linux-macos-analysis.md](../safety-linux-macos-analysis.md) §5.2.
+`sleep-warning.sh` → `validate_config_safety()` uses `collect_runtime_daily_cap_inputs()` and `check_daily_caps()`. Restriction days missing from the file include the built-in defaults. Configure-block and uninstall mode come from the same getters the features use. See [safety-linux-macos-analysis.md](../safety-linux-macos-analysis.md) §5.2.
 
 ## Adding a new invariant
 

@@ -565,12 +565,18 @@ main() {
                     # Also run the legacy 24/7 check as a safety backstop.
                     local cap_violations=""
                     if type check_daily_caps >/dev/null 2>&1; then
+                        local -a _cap_default_lines=()
+                        if type append_missing_restriction_default_lines >/dev/null 2>&1; then
+                            append_missing_restriction_default_lines _cap_default_lines "${config_lines[@]}"
+                        fi
                         cap_violations=$(check_daily_caps \
                             "${configure_block_enabled:-false}" \
                             "${uninstall_protection_mode:-none}" \
+                            "CONFIG_LOCK_ENABLED=${config_lock_enabled:-false}" \
                             "${config_lines[@]}" \
                             "${lock_hours_lines[@]}" \
-                            "${uninstall_lock_hours_lines[@]}")
+                            "${uninstall_lock_hours_lines[@]}" \
+                            "${_cap_default_lines[@]}")
                         if [ -n "${cap_violations}" ]; then
                             # Hard block — no "save anyway" path for cap violations.
                             show_cap_violation_error "${use_gui}" "${cap_violations}"
@@ -618,7 +624,7 @@ main() {
                             fi
                             continue
                         fi
-                    elif ! check_config_lock_time; then
+                    elif configure_partial_lock_is_active; then
                         # Full mode: block save if we crossed into configure-block hours mid-session.
                         show_config_locked_error "${use_gui}" "Configuration"
                         continue

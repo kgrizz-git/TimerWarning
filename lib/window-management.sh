@@ -153,6 +153,11 @@ make_window_unclosable() {
     local window_title="$1"
     local tool="$2"
     local timeout="$3"
+
+    # gamescope composites via STEAM_OVERLAY atoms, not wmctrl/xdotool loops.
+    if [ "${env_type:-}" = "gamescope" ]; then
+        return 0
+    fi
     
     if [ -z "${tool}" ] || [ "${timeout}" -eq 0 ]; then
         return 0
@@ -226,9 +231,16 @@ find_window_id_for_popup() {
     # 1) Prefer PID match via xprop _NET_CLIENT_LIST -> _NET_WM_PID (works without wmctrl/xdotool)
     if [ -n "${target_pid}" ] && [[ "${target_pid}" =~ ^[0-9]+$ ]] && command -v xprop >/dev/null 2>&1; then
         local client_list
-        client_list=$(xprop -root _NET_CLIENT_LIST 2>/dev/null | cut -d'#' -f2 | tr ',' ' ')
+        client_list=$(xprop -root _NET_CLIENT_LIST 2>/dev/null || true)
+        # "not found" has no '#'. cut would then pass every word to xprop -id.
+        if [[ "${client_list}" == *'#'* ]]; then
+            client_list=$(printf '%s\n' "${client_list}" | cut -d'#' -f2 | tr ',' ' ')
+        else
+            client_list=""
+        fi
         local candidate_wid wpid
         for candidate_wid in ${client_list}; do
+            [[ "${candidate_wid}" =~ ^0x[0-9a-fA-F]+$ ]] || continue
             wpid=$(xprop -id "${candidate_wid}" _NET_WM_PID 2>/dev/null | awk -F'=' '{print $2}' | tr -d '[:space:]')
             if [ "${wpid}" = "${target_pid}" ]; then
                 echo "${candidate_wid}"
@@ -324,8 +336,12 @@ apply_gamescope_overlay_atoms() {
         return 1
     fi
 
-    if type log_to_file >/dev/null 2>&1; then
-        log_to_file "INFO" "Applied gamescope STEAM_OVERLAY=1 and STEAM_INPUT_FOCUS=1 to window ${window_id} (PID: ${target_pid:-unknown})"
+    # Log once per window. The background poll calls this every couple of seconds.
+    if [ "${GAMESCOPE_ATOMS_LOGGED_WID:-}" != "${window_id}" ]; then
+        GAMESCOPE_ATOMS_LOGGED_WID="${window_id}"
+        if type log_to_file >/dev/null 2>&1; then
+            log_to_file "INFO" "Applied gamescope STEAM_OVERLAY=1 and STEAM_INPUT_FOCUS=1 to window ${window_id} (PID: ${target_pid:-unknown})"
+        fi
     fi
     return 0
 }
@@ -337,8 +353,11 @@ keep_window_on_top() {
     local max_attempts="${3:-5}"  # Default 5 attempts if not specified
     local target_pid="${4:-${popup_pid:-}}"
 
+    # Atom polling for gamescope is started separately in the background.
+    # Doing it here blocks the popup loop for up to 3 seconds per attempt and
+    # repeats from the 0.5s stay-on-top timer whenever wmctrl or xdotool exists.
     if [ "${env_type:-}" = "gamescope" ]; then
-        apply_gamescope_overlay_atoms "${window_title}" "${tool}" "${target_pid}" || true
+        return 0
     fi
     
     if [ -z "${tool}" ]; then

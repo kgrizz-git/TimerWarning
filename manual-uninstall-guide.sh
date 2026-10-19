@@ -385,8 +385,9 @@ verify_before_showing_instructions() {
     fi
     
     # Step 1: Confirmation phrase
-    if ! verify_manual_uninstall_confirmation_phrase "${use_gui}" 3; then
-        local exit_code=$?
+    verify_manual_uninstall_confirmation_phrase "${use_gui}" 3
+    local exit_code=$?
+    if [ "${exit_code}" -ne 0 ]; then
         if [ ${exit_code} -eq 2 ]; then
             # User cancelled
             return 2
@@ -403,8 +404,9 @@ verify_before_showing_instructions() {
     fi
     
     # Step 2: Arithmetic questions (5 questions)
-    if ! ask_manual_uninstall_arithmetic_questions "${use_gui}"; then
-        local exit_code=$?
+    ask_manual_uninstall_arithmetic_questions "${use_gui}"
+    local exit_code=$?
+    if [ "${exit_code}" -ne 0 ]; then
         if [ ${exit_code} -eq 2 ]; then
             # User cancelled
             return 2
@@ -617,8 +619,9 @@ main() {
     fi
     
     # Verify user before showing instructions
-    if ! verify_before_showing_instructions "${use_gui}"; then
-        local exit_code=$?
+    verify_before_showing_instructions "${use_gui}"
+    local exit_code=$?
+    if [ "${exit_code}" -ne 0 ]; then
         if [ ${exit_code} -eq 2 ]; then
             # User cancelled
             if [ "${use_gui}" = "true" ] && has_dialog_tool; then

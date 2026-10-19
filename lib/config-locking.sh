@@ -34,6 +34,9 @@ CONFIG_DIR_LOCKED="${CONFIG_DIR}/config"
 # Returns 0 if lock should be active, 1 if not
 # This function checks CONFIG_LOCK_ENABLED and current time (restriction hours OR lock hours)
 is_config_lock_active() {
+    if type runtime_daily_caps_are_safe >/dev/null 2>&1 && ! runtime_daily_caps_are_safe; then
+        return 1
+    fi
     # Check if config locking is enabled
     local lock_enabled
     lock_enabled=$(get_config_lock_enabled)
@@ -56,7 +59,7 @@ is_config_lock_active() {
     restricted_range=$(parse_config "${current_day}")
     
     # Check if current time is within restricted range for current day
-    if is_restricted_time "${current_time_hhmm}" "${restricted_range}"; then
+    if is_restricted_time "${current_time_hhmm}" "${restricted_range}" self; then
         # Current time is restricted - lock should be active
         return 0
     fi
@@ -69,7 +72,7 @@ is_config_lock_active() {
     
     # Check if current time is within lock hours for current day
     if [ -n "${lock_hours_range}" ] && type is_lock_hour >/dev/null 2>&1; then
-        if is_restricted_time "${current_time_hhmm}" "${lock_hours_range}"; then
+        if is_restricted_time "${current_time_hhmm}" "${lock_hours_range}" self; then
             # Current time is in lock hours - lock should be active
             return 0
         fi

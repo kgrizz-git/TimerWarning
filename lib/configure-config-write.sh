@@ -5,6 +5,13 @@
 # Sourced by configure-config.sh
 ###############################################################################
 
+_CONFIG_WRITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${_CONFIG_WRITE_DIR}/daily-caps.sh"
+# shellcheck disable=SC1091
+source "${_CONFIG_WRITE_DIR}/config-safety.sh"
+unset _CONFIG_WRITE_DIR
+
 # Write configuration file
 # Parameters:
 #   $1-$7: Standard configuration parameters (check_interval, popup_size, popup_position, min_display_time, popup_immovable, popup_auto_close, configure_block_enabled)
@@ -463,6 +470,19 @@ write_config() {
         fi
     fi
     
+    # Keep the safety gate at the actual write boundary, including callers that
+    # do not go through configure.sh's interactive save menu.
+    local cap_defaults=()
+    if type append_missing_restriction_default_lines >/dev/null 2>&1; then
+        append_missing_restriction_default_lines cap_defaults "${config_lines[@]}"
+    fi
+    if ! check_daily_caps "${configure_block_enabled}" "${uninstall_protection_mode}" \
+        "CONFIG_LOCK_ENABLED=${config_lock_enabled}" \
+        "${config_lines[@]}" "${lock_hours_lines[@]}" \
+        "${uninstall_lock_hours_lines[@]}" "${cap_defaults[@]}"; then
+        return 1
+    fi
+
     # Create config directory if it doesn't exist
     # Enhancement #18: Config file is now in subdirectory
     mkdir -p "${CONFIG_DIR}/config"

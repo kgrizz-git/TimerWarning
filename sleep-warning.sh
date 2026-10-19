@@ -102,56 +102,20 @@ validate_config_safety() {
     fi
 
     local _day_vars=("SUNDAY" "MONDAY" "TUESDAY" "WEDNESDAY" "THURSDAY" "FRIDAY" "SATURDAY")
-    local _lock_prefixes=("CONFIG_LOCK_HOURS_" "UNINSTALL_LOCK_HOURS_")
 
-    # Helper: read the LAST occurrence of a key from the config file (tail wins on dupes).
-    _read_config_value() {
-        local key="$1"
-        grep -E "^[[:space:]]*${key}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null \
-            | tail -n1 | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
-    }
-
-    # Build restriction lines ("DAYVAR=RANGE")
+    # Same hours and flags the popup, configure-block, and uninstall features use.
+    # Absent restriction days include the built-in defaults. Missing uninstall
+    # protection resolves to difficult. CONFIGURE_BLOCK_ENABLED accepts true/1/yes.
     local config_lines=()
-    local i day_var val
-    for i in 0 1 2 3 4 5 6; do
-        day_var="${_day_vars[${i}]}"
-        if grep -qE "^[[:space:]]*${day_var}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null; then
-            val=$(_read_config_value "${day_var}")
-            config_lines[${i}]="${day_var}=${val}"
-        fi
-    done
-
-    # Build lock-hours lines ("CONFIG_LOCK_HOURS_DAYVAR=RANGE")
     local lock_hours_lines=()
-    for i in 0 1 2 3 4 5 6; do
-        day_var="${_day_vars[${i}]}"
-        local lock_key="CONFIG_LOCK_HOURS_${day_var}"
-        if grep -qE "^[[:space:]]*${lock_key}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null; then
-            val=$(_read_config_value "${lock_key}")
-            lock_hours_lines[${i}]="${lock_key}=${val}"
-        fi
-    done
-
-    # Build uninstall-lock-hours lines
     local uninstall_lock_hours_lines=()
-    for i in 0 1 2 3 4 5 6; do
-        day_var="${_day_vars[${i}]}"
-        local un_key="UNINSTALL_LOCK_HOURS_${day_var}"
-        if grep -qE "^[[:space:]]*${un_key}[[:space:]]*=" "${CONFIG_FILE}" 2>/dev/null; then
-            val=$(_read_config_value "${un_key}")
-            uninstall_lock_hours_lines[${i}]="${un_key}=${val}"
-        fi
-    done
-
-    # Read feature-enable flags from config file
-    local configure_block_enabled
-    configure_block_enabled=$(_read_config_value "CONFIGURE_BLOCK_ENABLED")
-    [ -z "${configure_block_enabled}" ] && configure_block_enabled="false"
-
-    local uninstall_protection_mode
-    uninstall_protection_mode=$(_read_config_value "UNINSTALL_PROTECTION_MODE")
-    [ -z "${uninstall_protection_mode}" ] && uninstall_protection_mode="none"
+    local configure_block_enabled="false"
+    local uninstall_protection_mode="none"
+    if type collect_runtime_daily_cap_inputs >/dev/null 2>&1; then
+        collect_runtime_daily_cap_inputs \
+            config_lines lock_hours_lines uninstall_lock_hours_lines \
+            configure_block_enabled uninstall_protection_mode
+    fi
 
     # Warn about duplicate day lines (both head-n1 and tail-n1 agree on last-wins,
     # but duplicates suggest a manual edit worth flagging).
@@ -302,42 +266,18 @@ main() {
         prev_day_range=$(parse_config "${prev_day}")
     fi
 
-    # Helper: normalise a range component to HHMM integer for numeric comparison
-    _norm_to_hhmm() {
-        local part="$1"
-        if [[ "${part}" =~ : ]]; then
-            echo "${part}" | tr -d ':'
-        else
-            printf "%02d00" "${part}"
-        fi
-    }
-
     # Check current day's own restricted range first
-    if is_restricted_time "${current_time_hhmm}" "${restricted_range}"; then
+    if is_restricted_time "${current_time_hhmm}" "${restricted_range}" self; then
         is_restricted=true
     fi
 
-    # Always check previous day for overnight carry (runs even when current day has ranges).
+    # Previous-day overnight carry. The helper keeps its comma split local so
+    # later popup code still splits window ids on spaces.
     if [ "${is_restricted}" = "false" ] && [ -n "${prev_day_range}" ]; then
-        local IFS=','
-        for range in ${prev_day_range}; do
-            range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-
-            local start_part="${range%%-*}"
-            local end_part="${range##*-}"
-            local start_time end_time
-            start_time=$(_norm_to_hhmm "${start_part}")
-            end_time=$(_norm_to_hhmm "${end_part}")
-
-            # Only overnight ranges carry to the next day
-            if [ "${start_time}" -gt "${end_time}" ]; then
-                if [ "${current_time_hhmm}" -lt "${end_time}" ]; then
-                    is_restricted=true
-                    matched_range="${range} (from previous day)"
-                    break
-                fi
-            fi
-        done
+        if is_time_in_previous_day_overnight_tail "${current_time_hhmm}" "${prev_day_range}"; then
+            is_restricted=true
+            matched_range="${prev_day_range} (from previous day)"
+        fi
     fi
 
     if [ "${is_restricted}" = "true" ]; then

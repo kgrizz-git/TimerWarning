@@ -12,6 +12,8 @@ Fast, headless, no live installed config. Default timeout 300s per script.
 | Script | Notes |
 |--------|-------|
 | `test-daily-caps.sh` | Per-day 16 h cap math |
+| `test-review-regressions.sh` | Runtime cap resolution, uninstall cancel status, popup fallbacks |
+| `test-safety-review-fixes.sh` | Overnight day assignment, effective config-lock caps, standalone fallback, write boundary, hung redraw, startup and disable failures |
 | `test-invariant-messages.sh` | Hard-block invariant IDs in messages |
 | `test-time-picker-minutes.sh` | GUI time picker helpers (headless) |
 | `test-popup-safety-darwin.sh` | Watchdog unit tests — **macOS CI only** |

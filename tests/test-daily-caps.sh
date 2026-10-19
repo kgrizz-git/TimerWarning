@@ -104,9 +104,26 @@ assert_eq "07:30-23:00 self → 450 1380" "450 1380" "${result}"
 result=$(_parse_range_to_minute_intervals "07:15-23:15" "self")
 assert_eq "07:15-23:15 self → 435 1395" "435 1395" "${result}"
 
-# Bounds: hours > 23 should be rejected
-result=$(_parse_range_to_minute_intervals "25:00-26:00" "self")
+# Bounds: hours > 23 should be rejected (stdout empty, status 1)
+result=$(_parse_range_to_minute_intervals "25:00-26:00" "self" || true)
 assert_eq "25:00-26:00 self → rejected (empty)" "" "${result}"
+if _parse_range_to_minute_intervals "25:00-26:00" "self" >/dev/null; then
+    _fail "25:00-26:00 should return failure so the cap does not count it as zero"
+else
+    _pass "25:00-26:00 returns failure"
+fi
+
+result=$(_parse_range_to_minute_intervals "0-24" "self")
+assert_eq "0-24 self → 0 1440 (end of day)" "0 1440" "${result}"
+result=$(_parse_range_to_minute_intervals "16:00-24:00" "self")
+assert_eq "16:00-24:00 self → 960 1440" "960 1440" "${result}"
+
+result=$(_parse_range_to_minute_intervals "22:00 - 06:00" "self")
+assert_eq "22:00 - 06:00 self → 1320 1440" "1320 1440" "${result}"
+result=$(_parse_range_to_minute_intervals "22-06:00" "self")
+assert_eq "22-06:00 self → 1320 1440" "1320 1440" "${result}"
+result=$(_parse_range_to_minute_intervals "22:00-6" "carry")
+assert_eq "22:00-6 carry → 0 360" "0 360" "${result}"
 
 # Bounds: minutes > 59 should be rejected
 result=$(_parse_range_to_minute_intervals "07:60-23:00" "self")
@@ -173,6 +190,27 @@ assert_eq "8-20,15-23 merged → 900 min" "900" "${m}"
 
 echo ""
 echo "=== check_daily_caps ==="
+
+# End-of-day 24:00 is 24 h and must fail. A garbage range must fail closed.
+v=$(run_caps_check "false" "none" "MONDAY=0-24")
+assert_gt "MONDAY=0-24 full day violation count" "0" "$(echo "${v}" | grep -c 'Monday')"
+v=$(run_caps_check "false" "none" "MONDAY=not-a-range")
+assert_gt "MONDAY=not-a-range fail-closed violation count" "0" "$(echo "${v}" | grep -c 'Monday')"
+m=$(_compute_day_merged_minutes "0-typo" "")
+assert_eq "unparseable self range is a full day" "1440" "${m}"
+m=$(_compute_day_merged_minutes "0-5" "0-typo")
+assert_eq "unparseable carry does not fill the next day" "300" "${m}"
+v=$(run_caps_check "true" "none" "MONDAY=00:00-05:00" "CONFIG_LOCK_HOURS_TUESDAY=0-typo" "WEDNESDAY=00:00-05:00")
+assert_gt "Tuesday typo is a configure-block violation" "0" "$(echo "${v}" | grep -c 'Tuesday|configure_block')"
+assert_eq "Wednesday is not flagged for Tuesday's typo" "0" "$(echo "${v}" | grep -c 'Wednesday')"
+v=$(run_caps_check "yes" "none" "MONDAY=0-8" "CONFIG_LOCK_HOURS_MONDAY=8-24")
+assert_gt "configure_block yes merges restriction and lock" "0" "$(echo "${v}" | grep -c 'configure_block')"
+v=$(run_caps_check "false" "none" "MONDAY=22:00 - 06:00")
+assert_eq "spaced overnight 22:00 - 06:00 stays under the cap" "" "${v}"
+v=$(run_caps_check "false" "none" "MONDAY=22-06:00")
+assert_eq "mixed 22-06:00 stays under the cap" "" "${v}"
+v=$(run_caps_check "false" "none" "MONDAY=22:00-6")
+assert_eq "mixed 22:00-6 stays under the cap" "" "${v}"
 
 # Case 1: MONDAY=7-23 (exactly 16h) → PASS
 v=$(run_caps_check "false" "none" "MONDAY=7-23")

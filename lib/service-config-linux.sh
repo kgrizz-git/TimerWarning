@@ -285,8 +285,10 @@ enable_scheduled_service() {
 }
 
 disable_scheduled_service() {
-    systemctl --user stop sleep-warning.timer
-    systemctl --user disable sleep-warning.timer
+    local rc=0
+    systemctl --user stop sleep-warning.timer || rc=1
+    systemctl --user disable sleep-warning.timer || rc=1
+    return "${rc}"
 }
 
 # Get current service configuration mode

@@ -131,6 +131,7 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
     popup_start_pid_file_watchdog() {
         local max_seconds="$1"
         local pid_file="${2:-${POPUP_PID_FILE:-}}"
+        local expired_file="${3:-}"
 
         POPUP_WATCHDOG_LAST_PID=""
 
@@ -144,6 +145,11 @@ if [ -z "${POPUP_SAFETY_LOADED:-}" ]; then
                 sleep 1
                 _waited=$((_waited + 1))
             done
+            # Latch expiry before killing, so the min-display loop cannot
+            # respawn a dialog after this one-shot absolute watchdog fires.
+            if [ -n "${expired_file}" ]; then
+                printf '%s\n' expired > "${expired_file}"
+            fi
             if [ -f "${pid_file}" ]; then
                 local _wd_pid
                 _wd_pid=$(cat "${pid_file}" 2>/dev/null | tr -d '\n')

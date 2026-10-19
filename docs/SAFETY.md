@@ -23,7 +23,7 @@ What still must be true:
 | Category | Inputs that count (merge overlapping intervals before measuring) |
 |----------|------------------------------------------------------------------|
 | **Restriction** (popup hours) | `SUNDAY=…` … `SATURDAY=…` for that weekday, plus any overnight carry from the prior day |
-| **Configure block** | `CONFIG_LOCK_HOURS_<DAY>` ∪ (restriction hours for that day **if** `CONFIGURE_BLOCK_ENABLED=true`) |
+| **Configure block** | `CONFIG_LOCK_HOURS_<DAY>` ∪ (restriction hours for that day **if** `CONFIGURE_BLOCK_ENABLED=true` **or** `CONFIG_LOCK_ENABLED=true`) |
 | **Uninstall block** | `UNINSTALL_LOCK_HOURS_<DAY>` ∪ (restriction hours for that day **if** uninstall protection is enabled) |
 
 The three caps are **independent**. A user can have:
@@ -40,9 +40,13 @@ This must be enforced at **three** points:
 |-------|----------------------|
 | Configure wizard `write_config` | Hard block. No "save anyway" override. |
 | Runtime startup of `sleep-warning.sh` (`validate_config_safety`) | Fall back to safe defaults; warn in log. |
-| Manual `--text` edit + reload | Same runtime fallback fires. |
+| Manual `--text` edit + reload | Same runtime fallback fires. Absent days, `1`/`yes` configure-block, a missing uninstall mode (`difficult`), and an end time of 24:00 are counted the same way the features apply them. An unparseable range counts as a full day on the day that contains it. |
 
 A weekly average is **not** acceptable. A single day over 16 hours in any category is a violation.
+
+An overnight range belongs to its named evening and the following morning: `MONDAY=22:00-06:00` applies Monday 22:00–24:00 and Tuesday 00:00–06:00, never Monday morning. Runtime checks and cap accounting use this same split.
+
+Standalone configure, config-file locking, and uninstall protection also check the caps. If a hand-edited config is unsafe, these paths release locks and uninstall protection so the user can repair or remove it; the popup runtime uses safe default restriction hours. They re-read the config after repairs.
 
 ## Popup lifetime (the second invariant)
 
@@ -59,6 +63,8 @@ Popups **must never** be:
 - Silently absent: if the primary popup tool fails to start, the dispatcher must fall back to a working alternative, or surface a notification — not log success and move on.
 
 The absolute popup lifetime cap is `POPUP_ABSOLUTE_MAX_SECONDS` (default **330** seconds in `lib/popup-safety.sh`, all platforms). That default is sized for the largest configurable min-display (300s) plus auto-close delay (10s) and a watchdog buffer (~15s). The number is expected to **grow** if we add longer lockouts. The invariant is "finite and bounded by an explicit cap," not a fixed small limit forever.
+
+On Linux, a countdown redraw keeps the outgoing dialog registered until it exits so the watchdog can still kill it if TERM fails. Watchdog expiry also prevents further respawns in that popup session.
 
 ## Always-available escape hatch (the third invariant)
 
