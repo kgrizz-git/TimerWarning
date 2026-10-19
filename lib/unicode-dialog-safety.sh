@@ -30,6 +30,31 @@
 # Cached decision: "yes" / "no" / "" (unknown/not computed yet)
 DIALOG_UTF8_CONFIRMED="${DIALOG_UTF8_CONFIRMED:-}"
 
+# Prefer a portable UTF-8 locale that GTK dialog tools actually accept.
+#
+# Why this matters (Steam Deck / Nix yad):
+# - Host LANG may be en_US.UTF-8 with a UTF-8 charmap, so a naive check looks fine.
+# - Nix-packaged yad links against Nix glibc, which often lacks en_US.* and falls
+#   back to plain C. Under C, UTF-8 argv (e.g. em dash —) makes yad exit 255 with:
+#     "Unable to parse command line: Invalid byte sequence in conversion input"
+# - That crash made configure menu option 2 (Window Behavior) bounce to the main
+#   menu and option 12 (Service Mode) show the cancel confirmation immediately.
+# - C.UTF-8 / C.utf8 are widely present in both host and Nix glibc and accept UTF-8.
+#
+# Returns: 0 if a candidate exported and charmap is UTF-8; 1 otherwise.
+dialog_prefer_portable_utf8_locale() {
+    local candidate
+    for candidate in "C.UTF-8" "C.utf8"; do
+        if LC_ALL="${candidate}" locale charmap 2>/dev/null | grep -qi "utf-8"; then
+            export LC_ALL="${candidate}"
+            export LANG="${candidate}"
+            export LC_CTYPE="${candidate}"
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Attempt to ensure UTF-8 locale for GUI dialog tools.
 # Returns: 0 always (best-effort).
 dialog_prepare_utf8_locale() {
@@ -50,17 +75,24 @@ dialog_prepare_utf8_locale() {
         return 0
     fi
 
-    # If current charmap is UTF-8, we're good.
+    # Prefer portable C.UTF-8 / C.utf8 even when the host charmap is already UTF-8.
+    # See dialog_prefer_portable_utf8_locale() for the Nix/GTK false-positive case.
+    if dialog_prefer_portable_utf8_locale; then
+        DIALOG_UTF8_CONFIRMED="yes"
+        return 0
+    fi
+
+    # If current charmap is UTF-8 but no portable C.* UTF-8 locale exists, keep it.
     if dialog_is_utf8_locale; then
         DIALOG_UTF8_CONFIRMED="yes"
         return 0
     fi
 
-    # Try to switch to a UTF-8 locale (process-local env only).
+    # Try other UTF-8 locales (process-local env only).
     local candidate
-    for candidate in "C.UTF-8" "en_US.UTF-8" "en_US.utf8"; do
+    for candidate in "en_US.UTF-8" "en_US.utf8"; do
         # Verify candidate exists and yields UTF-8 charmap.
-        if LC_ALL="${candidate}" locale charmap >/dev/null 2>&1; then
+        if LC_ALL="${candidate}" locale charmap 2>/dev/null | grep -qi "utf-8"; then
             export LC_ALL="${candidate}"
             # Keep LANG/LC_CTYPE consistent if unset/empty to reduce surprises.
             if [ -z "${LANG:-}" ]; then

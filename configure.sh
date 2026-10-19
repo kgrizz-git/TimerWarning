@@ -117,22 +117,27 @@ source_required_lib "service-config.sh" || exit 1
 # Ensure we have a UTF-8 locale so GUI dialogs (yad/zenity) can render
 # extended characters reliably. Without this, yad aborts when parsing
 # strings containing symbols like the multiplication sign.
+#
+# Prefer dialog_prepare_utf8_locale (portable C.UTF-8) when available: a host
+# LANG that already reports UTF-8 (e.g. en_US.UTF-8) is not enough for
+# Nix-packaged yad, which falls back to plain C and then rejects em dashes.
 ensure_utf8_locale() {
+    if type dialog_prepare_utf8_locale >/dev/null 2>&1; then
+        # Reset so a stale empty/partial decision cannot skip the portable switch.
+        DIALOG_UTF8_CONFIRMED=""
+        dialog_prepare_utf8_locale
+        return
+    fi
+
     # If locale command is missing, there's nothing we can do
     if ! command -v locale >/dev/null 2>&1; then
         return
     fi
 
-    local current_charmap
-    current_charmap=$(locale charmap 2>/dev/null || echo "")
-    if printf '%s' "${current_charmap}" | grep -qi 'UTF-8'; then
-        return
-    fi
-
+    # Prefer portable C.* UTF-8 even when the current charmap already looks UTF-8.
     local candidate
-    local candidates=("C.UTF-8" "en_US.UTF-8" "en_US.utf8")
-    for candidate in "${candidates[@]}"; do
-        if LC_ALL="${candidate}" locale charmap >/dev/null 2>&1; then
+    for candidate in "C.UTF-8" "C.utf8" "en_US.UTF-8" "en_US.utf8"; do
+        if LC_ALL="${candidate}" locale charmap 2>/dev/null | grep -qi 'utf-8'; then
             export LC_ALL="${candidate}"
             export LANG="${candidate}"
             export LC_CTYPE="${candidate}"

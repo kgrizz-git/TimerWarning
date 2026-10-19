@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Configure menu options 2 and 12 on Steam Deck (Nix yad):** Prefer portable `C.UTF-8` / `C.utf8`, apply it in the parent shell before dialogs (not only inside `$(dialog_safe_text)` subshells), and pass that locale into yad. Previously host UTF-8 looked fine while yad still ran under plain `C` and crashed on em-dash strings (Window Behavior bounced to the main menu; Service Mode showed the cancel prompt). Patch fix.
 - **Daily safety caps:** Runtime overnight checks now match calendar-day cap accounting, and config-file locking counts toward configure-block coverage. Unsafe hand-edited schedules release configure locks and uninstall protection while popups use safe defaults. The config writer also checks caps before touching the file.
 - **Popup watchdog and startup:** Linux countdown redraws keep hung dialogs registered for the watchdog and stop respawning after absolute expiry. Failed YAD/Zenity startups trigger notification fallback; YAD startup errors cannot activate a one-minute pause.
 - **Popup lifecycle:** Already-exited pause clicks are processed, failed countdown respawns notify the user, and macOS registers its popup PID while the watchdog is waiting instead of after the popup closes.
