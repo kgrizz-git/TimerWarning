@@ -320,22 +320,55 @@ kill "${_dummy_popup_pid}" 2>/dev/null || true
 wait "${_dummy_popup_pid}" 2>/dev/null || true
 
 echo ""
+echo "=== 3b. gamescope_interactive_dialog_dimensions (full root width) ==="
+
+_saved_root_fn="$(declare -f gamescope_get_x11_root_size)"
+gamescope_get_x11_root_size() { echo "1280 800"; return 0; }
+assert_eq "interactive dims on 1280x800 root with small fallback" "1280 250" \
+    "$(gamescope_interactive_dialog_dimensions 400 250)"
+gamescope_get_x11_root_size() { echo "3840 1440"; return 0; }
+assert_eq "interactive dims on 3840x1440 root use full width" "3840 250" \
+    "$(gamescope_interactive_dialog_dimensions 400 250)"
+gamescope_get_x11_root_size() { echo "800 600"; return 0; }
+assert_eq "interactive dims on 800-wide root use 1201 last-resort width" "1201 250" \
+    "$(gamescope_interactive_dialog_dimensions 400 250)"
+gamescope_get_x11_root_size() { return 1; }
+_fb_rc=0
+_fb_dims="$(gamescope_interactive_dialog_dimensions 400 250)" || _fb_rc=$?
+assert_eq "interactive dims fallback size when root unread" "400 250" "${_fb_dims}"
+assert_eq "interactive dims returns non-zero when root unread" "1" "${_fb_rc}"
+eval "${_saved_root_fn}"
+
+echo ""
 echo "=== 4. _popup_spawn_warning_dialog X11 Backend Enforcement ==="
 
 _zenity_env_log="${_test_dir}/zenity_env.log"
 cat > "${_mock_bin}/zenity" <<EOF
 #!/usr/bin/env bash
-printf 'PID=%s\nGDK_BACKEND=%s\nQT_QPA_PLATFORM=%s\nWAYLAND_DISPLAY=%s\n' "\$\$" "\${GDK_BACKEND:-}" "\${QT_QPA_PLATFORM:-}" "\${WAYLAND_DISPLAY:-UNSET}" > "${_zenity_env_log}"
+_zw=""; _zh=""
+while [ \$# -gt 0 ]; do
+  case "\$1" in
+    --width=*) _zw="\${1#--width=}" ;;
+    --height=*) _zh="\${1#--height=}" ;;
+    --width) shift; _zw="\${1:-}" ;;
+    --height) shift; _zh="\${1:-}" ;;
+  esac
+  shift
+done
+printf 'PID=%s\nGDK_BACKEND=%s\nQT_QPA_PLATFORM=%s\nWAYLAND_DISPLAY=%s\nGDK_SCALE=%s\nWIDTH=%s\nHEIGHT=%s\n' \
+  "\$\$" "\${GDK_BACKEND:-}" "\${QT_QPA_PLATFORM:-}" "\${WAYLAND_DISPLAY:-UNSET}" \
+  "\${GDK_SCALE:-UNSET}" "\${_zw}" "\${_zh}" > "${_zenity_env_log}"
 exit 0
 EOF
 chmod +x "${_mock_bin}/zenity"
 
 export WAYLAND_DISPLAY="gamescope-0"
 export POPUP_FORCE_X11_BACKEND="true"
+export GDK_SCALE="2"
 dialog_tool="zenity"
 window_title="Sleep Warning"
-width="400"
-height="200"
+width="1280"
+height="250"
 popup_position="center"
 window_tool=""
 pause_available="false"
@@ -349,11 +382,18 @@ _logged_gdk="$(grep '^GDK_BACKEND=' "${_zenity_env_log}" | cut -d'=' -f2-)"
 _logged_qt="$(grep '^QT_QPA_PLATFORM=' "${_zenity_env_log}" | cut -d'=' -f2-)"
 _logged_wayland="$(grep '^WAYLAND_DISPLAY=' "${_zenity_env_log}" | cut -d'=' -f2-)"
 _logged_pid="$(grep '^PID=' "${_zenity_env_log}" | cut -d'=' -f2-)"
+_logged_scale="$(grep '^GDK_SCALE=' "${_zenity_env_log}" | cut -d'=' -f2-)"
+_logged_w="$(grep '^WIDTH=' "${_zenity_env_log}" | cut -d'=' -f2-)"
+_logged_h="$(grep '^HEIGHT=' "${_zenity_env_log}" | cut -d'=' -f2-)"
 
 assert_eq "_popup_spawn_warning_dialog sets GDK_BACKEND=x11" "x11" "${_logged_gdk}"
 assert_eq "_popup_spawn_warning_dialog sets QT_QPA_PLATFORM=xcb" "xcb" "${_logged_qt}"
 assert_eq "_popup_spawn_warning_dialog unsets WAYLAND_DISPLAY" "UNSET" "${_logged_wayland}"
+assert_eq "_popup_spawn_warning_dialog unsets GDK_SCALE" "UNSET" "${_logged_scale}"
+assert_eq "_popup_spawn_warning_dialog passes root-width to zenity" "1280" "${_logged_w}"
+assert_eq "_popup_spawn_warning_dialog passes modest height to zenity" "250" "${_logged_h}"
 assert_eq "_popup_spawn_warning_dialog preserves exact dialog PID via env exec" "${popup_pid}" "${_logged_pid}"
+unset GDK_SCALE
 
 # Also verify POPUP_FORCE_X11_BACKEND=false works under set -u (Bash 3.2 empty-array safety)
 export POPUP_FORCE_X11_BACKEND="false"
