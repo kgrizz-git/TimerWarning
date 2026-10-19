@@ -376,6 +376,26 @@ show_warning() {
     local width height
     width=$(echo "${dimensions}" | cut -d' ' -f1)
     height=$(echo "${dimensions}" | cut -d' ' -f2)
+
+    # gamescope 3.16.23: small dialogs become notifications (no input) and are
+    # fit-scaled ~3–4×. Use full :0 root width + modest height (Stream B).
+    if [ "${env_type}" = "gamescope" ] && type gamescope_interactive_dialog_dimensions >/dev/null 2>&1; then
+        local gs_dims gs_w gs_h gs_rc=0
+        gs_dims=$(gamescope_interactive_dialog_dimensions "${width}" "${height}") || gs_rc=$?
+        gs_w=$(echo "${gs_dims}" | awk '{print $1}')
+        gs_h=$(echo "${gs_dims}" | awk '{print $2}')
+        if [[ "${gs_w}" =~ ^[0-9]+$ ]] && [[ "${gs_h}" =~ ^[0-9]+$ ]]; then
+            if [ "${gs_rc}" -eq 0 ]; then
+                log_to_file "INFO" "gamescope interactive size override: ${width}x${height} -> ${gs_w}x${gs_h} (root-width overlay)"
+                width="${gs_w}"
+                height="${gs_h}"
+                # Full-width banner centers more reliably than top-left under gamescope.
+                popup_position="center"
+            else
+                log_to_file "WARNING" "gamescope root size unavailable; keeping configured size ${width}x${height} (interactive overlay may fail)"
+            fi
+        fi
+    fi
     
     # Warning message
     local interval_text

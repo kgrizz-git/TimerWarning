@@ -37,7 +37,9 @@ _popup_spawn_warning_dialog() {
 
     local -a _dlg_prefix=()
     if [ "${POPUP_FORCE_X11_BACKEND:-false}" = "true" ]; then
-        _dlg_prefix=(env -u WAYLAND_DISPLAY GDK_BACKEND=x11 QT_QPA_PLATFORM=xcb)
+        # Unset HiDPI scale vars so buffer size matches the requested window size
+        # under gamescope (scale mismatch breaks fit-to-canvas math).
+        _dlg_prefix=(env -u WAYLAND_DISPLAY -u GDK_SCALE -u GDK_DPI_SCALE -u QT_SCALE_FACTOR GDK_BACKEND=x11 QT_QPA_PLATFORM=xcb)
     fi
 
     case "${dialog_tool}" in
@@ -249,13 +251,30 @@ _popup_show_pause_activated_notice() {
     fi
 
     local info_pid=""
+    local pause_w=400 pause_h=150
+    if [ "${env_type:-}" = "gamescope" ] && type gamescope_interactive_dialog_dimensions >/dev/null 2>&1; then
+        local _pause_dims _pause_rc=0
+        _pause_dims=$(gamescope_interactive_dialog_dimensions "${pause_w}" "${pause_h}") || _pause_rc=$?
+        local _pw _ph
+        _pw=$(echo "${_pause_dims}" | awk '{print $1}')
+        _ph=$(echo "${_pause_dims}" | awk '{print $2}')
+        if [ "${_pause_rc}" -eq 0 ] && [[ "${_pw}" =~ ^[0-9]+$ ]] && [[ "${_ph}" =~ ^[0-9]+$ ]]; then
+            if type log_to_file >/dev/null 2>&1; then
+                log_to_file "INFO" "gamescope pause notice size override: ${pause_w}x${pause_h} -> ${_pw}x${_ph}"
+            fi
+            pause_w="${_pw}"
+            pause_h="${_ph}"
+        elif type log_to_file >/dev/null 2>&1; then
+            log_to_file "WARNING" "gamescope pause notice: root size unavailable; keeping ${pause_w}x${pause_h}"
+        fi
+    fi
     case "${dialog_tool}" in
         zenity)
             ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity --info \
                 --title="${title}" \
                 --text="${text}" \
-                --width=400 \
-                --height=150 \
+                --width="${pause_w}" \
+                --height="${pause_h}" \
                 --timeout="${_pause_info_timeout}" \
                 2>/dev/null &
             info_pid=$!
@@ -264,14 +283,17 @@ _popup_show_pause_activated_notice() {
             ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --info \
                 --title="${title}" \
                 --text="${text}" \
-                --width=400 \
-                --height=150 \
+                --width="${pause_w}" \
+                --height="${pause_h}" \
+                --center \
+                --fixed \
                 --button="OK:0" \
                 --timeout="${_pause_info_timeout}" \
                 2>/dev/null &
             info_pid=$!
             ;;
         kdialog)
+            # kdialog msgbox has no reliable width flag on SteamOS; atoms still applied.
             ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${title}" --msgbox "${text}" 2>/dev/null &
             info_pid=$!
             ;;
@@ -324,7 +346,7 @@ _popup_maybe_handle_pause_click() {
     local -a _dlg_prefix=()
     local _pause_info_timeout=30
     if [ "${POPUP_FORCE_X11_BACKEND:-false}" = "true" ] || [ "${env_type:-}" = "gamescope" ]; then
-        _dlg_prefix=(env -u WAYLAND_DISPLAY GDK_BACKEND=x11 QT_QPA_PLATFORM=xcb)
+        _dlg_prefix=(env -u WAYLAND_DISPLAY -u GDK_SCALE -u GDK_DPI_SCALE -u QT_SCALE_FACTOR GDK_BACKEND=x11 QT_QPA_PLATFORM=xcb)
         _pause_info_timeout=10
     fi
 
