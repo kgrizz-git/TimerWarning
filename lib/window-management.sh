@@ -335,9 +335,11 @@ find_window_id_for_popup() {
 
     # 1b) xdotool by PID (reliable under gamescope when _NET_CLIENT_LIST is empty).
     # If multiple IDs share the PID, prefer a title match; otherwise fall through to name search.
+    # --onlyvisible skips the never-mapped GTK/Qt client-leader window, which also carries
+    # _NET_WM_PID and is created before the dialog toplevel (tagging it would be a no-op).
     if [ -n "${target_pid}" ] && [[ "${target_pid}" =~ ^[0-9]+$ ]] && command -v xdotool >/dev/null 2>&1; then
         local pid_wids pid_count pid_wid matched_wid
-        pid_wids=$(xdotool search --pid "${target_pid}" 2>/dev/null || true)
+        pid_wids=$(xdotool search --onlyvisible --pid "${target_pid}" 2>/dev/null || true)
         pid_count=0
         matched_wid=""
         for pid_wid in ${pid_wids}; do

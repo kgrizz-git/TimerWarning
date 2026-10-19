@@ -316,6 +316,32 @@ chmod +x "${_mock_bin}/xprop"
 assert_rc "apply_gamescope_overlay_atoms returns 1 when xprop property write fails" 1 \
     apply_gamescope_overlay_atoms "Sleep Warning" "none" "${_dummy_popup_pid}"
 
+# xdotool --pid path (gamescope: empty _NET_CLIENT_LIST). The unmapped GTK client-leader
+# window shares _NET_WM_PID and exists before the toplevel; it must not be selected.
+cat > "${_mock_bin}/xprop" <<EOF
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "${_mock_bin}/xdotool" <<EOF
+#!/usr/bin/env bash
+if [ "\${1:-}" = "search" ]; then
+    case " \$* " in
+        *" --onlyvisible "*) echo "4194314" ;;
+        *) echo "4194305" ;;
+    esac
+    exit 0
+fi
+if [ "\${1:-}" = "getwindowname" ]; then
+    [ "\${2:-}" = "4194314" ] && echo "Sleep Warning" || echo "zenity"
+    exit 0
+fi
+exit 1
+EOF
+chmod +x "${_mock_bin}/xprop" "${_mock_bin}/xdotool"
+_found_win="$(find_window_id_for_popup "Sleep Warning" "" "${_dummy_popup_pid}")"
+assert_eq "find_window_id_for_popup xdotool --pid path skips unmapped leader window" "4194314" "${_found_win}"
+rm -f "${_mock_bin}/xdotool"
+
 kill "${_dummy_popup_pid}" 2>/dev/null || true
 wait "${_dummy_popup_pid}" 2>/dev/null || true
 
