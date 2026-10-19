@@ -217,7 +217,88 @@ make_window_unclosable() {
     esac
 }
 
-# Find X11 window ID for a popup dialog using _NET_WM_PID (xprop), wmctrl/xdotool, or xwininfo.
+# Last successful lookup path for find_window_id_for_popup (net_client_list|xdotool_pid|
+# xdotool_name|wmctrl_name|xwininfo_tree). Empty if none found. Callers may read this
+# after a successful find for diagnostics (gamescope overlay logging).
+FIND_WINDOW_LOOKUP_PATH=""
+
+# Read X11 root window size for the current DISPLAY ("WIDTH HEIGHT").
+# Used for gamescope interactive overlay sizing (nested :0 canvas, not the TV panel).
+# Returns 0 on success, 1 if xwininfo missing or sizes are non-numeric.
+gamescope_get_x11_root_size() {
+    if ! command -v xwininfo >/dev/null 2>&1; then
+        return 1
+    fi
+    local info width height
+    info=$(xwininfo -root 2>/dev/null) || return 1
+    width=$(printf '%s\n' "${info}" | awk -F: '/Width:/ {gsub(/ /,"",$2); print $2; exit}')
+    height=$(printf '%s\n' "${info}" | awk -F: '/Height:/ {gsub(/ /,"",$2); print $2; exit}')
+    if [[ "${width}" =~ ^[0-9]+$ ]] && [[ "${height}" =~ ^[0-9]+$ ]] && [ "${width}" -gt 0 ] && [ "${height}" -gt 0 ]; then
+        echo "${width} ${height}"
+        return 0
+    fi
+    return 1
+}
+
+# Compute gamescope interactive dialog size: full root width + modest height.
+# gamescope 3.16.23 only treats STEAM_OVERLAY windows with nWidth > 1200 as the
+# interactive overlay (else notification = visible, no input). Full canvas width
+# also yields ~1.0 fit-scale (avoids 3–4× magnification of small dialogs).
+# Parameters:
+#   $1: fallback width (used only if root size unavailable)
+#   $2: fallback height (preferred height, capped at root_h/2)
+# Prints "WIDTH HEIGHT". Returns 0 when root size was read, 1 when falling back.
+gamescope_interactive_dialog_dimensions() {
+    local fallback_w="${1:-400}"
+    local fallback_h="${2:-250}"
+    local root_wh root_w root_h width height half_h
+
+    if ! [[ "${fallback_w}" =~ ^[0-9]+$ ]]; then
+        fallback_w=400
+    fi
+    if ! [[ "${fallback_h}" =~ ^[0-9]+$ ]]; then
+        fallback_h=250
+    fi
+
+    root_wh=$(gamescope_get_x11_root_size) || {
+        echo "${fallback_w} ${fallback_h}"
+        return 1
+    }
+    root_w=$(echo "${root_wh}" | awk '{print $1}')
+    root_h=$(echo "${root_wh}" | awk '{print $2}')
+
+    # Full nested/canvas width (never TV-native sizing; caller uses gamescope DISPLAY).
+    # gamescope 3.16.23 needs nWidth > 1200 for interactive overlay; if root is narrower,
+    # last resort is 1201 (may clip — better than silent notification classification).
+    width="${root_w}"
+    if [ "${root_w}" -le 1200 ]; then
+        width=1201
+        if type log_to_file >/dev/null 2>&1; then
+            log_to_file "WARNING" "gamescope root width ${root_w} <= 1200; using width 1201 last-resort for interactive overlay (may clip)"
+        fi
+    fi
+
+    half_h=$((root_h / 2))
+    if [ "${half_h}" -lt 150 ]; then
+        half_h="${root_h}"
+    fi
+    height="${fallback_h}"
+    if [ "${height}" -lt 200 ]; then
+        height=200
+    fi
+    if [ "${height}" -gt "${half_h}" ]; then
+        height="${half_h}"
+    fi
+    if [ "${height}" -gt "${root_h}" ]; then
+        height="${root_h}"
+    fi
+
+    echo "${width} ${height}"
+    return 0
+}
+
+# Find X11 window ID for a popup dialog using _NET_WM_PID (xprop), xdotool --pid,
+# wmctrl/xdotool title, or xwininfo. Sets FIND_WINDOW_LOOKUP_PATH on success.
 # Parameters:
 #   $1: window_title
 #   $2: tool (wmctrl, xdotool, or empty)
@@ -227,8 +308,10 @@ find_window_id_for_popup() {
     local tool="${2:-}"
     local target_pid="${3:-}"
     local wid=""
+    FIND_WINDOW_LOOKUP_PATH=""
 
     # 1) Prefer PID match via xprop _NET_CLIENT_LIST -> _NET_WM_PID (works without wmctrl/xdotool)
+    #    Note: gamescope often has no usable _NET_CLIENT_LIST; then we fall through.
     if [ -n "${target_pid}" ] && [[ "${target_pid}" =~ ^[0-9]+$ ]] && command -v xprop >/dev/null 2>&1; then
         local client_list
         client_list=$(xprop -root _NET_CLIENT_LIST 2>/dev/null || true)
@@ -243,10 +326,41 @@ find_window_id_for_popup() {
             [[ "${candidate_wid}" =~ ^0x[0-9a-fA-F]+$ ]] || continue
             wpid=$(xprop -id "${candidate_wid}" _NET_WM_PID 2>/dev/null | awk -F'=' '{print $2}' | tr -d '[:space:]')
             if [ "${wpid}" = "${target_pid}" ]; then
+                FIND_WINDOW_LOOKUP_PATH="net_client_list"
                 echo "${candidate_wid}"
                 return 0
             fi
         done
+    fi
+
+    # 1b) xdotool by PID (reliable under gamescope when _NET_CLIENT_LIST is empty).
+    # If multiple IDs share the PID, prefer a title match; otherwise fall through to name search.
+    if [ -n "${target_pid}" ] && [[ "${target_pid}" =~ ^[0-9]+$ ]] && command -v xdotool >/dev/null 2>&1; then
+        local pid_wids pid_count pid_wid matched_wid
+        pid_wids=$(xdotool search --pid "${target_pid}" 2>/dev/null || true)
+        pid_count=0
+        matched_wid=""
+        for pid_wid in ${pid_wids}; do
+            pid_count=$((pid_count + 1))
+            if [ -n "${window_title}" ] && command -v xdotool >/dev/null 2>&1; then
+                local pid_name
+                pid_name=$(xdotool getwindowname "${pid_wid}" 2>/dev/null || true)
+                if [ "${pid_name}" = "${window_title}" ]; then
+                    matched_wid="${pid_wid}"
+                fi
+            fi
+        done
+        if [ -n "${matched_wid}" ]; then
+            FIND_WINDOW_LOOKUP_PATH="xdotool_pid"
+            echo "${matched_wid}"
+            return 0
+        fi
+        if [ "${pid_count}" -eq 1 ]; then
+            FIND_WINDOW_LOOKUP_PATH="xdotool_pid"
+            echo "${pid_wids}" | head -n1
+            return 0
+        fi
+        # Multiple PID hits with no title match: fall through to name / xwininfo.
     fi
 
     # 2) Fallback to wmctrl / xdotool title match
@@ -254,11 +368,17 @@ find_window_id_for_popup() {
         wmctrl)
             if command -v wmctrl >/dev/null 2>&1 && [ -n "${window_title}" ]; then
                 wid=$(wmctrl -l 2>/dev/null | grep -F "${window_title}" | head -n1 | awk '{print $1}')
+                if [ -n "${wid}" ]; then
+                    FIND_WINDOW_LOOKUP_PATH="wmctrl_name"
+                fi
             fi
             ;;
         xdotool)
             if command -v xdotool >/dev/null 2>&1 && [ -n "${window_title}" ]; then
                 wid=$(xdotool search --name "${window_title}" 2>/dev/null | head -n1)
+                if [ -n "${wid}" ]; then
+                    FIND_WINDOW_LOOKUP_PATH="xdotool_name"
+                fi
             fi
             ;;
     esac
@@ -271,20 +391,31 @@ find_window_id_for_popup() {
     if command -v xwininfo >/dev/null 2>&1 && [ -n "${window_title}" ]; then
         wid=$(xwininfo -root -tree 2>/dev/null | grep -F "\"${window_title}\"" | head -n1 | awk '{print $1}')
         if [ -n "${wid}" ]; then
+            FIND_WINDOW_LOOKUP_PATH="xwininfo_tree"
             echo "${wid}"
             return 0
         fi
     fi
 
+    FIND_WINDOW_LOOKUP_PATH=""
     return 1
 }
 
 # Apply SteamOS Gaming Mode (gamescope) overlay atoms so the X11 dialog is composited
 # above fullscreen games and receives controller/touch input focus.
+# Sets STEAM_OVERLAY=1 and STEAM_INPUT_FOCUS=1 (mode 1, not 2 — keep keyboard on dialog).
+# Optionally sets opaque _NET_WM_WINDOW_OPACITY to reduce Steam overlay opacity ties.
+# Logs lookup path, geometry, and atom read-back once per window ID.
 # Parameters:
 #   $1: window_title
 #   $2: tool (wmctrl/xdotool or empty)
 #   $3: popup_pid (optional numeric PID)
+#
+# gamescope 3.16.23 (steamcompmgr.cpp): classification uses nWidth > 1200 && opacity >= maxOpacity
+# for overlayWindow (else notificationWindow). Input pick:
+#   if (VirtualConnectorIsSingleOutput() && overlayWindow && overlayWindow->inputFocusMode)
+#       inputFocusWindow = overlayWindow; else inputFocusWindow = focusWindow (the game).
+# See gamescope_interactive_dialog_dimensions for full-width sizing.
 apply_gamescope_overlay_atoms() {
     local window_title="$1"
     local tool="${2:-}"
@@ -300,19 +431,33 @@ apply_gamescope_overlay_atoms() {
     local max_attempts=30
     local attempt=0
     local window_id=""
+    local lookup_path=""
+    # Temp file keeps FIND_WINDOW_LOOKUP_PATH out of a command-substitution subshell.
+    local _wid_tmp
+    _wid_tmp=$(mktemp) || return 1
 
     while [ "${attempt}" -lt "${max_attempts}" ]; do
-        window_id=$(find_window_id_for_popup "${window_title}" "${tool}" "${target_pid}") || true
-        if [ -n "${window_id}" ]; then
-            break
+        FIND_WINDOW_LOOKUP_PATH=""
+        if find_window_id_for_popup "${window_title}" "${tool}" "${target_pid}" > "${_wid_tmp}"; then
+            window_id=$(tr -d '[:space:]' < "${_wid_tmp}")
+            lookup_path="${FIND_WINDOW_LOOKUP_PATH:-}"
+            if [ -n "${window_id}" ]; then
+                break
+            fi
         fi
+        window_id=""
         if [ -n "${target_pid}" ] && [[ "${target_pid}" =~ ^[0-9]+$ ]] && ! kill -0 "${target_pid}" 2>/dev/null; then
-            window_id=$(find_window_id_for_popup "${window_title}" "${tool}" "${target_pid}") || true
+            FIND_WINDOW_LOOKUP_PATH=""
+            if find_window_id_for_popup "${window_title}" "${tool}" "${target_pid}" > "${_wid_tmp}"; then
+                window_id=$(tr -d '[:space:]' < "${_wid_tmp}")
+                lookup_path="${FIND_WINDOW_LOOKUP_PATH:-}"
+            fi
             break
         fi
         sleep 0.1
         attempt=$((attempt + 1))
     done
+    rm -f "${_wid_tmp}"
 
     if [ -z "${window_id}" ]; then
         if type log_to_file >/dev/null 2>&1; then
@@ -325,9 +470,12 @@ apply_gamescope_overlay_atoms() {
     if ! xprop -id "${window_id}" -f STEAM_OVERLAY 32c -set STEAM_OVERLAY 1 2>/dev/null; then
         overlay_ok=false
     fi
+    # STEAM_INPUT_FOCUS=1 (not 2): mode 2 routes keyboard back to the game on 3.16.23.
     if ! xprop -id "${window_id}" -f STEAM_INPUT_FOCUS 32c -set STEAM_INPUT_FOCUS 1 2>/dev/null; then
         overlay_ok=false
     fi
+    # Best-effort opaque opacity so we win/tie Steam overlay opacity contests.
+    xprop -id "${window_id}" -f _NET_WM_WINDOW_OPACITY 32c -set _NET_WM_WINDOW_OPACITY 0xffffffff 2>/dev/null || true
 
     if [ "${overlay_ok}" != "true" ]; then
         if type log_to_file >/dev/null 2>&1; then
@@ -340,7 +488,16 @@ apply_gamescope_overlay_atoms() {
     if [ "${GAMESCOPE_ATOMS_LOGGED_WID:-}" != "${window_id}" ]; then
         GAMESCOPE_ATOMS_LOGGED_WID="${window_id}"
         if type log_to_file >/dev/null 2>&1; then
-            log_to_file "INFO" "Applied gamescope STEAM_OVERLAY=1 and STEAM_INPUT_FOCUS=1 to window ${window_id} (PID: ${target_pid:-unknown})"
+            local geom_w="" geom_h="" rb_overlay="" rb_focus=""
+            if command -v xwininfo >/dev/null 2>&1; then
+                local winfo
+                winfo=$(xwininfo -id "${window_id}" 2>/dev/null || true)
+                geom_w=$(printf '%s\n' "${winfo}" | awk -F: '/Width:/ {gsub(/ /,"",$2); print $2; exit}')
+                geom_h=$(printf '%s\n' "${winfo}" | awk -F: '/Height:/ {gsub(/ /,"",$2); print $2; exit}')
+            fi
+            rb_overlay=$(xprop -id "${window_id}" STEAM_OVERLAY 2>/dev/null | awk -F'=' '{gsub(/ /,"",$2); print $2}' || true)
+            rb_focus=$(xprop -id "${window_id}" STEAM_INPUT_FOCUS 2>/dev/null | awk -F'=' '{gsub(/ /,"",$2); print $2}' || true)
+            log_to_file "INFO" "Applied gamescope STEAM_OVERLAY=1 and STEAM_INPUT_FOCUS=1 to window ${window_id} (PID: ${target_pid:-unknown}, lookup: ${lookup_path:-unknown}, geometry: ${geom_w:-?}x${geom_h:-?}, readback overlay=${rb_overlay:-?} focus=${rb_focus:-?})"
         fi
     fi
     return 0
