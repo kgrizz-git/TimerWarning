@@ -8,6 +8,7 @@
 | **Related** | [plan-steamos-gaming-mode-overlay-2026-10-16.md](plan-steamos-gaming-mode-overlay-2026-10-16.md), [STEAMOS_GAMING_MODE.md](../STEAMOS_GAMING_MODE.md) |
 | **Claude Opus CLI review** | 2026-10-19 — **needs-rework** applied below; human approval still required before implementation |
 | **On-device evidence** | 2026-10-19 Steam Deck Gaming Mode: popup **visible and stayed up**; **buttons not clickable** — clicks/taps hit the game underneath |
+| **Docked display** | Same session family: Deck **plugged into a large external monitor** — dialog looked **very magnified**, took **most of the screen**, text **blocky** (despite config `Size: small`) |
 | **Device context** | `gamescope` **3.16.23.6**; dialog tool from log: **zenity**, `Size: small`; atoms logged as applied |
 | **Safety** | [docs/SAFETY.md](../../docs/SAFETY.md) — do not weaken watchdog, 16 h cap, or escape hatch; auto-close / finite lifetime remain mandatory in gamescope |
 
@@ -25,6 +26,38 @@ From `~/.config/sleep-warning/warnings.log` (~12:54 session) and host tools:
 - Host: `gamescope version 3.16.23.6`; `/usr/bin/xdotool` and `xwininfo` present.
 
 **Interpretation:** Visibility proves `STEAM_OVERLAY` landed on a real top-level window. Click-through with atoms also logged strongly suggests gamescope classified the dialog as a **notification** (drawn) rather than the **interactive overlay** (input), not a failed `xprop -set`.
+
+### Docked / large-monitor magnification (2026-10-19)
+
+User report: on an external large display, the warning filled most of the screen and text looked blocky/pixelated, even though the log said `Size: small` (fixed small is only ~400×250 in our config helpers).
+
+**Likely cause (gamescope nested framebuffer upscale), not “we requested a huge zenity size”:**
+
+1. Gaming Mode runs clients (and our X11 overlay) inside gamescope’s **nested** resolution (often near Deck-native ~1280×800, or the game’s internal res) on Xwayland `:0`.
+2. gamescope then **scales that whole nested output** up to the external panel. A modest nested-pixel dialog becomes large and soft/blocky on a 1440p/4K TV.
+3. Overlay paint uses gamescope’s upscale path; integer/nearest filtering can make fonts look chunky when scale ≫ 1.
+
+**Confirm next session (optional):**
+
+```bash
+DISPLAY=:0 xwininfo -root | rg 'Width|Height'          # nested root
+DISPLAY=:0 xwininfo -id "$WID" | rg 'Width|Height'    # dialog in nested px
+# Compare to the physical TV resolution (Steam → Display, or drm connector)
+```
+
+If nested root ≪ TV size and dialog width is only hundreds of nested pixels but still fills the TV, upscale is confirmed.
+
+### Design tension with Stream B (width > 1200)
+
+On gamescope **3.16.23**, interactive input needs nested width **> 1200**. On a ~1280-wide nested session that means the dialog is **almost full nested width** before TV upscale — so fixing click-through will likely make the docked “fills the TV / blocky text” problem **worse**, not better, unless we also address nested resolution / scaling.
+
+Plan implications (for review):
+
+- Stream B remains the leading **input** fix; treat **sharpness / docked size** as a coupled UX problem.
+- Prefer width `max(1201, min(root_w, …))` with **modest height** (not a full nested framebuffer takeover) so less of the upscaled frame is soft UI chrome.
+- Investigate whether we can read nested root vs output size and document “Gaming Mode on external display may look magnified” as expected gamescope behavior.
+- Do **not** size against the TV’s native pixels via `xrandr` on a different DISPLAY if that yields dimensions larger than the nested root (would clip or confuse gamescope). Always size in **nested Xwayland `:0` coordinates**.
+- Optional later spike: higher nested render res (user/Steam setting) improves sharpness of everything, including our overlay — out of our control in code, but worth documenting.
 
 ## Is clickable UI even possible?
 
@@ -118,14 +151,15 @@ zenity was used in the failing session; retest yad/kdialog only after geometry f
 
 ### Stream B — Force interactive geometry (**primary fix path**)
 
-Gamescope-only: spawn the warning (and pause confirmation) with width **> 1200**, preferably **`max(root_width, 1201)`** from `xwininfo -root` (or existing resolution helpers).
+Gamescope-only: spawn the warning (and pause confirmation) with nested width **> 1200**, preferably **`max(1201, …)` capped by nested `xwininfo -root` width** (never size to the external TV’s native resolution).
 
 1. Gate on `env_type=gamescope` only; Desktop Mode sizes unchanged.
-2. Prefer fullscreen or near-fullscreen width; height may stay modest (3.16.23 centers/scales overlays).
+2. Width must clear the 1200 rule; **keep height modest** (centered overlay) to limit how much of the upscaled TV frame is soft dialog chrome — especially when docked.
 3. Keep `STEAM_OVERLAY=1` and `STEAM_INPUT_FOCUS=1` (value **1**, not 2).
 4. Optionally set `_NET_WM_WINDOW_OPACITY=0xffffffff` to reduce H2 ties.
 5. Keep `GAMESCOPE_FORCE_AUTO_CLOSE` + absolute watchdog.
-6. **Safety note:** once we hold input, the game (and possibly Steam QAM) will not receive input for the popup lifetime — intentional modal behavior; still bounded by auto-close/watchdog. No `docs/SAFETY.md` invariant change.
+6. **Docked UX:** accept that on large external displays the dialog may still look large/blocky (nested→TV upscale). Document it; do not chase TV-native pixel sizes inside `:0`.
+7. **Safety note:** once we hold input, the game (and possibly Steam QAM) will not receive input for the popup lifetime — intentional modal behavior; still bounded by auto-close/watchdog. No `docs/SAFETY.md` invariant change.
 
 ### Stream A — Diagnostics / lookup hardening (**supporting**)
 
@@ -169,6 +203,8 @@ If a >1200-wide overlay still cannot receive clicks on this SteamOS build:
 - [ ] Pause confirmation receives input
 - [ ] Steam QAM usable again **after** auto-close / dismiss
 - [ ] Watchdog / auto-close still ends popup if user cannot click
+- [ ] **Docked large monitor:** note nested vs TV size; dialog may remain large/blocky after width fix — confirm still usable
+- [ ] **Undocked Deck panel:** check size/sharpness separately from docked TV
 
 ## Out of scope
 
