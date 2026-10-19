@@ -2,7 +2,9 @@
 
 **Date:** 2026-10-16  
 **Branch:** `chore/public-repo-prep`  
-**Status:** Implemented on this branch. On-device Steam Deck verification is still open.
+**Status:** Implemented on this branch. Partial on-device verification 2026-10-19 (see below).
+
+**On-device check (2026-10-19, Steam Deck Gaming Mode):** Popup **displayed and stayed up** over a game (overlay visibility OK). **Buttons were not clickable** — taps/clicks appeared to hit the game underneath (click-through). Follow-up: [plan-gamescope-overlay-click-through-2026-10-19.md](plan-gamescope-overlay-click-through-2026-10-19.md).
 
 **Follow-up (2026-10-17):** A review found that the first implementation opted existing `mode-gaming.conf` installs in, treated static `GAMESCOPE_SESSION=1` as a live gamescope session, blocked turning the overlay off during lock hours, tagged the pause dialog with an empty PID, blocked the popup thread while polling `xprop`, and returned `:0` when that display was not accessible. Those are fixed in the tree. `mode-gaming.conf` no longer writes `GAMESCOPE_SESSION`. The step text below is the original plan and still describes the first approach (`mode-gaming.conf` fallback and tighten-only toggle).  
 **Safety Reference:** [docs/SAFETY.md](../../docs/SAFETY.md)

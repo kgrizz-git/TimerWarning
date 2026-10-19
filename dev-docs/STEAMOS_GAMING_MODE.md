@@ -418,7 +418,7 @@ May vary by game type, rendering technology, and full-screen mode
 
 ## Compatibility Status
 
-**Current Status**: ⚙️ **Experimental overlay implemented, off by default, not verified on a Steam Deck**
+**Current Status**: ⚙️ **Experimental overlay implemented, off by default; partial Steam Deck verification 2026-10-19**
 
 - ✅ Opt-in flag `GAMING_MODE_EXPERIMENTAL_ENABLED` (default `false`; a leftover `mode-gaming.conf` does not turn it on)
 - ✅ Display detection returns `gamescope` only when that flag is on and the session is actually gamescope (`XDG_CURRENT_DESKTOP` contains `gamescope`, or the `gamescope` process is running)
@@ -537,6 +537,8 @@ For implementation details, see [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md)
 
 ## Conclusion
 
-Experimental Gaming Mode overlay support is implemented and **off by default**. It routes warning dialogs through gamescope's Xwayland `:0` plane and tags them with `STEAM_OVERLAY` / `STEAM_INPUT_FOCUS`. That path is covered by unit tests. It has not been verified on a Steam Deck, so fullscreen-game behavior is still unknown.
+Experimental Gaming Mode overlay support is implemented and **off by default**. It routes warning dialogs through gamescope's Xwayland `:0` plane and tags them with `STEAM_OVERLAY` / `STEAM_INPUT_FOCUS`. That path is covered by unit tests.
+
+**On-device (2026-10-19):** With the experimental toggle on in Gaming Mode, the warning **appeared and stayed visible** over a fullscreen game. **Dialog buttons did not receive clicks** — input appeared to go to the game underneath. Visibility is therefore verified; interactive input is not. Investigation plan: [plans/plan-gamescope-overlay-click-through-2026-10-19.md](plans/plan-gamescope-overlay-click-through-2026-10-19.md).
 
 The ~68% and ~95% figures earlier in this document were planning estimates, not measured results. A Steamworks overlay plugin remains a possible later approach for exclusive fullscreen games. Use Option 12 to turn the experimental path on, and turn it off again if dialogs do not appear. `systemctl --user stop sleep-warning.service` remains available during lock hours.
