@@ -4,6 +4,11 @@ This document provides comprehensive information about SteamOS Gaming Mode compa
 
 ## Overview
 
+For a bounded read-only check on actual hardware, run
+`bash scripts/check-steam-deck-gaming-mode.sh`. See the
+[first-check guide and agent prompt](development/steam-deck-first-check.md)
+for a supervised fullscreen/controller test with isolated state.
+
 SteamOS Gaming Mode presents unique challenges for systemd-based warning systems due to its use of the gamescope Wayland compositor, focus on full-screen gaming experiences, and different environment setup compared to traditional desktop environments. This document outlines the compatibility considerations, implementation strategies, testing requirements, and effectiveness assessment specific to SteamOS Gaming Mode.
 
 ## Executive Summary
