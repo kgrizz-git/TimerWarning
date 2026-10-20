@@ -250,6 +250,9 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
             # during lock hours; this arm is intentional, not an unknown key.
             GAMING_MODE_EXPERIMENTAL_ENABLED|gaming_mode_experimental_enabled)
                 ;;
+            # Log-only diagnostics. Either value is allowed during lock hours.
+            GAMESCOPE_OVERLAY_DEBUG|gamescope_overlay_debug)
+                ;;
             *)
                 ;;
         esac

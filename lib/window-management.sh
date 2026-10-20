@@ -309,6 +309,7 @@ find_window_id_for_popup() {
     local target_pid="${3:-}"
     local wid=""
     FIND_WINDOW_LOOKUP_PATH=""
+    FIND_WINDOW_PID_VISIBLE_COUNT=""
 
     # 1) Prefer PID match via xprop _NET_CLIENT_LIST -> _NET_WM_PID (works without wmctrl/xdotool)
     #    Note: gamescope often has no usable _NET_CLIENT_LIST; then we fall through.
@@ -352,6 +353,7 @@ find_window_id_for_popup() {
                 fi
             fi
         done
+        FIND_WINDOW_PID_VISIBLE_COUNT="${pid_count}"
         if [ -n "${matched_wid}" ]; then
             FIND_WINDOW_LOOKUP_PATH="xdotool_pid"
             echo "${matched_wid}"
@@ -427,6 +429,7 @@ apply_gamescope_overlay_atoms() {
         if type log_to_file >/dev/null 2>&1; then
             log_to_file "WARNING" "xprop not available; cannot set STEAM_OVERLAY atoms for gamescope"
         fi
+        _gamescope_debug_after_apply "" "" "${target_pid}"
         return 1
     fi
 
@@ -465,6 +468,7 @@ apply_gamescope_overlay_atoms() {
         if type log_to_file >/dev/null 2>&1; then
             log_to_file "WARNING" "Could not find X11 window ID for gamescope overlay (title: ${window_title}, PID: ${target_pid:-none})"
         fi
+        _gamescope_debug_after_apply "" "${lookup_path}" "${target_pid}"
         return 1
     fi
 
@@ -483,6 +487,7 @@ apply_gamescope_overlay_atoms() {
         if type log_to_file >/dev/null 2>&1; then
             log_to_file "WARNING" "Failed to apply gamescope STEAM_OVERLAY / STEAM_INPUT_FOCUS atoms to window ${window_id} (PID: ${target_pid:-unknown})"
         fi
+        _gamescope_debug_after_apply "${window_id}" "${lookup_path}" "${target_pid}"
         return 1
     fi
 
@@ -502,6 +507,8 @@ apply_gamescope_overlay_atoms() {
             log_to_file "INFO" "Applied gamescope STEAM_OVERLAY=1 and STEAM_INPUT_FOCUS=1 to window ${window_id} (PID: ${target_pid:-unknown}, lookup: ${lookup_path:-unknown}, geometry: ${geom_w:-?}x${geom_h:-?}, readback overlay=${rb_overlay:-?} focus=${rb_focus:-?})"
         fi
     fi
+    # Log-only. The gate inside this call skips the 2s atom poll.
+    _gamescope_debug_after_apply "${window_id}" "${lookup_path}" "${target_pid}"
     return 0
 }
 
@@ -869,3 +876,16 @@ reposition_popup_window() {
     
     return 0
 }
+
+# Log-only gamescope diagnostics. No-op until the debug module is sourced
+# and GAMESCOPE_OVERLAY_DEBUG is on. Does not change atoms or geometry.
+_gamescope_debug_after_apply() {
+    if type gamescope_overlay_debug_on_apply >/dev/null 2>&1; then
+        gamescope_overlay_debug_on_apply "${1:-}" "${2:-}" "${3:-}" || true
+    fi
+}
+
+_WM_DEBUG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${_WM_DEBUG_DIR}/gamescope-overlay-debug.sh"
+unset _WM_DEBUG_DIR

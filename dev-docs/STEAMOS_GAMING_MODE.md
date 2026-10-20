@@ -540,6 +540,33 @@ For implementation details, see [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md)
 
 Experimental Gaming Mode overlay support is implemented and **off by default**. It routes warning dialogs through gamescope's Xwayland `:0` plane and tags them with `STEAM_OVERLAY` / `STEAM_INPUT_FOCUS`. That path is covered by unit tests.
 
-**On-device (2026-10-19):** With the experimental toggle on in Gaming Mode, the warning **appeared and stayed visible** over a fullscreen game, but **buttons were not clickable** (notification classification) and a **small** dialog looked **heavily magnified** (per-window fit scaling). **Code fix (same day):** gamescope-only dialogs now request **full `:0` root width** + modest height, keep `STEAM_OVERLAY` / `STEAM_INPUT_FOCUS=1`, and log geometry/atom read-back. Re-test clicks and sharpness on Deck (docked and undocked). Plan: [plans/plan-gamescope-overlay-click-through-2026-10-19.md](plans/plan-gamescope-overlay-click-through-2026-10-19.md).
+**On-device (2026-10-19):** With the experimental toggle on in Gaming Mode, the warning **appeared and stayed visible** over a fullscreen game, but **buttons were not clickable** (notification classification) and a **small** dialog looked **heavily magnified** (per-window fit scaling). **Code fix (same day):** gamescope-only dialogs now request **full `:0` root width** + modest height, keep `STEAM_OVERLAY` / `STEAM_INPUT_FOCUS=1`, and log geometry/atom read-back.
+
+**On-device retest (2026-10-20):** Full width with a short height is the expected banner. Enter can activate OK; it may also reach Steam underneath (exclusivity not confirmed). The mouse cursor still cannot enter the popup. Do not treat that as a reason to turn off forced auto-close or the popup watchdog. Plan: [plans/plan-gamescope-overlay-click-through-2026-10-19.md](plans/plan-gamescope-overlay-click-through-2026-10-19.md).
+
+### Debug logging (`GAMESCOPE_OVERLAY_DEBUG`)
+
+Default **off**. When it is on, each gamescope warning spawn, countdown respawn, and pause notice writes one `DEBUG-GAMESCOPE` block to the warning log (root size, requested vs override size, tool, pause/button flags, window id, atom read-back, focus displays, and an overlay census). It does not change geometry, atoms, buttons, auto-close, or the watchdog. The 2-second atom refresh does not write another block.
+
+Turn it on for one capture, then turn it off. Do not edit `sleep-warning.conf` during restricted or blocked hours.
+
+Preferred: a separate drop-in, not `mode-gaming.conf` (configure rewrites that file):
+
+```bash
+mkdir -p ~/.config/systemd/user/sleep-warning.service.d
+cat > ~/.config/systemd/user/sleep-warning.service.d/gamescope-overlay-debug.conf <<'EOF'
+[Service]
+Environment=GAMESCOPE_OVERLAY_DEBUG=true
+EOF
+systemctl --user daemon-reload
+```
+
+One session: `systemctl --user set-environment GAMESCOPE_OVERLAY_DEBUG=true`. The timer's next oneshot start inherits it. Undo with `systemctl --user unset-environment GAMESCOPE_OVERLAY_DEBUG`. That variable is on the whole user manager until logout, not only sleep-warning. A shell `export` does not reach the service.
+
+Turn it off: delete `gamescope-overlay-debug.conf` and run `systemctl --user daemon-reload`. `uninstall.sh` removes the service and timer units only, not `sleep-warning.service.d/`. An orphaned drop-in does nothing without the unit, but a later reinstall would turn debug back on until that file is deleted.
+
+If the key is already in `sleep-warning.conf`, the next configure save keeps the file value (`true` or `false`) and does not copy a temporary environment override into the file. If the key is absent, the save leaves it absent. There is no wizard prompt for this key. Either value is allowed during lock hours; it is not a restriction setting.
+
+`GAMESCOPE_FOCUSED_WINDOW` staying on the game while a game is running is expected. Focus-display values are display names such as `:0` and `:1`, stored as CARDINAL items; the log includes the raw value and a decoded string. The census records which way `xwininfo` children were interpreted (`children_order=assumed_top_first`). Calibrate that once on device: when Enter reaches the dialog, our window should sit at the top of the stack.
 
 The ~68% and ~95% figures earlier in this document were planning estimates, not measured results. A Steamworks overlay plugin remains a possible later approach for exclusive fullscreen games. Use Option 12 to turn the experimental path on, and turn it off again if dialogs do not appear. `systemctl --user stop sleep-warning.service` remains available during lock hours.

@@ -90,6 +90,9 @@ DEFAULT_CONFIG_LOCK_ENABLED=false
 # When true, enables Xwayland (:0) + STEAM_OVERLAY/STEAM_INPUT_FOCUS tagging when gamescope is running
 DEFAULT_GAMING_MODE_EXPERIMENTAL_ENABLED=false
 
+# Default gamescope overlay debug logging. Log-only; does not change popup behavior.
+DEFAULT_GAMESCOPE_OVERLAY_DEBUG=false
+
 # Pause state file location - stores pause state and last pause date
 # This file tracks when pause expires and when pause was last used (Enhancement #21)
 PAUSE_STATE_FILE="${CONFIG_DIR}/.pause_state"
@@ -849,6 +852,52 @@ get_gaming_mode_experimental_enabled() {
     fi
 
     echo "${DEFAULT_GAMING_MODE_EXPERIMENTAL_ENABLED}"
+    return 0
+}
+
+# Same tokens as get_gaming_mode_experimental_enabled (trim, strip quotes, casefold).
+# Parameters: $1 raw token. Prints true/false and returns 0, or returns 1 if unrecognized.
+_config_parse_bool_token() {
+    local raw="${1:-}"
+    local val
+    val=$(printf '%s' "${raw}" | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
+    case "${val}" in
+        true|1|yes) printf '%s\n' "true"; return 0 ;;
+        false|0|no) printf '%s\n' "false"; return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# File-only GAMESCOPE_OVERLAY_DEBUG. Ignores the environment. Missing or unrecognized prints false.
+_get_gamescope_overlay_debug_from_config() {
+    if [ -f "${CONFIG_FILE:-}" ]; then
+        local raw_val parsed
+        raw_val=$(grep -E "^[[:space:]]*${CONFIG_KEY_GAMESCOPE_OVERLAY_DEBUG}=" "${CONFIG_FILE}" 2>/dev/null | tail -n1 | cut -d'=' -f2 || true)
+        if [ -n "${raw_val}" ]; then
+            if parsed=$(_config_parse_bool_token "${raw_val}"); then
+                printf '%s\n' "${parsed}"
+                return 0
+            fi
+        fi
+    fi
+    printf '%s\n' "false"
+    return 0
+}
+
+# Whether gamescope overlay debug logging is enabled.
+# Environment wins over the config file, including explicit false.
+# Unrecognized or unset environment falls through to the file.
+# A missing file key stays false. This flag is log-only.
+# Returns: prints "true" or "false"
+get_gamescope_overlay_debug() {
+    if [ -n "${GAMESCOPE_OVERLAY_DEBUG:-}" ]; then
+        local parsed
+        if parsed=$(_config_parse_bool_token "${GAMESCOPE_OVERLAY_DEBUG}"); then
+            printf '%s\n' "${parsed}"
+            return 0
+        fi
+    fi
+    _get_gamescope_overlay_debug_from_config
     return 0
 }
 

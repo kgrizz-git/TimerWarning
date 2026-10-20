@@ -163,6 +163,14 @@ _popup_linux_on_spawn_failure() {
     _popup_linux_notify_send_fallback
 }
 
+# Log-only gamescope exit line. No-op when the debug flag is off.
+# Parameters: $1 exit code, $2 pause handler ran (true/false)
+_popup_linux_note_gamescope_debug_exit() {
+    if type gamescope_overlay_debug_log_exit >/dev/null 2>&1; then
+        gamescope_overlay_debug_log_exit "${1:-}" "${2:-false}" "${gamescope_debug_event:-spawn}" || true
+    fi
+}
+
 # Tag the current popup for the gamescope overlay plane without blocking the
 # min-display loop. apply_gamescope_overlay_atoms polls for up to a few seconds;
 # that wait runs in this background job, then atoms are refreshed every 2s
@@ -260,6 +268,7 @@ _popup_linux_update_countdown() {
         return 1
     fi
 
+    gamescope_debug_event="respawn"
     _popup_linux_arm_gamescope_atoms "${remaining_seconds}"
 
     if [ -n "${window_tool}" ]; then
@@ -311,6 +320,7 @@ _popup_linux_enforce_min_display_time() {
 
             if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                 if _popup_maybe_handle_pause_click "${popup_exit_code}"; then
+                    _popup_linux_note_gamescope_debug_exit "${popup_exit_code}" "true"
                     _popup_linux_cancel_watchdog
                     return 0
                 fi
@@ -382,11 +392,13 @@ _popup_linux_wait_after_min_display() {
 
         if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
             if _popup_maybe_handle_pause_click "${popup_exit_code}"; then
+                _popup_linux_note_gamescope_debug_exit "${popup_exit_code}" "true"
                 _popup_linux_cancel_watchdog
                 return 0
             fi
         fi
 
+        _popup_linux_note_gamescope_debug_exit "${popup_exit_code}" "false"
         if [ ${popup_exit_code} -eq 0 ]; then
             log_to_file "INFO" "Popup closed by user after minimum display time"
         else
@@ -422,11 +434,13 @@ _popup_linux_wait_without_min_display() {
 
         if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
             if _popup_maybe_handle_pause_click "${popup_exit_code}"; then
+                _popup_linux_note_gamescope_debug_exit "${popup_exit_code}" "true"
                 _popup_linux_cancel_watchdog
                 return 0
             fi
         fi
 
+        _popup_linux_note_gamescope_debug_exit "${popup_exit_code}" "false"
         if [ ${popup_exit_code} -eq 0 ]; then
             log_to_file "INFO" "Popup closed by user"
         else

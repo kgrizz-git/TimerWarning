@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Gamescope overlay debug flag:** `GAMESCOPE_OVERLAY_DEBUG` (default off) logs one `DEBUG-GAMESCOPE` block per gamescope warning spawn, countdown respawn, and pause notice when the experimental overlay path is active. The environment wins over the config file, including explicit false; a configure save keeps a key that is already in the file and does not write a temporary environment override. The flag does not change geometry, atoms, buttons, auto-close, or the watchdog. Minor capability; do not tag a release for this alone. Pointer behavior is unchanged.
 - **Experimental SteamOS Gaming Mode overlay (opt-in):** `GAMING_MODE_EXPERIMENTAL_ENABLED` (default `false`, Option 12) routes Linux warning dialogs through gamescope's Xwayland `:0` plane with `STEAM_OVERLAY` / `STEAM_INPUT_FOCUS` and forces auto-close on that path. Minor feature; restriction hours, the 16 h/day cap, and the popup watchdog are unchanged. Partial Steam Deck verification 2026-10-19 (visible; click-through addressed in Fixed).
 
 ### Fixed

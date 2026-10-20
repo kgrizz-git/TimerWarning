@@ -58,6 +58,7 @@ export HOME="${_test_dir}/home"
 mkdir -p "${HOME}/.config/sleep-warning/config"
 export CONFIG_DIR="${HOME}/.config/sleep-warning/config"
 export CONFIG_FILE="${CONFIG_DIR}/sleep-warning.conf"
+unset GAMESCOPE_OVERLAY_DEBUG || true
 
 # Source core modules
 # shellcheck disable=SC1091
@@ -798,6 +799,337 @@ if [ -n "${_saved_display}" ]; then
 else
     unset DISPLAY
 fi
+
+echo ""
+echo "=== 10. GAMESCOPE_OVERLAY_DEBUG is log-only and default off ==="
+
+# shellcheck disable=SC1091
+source "${PROJECT_DIR}/lib/config.sh"
+# shellcheck disable=SC1091
+source "${PROJECT_DIR}/lib/window-management.sh"
+# shellcheck disable=SC1091
+source "${PROJECT_DIR}/lib/configure-partial-lock.sh"
+
+unset GAMESCOPE_OVERLAY_DEBUG
+printf 'CHECK_INTERVAL=10\n' > "${CONFIG_FILE}"
+assert_eq "unset env and absent key stays false" "false" "$(get_gamescope_overlay_debug)"
+assert_eq "file helper absent key stays false" "false" "$(_get_gamescope_overlay_debug_from_config)"
+
+printf 'GAMESCOPE_OVERLAY_DEBUG="true"\n' > "${CONFIG_FILE}"
+assert_eq "quoted config true parses true" "true" "$(get_gamescope_overlay_debug)"
+export GAMESCOPE_OVERLAY_DEBUG="false"
+assert_eq "env false beats config true" "false" "$(get_gamescope_overlay_debug)"
+export GAMESCOPE_OVERLAY_DEBUG="0"
+assert_eq "env 0 beats config true" "false" "$(get_gamescope_overlay_debug)"
+export GAMESCOPE_OVERLAY_DEBUG="no"
+assert_eq "env no beats config true" "false" "$(get_gamescope_overlay_debug)"
+export GAMESCOPE_OVERLAY_DEBUG="maybe"
+assert_eq "unrecognized env falls through to config true" "true" "$(get_gamescope_overlay_debug)"
+
+printf 'GAMESCOPE_OVERLAY_DEBUG=false\n' > "${CONFIG_FILE}"
+export GAMESCOPE_OVERLAY_DEBUG="true"
+assert_eq "env true beats config false" "true" "$(get_gamescope_overlay_debug)"
+assert_eq "file helper ignores env and reads false" "false" "$(_get_gamescope_overlay_debug_from_config)"
+
+# shellcheck disable=SC1091
+source "${PROJECT_DIR}/lib/configure-config-write.sh"
+export GAMESCOPE_OVERLAY_DEBUG="true"
+printf 'CHECK_INTERVAL=10\nGAMESCOPE_OVERLAY_DEBUG=false\n' > "${CONFIG_FILE}"
+_header="$(
+    _write_config_header 10 medium center 30 true true false difficult true 5 24 auto false fixed "50%x50%" "1280x720" "" ""
+)"
+if printf '%s\n' "${_header}" | grep -q '^GAMESCOPE_OVERLAY_DEBUG=false$'; then
+    _pass "writer keeps file false when env is true"
+else
+    _fail "writer did not keep file false (header: $(printf '%s\n' "${_header}" | grep GAMESCOPE_OVERLAY_DEBUG || true))"
+fi
+printf 'GAMESCOPE_OVERLAY_DEBUG=yes\n' > "${CONFIG_FILE}"
+_header="$(
+    _write_config_header 10 medium center 30 true true false difficult true 5 24 auto false fixed "50%x50%" "1280x720" "" ""
+)"
+if printf '%s\n' "${_header}" | grep -q '^GAMESCOPE_OVERLAY_DEBUG=true$'; then
+    _pass "writer normalizes a present key to true/false"
+else
+    _fail "writer did not normalize yes to true"
+fi
+printf 'CHECK_INTERVAL=10\n' > "${CONFIG_FILE}"
+_header="$(
+    _write_config_header 10 medium center 30 true true false difficult true 5 24 auto false fixed "50%x50%" "1280x720" "" ""
+)"
+if printf '%s\n' "${_header}" | grep -q 'GAMESCOPE_OVERLAY_DEBUG='; then
+    _fail "writer added GAMESCOPE_OVERLAY_DEBUG when the key was absent"
+else
+    _pass "writer omits GAMESCOPE_OVERLAY_DEBUG when the key is absent"
+fi
+unset GAMESCOPE_OVERLAY_DEBUG
+
+assert_rc "partial lock allows GAMESCOPE_OVERLAY_DEBUG false -> true" 0 \
+    configure_partial_lock_validate_scalar GAMESCOPE_OVERLAY_DEBUG false true
+assert_rc "partial lock allows GAMESCOPE_OVERLAY_DEBUG true -> false" 0 \
+    configure_partial_lock_validate_scalar GAMESCOPE_OVERLAY_DEBUG true false
+if declare -f configure_partial_lock_validate_scalar | grep -q 'GAMESCOPE_OVERLAY_DEBUG | gamescope_overlay_debug'; then
+    _pass "partial lock names GAMESCOPE_OVERLAY_DEBUG as an explicit neutral arm"
+else
+    _fail "partial lock is missing the explicit GAMESCOPE_OVERLAY_DEBUG arm"
+fi
+if declare -f configure_partial_lock_validate_proposed | grep -q 'GAMESCOPE_OVERLAY_DEBUG'; then
+    _fail "validate_proposed should not special-case GAMESCOPE_OVERLAY_DEBUG"
+else
+    _pass "validate_proposed does not wire GAMESCOPE_OVERLAY_DEBUG"
+fi
+
+assert_eq "CARDINAL items for :0 decode" ":0" "$(gamescope_decode_cardinal_display "12346, 0, 0")"
+assert_eq "CARDINAL items for :1 decode" ":1" "$(gamescope_decode_cardinal_display "12602, 0, 0")"
+assert_eq "xprop display line for :0 decodes" ":0" "$(gamescope_decode_cardinal_display "GAMESCOPE_MOUSE_FOCUS_DISPLAY(CARDINAL) = 12346, 0, 0")"
+assert_eq "missing display property is unavailable" "unavailable" "$(gamescope_decode_cardinal_display "GAMESCOPE_MOUSE_FOCUS_DISPLAY:  not found.")"
+
+_census_bin="${_test_dir}/census-bin"
+mkdir -p "${_census_bin}"
+_census_children="${_test_dir}/census-children.txt"
+_census_calls="${_test_dir}/census-calls.txt"
+: > "${_census_calls}"
+cat > "${_census_bin}/xwininfo" <<EOF
+#!/usr/bin/env bash
+printf '%s\\n' "xwininfo \$*" >> "${_census_calls}"
+if [[ " \$* " == *" -root "* && " \$* " == *" -children "* ]]; then
+    cat "${_census_children}"
+    exit 0
+fi
+_id=""
+_prev=""
+for _arg in "\$@"; do
+    if [ "\${_prev}" = "-id" ]; then
+        _id="\${_arg}"
+    fi
+    _prev="\${_arg}"
+done
+case "\${_id}" in
+    0x500001|0x500002)
+        printf '%s\\n' "Map State: IsUnMapped"
+        ;;
+    *)
+        printf '%s\\n' "Map State: IsViewable"
+        printf '%s\\n' "  Width: 1280"
+        printf '%s\\n' "  Height: 250"
+        ;;
+esac
+exit 0
+EOF
+cat > "${_census_bin}/xprop" <<EOF
+#!/usr/bin/env bash
+printf '%s\\n' "xprop \$*" >> "${_census_calls}"
+_id=""
+_prop=""
+_prev=""
+for _arg in "\$@"; do
+    if [ "\${_prev}" = "-id" ]; then
+        _id="\${_arg}"
+    fi
+    _prev="\${_arg}"
+    case "\${_arg}" in
+        STEAM_OVERLAY|_NET_WM_WINDOW_OPACITY|STEAM_INPUT_FOCUS|WM_CLASS|GAMESCOPE_MOUSE_FOCUS_DISPLAY|GAMESCOPE_KEYBOARD_FOCUS_DISPLAY|GAMESCOPE_FOCUS_DISPLAY|GAMESCOPE_FOCUSED_WINDOW|GAMESCOPE_SCALING_FILTER|STEAM_SCREEN_SCALE|_NET_CLIENT_LIST|_NET_WM_PID)
+            _prop="\${_arg}"
+            ;;
+    esac
+done
+if [[ " \$* " == *" -set "* ]]; then
+    exit 0
+fi
+if [[ " \$* " == *" -root "* && " \$* " == *"GAMESCOPE_MOUSE_FOCUS_DISPLAY"* ]]; then
+    printf '%s\\n' "GAMESCOPE_MOUSE_FOCUS_DISPLAY(CARDINAL) = 12602, 0, 0"
+    printf '%s\\n' "GAMESCOPE_KEYBOARD_FOCUS_DISPLAY(CARDINAL) = 12346, 0, 0"
+    printf '%s\\n' "GAMESCOPE_FOCUS_DISPLAY(CARDINAL) = 12602, 0, 0"
+    printf '%s\\n' "GAMESCOPE_FOCUSED_WINDOW(CARDINAL) = 99"
+    exit 0
+fi
+case "\${_prop}" in
+    _NET_CLIENT_LIST)
+        printf '%s\\n' "_NET_CLIENT_LIST(WINDOW): window id # 0x40000a"
+        ;;
+    _NET_WM_PID)
+        printf '%s\\n' "_NET_WM_PID(CARDINAL) = 424242"
+        ;;
+    STEAM_OVERLAY)
+        printf '%s\\n' "STEAM_OVERLAY(CARDINAL) = 1"
+        ;;
+    _NET_WM_WINDOW_OPACITY)
+        if [ "\${_id}" = "0x500002" ]; then
+            printf '%s\\n' "_NET_WM_WINDOW_OPACITY(CARDINAL) = 100"
+        else
+            printf '%s\\n' "_NET_WM_WINDOW_OPACITY:  not found."
+        fi
+        ;;
+    STEAM_INPUT_FOCUS)
+        printf '%s\\n' "STEAM_INPUT_FOCUS(CARDINAL) = 1"
+        ;;
+    WM_CLASS)
+        if [ "\${_id}" = "0x40000a" ]; then
+            printf '%s\\n' "WM_CLASS(STRING) = \\"zenity\\", \\"Zenity\\""
+        else
+            printf '%s\\n' "WM_CLASS(STRING) = \\"steamwebhelper\\", \\"Steam\\""
+        fi
+        ;;
+    GAMESCOPE_MOUSE_FOCUS_DISPLAY)
+        printf '%s\\n' "GAMESCOPE_MOUSE_FOCUS_DISPLAY(CARDINAL) = 12602, 0, 0"
+        ;;
+    GAMESCOPE_KEYBOARD_FOCUS_DISPLAY)
+        printf '%s\\n' "GAMESCOPE_KEYBOARD_FOCUS_DISPLAY(CARDINAL) = 12346, 0, 0"
+        ;;
+    GAMESCOPE_FOCUS_DISPLAY)
+        printf '%s\\n' "GAMESCOPE_FOCUS_DISPLAY(CARDINAL) = 12602, 0, 0"
+        ;;
+    GAMESCOPE_FOCUSED_WINDOW)
+        printf '%s\\n' "GAMESCOPE_FOCUSED_WINDOW(CARDINAL) = 99"
+        ;;
+    *)
+        printf '%s\\n' "\${_prop}:  not found."
+        ;;
+esac
+exit 0
+EOF
+chmod +x "${_census_bin}/xwininfo" "${_census_bin}/xprop"
+export PATH="${_census_bin}:${PATH}"
+hash -r 2>/dev/null || true
+
+_write_children() {
+    cat > "${_census_children}" <<EOF
+xwininfo: Window id: 0x1 (the root window) (has no name)
+
+  Width: 1280
+  Height: 800
+$1
+EOF
+}
+
+window_title="SECRET_DIALOG_TITLE"
+_write_children '     0x40000a "SECRET_DIALOG_TITLE": ("zenity" "Zenity")  1280x250+0+0  +0+0'
+_scan="$(gamescope_overlay_scan_children "0x40000a")"
+if printf '%s\n' "${_scan}" | grep -q '^predicted_overlay_wid=0x40000a$'; then
+    _pass "census (a) our dialog alone predicts our wid"
+else
+    _fail "census (a) predicted wrong ($(printf '%s\n' "${_scan}" | grep predicted || true))"
+fi
+if printf '%s\n' "${_scan}" | grep -q 'SECRET_DIALOG_TITLE'; then
+    _fail "census logged our dialog title"
+else
+    _pass "census omits our dialog title"
+fi
+
+_write_children '     0x40000a "SECRET_DIALOG_TITLE": ("zenity" "Zenity")  1280x250+0+0  +0+0
+     0x500001 "Steam Overlay": ("steamwebhelper" "Steam")  1280x800+0+0  +0+0'
+_scan="$(gamescope_overlay_scan_children "0x40000a")"
+if printf '%s\n' "${_scan}" | grep -q '^predicted_overlay_wid=0x500001$'; then
+    _pass "census (b) equal-opacity Steam listed below wins"
+else
+    _fail "census (b) predicted wrong ($(printf '%s\n' "${_scan}" | grep predicted || true))"
+fi
+if printf '%s\n' "${_scan}" | grep -q 'name=Steam Overlay'; then
+    _pass "census logs the other window name"
+else
+    _fail "census did not log the competing window name"
+fi
+
+_write_children '     0x40000a "SECRET_DIALOG_TITLE": ("zenity" "Zenity")  1280x250+0+0  +0+0
+     0x500002 "Steam Overlay": ("steamwebhelper" "Steam")  1280x800+0+0  +0+0'
+_scan="$(gamescope_overlay_scan_children "0x40000a")"
+if printf '%s\n' "${_scan}" | grep -q '^predicted_overlay_wid=0x40000a$'; then
+    _pass "census (c) lower-opacity Steam does not win"
+else
+    _fail "census (c) predicted wrong ($(printf '%s\n' "${_scan}" | grep predicted || true))"
+fi
+
+_write_children '     0x40000a "SECRET_DIALOG_TITLE": ("zenity" "Zenity")  1280x250+0+0  +0+0
+     0x500001 "Steam Overlay": ("steamwebhelper" "Steam")  1280x800+0+0  +0+0'
+_scan="$(gamescope_overlay_scan_children "0x40000a")"
+if printf '%s\n' "${_scan}" | grep -q 'wid=0x500001 map=IsUnMapped' && printf '%s\n' "${_scan}" | grep -q '^predicted_overlay_wid=0x500001$'; then
+    _pass "census (d) unmapped wide overlay still counts"
+else
+    _fail "census (d) unmapped overlay did not count ($(printf '%s\n' "${_scan}" | grep -E '0x500001|predicted' || true))"
+fi
+
+_lines=""
+_i=0
+while [ "${_i}" -lt 65 ]; do
+    _hex=$(printf '0x6%04x' "${_i}")
+    _lines="${_lines}     ${_hex} \"extra\": (\"x\" \"X\")  100x100+0+0  +0+0
+"
+    _i=$((_i + 1))
+done
+_write_children "${_lines}"
+_scan="$(gamescope_overlay_scan_children "")"
+_child_n="$(printf '%s\n' "${_scan}" | grep -c '^child ' || true)"
+if printf '%s\n' "${_scan}" | grep -q '^census_truncated=true$' && [ "${_child_n}" -le 64 ]; then
+    _pass "census stops at 64 children"
+else
+    _fail "census cap failed (children=${_child_n}, truncated=$(printf '%s\n' "${_scan}" | grep census_truncated || true))"
+fi
+
+_debug_log="${_test_dir}/debug-gamescope.log"
+: > "${_debug_log}"
+: > "${_census_calls}"
+log_to_file() { printf '%s\n' "$*" >> "${_debug_log}"; }
+export env_type="gamescope"
+export GAMESCOPE_OVERLAY_DEBUG="false"
+unset GAMESCOPE_DEBUG_LOGGED_KEY GAMESCOPE_ATOMS_LOGGED_WID
+dialog_tool="zenity"
+popup_position="center"
+pause_available="true"
+pause_duration="5"
+gamescope_debug_event="spawn"
+gamescope_debug_requested_w="400"
+gamescope_debug_requested_h="250"
+gamescope_debug_override_w="1280"
+gamescope_debug_override_h="250"
+window_title="SECRET_DIALOG_TITLE"
+base_message="SECRET_WARNING_BODY"
+apply_gamescope_overlay_atoms "SECRET_DIALOG_TITLE" "" "424242" || true
+if grep -q 'DEBUG-GAMESCOPE' "${_debug_log}"; then
+    _fail "flag off emitted DEBUG-GAMESCOPE"
+else
+    _pass "flag off emits no DEBUG-GAMESCOPE line"
+fi
+if grep -q -- '-children' "${_census_calls}"; then
+    _fail "flag off called xwininfo -children"
+else
+    _pass "flag off does not census xwininfo -children"
+fi
+if grep -q -- '-set STEAM_OVERLAY 1' "${_census_calls}" && grep -q -- '-set STEAM_INPUT_FOCUS 1' "${_census_calls}"; then
+    _pass "flag off still sets overlay atoms"
+else
+    _fail "flag off did not set overlay atoms ($(cat "${_census_calls}"))"
+fi
+
+export GAMESCOPE_OVERLAY_DEBUG="true"
+export GAMESCOPE_OVERLAY_DEBUG_SYNC="true"
+unset GAMESCOPE_DEBUG_LOGGED_KEY GAMESCOPE_ATOMS_LOGGED_WID
+: > "${_debug_log}"
+: > "${_census_calls}"
+_write_children '     0x40000a "SECRET_DIALOG_TITLE": ("zenity" "Zenity")  1280x250+0+0  +0+0
+     0x500001 "Steam Overlay": ("steamwebhelper" "Steam")  1280x800+0+0  +0+0'
+apply_gamescope_overlay_atoms "SECRET_DIALOG_TITLE" "" "424242" || true
+apply_gamescope_overlay_atoms "SECRET_DIALOG_TITLE" "" "424242" || true
+_begin_n="$(grep -c 'DEBUG-GAMESCOPE begin' "${_debug_log}" || true)"
+_children_n="$(grep -c -- '-children' "${_census_calls}" || true)"
+assert_eq "flag on logs one DEBUG-GAMESCOPE block per window" "1" "${_begin_n}"
+assert_eq "flag on census runs once across the 2s re-apply" "1" "${_children_n}"
+if grep -q 'dialog_tool=zenity' "${_debug_log}" && grep -q 'pause_available=true' "${_debug_log}" && grep -q 'buttons=OK + --extra-button=Pause 5 min' "${_debug_log}" && grep -q 'predicted_overlay_wid=0x500001' "${_debug_log}" && grep -q 'mouse_focus=:1' "${_debug_log}" && grep -q 'keyboard_focus=:0' "${_debug_log}" && grep -q 'requested=400x250' "${_debug_log}" && grep -q 'override=1280x250' "${_debug_log}"; then
+    _pass "flag on block contains tool, buttons, geometry, focus, and census"
+else
+    _fail "flag on block missing expected keys ($(cat "${_debug_log}"))"
+fi
+if grep -q 'SECRET_DIALOG_TITLE' "${_debug_log}" || grep -q 'SECRET_WARNING_BODY' "${_debug_log}"; then
+    _fail "debug log included the dialog title or warning body"
+else
+    _pass "debug log omits dialog title and warning body"
+fi
+_set_n="$(grep -c -- '-set ' "${_census_calls}" || true)"
+# Three sets: STEAM_OVERLAY, STEAM_INPUT_FOCUS, opacity. Second apply repeats them.
+# Debug reads must not add -set. 2 applies * 3 sets = 6.
+assert_eq "debug logging does not add extra xprop -set calls" "6" "${_set_n}"
+
+unset GAMESCOPE_OVERLAY_DEBUG GAMESCOPE_OVERLAY_DEBUG_SYNC GAMESCOPE_DEBUG_LOGGED_KEY
+export PATH="/usr/bin:/bin"
+hash -r 2>/dev/null || true
 
 echo ""
 echo "Results: ${pass} passed, ${fail} failed"

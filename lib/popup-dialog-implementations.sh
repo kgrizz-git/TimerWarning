@@ -252,6 +252,8 @@ _popup_show_pause_activated_notice() {
 
     local info_pid=""
     local pause_w=400 pause_h=150
+    local _gs_pause_req_w="${pause_w}"
+    local _gs_pause_req_h="${pause_h}"
     if [ "${env_type:-}" = "gamescope" ] && type gamescope_interactive_dialog_dimensions >/dev/null 2>&1; then
         local _pause_dims _pause_rc=0
         _pause_dims=$(gamescope_interactive_dialog_dimensions "${pause_w}" "${pause_h}") || _pause_rc=$?
@@ -303,23 +305,45 @@ _popup_show_pause_activated_notice() {
     esac
 
     if [ -n "${info_pid}" ] && [ "${env_type:-}" = "gamescope" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
+        local _gs_prev_event="${gamescope_debug_event:-spawn}"
+        local _gs_prev_rw="${gamescope_debug_requested_w:-}"
+        local _gs_prev_rh="${gamescope_debug_requested_h:-}"
+        local _gs_prev_ow="${gamescope_debug_override_w:-}"
+        local _gs_prev_oh="${gamescope_debug_override_h:-}"
+        gamescope_debug_event="pause"
+        gamescope_debug_requested_w="${_gs_pause_req_w}"
+        gamescope_debug_requested_h="${_gs_pause_req_h}"
+        gamescope_debug_override_w="${pause_w}"
+        gamescope_debug_override_h="${pause_h}"
         apply_gamescope_overlay_atoms "${title}" "${window_tool:-}" "${info_pid}" || true
+        gamescope_debug_event="${_gs_prev_event}"
+        gamescope_debug_requested_w="${_gs_prev_rw}"
+        gamescope_debug_requested_h="${_gs_prev_rh}"
+        gamescope_debug_override_w="${_gs_prev_ow}"
+        gamescope_debug_override_h="${_gs_prev_oh}"
     fi
 
+    local _pause_notice_rc=0
     if [ "${dialog_tool}" = "kdialog" ] && [ -n "${info_pid}" ]; then
         (
             sleep "${_pause_info_timeout}"
             kill "${info_pid}" 2>/dev/null || true
         ) &
         local killer_pid=$!
-        wait "${info_pid}" 2>/dev/null || true
+        wait "${info_pid}" 2>/dev/null || _pause_notice_rc=$?
         kill "${killer_pid}" 2>/dev/null || true
         wait "${killer_pid}" 2>/dev/null || true
+        if [ "${env_type:-}" = "gamescope" ] && type gamescope_overlay_debug_log_exit >/dev/null 2>&1; then
+            gamescope_overlay_debug_log_exit "${_pause_notice_rc}" "false" "pause" || true
+        fi
         return 0
     fi
 
     if [ -n "${info_pid}" ]; then
-        wait "${info_pid}" 2>/dev/null || true
+        wait "${info_pid}" 2>/dev/null || _pause_notice_rc=$?
+        if [ "${env_type:-}" = "gamescope" ] && type gamescope_overlay_debug_log_exit >/dev/null 2>&1; then
+            gamescope_overlay_debug_log_exit "${_pause_notice_rc}" "false" "pause" || true
+        fi
     fi
 }
 

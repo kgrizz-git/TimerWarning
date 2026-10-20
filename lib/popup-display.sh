@@ -380,6 +380,8 @@ show_warning() {
     # gamescope 3.16.23: small dialogs become notifications (no input) and are
     # fit-scaled ~3–4×. Use full :0 root width + modest height (Stream B).
     if [ "${env_type}" = "gamescope" ] && type gamescope_interactive_dialog_dimensions >/dev/null 2>&1; then
+        gamescope_debug_requested_w="${width}"
+        gamescope_debug_requested_h="${height}"
         local gs_dims gs_w gs_h gs_rc=0
         gs_dims=$(gamescope_interactive_dialog_dimensions "${width}" "${height}") || gs_rc=$?
         gs_w=$(echo "${gs_dims}" | awk '{print $1}')
@@ -395,6 +397,8 @@ show_warning() {
                 log_to_file "WARNING" "gamescope root size unavailable; keeping configured size ${width}x${height} (interactive overlay may fail)"
             fi
         fi
+        gamescope_debug_override_w="${width}"
+        gamescope_debug_override_h="${height}"
     fi
     
     # Warning message
@@ -454,6 +458,7 @@ show_warning() {
         return 1
     fi
 
+    gamescope_debug_event="spawn"
     _popup_linux_run_post_spawn_lifecycle
     return $?
 }
