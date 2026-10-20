@@ -377,8 +377,10 @@ show_warning() {
     width=$(echo "${dimensions}" | cut -d' ' -f1)
     height=$(echo "${dimensions}" | cut -d' ' -f2)
 
-    # gamescope 3.16.23: small dialogs become notifications (no input) and are
-    # fit-scaled ~3–4×. Use full :0 root width + modest height (Stream B).
+    # gamescope 3.16.23: width must be the full :0 root or the dialog is a
+    # notification. Height is at least half that root. Top-left puts the chrome
+    # in the pointer band (a centered short banner sat outside it). Countdown
+    # respawn reuses these caller locals via _popup_spawn_warning_dialog.
     if [ "${env_type}" = "gamescope" ] && type gamescope_interactive_dialog_dimensions >/dev/null 2>&1; then
         gamescope_debug_requested_w="${width}"
         gamescope_debug_requested_h="${height}"
@@ -388,11 +390,10 @@ show_warning() {
         gs_h=$(echo "${gs_dims}" | awk '{print $2}')
         if [[ "${gs_w}" =~ ^[0-9]+$ ]] && [[ "${gs_h}" =~ ^[0-9]+$ ]]; then
             if [ "${gs_rc}" -eq 0 ]; then
-                log_to_file "INFO" "gamescope interactive size override: ${width}x${height} -> ${gs_w}x${gs_h} (root-width overlay)"
+                log_to_file "INFO" "gamescope interactive size override: ${width}x${height} -> ${gs_w}x${gs_h} (root-width, top-left, height >= half root)"
                 width="${gs_w}"
                 height="${gs_h}"
-                # Full-width banner centers more reliably than top-left under gamescope.
-                popup_position="center"
+                popup_position="top-left"
             else
                 log_to_file "WARNING" "gamescope root size unavailable; keeping configured size ${width}x${height} (interactive overlay may fail)"
             fi

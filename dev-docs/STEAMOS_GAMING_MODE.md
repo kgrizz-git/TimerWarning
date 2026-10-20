@@ -544,6 +544,8 @@ Experimental Gaming Mode overlay support is implemented and **off by default**. 
 
 **On-device retest (2026-10-20):** Full width with a short height is the expected banner. Enter can activate OK; it may also reach Steam underneath (exclusivity not confirmed). The mouse cursor still cannot enter the popup. Do not treat that as a reason to turn off forced auto-close or the popup watchdog. Plan: [plans/plan-gamescope-overlay-click-through-2026-10-19.md](plans/plan-gamescope-overlay-click-through-2026-10-19.md).
 
+**Code (2026-10-20, Stream F):** gamescope warning dialogs, countdown respawns, and the pause notice are forced to **top-left** with a height of at least half the `:0` root (capped at the root; still full root width). That puts the window in the cursor band seen on device. Desktop Mode sizes and position are unchanged. `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1`, forced auto-close, and the watchdog are unchanged. Click and Enter exclusivity still need an on-device retest.
+
 ### Debug logging (`GAMESCOPE_OVERLAY_DEBUG`)
 
 Default **off**. When it is on, each gamescope warning spawn, countdown respawn, and pause notice writes one `DEBUG-GAMESCOPE` block to the warning log (root size, requested vs override size, tool, pause/button flags, window id, atom read-back, focus displays, and an overlay census). It does not change geometry, atoms, buttons, auto-close, or the watchdog. The 2-second atom refresh does not write another block.

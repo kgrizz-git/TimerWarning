@@ -254,6 +254,9 @@ _popup_show_pause_activated_notice() {
     local pause_w=400 pause_h=150
     local _gs_pause_req_w="${pause_w}"
     local _gs_pause_req_h="${pause_h}"
+    # Desktop pause notices stay centered. Gamescope uses the same top-left
+    # hit region as the warning dialog once the root-size override succeeds.
+    local _pause_position="center"
     if [ "${env_type:-}" = "gamescope" ] && type gamescope_interactive_dialog_dimensions >/dev/null 2>&1; then
         local _pause_dims _pause_rc=0
         _pause_dims=$(gamescope_interactive_dialog_dimensions "${pause_w}" "${pause_h}") || _pause_rc=$?
@@ -262,10 +265,11 @@ _popup_show_pause_activated_notice() {
         _ph=$(echo "${_pause_dims}" | awk '{print $2}')
         if [ "${_pause_rc}" -eq 0 ] && [[ "${_pw}" =~ ^[0-9]+$ ]] && [[ "${_ph}" =~ ^[0-9]+$ ]]; then
             if type log_to_file >/dev/null 2>&1; then
-                log_to_file "INFO" "gamescope pause notice size override: ${pause_w}x${pause_h} -> ${_pw}x${_ph}"
+                log_to_file "INFO" "gamescope pause notice size override: ${pause_w}x${pause_h} -> ${_pw}x${_ph} (top-left)"
             fi
             pause_w="${_pw}"
             pause_h="${_ph}"
+            _pause_position="top-left"
         elif type log_to_file >/dev/null 2>&1; then
             log_to_file "WARNING" "gamescope pause notice: root size unavailable; keeping ${pause_w}x${pause_h}"
         fi
@@ -282,12 +286,20 @@ _popup_show_pause_activated_notice() {
             info_pid=$!
             ;;
         yad)
+            local -a _pause_yad_pos=(--center)
+            if [ "${_pause_position}" = "top-left" ]; then
+                local _pause_coords _pause_x _pause_y
+                _pause_coords=$(calculate_popup_geometry "top-left" "${pause_w}" "${pause_h}" "true")
+                _pause_x=$(echo "${_pause_coords}" | cut -d' ' -f1)
+                _pause_y=$(echo "${_pause_coords}" | cut -d' ' -f2)
+                _pause_yad_pos=(--posx="${_pause_x}" --posy="${_pause_y}")
+            fi
             ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --info \
                 --title="${title}" \
                 --text="${text}" \
                 --width="${pause_w}" \
                 --height="${pause_h}" \
-                --center \
+                "${_pause_yad_pos[@]}" \
                 --fixed \
                 --button="OK:0" \
                 --timeout="${_pause_info_timeout}" \
@@ -303,6 +315,12 @@ _popup_show_pause_activated_notice() {
             return 0
             ;;
     esac
+
+    # zenity and kdialog have no position flags. Yad already passed --posx/--posy;
+    # the move is the same backup the warning dialog uses when a window tool exists.
+    if [ "${_pause_position}" = "top-left" ] && [ -n "${info_pid}" ] && [ -n "${window_tool:-}" ]; then
+        reposition_popup_window "${title}" "${window_tool}" "top-left" "${pause_w}" "${pause_h}" &
+    fi
 
     if [ -n "${info_pid}" ] && [ "${env_type:-}" = "gamescope" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
         local _gs_prev_event="${gamescope_debug_event:-spawn}"

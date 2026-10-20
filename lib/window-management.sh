@@ -240,13 +240,13 @@ gamescope_get_x11_root_size() {
     return 1
 }
 
-# Compute gamescope interactive dialog size: full root width + modest height.
-# gamescope 3.16.23 only treats STEAM_OVERLAY windows with nWidth > 1200 as the
-# interactive overlay (else notification = visible, no input). Full canvas width
-# also yields ~1.0 fit-scale (avoids 3–4× magnification of small dialogs).
+# Compute gamescope interactive dialog size: full root width and height at least
+# half the root (capped at root_h). gamescope 3.16.23 treats STEAM_OVERLAY
+# windows with nWidth <= 1200 as notifications (visible, no input). Full canvas
+# width keeps the width-axis fit-scale at about 1.0.
 # Parameters:
 #   $1: fallback width (used only if root size unavailable)
-#   $2: fallback height (preferred height, capped at root_h/2)
+#   $2: fallback height (preferred height; raised to at least root_h/2)
 # Prints "WIDTH HEIGHT". Returns 0 when root size was read, 1 when falling back.
 gamescope_interactive_dialog_dimensions() {
     local fallback_w="${1:-400}"
@@ -278,15 +278,16 @@ gamescope_interactive_dialog_dimensions() {
         fi
     fi
 
+    # Floor is max(fallback, root_h/2). Half under 200px uses 200 when the
+    # canvas allows, then the result is capped at root_h.
     half_h=$((root_h / 2))
-    if [ "${half_h}" -lt 150 ]; then
+    if [ "${half_h}" -lt 200 ] && [ "${root_h}" -ge 200 ]; then
+        half_h=200
+    elif [ "${half_h}" -lt 200 ]; then
         half_h="${root_h}"
     fi
     height="${fallback_h}"
-    if [ "${height}" -lt 200 ]; then
-        height=200
-    fi
-    if [ "${height}" -gt "${half_h}" ]; then
+    if [ "${height}" -lt "${half_h}" ]; then
         height="${half_h}"
     fi
     if [ "${height}" -gt "${root_h}" ]; then
@@ -718,9 +719,21 @@ calculate_popup_geometry() {
     local width="$2"
     local height="$3"
     local only_coords="${4:-false}"  # If true, only return "X Y" instead of full geometry
-    
-    # Get screen dimensions (requires xrandr or xdpyinfo)
-    local screen_width screen_height
+
+    # Gamescope top-left is the nested canvas origin. Desktop margins can push a
+    # full-width window off-screen. Skip the screen probe (unset under set -u).
+    if [ "${env_type:-}" = "gamescope" ] && [ "${position}" = "top-left" ]; then
+        if [ "${only_coords}" = "true" ]; then
+            echo "0 0"
+        else
+            echo "${width}x${height}+0+0"
+        fi
+        return 0
+    fi
+
+    # Get screen dimensions (requires xrandr or xdpyinfo).
+    # Empty defaults let the 1920x1080 fallback run under set -u.
+    local screen_width="" screen_height=""
     if command -v xrandr >/dev/null 2>&1; then
         local screen_info geometry
         

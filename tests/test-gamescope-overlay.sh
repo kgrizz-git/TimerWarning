@@ -351,13 +351,24 @@ echo "=== 3b. gamescope_interactive_dialog_dimensions (full root width) ==="
 
 _saved_root_fn="$(declare -f gamescope_get_x11_root_size)"
 gamescope_get_x11_root_size() { echo "1280 800"; return 0; }
-assert_eq "interactive dims on 1280x800 root with small fallback" "1280 250" \
+assert_eq "interactive dims on 1280x800 root floor height at half root" "1280 400" \
     "$(gamescope_interactive_dialog_dimensions 400 250)"
 gamescope_get_x11_root_size() { echo "3840 1440"; return 0; }
-assert_eq "interactive dims on 3840x1440 root use full width" "3840 250" \
+assert_eq "interactive dims on 3840x1440 root use full width and half height" "3840 720" \
     "$(gamescope_interactive_dialog_dimensions 400 250)"
 gamescope_get_x11_root_size() { echo "800 600"; return 0; }
-assert_eq "interactive dims on 800-wide root use 1201 last-resort width" "1201 250" \
+assert_eq "interactive dims on 800-wide root use 1201 last-resort width and half height" "1201 300" \
+    "$(gamescope_interactive_dialog_dimensions 400 250)"
+gamescope_get_x11_root_size() { echo "1280 800"; return 0; }
+assert_eq "interactive dims keep a configured height above half root" "1280 500" \
+    "$(gamescope_interactive_dialog_dimensions 400 500)"
+assert_eq "interactive dims cap height at root" "1280 800" \
+    "$(gamescope_interactive_dialog_dimensions 400 900)"
+gamescope_get_x11_root_size() { echo "1280 300"; return 0; }
+assert_eq "interactive dims raise a tiny half-root floor to 200 when the canvas allows" "1280 200" \
+    "$(gamescope_interactive_dialog_dimensions 400 50)"
+gamescope_get_x11_root_size() { echo "1280 80"; return 0; }
+assert_eq "interactive dims cap a tiny root at root height" "1280 80" \
     "$(gamescope_interactive_dialog_dimensions 400 250)"
 gamescope_get_x11_root_size() { return 1; }
 _fb_rc=0
@@ -365,6 +376,91 @@ _fb_dims="$(gamescope_interactive_dialog_dimensions 400 250)" || _fb_rc=$?
 assert_eq "interactive dims fallback size when root unread" "400 250" "${_fb_dims}"
 assert_eq "interactive dims returns non-zero when root unread" "1" "${_fb_rc}"
 eval "${_saved_root_fn}"
+
+env_type="gamescope"
+assert_eq "gamescope top-left pins the dialog to the canvas origin" "0 0" \
+    "$(calculate_popup_geometry top-left 2560 720 true)"
+env_type="x11"
+_desktop_tl="$(calculate_popup_geometry top-left 400 250 true)"
+if [ "${_desktop_tl}" != "0 0" ]; then
+    _pass "desktop top-left is not pinned to the gamescope origin"
+else
+    _fail "desktop top-left was forced to 0 0"
+fi
+unset env_type
+
+echo ""
+echo "=== 3c. gamescope show_warning forces top-left and half-root height ==="
+
+_gs_layout_file="${_test_dir}/gamescope-show-layout.txt"
+_gs_respawn_file="${_test_dir}/gamescope-respawn-layout.txt"
+(
+    # shellcheck disable=SC1091
+    source "${PROJECT_DIR}/lib/popup-display.sh"
+    export DISPLAY_DETECTION_PATH="test"
+    export DISPLAY_DETECTION_NOTE=""
+    log_message() { return 0; }
+    log_to_file() { return 0; }
+    is_darwin() { return 1; }
+    ensure_utf8_locale_for_dialogs() { return 0; }
+    detect_display_environment() { echo "gamescope"; }
+    get_display_identifier() { echo ":0"; }
+    get_display() { echo ":0"; }
+    check_window_tools() { echo ""; }
+    detect_window_state() { echo "fullscreen|game"; }
+    get_dialog_tool_config() { echo "auto"; }
+    check_dialog_tool() { echo "zenity"; }
+    get_popup_display_frequency() { echo "10"; }
+    get_popup_size() { echo "small"; }
+    get_popup_position() { echo "center"; }
+    popup_safe_get_min_display_time() { echo "0"; }
+    popup_safe_get_auto_close() { echo "true"; }
+    get_popup_dimensions() { echo "400 250"; }
+    get_next_unrestricted_time() { echo "07:00"; }
+    can_pause_now() { return 1; }
+    dialog_safe_text() { printf '%s' "${1:-}"; }
+    _popup_linux_acquire_spawn_lock() { return 0; }
+    _popup_linux_should_skip_for_existing_popup() { return 1; }
+    _popup_linux_on_spawn_failure() { return 0; }
+    gamescope_get_x11_root_size() { echo "1280 800"; return 0; }
+    _popup_spawn_warning_dialog() {
+        printf '%s %s %s\n' "${width}" "${height}" "${popup_position}" > "${_gs_layout_file}"
+        popup_pid=""
+    }
+    show_warning
+    gamescope_get_x11_root_size() { return 1; }
+    _popup_spawn_warning_dialog() {
+        printf 'fallback %s %s %s\n' "${width}" "${height}" "${popup_position}" >> "${_gs_layout_file}"
+        popup_pid=""
+    }
+    show_warning
+    popup_position="top-left"
+    width="1280"
+    height="400"
+    window_tool=""
+    base_message="base"
+    dialog_tool="zenity"
+    window_title="ALERT: Restricted time window"
+    popup_pid=""
+    pause_available="false"
+    pause_duration=""
+    _popup_watchdog_expired_file=""
+    env_type="gamescope"
+    cleanup_popup_pid() { return 0; }
+    save_popup_pid() { return 0; }
+    _popup_linux_arm_gamescope_atoms() { return 0; }
+    _popup_spawn_warning_dialog() {
+        printf '%s %s %s\n' "${width}" "${height}" "${popup_position}" > "${_gs_respawn_file}"
+        popup_pid="424242"
+    }
+    _popup_linux_update_countdown 4
+)
+_gs_forced="$(head -n1 "${_gs_layout_file}" 2>/dev/null || true)"
+assert_eq "gamescope show_warning forces top-left and half-root height" "1280 400 top-left" "${_gs_forced}"
+_gs_fallback="$(sed -n '2p' "${_gs_layout_file}" 2>/dev/null || true)"
+assert_eq "gamescope keeps configured center when root size is unread" "fallback 400 250 center" "${_gs_fallback}"
+_gs_respawn="$(cat "${_gs_respawn_file}" 2>/dev/null || true)"
+assert_eq "countdown respawn keeps gamescope top-left and height" "1280 400 top-left" "${_gs_respawn}"
 
 echo ""
 echo "=== 4. _popup_spawn_warning_dialog X11 Backend Enforcement ==="
@@ -418,7 +514,7 @@ assert_eq "_popup_spawn_warning_dialog sets QT_QPA_PLATFORM=xcb" "xcb" "${_logge
 assert_eq "_popup_spawn_warning_dialog unsets WAYLAND_DISPLAY" "UNSET" "${_logged_wayland}"
 assert_eq "_popup_spawn_warning_dialog unsets GDK_SCALE" "UNSET" "${_logged_scale}"
 assert_eq "_popup_spawn_warning_dialog passes root-width to zenity" "1280" "${_logged_w}"
-assert_eq "_popup_spawn_warning_dialog passes modest height to zenity" "250" "${_logged_h}"
+assert_eq "_popup_spawn_warning_dialog passes the caller height to zenity" "250" "${_logged_h}"
 assert_eq "_popup_spawn_warning_dialog preserves exact dialog PID via env exec" "${popup_pid}" "${_logged_pid}"
 unset GDK_SCALE
 
@@ -669,6 +765,64 @@ if [ -n "${_tagged_pid}" ] && grep -q -- '--title=Pause Activated' "${_pause_arg
     _pass "pause notice uses a titled zenity info dialog"
 else
     _fail "pause notice did not launch a titled zenity dialog (pid=${_tagged_pid}, args=$(cat "${_pause_args}" 2>/dev/null))"
+fi
+
+_pause_move_file="${_test_dir}/pause-move.txt"
+(
+    gamescope_get_x11_root_size() { echo "1280 800"; return 0; }
+    cat > "${_pause_bin}/yad" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" > "${_pause_args}"
+exit 0
+EOF
+    chmod +x "${_pause_bin}/yad"
+    export env_type="gamescope"
+    dialog_tool="yad"
+    window_tool=""
+    _pause_info_timeout=5
+    _dlg_prefix=(env -u WAYLAND_DISPLAY GDK_BACKEND=x11 QT_QPA_PLATFORM=xcb)
+    _popup_show_pause_activated_notice "01:00"
+)
+if grep -q -- '--height=400' "${_pause_args}" && grep -q -- '--posx=0' "${_pause_args}" && grep -q -- '--posy=0' "${_pause_args}" && ! grep -q -- '--center' "${_pause_args}"; then
+    _pass "gamescope yad pause notice is top-left and at least half root height"
+else
+    _fail "gamescope yad pause notice layout wrong ($(cat "${_pause_args}" 2>/dev/null))"
+fi
+(
+    gamescope_get_x11_root_size() { echo "1280 800"; return 0; }
+    reposition_popup_window() {
+        printf '%s %s %s\n' "$3" "$4" "$5" > "${_pause_move_file}"
+    }
+    export env_type="gamescope"
+    dialog_tool="zenity"
+    window_tool="xdotool"
+    _pause_info_timeout=5
+    _dlg_prefix=(env -u WAYLAND_DISPLAY GDK_BACKEND=x11 QT_QPA_PLATFORM=xcb)
+    _popup_show_pause_activated_notice "01:00"
+)
+_move_seen=""
+_i=0
+while [ "${_i}" -lt 20 ]; do
+    if [ -s "${_pause_move_file}" ]; then
+        _move_seen="$(cat "${_pause_move_file}")"
+        break
+    fi
+    sleep 0.1
+    _i=$((_i + 1))
+done
+assert_eq "gamescope zenity pause notice repositions to top-left at half root height" "top-left 1280 400" "${_move_seen}"
+(
+    export env_type="x11"
+    dialog_tool="yad"
+    window_tool=""
+    _pause_info_timeout=5
+    unset _dlg_prefix
+    _popup_show_pause_activated_notice "01:00"
+)
+if grep -q -- '--center' "${_pause_args}" && grep -q -- '--height=150' "${_pause_args}"; then
+    _pass "desktop yad pause notice stays centered at the configured size"
+else
+    _fail "desktop yad pause notice changed ($(cat "${_pause_args}" 2>/dev/null))"
 fi
 
 cat > "${_pause_bin}/kdialog" <<EOF
