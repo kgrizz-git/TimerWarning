@@ -140,12 +140,22 @@ _gs_debug_xprop_value() {
 }
 
 # Button flags we actually pass, matching the gamescope spawn paths.
-# Does not invent a zenity Cancel. Parameters: $1 tool, $2 pause_available, $3 pause minutes
+# Does not invent a zenity Cancel. The pause notice is an info dialog whatever
+# pause_available says, so kind=pause reports its own flags.
+# Parameters: $1 tool, $2 pause_available, $3 pause minutes, $4 kind (optional)
 gamescope_overlay_debug_button_summary() {
     local tool="${1:-}"
     local pause_ok="${2:-false}"
     local pause_min="${3:-}"
-    if [ "${pause_ok}" = "true" ] && [ -n "${pause_min}" ]; then
+    local kind="${4:-}"
+    if [ "${kind}" = "pause" ]; then
+        case "${tool}" in
+            zenity) printf '%s\n' "--info OK" ;;
+            yad) printf '%s\n' "--info --button=OK:0" ;;
+            kdialog) printf '%s\n' "--msgbox OK" ;;
+            *) printf '%s\n' "unavailable" ;;
+        esac
+    elif [ "${pause_ok}" = "true" ] && [ -n "${pause_min}" ]; then
         case "${tool}" in
             zenity) printf '%s\n' "OK + --extra-button=Pause ${pause_min} min" ;;
             yad) printf '%s\n' "--button=Pause ${pause_min} min:42 --button=OK:0" ;;
@@ -298,7 +308,7 @@ gamescope_overlay_debug_emit() {
     local mouse_raw keyboard_raw focus_raw focused_raw scaling_raw scale_raw
     local mouse_dec keyboard_dec focus_dec focused_log extra_focus=""
 
-    buttons=$(gamescope_overlay_debug_button_summary "${tool}" "${pause_ok}" "${pause_min}")
+    buttons=$(gamescope_overlay_debug_button_summary "${tool}" "${pause_ok}" "${pause_min}" "${kind}")
     if [ -z "${req_w}" ] || [ -z "${req_h}" ]; then
         req_w="unavailable"
         req_h=""

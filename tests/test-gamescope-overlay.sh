@@ -1127,6 +1127,11 @@ _set_n="$(grep -c -- '-set ' "${_census_calls}" || true)"
 # Debug reads must not add -set. 2 applies * 3 sets = 6.
 assert_eq "debug logging does not add extra xprop -set calls" "6" "${_set_n}"
 
+# Pause notice is an info dialog even while the warning had pause_available=true.
+assert_eq "pause notice buttons (zenity) are info OK, not warning Pause" "--info OK" "$(gamescope_overlay_debug_button_summary zenity true 5 pause)"
+assert_eq "pause notice buttons (yad) are the OK:0 we pass" "--info --button=OK:0" "$(gamescope_overlay_debug_button_summary yad true 5 pause)"
+assert_eq "pause notice buttons (kdialog) are msgbox OK" "--msgbox OK" "$(gamescope_overlay_debug_button_summary kdialog true 5 pause)"
+
 unset GAMESCOPE_OVERLAY_DEBUG GAMESCOPE_OVERLAY_DEBUG_SYNC GAMESCOPE_DEBUG_LOGGED_KEY
 export PATH="/usr/bin:/bin"
 hash -r 2>/dev/null || true

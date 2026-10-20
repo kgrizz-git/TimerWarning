@@ -326,6 +326,7 @@ _popup_linux_enforce_min_display_time() {
                 fi
             fi
 
+            _popup_linux_note_gamescope_debug_exit "${popup_exit_code}" "false"
             _popup_linux_update_countdown "${remaining}" || return 1
         else
             local should_redraw=false

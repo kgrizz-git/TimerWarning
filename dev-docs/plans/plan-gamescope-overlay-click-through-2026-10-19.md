@@ -405,6 +405,7 @@ Gamescope forces `popup_position=center`, so the yad path is the `--center --fix
 - [x] Phase 2 plan: Claude Opus 5.5 review (2026-10-20, approve-with-fixes applied; plan approved for coding, Stream E first)
 - [x] Stream E debug flag approved (name `GAMESCOPE_OVERLAY_DEBUG`; env wins over config with the gaming-mode boolean parser; writer preserves the key; not a wizard control; log-only) — Grok 4.7, 2026-10-20
 - [x] Stream E code: getter, file-only writer round-trip, neutral partial-lock arm, one `DEBUG-GAMESCOPE` block per spawn/respawn/pause notice (not the 2s poll). Log-only; default off. On-device capture is still open.
+- [x] Stream E implementation: Claude Opus 5.5 final review (2026-10-20, approve-with-fixes: pause-notice button summary, exit line on respawn-on-dismiss) ([archive](../code-assessments/gamescope-clickthrough-stream-e-review-opus-2026-10-20.md))
 - [x] No SAFETY.md invariant changes (16 h cap, finite popup lifetime, and escape hatch unchanged; debug flag does not alter them)
 - [ ] Human go-ahead for Phase 2 coding after plan reviews
 
@@ -416,3 +417,4 @@ Gamescope forces `popup_position=center`, so the yad path is the `--center --fix
 - TO_DO: [TO_DO.md](../TO_DO.md)
 - Prior Opus CLI reviews (archived): [initial](../code-assessments/gamescope-clickthrough-plan-review-opus-2026-10-19.md) · [docked follow-up](../code-assessments/gamescope-clickthrough-plan-review-opus-docked-followup-2026-10-19.md) · [final approve](../code-assessments/gamescope-clickthrough-plan-review-opus-final-approve-2026-10-19.md)
 - Phase 2 plan reviews: [Grok 4.7, 2026-10-20](../code-assessments/gamescope-clickthrough-phase2-plan-review-grok-2026-10-20.md) · [Claude Opus 5.5, 2026-10-20](../code-assessments/gamescope-clickthrough-phase2-plan-review-opus-2026-10-20.md)
+- Stream E implementation review: [Claude Opus 5.5, 2026-10-20](../code-assessments/gamescope-clickthrough-stream-e-review-opus-2026-10-20.md)
