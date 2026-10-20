@@ -667,7 +667,7 @@ Future versions may support custom messages per day or time range.
   - Configures the systemd user service drop-in (`~/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf`) with `DISPLAY=:0` and the gamescope Wayland socket. Re-run Option 12 to rewrite a drop-in that still contains `GAMESCOPE_SESSION`
   - Forces GTK/Qt dialog tools (`yad`/`zenity`/`kdialog`) onto the X11/Xwayland backend (`:0`) instead of Wayland
   - Tags popup windows with `xprop` atoms `STEAM_OVERLAY=1` and `STEAM_INPUT_FOCUS=1` so `gamescope` composites the warning above fullscreen games and routes controller/touch input to the dialog
-  - Requests full gamescope nested display width and at least half that display's height, placed at the top-left, so gamescope 3.16.x can treat the dialog as an interactive overlay and the window sits in the pointer band (retest clicks on device after enabling)
+  - Requests full gamescope nested display width and at least two thirds of that display's height, placed at the top-left, so gamescope 3.16.x can treat the dialog as an interactive overlay and the window sits in the pointer band (retest clicks on device after enabling)
   - Forces popup auto-close (`GAMESCOPE_FORCE_AUTO_CLOSE=true`) in addition to the hard watchdog timeout so a dialog can never leave you stuck in Gaming Mode if controller focus is lost
 - **Requirements & Limitations:**
   - Requires `xprop` (`xorg-xprop`, pre-installed on SteamOS) for setting `STEAM_OVERLAY=1` and `STEAM_INPUT_FOCUS=1`

@@ -351,21 +351,21 @@ echo "=== 3b. gamescope_interactive_dialog_dimensions (full root width) ==="
 
 _saved_root_fn="$(declare -f gamescope_get_x11_root_size)"
 gamescope_get_x11_root_size() { echo "1280 800"; return 0; }
-assert_eq "interactive dims on 1280x800 root floor height at half root" "1280 400" \
+assert_eq "interactive dims on 1280x800 root floor height at two thirds of root" "1280 533" \
     "$(gamescope_interactive_dialog_dimensions 400 250)"
 gamescope_get_x11_root_size() { echo "3840 1440"; return 0; }
-assert_eq "interactive dims on 3840x1440 root use full width and half height" "3840 720" \
+assert_eq "interactive dims on 3840x1440 root use full width and two-thirds height" "3840 960" \
     "$(gamescope_interactive_dialog_dimensions 400 250)"
 gamescope_get_x11_root_size() { echo "800 600"; return 0; }
-assert_eq "interactive dims on 800-wide root use 1201 last-resort width and half height" "1201 300" \
+assert_eq "interactive dims on 800-wide root use 1201 last-resort width and two-thirds height" "1201 400" \
     "$(gamescope_interactive_dialog_dimensions 400 250)"
 gamescope_get_x11_root_size() { echo "1280 800"; return 0; }
-assert_eq "interactive dims keep a configured height above half root" "1280 500" \
-    "$(gamescope_interactive_dialog_dimensions 400 500)"
+assert_eq "interactive dims keep a configured height above two thirds of root" "1280 600" \
+    "$(gamescope_interactive_dialog_dimensions 400 600)"
 assert_eq "interactive dims cap height at root" "1280 800" \
     "$(gamescope_interactive_dialog_dimensions 400 900)"
-gamescope_get_x11_root_size() { echo "1280 300"; return 0; }
-assert_eq "interactive dims raise a tiny half-root floor to 200 when the canvas allows" "1280 200" \
+gamescope_get_x11_root_size() { echo "1280 250"; return 0; }
+assert_eq "interactive dims raise a tiny two-thirds floor to 200 when the canvas allows" "1280 200" \
     "$(gamescope_interactive_dialog_dimensions 400 50)"
 gamescope_get_x11_root_size() { echo "1280 80"; return 0; }
 assert_eq "interactive dims cap a tiny root at root height" "1280 80" \
@@ -390,7 +390,7 @@ fi
 unset env_type
 
 echo ""
-echo "=== 3c. gamescope show_warning forces top-left and half-root height ==="
+echo "=== 3c. gamescope show_warning forces top-left and two-thirds-root height ==="
 
 _gs_layout_file="${_test_dir}/gamescope-show-layout.txt"
 _gs_respawn_file="${_test_dir}/gamescope-respawn-layout.txt"
@@ -436,7 +436,7 @@ _gs_respawn_file="${_test_dir}/gamescope-respawn-layout.txt"
     show_warning
     popup_position="top-left"
     width="1280"
-    height="400"
+    height="533"
     window_tool=""
     base_message="base"
     dialog_tool="zenity"
@@ -456,11 +456,56 @@ _gs_respawn_file="${_test_dir}/gamescope-respawn-layout.txt"
     _popup_linux_update_countdown 4
 )
 _gs_forced="$(head -n1 "${_gs_layout_file}" 2>/dev/null || true)"
-assert_eq "gamescope show_warning forces top-left and half-root height" "1280 400 top-left" "${_gs_forced}"
+assert_eq "gamescope show_warning forces top-left and two-thirds-root height" "1280 533 top-left" "${_gs_forced}"
 _gs_fallback="$(sed -n '2p' "${_gs_layout_file}" 2>/dev/null || true)"
 assert_eq "gamescope keeps configured center when root size is unread" "fallback 400 250 center" "${_gs_fallback}"
 _gs_respawn="$(cat "${_gs_respawn_file}" 2>/dev/null || true)"
-assert_eq "countdown respawn keeps gamescope top-left and height" "1280 400 top-left" "${_gs_respawn}"
+assert_eq "countdown respawn keeps gamescope top-left and height" "1280 533 top-left" "${_gs_respawn}"
+
+# gamescope has no _NET_CLIENT_LIST, so wmctrl -l is empty there. The zenity
+# top-left move must go through xdotool; Desktop keeps the wmctrl path.
+_repo_bin="${_test_dir}/reposition-bin"
+_repo_log="${_test_dir}/reposition.log"
+mkdir -p "${_repo_bin}"
+cat > "${_repo_bin}/wmctrl" <<EOF
+#!/usr/bin/env bash
+echo "wmctrl \$*" >> "${_repo_log}"
+if [ "\${1:-}" = "-l" ]; then
+    echo "0x0300000a  0 deck ALERT: Restricted time window"
+fi
+exit 0
+EOF
+cat > "${_repo_bin}/xdotool" <<EOF
+#!/usr/bin/env bash
+echo "xdotool \$*" >> "${_repo_log}"
+if [ "\${1:-}" = "search" ]; then
+    echo "50331658"
+fi
+exit 0
+EOF
+chmod +x "${_repo_bin}/wmctrl" "${_repo_bin}/xdotool"
+: > "${_repo_log}"
+(
+    export PATH="${_repo_bin}:${PATH}"
+    env_type="gamescope"
+    reposition_popup_window "ALERT: Restricted time window" "wmctrl" "top-left" 1280 533 1
+)
+if grep -q '^xdotool windowmove 50331658 0 0$' "${_repo_log}" && ! grep -q '^wmctrl' "${_repo_log}"; then
+    _pass "gamescope reposition uses xdotool to move to the canvas origin even when wmctrl is installed"
+else
+    _fail "gamescope reposition did not use xdotool windowmove 0 0 ($(tr '\n' ';' < "${_repo_log}"))"
+fi
+: > "${_repo_log}"
+(
+    export PATH="${_repo_bin}:${PATH}"
+    env_type="x11"
+    reposition_popup_window "ALERT: Restricted time window" "wmctrl" "top-left" 400 250 1
+)
+if grep -q '^wmctrl -i -r 0x0300000a -e ' "${_repo_log}" && ! grep -q '^xdotool' "${_repo_log}"; then
+    _pass "desktop reposition keeps the wmctrl path"
+else
+    _fail "desktop reposition changed tool ($(tr '\n' ';' < "${_repo_log}"))"
+fi
 
 echo ""
 echo "=== 4. _popup_spawn_warning_dialog X11 Backend Enforcement ==="
@@ -783,8 +828,8 @@ EOF
     _dlg_prefix=(env -u WAYLAND_DISPLAY GDK_BACKEND=x11 QT_QPA_PLATFORM=xcb)
     _popup_show_pause_activated_notice "01:00"
 )
-if grep -q -- '--height=400' "${_pause_args}" && grep -q -- '--posx=0' "${_pause_args}" && grep -q -- '--posy=0' "${_pause_args}" && ! grep -q -- '--center' "${_pause_args}"; then
-    _pass "gamescope yad pause notice is top-left and at least half root height"
+if grep -q -- '--height=533' "${_pause_args}" && grep -q -- '--posx=0' "${_pause_args}" && grep -q -- '--posy=0' "${_pause_args}" && ! grep -q -- '--center' "${_pause_args}"; then
+    _pass "gamescope yad pause notice is top-left and at least two thirds of root height"
 else
     _fail "gamescope yad pause notice layout wrong ($(cat "${_pause_args}" 2>/dev/null))"
 fi
@@ -810,7 +855,7 @@ while [ "${_i}" -lt 20 ]; do
     sleep 0.1
     _i=$((_i + 1))
 done
-assert_eq "gamescope zenity pause notice repositions to top-left at half root height" "top-left 1280 400" "${_move_seen}"
+assert_eq "gamescope zenity pause notice repositions to top-left at two-thirds root height" "top-left 1280 533" "${_move_seen}"
 (
     export env_type="x11"
     dialog_tool="yad"

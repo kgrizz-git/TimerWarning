@@ -241,17 +241,18 @@ gamescope_get_x11_root_size() {
 }
 
 # Compute gamescope interactive dialog size: full root width and height at least
-# half the root (capped at root_h). gamescope 3.16.23 treats STEAM_OVERLAY
-# windows with nWidth <= 1200 as notifications (visible, no input). Full canvas
-# width keeps the width-axis fit-scale at about 1.0.
+# two thirds of the root (capped at root_h). gamescope 3.16.23 treats
+# STEAM_OVERLAY windows with nWidth <= 1200 as notifications (visible, no input).
+# Full canvas width keeps the width-axis fit-scale at about 1.0. The tall floor
+# keeps the bottom button row inside the pointer band seen on device.
 # Parameters:
 #   $1: fallback width (used only if root size unavailable)
-#   $2: fallback height (preferred height; raised to at least root_h/2)
+#   $2: fallback height (preferred height; raised to at least root_h*2/3)
 # Prints "WIDTH HEIGHT". Returns 0 when root size was read, 1 when falling back.
 gamescope_interactive_dialog_dimensions() {
     local fallback_w="${1:-400}"
     local fallback_h="${2:-250}"
-    local root_wh root_w root_h width height half_h
+    local root_wh root_w root_h width height floor_h
 
     if ! [[ "${fallback_w}" =~ ^[0-9]+$ ]]; then
         fallback_w=400
@@ -278,17 +279,17 @@ gamescope_interactive_dialog_dimensions() {
         fi
     fi
 
-    # Floor is max(fallback, root_h/2). Half under 200px uses 200 when the
-    # canvas allows, then the result is capped at root_h.
-    half_h=$((root_h / 2))
-    if [ "${half_h}" -lt 200 ] && [ "${root_h}" -ge 200 ]; then
-        half_h=200
-    elif [ "${half_h}" -lt 200 ]; then
-        half_h="${root_h}"
+    # Height is max(fallback, root_h*2/3). A floor under 200px uses 200 when
+    # the canvas allows, then the result is capped at root_h.
+    floor_h=$((root_h * 2 / 3))
+    if [ "${floor_h}" -lt 200 ] && [ "${root_h}" -ge 200 ]; then
+        floor_h=200
+    elif [ "${floor_h}" -lt 200 ]; then
+        floor_h="${root_h}"
     fi
     height="${fallback_h}"
-    if [ "${height}" -lt "${half_h}" ]; then
-        height="${half_h}"
+    if [ "${height}" -lt "${floor_h}" ]; then
+        height="${floor_h}"
     fi
     if [ "${height}" -gt "${root_h}" ]; then
         height="${root_h}"
@@ -839,6 +840,12 @@ reposition_popup_window() {
     if [ -z "${tool}" ] || [ "${position}" = "center" ]; then
         # No tool available or center position (default), skip repositioning
         return 0
+    fi
+
+    # gamescope publishes no _NET_CLIENT_LIST, so `wmctrl -l` finds nothing.
+    # Its ConfigureRequest handler honors plain moves, so xdotool works there.
+    if [ "${env_type:-}" = "gamescope" ] && [ "${tool}" = "wmctrl" ] && command -v xdotool >/dev/null 2>&1; then
+        tool="xdotool"
     fi
     
     # Wait for window to be fully created and rendered

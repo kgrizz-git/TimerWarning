@@ -105,7 +105,7 @@ Deck internal panel is 1280-wide; `root_width` (1280) satisfies `> 1200`. Docked
 |-------|----------|--------|
 | Force X11 on `:0` in gamescope | `lib/popup-display.sh` | OK for visibility |
 | Set `STEAM_OVERLAY=1` + `STEAM_INPUT_FOCUS=1` | `lib/window-management.sh` → `apply_gamescope_overlay_atoms` | Appears successful in log. Also sets `_NET_WM_WINDOW_OPACITY=0xffffffff` (cannot beat a later equal-opacity window) |
-| Full-width size | `gamescope_interactive_dialog_dimensions` | Width = `:0` root (1201 only if root ≤ 1200). Height = max(configured, half root); tiny roots raise that floor to 200px when the canvas allows, then cap at `root_h`. When the override applies, `popup_position` is forced to `top-left` (2026-10-20 Stream F) |
+| Full-width size | `gamescope_interactive_dialog_dimensions` | Width = `:0` root (1201 only if root ≤ 1200). Height = max(configured, ⅔ root); tiny roots raise that floor to 200px when the canvas allows, then cap at `root_h`. When the override applies, `popup_position` is forced to `top-left` (2026-10-20 Stream F; floor raised from ½ to ⅔ in the Opus final review) |
 | Window lookup | `find_window_id_for_popup` | Prefers `_NET_CLIENT_LIST` (empty in gamescope) → **xdotool `--onlyvisible --pid`** → title → `xwininfo` |
 | Background arm | `lib/popup-display-linux.sh` → `_popup_linux_arm_gamescope_atoms` | **2s refresh loop runs only when `window_tool` is empty.** On Deck with xdotool, atoms apply **once per spawn**, not every 2s. `keep_window_on_top` returns immediately on gamescope |
 | Unit tests | `tests/test-gamescope-overlay.sh` | Mocked xprop; no geometry / 1200 rule |
@@ -184,6 +184,14 @@ User report in SteamOS Gaming Mode:
 **Decision-table outcome:** `FOCUS_DISPLAY=:0` → rely on census. Census = **ours**, no competing Steam overlay. Split-focus / Steam-stole-overlay is **not** supported for this session. Interpretation: we likely already hold global overlay input, but the pointer clip / hit region does not cover the centered short dialog → Stream F **spike 4 + top-align** (not Stream D yet).
 
 **Stream F chunk (approved to implement):** gamescope-only (1) force `popup_position=top-left` so chrome sits in the cursor band; (2) raise interactive height to at least **½ root height** (cap `root_h`; still full root width). Desktop Mode unchanged. Re-test click + Enter; if still unusable → Stream D.
+
+**Stream F final review (Opus, 2026-10-20) — gamescope 3.16.23 source read:**
+
+- `paint_window(overlay, overlay, …)` takes the `w == scaleW` branch: the overlay is fit-scaled from its own buffer size and **centered**. Its X11 `nX`/`nY` is ignored when painting.
+- Pointer coordinates are surface-local and clamped to the mouse-focus surface (`wlserver_clampcursor`), here our dialog.
+- `MouseCursor::paint` draws the cursor at `(cursor - window nX/nY) * scale + centering offset` of the input-focus window. A window mapped away from 0,0 therefore shows its cursor shifted up and left by its position. With a centered 304 px window the drawn cursor lands near the top of the panel while the dialog is painted mid-screen. This matches "confined to the top third".
+- So **top-left at 0,0 is the load-bearing fix**: it lines the drawn cursor up with the painted dialog. The taller floor is extra margin. The review raised it to **⅔ root** at the user's request so the bottom button row sits well inside any band.
+- `configure_request` passes moves through to `XConfigureWindow`, so `xdotool windowmove` works. gamescope never publishes `_NET_CLIENT_LIST`, so `wmctrl -l` finds no windows. The reposition helper now prefers `xdotool` under gamescope; this Deck has both (`wmctrl` from Nix).
 
 ### Phase 2 hypothesis — split focus (primary)
 
@@ -335,7 +343,7 @@ Spikes, in order. Stop when logs answer the question. Do not change the default 
 1. Read `GAMESCOPE_MOUSE_FOCUS_DISPLAY` and `GAMESCOPE_KEYBOARD_FOCUS_DISPLAY`. Cursor-on-game shows up as the mouse display staying on the game plane while the dialog is on `:0`. Keyboard on `:0` and mouse on the game plane is the split. Read the Stream E census (`predicted_overlay_wid`, competing overlays' opacity and `STEAM_INPUT_FOCUS`) with these, then apply the decision table below. Re-asserting `STEAM_INPUT_FOCUS` on a window that is not `overlayWindow` will not move the cursor. Do not use `GAMESCOPE_FOCUSED_WINDOW` for this; on 3.16.23 that property is `focusWindow` (the game).
 2. The 2s refresh in `_popup_linux_arm_gamescope_atoms` does **not** run when `window_tool` is set. Deck has xdotool, so atoms are once per spawn. A re-apply spike must be explicit, still backgrounded, and bounded by the popup duration. Do not clear `window_tool` to turn the old loop on.
 3. **No raise or lower spike (rejected by the Opus 5.5 review).** On 3.16.23, `ctx->list` is top first, so a raise moves us **earlier** and loses `>=` ties. gamescope already raises the per-ctx input-focus window itself, and a lower would be raised again on the next focus pass. If the census shows another wide overlay won the tie, there is no client-side stacking fix. Go to the decision table below. Do not set `STEAM_INPUT_FOCUS=2`. Re-open this only for a different gamescope version whose source shows another walk order or tie rule.
-4. **Implemented in code (2026-10-20; on-device retest open):** census predicted ours; cursor confined to ~top third while dialog was centered/short. Gamescope-only: **`popup_position=top-left`** (no longer forced `center`) **and** height ≥ **½ `root_h`** (`max(configured, root_h/2)`, cap `root_h`; tiny roots use a 200px floor when the canvas allows). Full-width + ≥½ height stays scale ≤ 1.0 on the width axis. Re-check OK/Pause visible. If clicks still impossible after that → Stream D.
+4. **Implemented in code (2026-10-20; on-device retest open):** census predicted ours; cursor confined to ~top third while dialog was centered/short. Gamescope-only: **`popup_position=top-left`** (no longer forced `center`) **and** height ≥ **⅔ `root_h`** (`max(configured, root_h*2/3)`, cap `root_h`; tiny roots use a 200px floor when the canvas allows; first landed as ½, raised in the Opus final review). zenity is moved to 0,0 with `xdotool` (preferred over `wmctrl` under gamescope). Full-width + ≥⅔ height stays scale ≤ 1.0 on the width axis. Re-check OK/Pause visible. If clicks still impossible after that → Stream D.
 5. Do not warp or `XGrabPointer` from the shell. gamescope hides the cursor on input-focus change and owns the pointer. An X11 warp on `:0` is unlikely to move that cursor, and a grab in the parent shell can outlive the dialog. The watchdog must remain the lifetime bound.
 
 If our window is global input focus and pointer events still never arrive, stop and write Stream D. Keep Enter and forced auto-close.
@@ -365,12 +373,12 @@ Do not invent a Cancel button for zenity. Current spawn flags:
 | kdialog | yes | `--warningyesno`: Yes = `Pause N min`, No = **Dismiss** (not the word Cancel). No width/height flags |
 | kdialog | no | `--sorry` (OK). No width/height flags |
 
-After the Stream F chunk, gamescope uses `popup_position=top-left` (not `center`). Yad may take the top-left reposition path; `--fixed` plus insufficient height can still clip a button row — confirm with post-map geometry. Height ownership for the hit-region fix is Stream F (½ root floor), not Stream G.
+After the Stream F chunk, gamescope uses `popup_position=top-left` (not `center`). Yad may take the top-left reposition path; `--fixed` plus insufficient height can still clip a button row — confirm with post-map geometry. Height ownership for the hit-region fix is Stream F (⅔ root floor), not Stream G.
 
 1. Stream E logs the tool, `pause_available`, and these flags. Desktop vs Gaming Mode can differ because the service PATH or `DIALOG_TOOL` picks a different tool (2026-10-19 session was zenity).
 2. Pause missing because `can_pause_now` is false is expected. Document it; do not treat it as a gamescope bug.
 3. A missing Cancel on zenity or a kdialog **Dismiss** label is tool chrome. Align docs with the table above. Do not add a zenity Cancel.
-4. Raise the gamescope height floor only when read-back shows a button row clipped. Keep the cap at half root unless Stream F has already taken ownership of height for a confirmed hit-test miss. Do not also change height in Stream F for a different reason in the same patch.
+4. Raise the gamescope height floor only when read-back shows a button row clipped. Stream F has taken ownership of height (⅔ root floor, cap `root_h`). Do not also change height in Stream F for a different reason in the same patch.
 
 ## Tests and docs (Phase 2)
 
@@ -390,7 +398,7 @@ After the Stream F chunk, gamescope uses `popup_position=top-left` (not `center`
 - [x] After Phase 1: full width (2026-10-20)
 - [x] After Phase 1: keyboard Enter can activate OK (2026-10-20) — **exclusivity unconfirmed**
 - [x] With `GAMESCOPE_OVERLAY_DEBUG=true`: capture one full popup cycle (2026-10-20 ~02:12) — census=ours; displays all `:0`; zenity OK only; geometry ~2644×304
-- [ ] After top-align + ≥½-root height: cursor can reach dialog chrome and click OK/Pause
+- [ ] After top-align + ≥⅔-root height: cursor can reach dialog chrome and click OK/Pause
 - [ ] Enter/A does **not** also trigger Steam UI underneath
 - [x] Button set this session: zenity OK only with `pause_available=false` (not a Cancel bug)
 - [ ] Button set when pause available: OK + Pause; no unexpected clipping
@@ -413,7 +421,7 @@ After the Stream F chunk, gamescope uses `popup_position=top-left` (not `center`
 
 1. Stream E — done (`2ae2f71` + Opus `52d81b3`).
 2. On-device debug cycle — done 2026-10-20; drop-in removed by user after capture.
-3. Stream F chunk — **top-left + height ≥ ½ root** (gamescope-only). Code landed 2026-10-20. Raise/lower still rejected. No input grab. On-device retest still open.
+3. Stream F chunk — **top-left + height ≥ ⅔ root** (gamescope-only; zenity moved via `xdotool`). Code landed 2026-10-20; Opus final review done. Raise/lower still rejected. No input grab. On-device retest still open.
 4. On-device retest after F. Stream D only if pointer still unusable.
 5. Stream G only for confirmed tool/clipping issues (Cancel not invented for zenity).
 6. Docs + CHANGELOG. Chunked: Grok review+commit per chunk; Opus final.
@@ -427,8 +435,8 @@ After the Stream F chunk, gamescope uses `popup_position=top-left` (not `center`
 - [x] Stream E debug flag approved (name `GAMESCOPE_OVERLAY_DEBUG`; env wins over config with the gaming-mode boolean parser; writer preserves the key; not a wizard control; log-only) — Grok 4.7, 2026-10-20
 - [x] Stream E code + Opus final review (2026-10-20)
 - [x] On-device Stream E capture (2026-10-20 ~02:12): census=ours; cursor top-third; Enter dismisses; zenity OK-only
-- [ ] Stream F: top-left + ≥½-root height (Grok implement+commit, Opus final)
-  - Grok implement+commit done 2026-10-20. Opus final review and the on-device click retest are still open. Do not check this item until both are done.
+- [x] Stream F code: top-left + ≥⅔-root height (Grok implement+commit `93604ac`; Opus final review 2026-10-20 raised the floor ½→⅔ and moved zenity via `xdotool` under gamescope)
+- [ ] Stream F on-device click retest (cursor reaches OK/Pause; see the manual checklist)
 - [x] No SAFETY.md invariant changes
 - [x] Human go-ahead for Stream F (2026-10-20)
 
@@ -441,3 +449,4 @@ After the Stream F chunk, gamescope uses `popup_position=top-left` (not `center`
 - Prior Opus CLI reviews (archived): [initial](../code-assessments/gamescope-clickthrough-plan-review-opus-2026-10-19.md) · [docked follow-up](../code-assessments/gamescope-clickthrough-plan-review-opus-docked-followup-2026-10-19.md) · [final approve](../code-assessments/gamescope-clickthrough-plan-review-opus-final-approve-2026-10-19.md)
 - Phase 2 plan reviews: [Grok 4.7, 2026-10-20](../code-assessments/gamescope-clickthrough-phase2-plan-review-grok-2026-10-20.md) · [Claude Opus 5.5, 2026-10-20](../code-assessments/gamescope-clickthrough-phase2-plan-review-opus-2026-10-20.md)
 - Stream E implementation review: [Claude Opus 5.5, 2026-10-20](../code-assessments/gamescope-clickthrough-stream-e-review-opus-2026-10-20.md)
+- Stream F final review: [Claude Opus 5.5, 2026-10-20](../code-assessments/gamescope-clickthrough-stream-f-review-opus-2026-10-20.md)
