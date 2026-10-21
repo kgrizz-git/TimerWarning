@@ -46,8 +46,8 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 
 ## Documentation and release
 
-- [ ] **Licensing** — Select and apply license → [LICENSE_OPTIONS.md](info/LICENSE_OPTIONS.md), [phase 5 plan](plans/phases/plan-phase-5-documentation.md)
-- [ ] **#27** — Verify PayPal donation links; Phase 2 GitHub Sponsors after license → [enhancement-27](enhancements/enhancement-27-paypal-donation-links.md)
+- [ ] **Public repository preparation — next: licensing** — Revised [publication plan](plans/plan-public-repo-prep-2026-10-16.md); Phase 1 starts on `chore/public-repo-prep-phase-1`. Resolve the proposed noncommercial license, then apply it and contribution terms. PR #7 completed the overlay/safety work, not publication preparation.
+- [ ] **Donation cleanup** — Remove existing PayPal links and reconcile superseded [#27](enhancements/enhancement-27-paypal-donation-links.md) requests in publication Phase 2; do not add donation integrations as part of preparation.
 - [ ] **SteamOS locale docs** — User guide section (Nix + manual paths); do not automate `locale-gen` in install.sh → [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#documentation-work)
 
 ## Distribution (lower priority)
@@ -69,4 +69,4 @@ Track detail in [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#mostly-imp
 
 **Plans index:** [Master plan](plans/master/linux-warning-system-plan.md) · [Active plans](plans/) · [Completed plans](completed-plans/)
 
-**Last updated:** 2026-10-20 (gamescope Phase 2 done: click verified; Stream G button docs)
+**Last updated:** 2026-10-21 (PR #7 merged; publication plan revised and next licensing phase identified)
