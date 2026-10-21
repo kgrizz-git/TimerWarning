@@ -66,6 +66,10 @@ The absolute popup lifetime cap is `POPUP_ABSOLUTE_MAX_SECONDS` (default **330**
 
 On Linux, a countdown redraw keeps the outgoing dialog registered until it exits so the watchdog can still kill it if TERM fails. Watchdog expiry also prevents further respawns in that popup session, including expiry during a spawn. A failed respawn is retried at most three times within the same deadline before notification fallback. Failed watchdog setup closes the popup. Pause-confirmation notices have their own TERM-then-KILL deadline, armed before display probes; the warning's watchdog cannot protect a new notice PID. On macOS, the osascript wrapper force-terminates and reaps its dialog child on watchdog expiry.
 
+Gamescope root-size queries before dialog creation have a roughly two-second
+deadline. A stalled query is killed and reaped, and sizing uses fallback
+dimensions so it cannot indefinitely block warning or pause-notice creation.
+
 ## Always-available escape hatch (the third invariant)
 
 The user can always permanently disable the system through at least one documented path. These paths are not blocked by `CONFIGURE_BLOCK_ENABLED` or `CONFIG_LOCK_ENABLED`:

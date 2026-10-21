@@ -17,6 +17,7 @@ tier_a:
   scripts:
     - test-daily-caps.sh
     - test-review-regressions.sh
+    - test-greptile-regressions.sh
     - test-safety-review-fixes.sh
     - test-invariant-messages.sh
     - test-time-picker-minutes.sh

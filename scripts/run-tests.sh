@@ -286,7 +286,7 @@ main() {
         fi
 
         echo "--- ${script} ---"
-        if ! _run_with_timeout 300 bash "${path}"; then
+        if ! _run_with_timeout 300 "${BASH}" "${path}"; then
             echo "FAIL: ${script}" >&2
             failed=1
         fi

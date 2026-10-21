@@ -222,6 +222,28 @@ make_window_unclosable() {
 # after a successful find for diagnostics (gamescope overlay logging).
 FIND_WINDOW_LOOKUP_PATH=""
 
+# Keep pre-spawn geometry queries bounded even without GNU timeout (macOS).
+# A subshell owns the probe and its cleanup; no background timer can leak.
+_gamescope_root_info() (
+    local output probe_pid="" rc=0 attempt=0
+    output=$(mktemp "${TMPDIR:-/tmp}/sleep-warning-root.XXXXXX") || return 1
+    trap 'if [ -n "${probe_pid}" ]; then kill -KILL "${probe_pid}" 2>/dev/null || true; wait "${probe_pid}" 2>/dev/null || true; fi; rm -f "${output}"' EXIT
+    trap 'exit 1' TERM INT
+    xwininfo -root >"${output}" 2>/dev/null &
+    probe_pid=$!
+    while kill -0 "${probe_pid}" 2>/dev/null; do
+        if [ "${attempt}" -ge 20 ]; then
+            return 1
+        fi
+        sleep 0.1
+        attempt=$((attempt + 1))
+    done
+    wait "${probe_pid}" || rc=$?
+    probe_pid=""
+    [ "${rc}" -eq 0 ] || return 1
+    cat "${output}"
+)
+
 # Read X11 root window size for the current DISPLAY ("WIDTH HEIGHT").
 # Used for gamescope interactive overlay sizing (nested :0 canvas, not the TV panel).
 # Returns 0 on success, 1 if xwininfo missing or sizes are non-numeric.
@@ -230,7 +252,7 @@ gamescope_get_x11_root_size() {
         return 1
     fi
     local info width height
-    info=$(xwininfo -root 2>/dev/null) || return 1
+    info=$(_gamescope_root_info) || return 1
     width=$(printf '%s\n' "${info}" | awk -F: '/Width:/ {gsub(/ /,"",$2); print $2; exit}')
     height=$(printf '%s\n' "${info}" | awk -F: '/Height:/ {gsub(/ /,"",$2); print $2; exit}')
     if [[ "${width}" =~ ^[0-9]+$ ]] && [[ "${height}" =~ ^[0-9]+$ ]] && [ "${width}" -gt 0 ] && [ "${height}" -gt 0 ]; then
