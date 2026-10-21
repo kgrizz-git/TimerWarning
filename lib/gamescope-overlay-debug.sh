@@ -20,7 +20,9 @@
 # Outputs: log_to_file INFO lines prefixed DEBUG-GAMESCOPE. No dialog title or body.
 #
 # Dependencies: config.sh (get_gamescope_overlay_debug), log_to_file optional.
-# Requires: timeout(1), and xprop/xwininfo when a live X display is probed.
+# Requires: xprop/xwininfo when a live X display is probed.
+# Each probe is bounded by timeout(1), gtimeout, or a 2s bash watchdog
+# (macOS CI has neither GNU timeout nor gtimeout).
 ###############################################################################
 
 # True when the log-only flag is on. Uses the config getter; no second parser.
@@ -102,13 +104,35 @@ _gs_debug_norm_wid() {
     fi
 }
 
-# Run one debug probe. Empty stdout on failure or when timeout(1) is missing.
-# Parameters: command and arguments
+# Run one debug probe with a 2s cap. Empty stdout on failure.
+# Uses timeout, then gtimeout, then a bash watchdog so macOS CI (no GNU timeout)
+# still runs the mocked census. Parameters: command and arguments.
 _gs_debug_probe() {
-    if ! command -v timeout >/dev/null 2>&1; then
+    if command -v timeout >/dev/null 2>&1; then
+        timeout 2 "$@" 2>/dev/null || true
         return 0
     fi
-    timeout 2 "$@" 2>/dev/null || true
+    if command -v gtimeout >/dev/null 2>&1; then
+        gtimeout 2 "$@" 2>/dev/null || true
+        return 0
+    fi
+
+    local pid watcher
+    "$@" 2>/dev/null &
+    pid=$!
+    (
+        sleep 2 || exit 0
+        if kill -0 "${pid}" 2>/dev/null; then
+            kill -TERM "${pid}" 2>/dev/null || true
+            sleep 1
+            kill -KILL "${pid}" 2>/dev/null || true
+        fi
+    ) >/dev/null 2>&1 &
+    watcher=$!
+    wait "${pid}" 2>/dev/null || true
+    kill "${watcher}" 2>/dev/null || true
+    wait "${watcher}" 2>/dev/null || true
+    return 0
 }
 
 # Print the value after '=' for one property, or "unavailable".
