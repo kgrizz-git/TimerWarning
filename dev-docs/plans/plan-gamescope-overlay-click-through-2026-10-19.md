@@ -1,6 +1,6 @@
 # Plan: Gamescope Overlay Click-Through (Buttons Not Clickable)
 
-**Status: PHASE 2 DONE (optional Stream G docs only)** — Streams A+B+E+F shipped; on-device click + Enter exclusivity **passed** 2026-10-20 evening (top-left + ≥⅔ root; Enter did not fire into Steam). Stream D not needed. Stream G is docs/label parity only (zenity has no Cancel).
+**Status: PHASE 2 DONE** — Streams A+B+E+F shipped and Deck-verified; Stream G docs recorded (zenity has no Cancel; yad/kdialog differ). Stream D not needed.
 
 | | |
 |---|---|
@@ -422,9 +422,9 @@ After the Stream F chunk, gamescope uses `popup_position=top-left` (not `center`
 1. Stream E — done (`2ae2f71` + Opus `52d81b3`).
 2. On-device debug cycle — done 2026-10-20; drop-in removed by user after capture.
 3. Stream F chunk — **top-left + height ≥ ⅔ root** (gamescope-only; zenity moved via `xdotool`). Code + Opus review 2026-10-20; **on-device click retest passed** (user, evening). Raise/lower still rejected. No input grab.
-4. On-device retest after F. Stream D only if pointer still unusable.
-5. Stream G only for confirmed tool/clipping issues (Cancel not invented for zenity).
-6. Docs + CHANGELOG. Chunked: Grok review+commit per chunk; Opus final.
+4. On-device retest after F — **passed** (click + Enter exclusivity). Stream D not needed.
+5. Stream G — **docs done** 2026-10-20 (button matrix in STEAMOS_GAMING_MODE + user docs). No zenity Cancel invented.
+6. Chunked impl complete.
 
 ## Review checklist
 
@@ -437,6 +437,8 @@ After the Stream F chunk, gamescope uses `popup_position=top-left` (not `center`
 - [x] On-device Stream E capture (2026-10-20 ~02:12): census=ours; cursor top-third; Enter dismisses; zenity OK-only
 - [x] Stream F code: top-left + ≥⅔-root height (Grok implement+commit `93604ac`; Opus final review 2026-10-20 raised the floor ½→⅔ and moved zenity via `xdotool` under gamescope)
 - [x] Stream F on-device click retest (2026-10-20 evening — cursor/click OK; user: “worked great”)
+- [x] Enter exclusivity (2026-10-20 evening — did not fire into Steam)
+- [x] Stream G docs: zenity OK-only vs yad Cancel / kdialog Dismiss (2026-10-20)
 - [x] No SAFETY.md invariant changes
 - [x] Human go-ahead for Stream F (2026-10-20)
 

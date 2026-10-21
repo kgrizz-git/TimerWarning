@@ -39,7 +39,7 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
   - [x] **2026-10-19 on-device:** popup **displays and stays up** in Gaming Mode (experimental overlay on)
   - [x] **Click-through + magnification (Phase 1 code):** full `:0` root-width gamescope dialogs + atom/geometry logging → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md)
   - [x] **Click-through Phase 2 Streams E+F:** debug capture + top-left / ≥⅔-root height; on-device click retest passed 2026-10-20 → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md)
-  - [ ] **Click-through Phase 2 Stream G (optional):** docs for zenity OK-only vs Desktop Cancel/Dismiss wording → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md)
+  - [x] **Click-through Phase 2 Stream G (docs):** zenity OK-only vs yad Cancel / kdialog Dismiss documented 2026-10-20 → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md)
   - [ ] **Minor log bug (separate):** after auto-close SIGTERM, log may say `User closed popup manually` then exit 143 — fix classification when convenient
 - [ ] **Desktop Mode, no external display** — Run test suite on Steam Deck internal display only
 - [ ] **Multi-distribution install** — Debian/Ubuntu, Fedora/RHEL, Arch/SteamOS, openSUSE, Alpine → [phase 3 plan](plans/phases/plan-phase-3-installation.md)
@@ -69,4 +69,4 @@ Track detail in [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#mostly-imp
 
 **Plans index:** [Master plan](plans/master/linux-warning-system-plan.md) · [Active plans](plans/) · [Completed plans](completed-plans/)
 
-**Last updated:** 2026-10-20 (gamescope Stream F on-device click retest passed)
+**Last updated:** 2026-10-20 (gamescope Phase 2 done: click verified; Stream G button docs)

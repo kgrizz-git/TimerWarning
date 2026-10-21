@@ -546,6 +546,21 @@ Experimental Gaming Mode overlay support is implemented and **off by default**. 
 
 **Code (2026-10-20, Stream F):** gamescope warning dialogs, countdown respawns, and the pause notice are forced to **top-left** with a height of at least two thirds of the `:0` root (capped at the root; still full root width). gamescope 3.16.23 paints the overlay centered and fit-scaled, but draws the cursor offset by the window's X11 position, so the window must sit at 0,0. zenity is moved after map with `xdotool windowmove` (preferred over `wmctrl` under gamescope). Desktop Mode unchanged. `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1`, forced auto-close, and the watchdog unchanged.
 
+### Warning buttons (zenity vs Desktop) — Stream G
+
+Gaming Mode and Desktop Mode may pick different dialog tools (`DIALOG_TOOL=auto` prefers yad → zenity → kdialog; PATH and which packages are installed still matter). **Button labels follow the tool**, not gamescope:
+
+| Tool | Pause available | Buttons |
+|------|-----------------|---------|
+| zenity `--warning` | yes | OK + extra “Pause N min”. **No Cancel** |
+| zenity `--warning` | no | **OK only** (window close is exit 1, not a Cancel button) |
+| yad | yes | Explicit Pause + OK (replaces yad defaults) |
+| yad | no | Default **OK and Cancel** (Cancel exits 252, treated as dismiss) |
+| kdialog | yes | Yes = Pause, No = **Dismiss** (not the word Cancel) |
+| kdialog | no | OK (`--sorry`) |
+
+Deck captures often used **zenity** in Gaming Mode, so the popup showed OK only when pause was unavailable — that is expected, not a missing Cancel bug. Do **not** invent a Cancel button for zenity. To match Desktop chrome more closely, install/prefer **yad** or set `DIALOG_TOOL=yad` (still subject to gamescope geometry/overlay rules).
+
 ### Debug logging (`GAMESCOPE_OVERLAY_DEBUG`)
 
 Default **off**. When it is on, each gamescope warning spawn, countdown respawn, and pause notice writes one `DEBUG-GAMESCOPE` block to the warning log (root size, requested vs override size, tool, pause/button flags, window id, atom read-back, focus displays, and an overlay census). It does not change geometry, atoms, buttons, auto-close, or the watchdog. The 2-second atom refresh does not write another block.

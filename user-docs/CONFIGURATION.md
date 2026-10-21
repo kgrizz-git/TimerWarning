@@ -820,8 +820,9 @@ GAMING_MODE_EXPERIMENTAL_ENABLED=false
 - Off unless this key is `true`. An older `mode-gaming.conf` drop-in does not turn it on.
 - Option 12 can turn it on or off during lock hours. It does not change restriction hours.
 - If no usable display can be found, the warning tries `notify-send` instead of a modal dialog. Gaming Mode may not have a notification daemon.
-- When the overlay path is active, zenity/yad warning dialogs request the full gamescope nested (`:0`) width and at least two thirds of that canvas height, placed at the top-left (gamescope 3.16.x treats narrower `STEAM_OVERLAY` windows as non-interactive notifications). Desktop Mode sizes and position are unchanged. A 2026-10-20 Deck capture (before this placement) was full width and short; Enter could activate OK, and the mouse cursor could not reach the centered banner. Click behavior after the top-left change still needs an on-device retest.
-- Optional `GAMESCOPE_OVERLAY_DEBUG` (default off, not a wizard option) adds log-only diagnostics. Leave it unset unless you are collecting a Gaming Mode log. See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md).
+- When the overlay path is active, zenity/yad warning dialogs request the full gamescope nested (`:0`) width and at least two thirds of that canvas height, placed at the top-left (gamescope 3.16.x treats narrower `STEAM_OVERLAY` windows as non-interactive notifications). Desktop Mode sizes and position are unchanged. Steam Deck verified 2026-10-20 (click + Enter).
+- **Button labels follow the tool:** zenity `--warning` has no Cancel (OK only, or OK + Pause). Yad without pause uses OK and Cancel; kdialog may say Dismiss. Gaming Mode often picks zenity, so a missing Cancel is expected. See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md).
+- Optional `GAMESCOPE_OVERLAY_DEBUG` (default off, not a wizard option) adds log-only diagnostics. Leave it unset unless you are collecting a Gaming Mode log.
 
 ## Complete Configuration Example
 
