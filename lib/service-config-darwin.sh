@@ -176,7 +176,7 @@ EOF
         fi
         launch_agent_bootout
         launchctl bootstrap "$(_launchd_domain)" "${plist_path}" 2>/dev/null \
-            || launchctl load -w "${plist_path}" 2>/dev/null
+            || launchctl load "${plist_path}" 2>/dev/null
     }
 
     launch_agent_kickstart() {
@@ -188,9 +188,7 @@ EOF
     install_launch_agent() {
         local interval="${1:-10}"
         write_launch_agent_plist "${interval}" || return 1
-        launch_agent_bootstrap || return 1
-        launch_agent_kickstart
-        return 0
+        enable_scheduled_service
     }
 
     # Phase 3.1: surface bootout failures instead of masking them with || true
@@ -256,12 +254,34 @@ EOF
     }
 
     enable_scheduled_service() {
-        launch_agent_bootstrap
+        if ! command -v launchctl >/dev/null 2>&1; then
+            echo "Error: launchctl not found" >&2
+            return 1
+        fi
+        # Only an explicit enable/install may clear the persistent disabled state.
+        if ! launchctl enable "$(_launchd_domain)/${LAUNCH_AGENT_LABEL}" 2>/dev/null; then
+            echo "ERROR: launchctl enable failed for ${LAUNCH_AGENT_LABEL}" >&2
+            return 1
+        fi
+        launch_agent_bootstrap || return 1
         launch_agent_kickstart
     }
 
     disable_scheduled_service() {
-        launch_agent_bootout_strict
+        if ! command -v launchctl >/dev/null 2>&1; then
+            echo "Error: launchctl not found" >&2
+            return 1
+        fi
+        local rc=0
+        # bootout stops this session; disable also prevents a later login/reboot
+        # from loading the plist again. Attempt the immediate stop even if the
+        # persistent override fails, and report failure of either operation.
+        if ! launchctl disable "$(_launchd_domain)/${LAUNCH_AGENT_LABEL}" 2>/dev/null; then
+            echo "ERROR: launchctl disable failed for ${LAUNCH_AGENT_LABEL}" >&2
+            rc=1
+        fi
+        launch_agent_bootout_strict || rc=1
+        return "${rc}"
     }
 
     get_launch_agent_status_text() {

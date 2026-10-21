@@ -1,6 +1,6 @@
 # macOS Support
 
-> **Safety:** Read [**docs/SAFETY.md**](../docs/SAFETY.md) before install or development. If popups will not dismiss: `launchctl bootout gui/$(id -u)/com.sleep-warning` and `killall osascript` (details in [Troubleshooting](#troubleshooting-playbook) below).
+> **Safety:** Read [**docs/SAFETY.md**](../docs/SAFETY.md) before install or development. If popups will not dismiss: `launchctl bootout gui/$(id -u)/com.sleep-warning` (details in [Troubleshooting](#troubleshooting-playbook) below).
 
 Linux Sleep Warning System also runs on **macOS 13 (Ventura)** and later using a per-user **LaunchAgent** and **osascript** dialogs.
 
@@ -81,13 +81,19 @@ The macOS build is designed so you are **not** left with a blocking dialog all d
    ```bash
    launchctl bootout gui/$(id -u)/com.sleep-warning
    ```
-   Or: `sleep-warning-manage` → Disable service.
+   This stops the job for this session. `sleep-warning-manage` → Disable service
+   also performs the persistent step below.
 
-2. **Close stuck dialogs:**
+2. **Keep it disabled after login/reboot:**
    ```bash
-   killall osascript
+   launchctl disable gui/$(id -u)/com.sleep-warning
    ```
-   (This closes AppleScript dialogs system-wide.)
+   This does not replace the immediate stop in step 1. To re-enable later, use
+   `sleep-warning-manage` → Enable service. For manual re-enabling, run:
+   ```bash
+   launchctl enable gui/$(id -u)/com.sleep-warning
+   launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.sleep-warning.plist"
+   ```
 
 3. **Watchdog:** Normally the popup is killed within `POPUP_ABSOLUTE_MAX_SECONDS` (default 330s) automatically. If not, note the time and check `warnings.log` for a bug report.
 

@@ -27,6 +27,7 @@ Related: [testing.md](testing.md), [tests/README.md](../../tests/README.md), [ph
 | `test-popup-safety-darwin.sh` | Yes (Tier-A) | No (use linux script) | No | macOS CI | Pass |
 | `test-popup-safety-linux.sh` | No | Yes (Tier-A) | No | Linux CI | Pass — PID-file watchdog + shared unit tests |
 | `test-platform-darwin.sh` | Yes (Tier-A) | No | No | macOS CI | Pass |
+| `test-darwin-persistent-disable.sh` | Yes (Tier-A) | Yes (Tier-A) | No | Yes | Stubbed launchctl; persistent disable, explicit enable and failure/reload paths |
 | `test-configure-comprehensive.sh` | expect + PTY | expect + PTY | No | No | **Fixed** — `.exp` updated for window-behavior submenu + prompt anchoring; 10/10 on macOS (2026-06-13) |
 | `test-dialog-abstraction.sh` | Skip | Skip | Yes | Skip | **Skip** — GUI manual |
 | `test-multi-column-specific.sh` | Skip | Skip | Yes | Skip | **Skip** — GUI manual |

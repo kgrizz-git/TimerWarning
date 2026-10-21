@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Persistent macOS disable:** Disable service now sets launchd's persistent disabled override as well as stopping the job, reporting failure of either operation. Explicit enable/install clears the override; reloads no longer force-enable disabled jobs. The emergency instructions distinguish immediate `bootout` from persistent `disable`.
 - **Pause-notice deadlines:** Every Linux pause-confirmation dialog now has an independent TERM-then-KILL watchdog, including desktop passive notices. Cancelling the watchdog reaps its timer child; cancelling gamescope atom setup terminates its owned process group, including stalled probes. Debug probes also escalate to KILL when GNU `timeout` or `gtimeout` is used.
 - **Gamescope debug root dimensions:** The overlay census explicitly requests `xwininfo -stats`; `-children` alone omits root width/height and incorrectly reported a working display's size as unavailable.
 - **Gamescope debug probes on macOS CI:** Overlay debug probes no longer require GNU `timeout`. They use `timeout`, then `gtimeout`, then a 2-second bash watchdog. Without that, macOS Tier-A skipped every census probe and `test-gamescope-overlay.sh` reported `predicted_overlay_wid=unavailable`.

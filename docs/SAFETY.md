@@ -73,7 +73,12 @@ The user can always permanently disable the system through at least one document
 | Platform | Disable | Uninstall |
 |----------|---------|-----------|
 | Linux | `systemctl --user stop sleep-warning.timer && systemctl --user disable sleep-warning.timer` | `~/.local/bin/sleep-warning-uninstall` |
-| macOS | `launchctl bootout gui/$(id -u)/com.sleep-warning` | `~/.local/bin/sleep-warning-uninstall` |
+| macOS | Stop now: `launchctl bootout gui/$(id -u)/com.sleep-warning`; also run `launchctl disable gui/$(id -u)/com.sleep-warning` to stay disabled after login/reboot | `~/.local/bin/sleep-warning-uninstall` |
+
+On macOS, `bootout` alone is an immediate stop for the current session. The
+management **Disable service** action also sets the persistent `disable`
+override and reports failure of either operation. **Enable service** (or an
+explicit install) clears that override; ordinary reloads do not clear it.
 
 `sleep-warning-manage` is **convenience**, not the escape hatch. Disable service, status, and logs remain available during lock hours. **Configure** opens in **tighten-only partial mode** (see below) instead of being fully blocked.
 
