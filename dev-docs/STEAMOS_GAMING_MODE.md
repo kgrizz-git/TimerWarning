@@ -425,7 +425,7 @@ May vary by game type, rendering technology, and full-screen mode
 - ✅ Dialogs on that path use Xwayland with `GDK_BACKEND=x11` / `QT_QPA_PLATFORM=xcb`, `STEAM_OVERLAY=1`, and `STEAM_INPUT_FOCUS=1`
 - ✅ Popups still end: `GAMESCOPE_FORCE_AUTO_CLOSE` plus the absolute watchdog
 - ✅ On-device appearance over fullscreen games verified (2026-10-19)
-- ✅ Code requests full `:0` root width for zenity/yad interactive overlays (click/sharpness retest still open)
+- ✅ Full `:0` root width + top-left / ≥⅔ height; Deck click verified 2026-10-20
 - ❌ `wmctrl` / `xdotool` do not manage gamescope stacking
 
 **Target Status**: ✅ **Verified on SteamOS Gaming Mode** (still open)
@@ -542,9 +542,9 @@ Experimental Gaming Mode overlay support is implemented and **off by default**. 
 
 **On-device (2026-10-19):** With the experimental toggle on in Gaming Mode, the warning **appeared and stayed visible** over a fullscreen game, but **buttons were not clickable** (notification classification) and a **small** dialog looked **heavily magnified** (per-window fit scaling). **Code fix (same day):** gamescope-only dialogs now request **full `:0` root width** + modest height, keep `STEAM_OVERLAY` / `STEAM_INPUT_FOCUS=1`, and log geometry/atom read-back.
 
-**On-device retest (2026-10-20):** Full width with a short height is the expected banner. Enter can activate OK; it may also reach Steam underneath (exclusivity not confirmed). The mouse cursor still cannot enter the popup. Do not treat that as a reason to turn off forced auto-close or the popup watchdog. Plan: [plans/plan-gamescope-overlay-click-through-2026-10-19.md](plans/plan-gamescope-overlay-click-through-2026-10-19.md).
+**On-device (2026-10-20):** After Stream F (top-left + ≥⅔ root height, zenity moved with `xdotool`), cursor reaches the dialog chrome and **click works** (user confirmed). Enter dismisses the dialog and did **not** appear to fire into Steam. Do not turn off forced auto-close or the popup watchdog. Plan: [plans/plan-gamescope-overlay-click-through-2026-10-19.md](plans/plan-gamescope-overlay-click-through-2026-10-19.md).
 
-**Code (2026-10-20, Stream F):** gamescope warning dialogs, countdown respawns, and the pause notice are forced to **top-left** with a height of at least two thirds of the `:0` root (capped at the root; still full root width). gamescope 3.16.23 always paints the overlay centered and fit-scaled, but it draws the cursor offset by the window's X11 position, so a window away from 0,0 leaves the visible cursor in a band that misses the dialog. zenity has no position flag and is moved after it maps with `xdotool windowmove`. Under gamescope `xdotool` is preferred over `wmctrl`, because gamescope publishes no `_NET_CLIENT_LIST` and `wmctrl -l` finds nothing there. Without `xdotool`, a zenity dialog stays where GTK maps it. Desktop Mode sizes and position are unchanged. `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1`, forced auto-close, and the watchdog are unchanged. Click and Enter exclusivity still need an on-device retest.
+**Code (2026-10-20, Stream F):** gamescope warning dialogs, countdown respawns, and the pause notice are forced to **top-left** with a height of at least two thirds of the `:0` root (capped at the root; still full root width). gamescope 3.16.23 paints the overlay centered and fit-scaled, but draws the cursor offset by the window's X11 position, so the window must sit at 0,0. zenity is moved after map with `xdotool windowmove` (preferred over `wmctrl` under gamescope). Desktop Mode unchanged. `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1`, forced auto-close, and the watchdog unchanged.
 
 ### Debug logging (`GAMESCOPE_OVERLAY_DEBUG`)
 

@@ -38,7 +38,8 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 - [ ] **SteamOS Gaming Mode** — Full validation with full-screen games → [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md), [phase 4 plan](plans/phases/plan-phase-4-testing.md)
   - [x] **2026-10-19 on-device:** popup **displays and stays up** in Gaming Mode (experimental overlay on)
   - [x] **Click-through + magnification (Phase 1 code):** full `:0` root-width gamescope dialogs + atom/geometry logging → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md)
-  - [ ] **Click-through Phase 2:** Stream E capture 2026-10-20 (census=ours; cursor in the top third; Enter dismisses). Stream F code places gamescope dialogs top-left at ≥⅔ root height and moves zenity there with xdotool (Opus final review done 2026-10-20; on-device click retest still open). Still open after that: keyboard exclusivity and button chrome (Stream G) → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md)
+  - [x] **Click-through Phase 2 Streams E+F:** debug capture + top-left / ≥⅔-root height; on-device click retest passed 2026-10-20 → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md)
+  - [ ] **Click-through Phase 2 Stream G (optional):** docs for zenity OK-only vs Desktop Cancel/Dismiss wording → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md)
   - [ ] **Minor log bug (separate):** after auto-close SIGTERM, log may say `User closed popup manually` then exit 143 — fix classification when convenient
 - [ ] **Desktop Mode, no external display** — Run test suite on Steam Deck internal display only
 - [ ] **Multi-distribution install** — Debian/Ubuntu, Fedora/RHEL, Arch/SteamOS, openSUSE, Alpine → [phase 3 plan](plans/phases/plan-phase-3-installation.md)
@@ -68,4 +69,4 @@ Track detail in [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#mostly-imp
 
 **Plans index:** [Master plan](plans/master/linux-warning-system-plan.md) · [Active plans](plans/) · [Completed plans](completed-plans/)
 
-**Last updated:** 2026-10-20 (gamescope Stream F top-left + two-thirds-root height in code, Opus final review done; on-device click retest still open)
+**Last updated:** 2026-10-20 (gamescope Stream F on-device click retest passed)

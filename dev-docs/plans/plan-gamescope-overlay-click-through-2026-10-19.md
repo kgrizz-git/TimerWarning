@@ -1,11 +1,11 @@
 # Plan: Gamescope Overlay Click-Through (Buttons Not Clickable)
 
-**Status: PHASE 2 IN PROGRESS** — Streams A+B (full-width overlay) shipped 2026-10-19. On-device retest 2026-10-20 found **partial** success; mouse/pointer and dual keyboard delivery still open. Grok 4.7 reviewed this Phase 2 revision on 2026-10-20 (approve-with-fixes, edits applied). Claude Opus 5.5 second review 2026-10-20: approve-with-fixes, edits applied; plan is ready for Stream E coding.
+**Status: PHASE 2 DONE (optional Stream G docs only)** — Streams A+B+E+F shipped; on-device click + Enter exclusivity **passed** 2026-10-20 evening (top-left + ≥⅔ root; Enter did not fire into Steam). Stream D not needed. Stream G is docs/label parity only (zenity has no Cancel).
 
 | | |
 |---|---|
 | **Created** | 2026-10-19 |
-| **Updated** | 2026-10-20 (retest findings, then Grok 4.7 plan fixes: split-focus hypothesis, log-only debug flag; then Opus 5.5 fixes: list order proven, raise rejected, overlay census, kill-switch, file-only writer read) |
+| **Updated** | 2026-10-20 (Stream F on-device click verified) |
 | **Related** | [plan-steamos-gaming-mode-overlay-2026-10-16.md](plan-steamos-gaming-mode-overlay-2026-10-16.md), [STEAMOS_GAMING_MODE.md](../STEAMOS_GAMING_MODE.md) |
 | **Reviews** | Opus CLI approved the Phase 1 plan. Grok 4.7 Phase 2 review 2026-10-20: approve-with-fixes, edits applied ([archive](../code-assessments/gamescope-clickthrough-phase2-plan-review-grok-2026-10-20.md)). Claude Opus 5.5 Phase 2 review 2026-10-20: approve-with-fixes, edits applied, plan approved for coding (Stream E first) ([archive](../code-assessments/gamescope-clickthrough-phase2-plan-review-opus-2026-10-20.md)). |
 | **On-device evidence** | See [Retest 2026-10-20](#retest-2026-10-20-after-full-width-fix) and earlier 2026-10-19 notes |
@@ -396,10 +396,10 @@ After the Stream F chunk, gamescope uses `popup_position=top-left` (not `center`
 - [x] Popup visible over fullscreen game (2026-10-19)
 - [x] Popup stays up for min-display / until auto-close (2026-10-19)
 - [x] After Phase 1: full width (2026-10-20)
-- [x] After Phase 1: keyboard Enter can activate OK (2026-10-20) — **exclusivity unconfirmed**
+- [x] After Phase 1: keyboard Enter can activate OK (2026-10-20)
+- [x] Enter/A does **not** also trigger Steam UI underneath (user, 2026-10-20 evening — after Stream F)
 - [x] With `GAMESCOPE_OVERLAY_DEBUG=true`: capture one full popup cycle (2026-10-20 ~02:12) — census=ours; displays all `:0`; zenity OK only; geometry ~2644×304
-- [ ] After top-align + ≥⅔-root height: cursor can reach dialog chrome and click OK/Pause
-- [ ] Enter/A does **not** also trigger Steam UI underneath
+- [x] After top-align + ≥⅔-root height: cursor can reach dialog chrome and click OK/Pause (user confirmed 2026-10-20 evening — “worked great”)
 - [x] Button set this session: zenity OK only with `pause_available=false` (not a Cancel bug)
 - [ ] Button set when pause available: OK + Pause; no unexpected clipping
 - [ ] Touch on button works (if applicable)
@@ -421,7 +421,7 @@ After the Stream F chunk, gamescope uses `popup_position=top-left` (not `center`
 
 1. Stream E — done (`2ae2f71` + Opus `52d81b3`).
 2. On-device debug cycle — done 2026-10-20; drop-in removed by user after capture.
-3. Stream F chunk — **top-left + height ≥ ⅔ root** (gamescope-only; zenity moved via `xdotool`). Code landed 2026-10-20; Opus final review done. Raise/lower still rejected. No input grab. On-device retest still open.
+3. Stream F chunk — **top-left + height ≥ ⅔ root** (gamescope-only; zenity moved via `xdotool`). Code + Opus review 2026-10-20; **on-device click retest passed** (user, evening). Raise/lower still rejected. No input grab.
 4. On-device retest after F. Stream D only if pointer still unusable.
 5. Stream G only for confirmed tool/clipping issues (Cancel not invented for zenity).
 6. Docs + CHANGELOG. Chunked: Grok review+commit per chunk; Opus final.
@@ -436,7 +436,7 @@ After the Stream F chunk, gamescope uses `popup_position=top-left` (not `center`
 - [x] Stream E code + Opus final review (2026-10-20)
 - [x] On-device Stream E capture (2026-10-20 ~02:12): census=ours; cursor top-third; Enter dismisses; zenity OK-only
 - [x] Stream F code: top-left + ≥⅔-root height (Grok implement+commit `93604ac`; Opus final review 2026-10-20 raised the floor ½→⅔ and moved zenity via `xdotool` under gamescope)
-- [ ] Stream F on-device click retest (cursor reaches OK/Pause; see the manual checklist)
+- [x] Stream F on-device click retest (2026-10-20 evening — cursor/click OK; user: “worked great”)
 - [x] No SAFETY.md invariant changes
 - [x] Human go-ahead for Stream F (2026-10-20)
 
