@@ -234,6 +234,46 @@ _popup_spawn_warning_dialog() {
     return 0
 }
 
+# Background-only watchdog. Cancel its current sleep and reap it on every exit;
+# killing a shell blocked in foreground sleep would orphan that sleep process.
+_popup_notice_watchdog() {
+    local notice_pid="$1" delay="$2"
+    local sleeper_pid="" cancelled=false signal_name
+    trap 'cancelled=true; if [ -n "${sleeper_pid}" ]; then kill -KILL "${sleeper_pid}" 2>/dev/null || true; fi' TERM INT HUP
+    trap 'if [ -n "${sleeper_pid}" ]; then kill -KILL "${sleeper_pid}" 2>/dev/null || true; wait "${sleeper_pid}" 2>/dev/null || true; fi' EXIT
+    for signal_name in TERM KILL; do
+        sleep "${delay}" &
+        sleeper_pid=$!
+        [ "${cancelled}" = false ] || return 0
+        wait "${sleeper_pid}" 2>/dev/null || return 0
+        sleeper_pid=""
+        [ "${cancelled}" = false ] || return 0
+        kill -"${signal_name}" "${notice_pid}" 2>/dev/null || true
+        delay=1
+    done
+}
+
+# Background-only wrapper. Give atom setup its own process group, so cancellation
+# terminates in-flight probes and their descendants as well as the worker shell.
+# Job control is changed only inside this background process. The inner worker
+# disables it so debug subjobs and command substitutions remain in that group.
+_popup_notice_atoms_worker() {
+    local atoms_group_pid="" cancelled=false
+    trap 'cancelled=true; if [ -n "${atoms_group_pid}" ]; then kill -KILL -- "-${atoms_group_pid}" 2>/dev/null || true; fi' TERM INT HUP
+    trap 'if [ -n "${atoms_group_pid}" ]; then kill -KILL -- "-${atoms_group_pid}" 2>/dev/null || true; wait "${atoms_group_pid}" 2>/dev/null || true; fi' EXIT
+    set -m
+    (
+        set +m
+        trap - TERM INT HUP EXIT
+        apply_gamescope_overlay_atoms "$1" "$2" "$3" || true
+        # Keep ownership of async debug work until it finishes or is cancelled.
+        wait 2>/dev/null || true
+    ) &
+    atoms_group_pid=$!
+    [ "${cancelled}" = false ] || return 0
+    wait "${atoms_group_pid}" 2>/dev/null || true
+}
+
 # Show the "Pause Activated" notice.
 # On gamescope, spawn a real X11 window in the background, tag it by that PID,
 # then wait. Desktop kdialog keeps a passive notification (no X window to tag).
@@ -318,12 +358,7 @@ _popup_show_pause_activated_notice() {
     # This is a new dialog PID: the warning's PID-file watchdog cannot kill it.
     # Arm an independent deadline before any X11 probes, even for tools with a
     # native --timeout (a stalled GUI event loop may never process that timeout).
-    (
-        sleep "${_pause_info_timeout}"
-        kill -TERM "${info_pid}" 2>/dev/null || true
-        sleep 1
-        kill -KILL "${info_pid}" 2>/dev/null || true
-    ) >/dev/null 2>&1 &
+    _popup_notice_watchdog "${info_pid}" "${_pause_info_timeout}" >/dev/null 2>&1 &
     local killer_pid=$!
     local notice_atoms_pid=""
 
@@ -345,7 +380,7 @@ _popup_show_pause_activated_notice() {
         gamescope_debug_override_w="${pause_w}"
         gamescope_debug_override_h="${pause_h}"
         # Do not let a stalled display probe prevent reaping the bounded notice.
-        ( apply_gamescope_overlay_atoms "${title}" "${window_tool:-}" "${info_pid}" || true ) >/dev/null 2>&1 &
+        _popup_notice_atoms_worker "${title}" "${window_tool:-}" "${info_pid}" >/dev/null 2>&1 &
         notice_atoms_pid=$!
         gamescope_debug_event="${_gs_prev_event}"
         gamescope_debug_requested_w="${_gs_prev_rw}"

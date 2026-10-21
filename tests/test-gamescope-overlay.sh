@@ -1207,6 +1207,7 @@ EOF
 window_title="SECRET_DIALOG_TITLE"
 _write_children '     0x40000a "SECRET_DIALOG_TITLE": ("zenity" "Zenity")  1280x250+0+0  +0+0'
 _scan="$(gamescope_overlay_scan_children "0x40000a")"
+assert_eq "census parses root dimensions from stats plus children" "root_size=1280x800" "$(printf '%s\n' "${_scan}" | head -n1)"
 if grep -q '^xwininfo -root -children -stats$' "${_census_calls}"; then
     _pass "census explicitly requests root statistics as well as children"
 else
