@@ -794,8 +794,9 @@ EOF
 chmod +x "${_pause_bin}/zenity"
 export PATH="${_pause_bin}:${PATH}"
 _tagged_pid=""
+_tagged_pid_file="${_test_dir}/tagged-pause.pid"
 apply_gamescope_overlay_atoms() {
-    _tagged_pid="$3"
+    printf '%s\n' "$3" > "${_tagged_pid_file}"
     return 0
 }
 export env_type="gamescope"
@@ -804,6 +805,7 @@ window_tool=""
 _pause_info_timeout=5
 _dlg_prefix=(env -u WAYLAND_DISPLAY GDK_BACKEND=x11 QT_QPA_PLATFORM=xcb)
 _popup_show_pause_activated_notice "01:00"
+_tagged_pid="$(cat "${_tagged_pid_file}" 2>/dev/null || true)"
 _dialog_pid="$(cat "${_pause_pid_file}" 2>/dev/null || true)"
 assert_eq "pause notice tags the zenity PID" "${_dialog_pid}" "${_tagged_pid}"
 if [ -n "${_tagged_pid}" ] && grep -q -- '--title=Pause Activated' "${_pause_args}"; then
@@ -879,9 +881,11 @@ exit 0
 EOF
 chmod +x "${_pause_bin}/kdialog"
 _tagged_pid=""
+: > "${_tagged_pid_file}"
 dialog_tool="kdialog"
 _pause_info_timeout=1
 _popup_show_pause_activated_notice "01:00"
+_tagged_pid="$(cat "${_tagged_pid_file}" 2>/dev/null || true)"
 if grep -q -- '--msgbox' "${_pause_args}" && ! grep -q -- '--passivepopup' "${_pause_args}"; then
     _pass "gamescope pause notice uses kdialog --msgbox"
 else
@@ -1203,6 +1207,11 @@ EOF
 window_title="SECRET_DIALOG_TITLE"
 _write_children '     0x40000a "SECRET_DIALOG_TITLE": ("zenity" "Zenity")  1280x250+0+0  +0+0'
 _scan="$(gamescope_overlay_scan_children "0x40000a")"
+if grep -q '^xwininfo -root -children -stats$' "${_census_calls}"; then
+    _pass "census explicitly requests root statistics as well as children"
+else
+    _fail "census omitted -stats (real xwininfo would omit root dimensions)"
+fi
 if printf '%s\n' "${_scan}" | grep -q '^predicted_overlay_wid=0x40000a$'; then
     _pass "census (a) our dialog alone predicts our wid"
 else

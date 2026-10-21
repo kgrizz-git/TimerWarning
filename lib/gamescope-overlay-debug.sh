@@ -9,7 +9,8 @@
 #
 # This module does not change geometry, atoms, button sets, auto-close, or
 # the popup watchdog. Every debug xprop/xwininfo call is wrapped in
-# timeout (2 seconds). The overlay census inspects at most 64 root children.
+# a 2-second deadline plus a 1-second KILL grace period. The overlay census
+# inspects at most 64 root children.
 # A failed or timed-out probe is logged as "unavailable".
 #
 # Inputs (caller environment, snapshotted by gamescope_overlay_debug_on_apply):
@@ -21,7 +22,7 @@
 #
 # Dependencies: config.sh (get_gamescope_overlay_debug), log_to_file optional.
 # Requires: xprop/xwininfo when a live X display is probed.
-# Each probe is bounded by timeout(1), gtimeout, or a 2s bash watchdog
+# Each probe is bounded by timeout(1), gtimeout, or a bash watchdog
 # (macOS CI has neither GNU timeout nor gtimeout).
 ###############################################################################
 
@@ -104,16 +105,16 @@ _gs_debug_norm_wid() {
     fi
 }
 
-# Run one debug probe with a 2s cap. Empty stdout on failure.
+# Run one debug probe with a 2s deadline and 1s KILL grace.
 # Uses timeout, then gtimeout, then a bash watchdog so macOS CI (no GNU timeout)
 # still runs the mocked census. Parameters: command and arguments.
 _gs_debug_probe() {
     if command -v timeout >/dev/null 2>&1; then
-        timeout 2 "$@" 2>/dev/null || true
+        timeout --kill-after=1s 2s "$@" 2>/dev/null || true
         return 0
     fi
     if command -v gtimeout >/dev/null 2>&1; then
-        gtimeout 2 "$@" 2>/dev/null || true
+        gtimeout --kill-after=1s 2s "$@" 2>/dev/null || true
         return 0
     fi
 
@@ -208,7 +209,8 @@ gamescope_overlay_scan_children() {
     local our_norm="" snap line child_count=0 truncated=false
     local max_op=-1 predicted="" root_w="" root_h=""
     our_norm=$(_gs_debug_norm_wid "${our_wid}")
-    snap=$(_gs_debug_probe xwininfo -root -children)
+    # -children alone suppresses the default statistics, including Width/Height.
+    snap=$(_gs_debug_probe xwininfo -root -children -stats)
     if [ -z "${snap}" ]; then
         printf '%s\n' "root_size=unavailable"
         printf '%s\n' "census=unavailable"

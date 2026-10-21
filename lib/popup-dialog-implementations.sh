@@ -244,12 +244,6 @@ _popup_show_pause_activated_notice() {
     local title="Pause Activated"
     local text="Warning popups paused until ${pause_end_time}"
 
-    if [ "${dialog_tool}" = "kdialog" ] && [ "${env_type:-}" != "gamescope" ]; then
-        ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --passivepopup \
-            "${text}" "${_pause_info_timeout}" 2>/dev/null
-        return 0
-    fi
-
     local info_pid=""
     local pause_w=400 pause_h=150
     local _gs_pause_req_w="${pause_w}"
@@ -308,13 +302,30 @@ _popup_show_pause_activated_notice() {
             ;;
         kdialog)
             # kdialog msgbox has no reliable width flag on SteamOS; atoms still applied.
-            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${title}" --msgbox "${text}" 2>/dev/null &
+            if [ "${env_type:-}" = "gamescope" ]; then
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${title}" --msgbox "${text}" 2>/dev/null &
+            else
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --passivepopup \
+                    "${text}" "${_pause_info_timeout}" 2>/dev/null &
+            fi
             info_pid=$!
             ;;
         *)
             return 0
             ;;
     esac
+
+    # This is a new dialog PID: the warning's PID-file watchdog cannot kill it.
+    # Arm an independent deadline before any X11 probes, even for tools with a
+    # native --timeout (a stalled GUI event loop may never process that timeout).
+    (
+        sleep "${_pause_info_timeout}"
+        kill -TERM "${info_pid}" 2>/dev/null || true
+        sleep 1
+        kill -KILL "${info_pid}" 2>/dev/null || true
+    ) >/dev/null 2>&1 &
+    local killer_pid=$!
+    local notice_atoms_pid=""
 
     # zenity and kdialog have no position flags. Yad already passed --posx/--posy;
     # the move is the same backup the warning dialog uses when a window tool exists.
@@ -333,7 +344,9 @@ _popup_show_pause_activated_notice() {
         gamescope_debug_requested_h="${_gs_pause_req_h}"
         gamescope_debug_override_w="${pause_w}"
         gamescope_debug_override_h="${pause_h}"
-        apply_gamescope_overlay_atoms "${title}" "${window_tool:-}" "${info_pid}" || true
+        # Do not let a stalled display probe prevent reaping the bounded notice.
+        ( apply_gamescope_overlay_atoms "${title}" "${window_tool:-}" "${info_pid}" || true ) >/dev/null 2>&1 &
+        notice_atoms_pid=$!
         gamescope_debug_event="${_gs_prev_event}"
         gamescope_debug_requested_w="${_gs_prev_rw}"
         gamescope_debug_requested_h="${_gs_prev_rh}"
@@ -342,23 +355,14 @@ _popup_show_pause_activated_notice() {
     fi
 
     local _pause_notice_rc=0
-    if [ "${dialog_tool}" = "kdialog" ] && [ -n "${info_pid}" ]; then
-        (
-            sleep "${_pause_info_timeout}"
-            kill "${info_pid}" 2>/dev/null || true
-        ) &
-        local killer_pid=$!
+    if [ -n "${info_pid}" ]; then
         wait "${info_pid}" 2>/dev/null || _pause_notice_rc=$?
         kill "${killer_pid}" 2>/dev/null || true
         wait "${killer_pid}" 2>/dev/null || true
-        if [ "${env_type:-}" = "gamescope" ] && type gamescope_overlay_debug_log_exit >/dev/null 2>&1; then
-            gamescope_overlay_debug_log_exit "${_pause_notice_rc}" "false" "pause" || true
+        if [ -n "${notice_atoms_pid}" ]; then
+            kill "${notice_atoms_pid}" 2>/dev/null || true
+            wait "${notice_atoms_pid}" 2>/dev/null || true
         fi
-        return 0
-    fi
-
-    if [ -n "${info_pid}" ]; then
-        wait "${info_pid}" 2>/dev/null || _pause_notice_rc=$?
         if [ "${env_type:-}" = "gamescope" ] && type gamescope_overlay_debug_log_exit >/dev/null 2>&1; then
             gamescope_overlay_debug_log_exit "${_pause_notice_rc}" "false" "pause" || true
         fi

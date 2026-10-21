@@ -64,7 +64,7 @@ Popups **must never** be:
 
 The absolute popup lifetime cap is `POPUP_ABSOLUTE_MAX_SECONDS` (default **330** seconds in `lib/popup-safety.sh`, all platforms). That default is sized for the largest configurable min-display (300s) plus auto-close delay (10s) and a watchdog buffer (~15s). The number is expected to **grow** if we add longer lockouts. The invariant is "finite and bounded by an explicit cap," not a fixed small limit forever.
 
-On Linux, a countdown redraw keeps the outgoing dialog registered until it exits so the watchdog can still kill it if TERM fails. Watchdog expiry also prevents further respawns in that popup session, including expiry during a spawn. A failed respawn is retried at most three times within the same deadline before notification fallback. Failed watchdog setup closes the popup. On macOS, the osascript wrapper force-terminates and reaps its dialog child on watchdog expiry.
+On Linux, a countdown redraw keeps the outgoing dialog registered until it exits so the watchdog can still kill it if TERM fails. Watchdog expiry also prevents further respawns in that popup session, including expiry during a spawn. A failed respawn is retried at most three times within the same deadline before notification fallback. Failed watchdog setup closes the popup. Pause-confirmation notices have their own TERM-then-KILL deadline, armed before display probes; the warning's watchdog cannot protect a new notice PID. On macOS, the osascript wrapper force-terminates and reaps its dialog child on watchdog expiry.
 
 ## Always-available escape hatch (the third invariant)
 
