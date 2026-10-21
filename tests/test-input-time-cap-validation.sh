@@ -6,6 +6,14 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Match configure.sh: the input-time check uses get_default_hours_for_day from
+# config.sh. Keep that read off the installed config.
+_tmp="$(mktemp -d)"
+trap 'rm -rf "${_tmp}"' EXIT
+export HOME="${_tmp}"
+
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/config.sh" || exit 1
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/configure-core.sh" || exit 1
 ensure_day_vars
@@ -76,6 +84,22 @@ config_lines[1]="MONDAY=07:00-23:00"
 assert_cap_violation \
     "configure_block merge exceeds 16 h when lock extends range" \
     configure_lock 1 "06:00-07:00"
+
+# Absent days use the same built-in hours the runtime cap applies after save.
+config_lines=()
+lock_hours_lines=()
+uninstall_lock_hours_lines=()
+configure_block_enabled="true"
+config_lines[1]="MONDAY=00:00-14:00"
+lock_hours_lines[2]="CONFIG_LOCK_HOURS_TUESDAY=10:00-23:00"
+assert_cap_violation \
+    "absent Tuesday default plus a lock exceeds the cap at input time" \
+    restriction 1 "00:00-14:00"
+
+config_lines[2]="TUESDAY="
+assert_cap_ok \
+    "explicit empty Tuesday is not filled with the default" \
+    restriction 1 "00:00-14:00"
 
 echo ""
 echo "Results: ${_PASS} passed, ${_FAIL} failed"

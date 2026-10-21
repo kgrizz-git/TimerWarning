@@ -51,23 +51,23 @@ fi
 #   "Unable to parse command line: Invalid byte sequence in conversion input"
 # This results in yad exiting immediately, which then triggers respawn loops.
 #
-# This function attempts to set a UTF-8 locale (preferring C.UTF-8) only when the
-# current locale does not already appear to be UTF-8.
+# Prefer portable C.UTF-8 even when host LANG already reports UTF-8 (Nix yad
+# otherwise falls back to plain C and rejects Unicode argv). Delegates to
+# dialog_prepare_utf8_locale when available.
 ensure_utf8_locale_for_dialogs() {
-    # If locale(1) isn't available, we can't safely detect; do nothing.
-    command -v locale >/dev/null 2>&1 || return 0
-
-    # If any locale category is already UTF-8, do nothing.
-    if locale 2>/dev/null | grep -qi "utf-8"; then
+    if type dialog_prepare_utf8_locale >/dev/null 2>&1; then
+        DIALOG_UTF8_CONFIRMED=""
+        dialog_prepare_utf8_locale
         return 0
     fi
 
-    # Prefer widely-available UTF-8 locales.
+    # Fallback when unicode-dialog-safety.sh did not load.
+    command -v locale >/dev/null 2>&1 || return 0
+
     local candidate
-    for candidate in "C.UTF-8" "en_US.UTF-8"; do
-        if locale -a 2>/dev/null | tr -d '\r' | grep -qx "${candidate}"; then
+    for candidate in "C.UTF-8" "C.utf8" "en_US.UTF-8" "en_US.utf8"; do
+        if LC_ALL="${candidate}" locale charmap 2>/dev/null | grep -qi "utf-8"; then
             export LC_ALL="${candidate}"
-            # Keep LANG consistent if it's unset/empty.
             if [ -z "${LANG:-}" ]; then
                 export LANG="${candidate}"
             fi
@@ -78,7 +78,6 @@ ensure_utf8_locale_for_dialogs() {
         fi
     done
 
-    # No known UTF-8 locale found; proceed without changing environment.
     return 0
 }
 
@@ -263,12 +262,9 @@ show_warning() {
     local env_type
     local display_id
 
-    # Prefer UTF-8 locale when available; otherwise we will sanitize dialog text.
-    if type dialog_prepare_utf8_locale >/dev/null 2>&1; then
-        dialog_prepare_utf8_locale
-    else
-        ensure_utf8_locale_for_dialogs
-    fi
+    # Prefer portable UTF-8 via ensure_utf8_locale_for_dialogs (resets the
+    # prepare cache and delegates to dialog_prepare_utf8_locale when loaded).
+    ensure_utf8_locale_for_dialogs
     
     # Detect display environment type
     env_type=$(detect_display_environment)
@@ -278,15 +274,31 @@ show_warning() {
     display_env=$(get_display "${env_type}")
     if [ -z "${display_env}" ]; then
         log_message "warning" "No display available, cannot show warning popup"
-        log_to_file "WARNING" "No display available, cannot show warning popup. Detection path: ${DISPLAY_DETECTION_PATH}. ${DISPLAY_DETECTION_NOTE}"
+        log_to_file "WARNING" "No display available, cannot show warning popup. Detection path: ${DISPLAY_DETECTION_PATH:-}. ${DISPLAY_DETECTION_NOTE:-}"
+        # notify-send is for a graphical session whose display did not answer
+        # (including gamescope, and a DISPLAY we could not probe). A headless
+        # or SSH check has no DISPLAY and must not log a notify-send error
+        # on every interval.
+        if [ "${env_type}" = "gamescope" ] || [ "${env_type}" = "x11" ] || [ "${env_type}" = "wayland" ] || [ -n "${DISPLAY:-}" ]; then
+            if type _popup_linux_notify_send_fallback >/dev/null 2>&1; then
+                _popup_linux_notify_send_fallback
+                return $?
+            fi
+        fi
         return 1
     fi
     
     # Set display environment variables
+    export POPUP_FORCE_X11_BACKEND="false"
     if [ "${env_type}" = "x11" ]; then
         export DISPLAY="${display_env}"
+    elif [ "${env_type}" = "gamescope" ]; then
+        # For SteamOS Gaming Mode (gamescope), force Xwayland (:0) so xprop can tag STEAM_OVERLAY=1
+        export DISPLAY="${display_env}"
+        unset WAYLAND_DISPLAY
+        export POPUP_FORCE_X11_BACKEND="true"
     else
-        # For Wayland/gamescope, set both DISPLAY (for tools that need it) and WAYLAND_DISPLAY
+        # For Wayland, set both DISPLAY (for tools that need it) and WAYLAND_DISPLAY
         if [ -n "${display_id}" ] && [ "${display_id}" != "unknown" ]; then
             export WAYLAND_DISPLAY="${display_id}"
         fi
@@ -364,6 +376,32 @@ show_warning() {
     local width height
     width=$(echo "${dimensions}" | cut -d' ' -f1)
     height=$(echo "${dimensions}" | cut -d' ' -f2)
+
+    # gamescope 3.16.23: width must be the full :0 root or the dialog is a
+    # notification. Height is at least two thirds of that root. gamescope paints
+    # the overlay centered but draws the cursor offset by the window's X11
+    # position, so the window must sit at 0,0 for the cursor to line up with it.
+    # Countdown respawn reuses these caller locals via _popup_spawn_warning_dialog.
+    if [ "${env_type}" = "gamescope" ] && type gamescope_interactive_dialog_dimensions >/dev/null 2>&1; then
+        gamescope_debug_requested_w="${width}"
+        gamescope_debug_requested_h="${height}"
+        local gs_dims gs_w gs_h gs_rc=0
+        gs_dims=$(gamescope_interactive_dialog_dimensions "${width}" "${height}") || gs_rc=$?
+        gs_w=$(echo "${gs_dims}" | awk '{print $1}')
+        gs_h=$(echo "${gs_dims}" | awk '{print $2}')
+        if [[ "${gs_w}" =~ ^[0-9]+$ ]] && [[ "${gs_h}" =~ ^[0-9]+$ ]]; then
+            if [ "${gs_rc}" -eq 0 ]; then
+                log_to_file "INFO" "gamescope interactive size override: ${width}x${height} -> ${gs_w}x${gs_h} (root-width, top-left, height >= 2/3 root)"
+                width="${gs_w}"
+                height="${gs_h}"
+                popup_position="top-left"
+            else
+                log_to_file "WARNING" "gamescope root size unavailable; keeping configured size ${width}x${height} (interactive overlay may fail)"
+            fi
+        fi
+        gamescope_debug_override_w="${width}"
+        gamescope_debug_override_h="${height}"
+    fi
     
     # Warning message
     local interval_text
@@ -396,6 +434,7 @@ show_warning() {
     
     local popup_pid
     local _popup_watchdog_pid=""
+    local _popup_watchdog_expired_file=""
     local zenity_output_file
     local window_title="ALERT: Restricted time window"
     local _popup_lock_fd=""
@@ -410,7 +449,10 @@ show_warning() {
     _popup_spawn_warning_dialog "${message}"
 
     if [ -n "${popup_pid}" ]; then
-        _popup_linux_on_spawn_success
+        if ! _popup_linux_on_spawn_success; then
+            _popup_linux_on_spawn_failure
+            return $?
+        fi
     else
         if _popup_linux_on_spawn_failure; then
             return 0
@@ -418,6 +460,7 @@ show_warning() {
         return 1
     fi
 
+    gamescope_debug_event="spawn"
     _popup_linux_run_post_spawn_lifecycle
     return $?
 }

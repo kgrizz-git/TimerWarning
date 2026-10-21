@@ -36,37 +36,79 @@ assert_contains() {
     fi
 }
 
-# Simulate weekday per-day loop back handler (fixed behavior: decrement only, no unset)
-simulate_weekday_back_from_tuesday() {
-    local -n config_lines_ref="$1"
-    local -n summary_lines_ref="$2"
-    local i=2
-    local range="back"
-    local exit_code=2
-
-    if [ "${range}" = "back" ] || [ ${exit_code} -eq 2 ]; then
-        if [ "${i}" -gt 1 ]; then
-            i=$((i - 1))
-        fi
+assert_contains_text() {
+    local desc="$1" haystack="$2" pattern="$3"
+    if [[ "${haystack}" == *"${pattern}"* ]]; then
+        _pass "${desc}"
+    else
+        _fail "${desc} (pattern '${pattern}' not in '${haystack}')"
     fi
-    # Monday (index 1) must remain after back from Tuesday
-    assert_set "Monday config_lines preserved after back from Tuesday" config_lines_ref 1
-    assert_set "Monday summary_lines preserved after back from Tuesday" summary_lines_ref 1
 }
 
-# Simulate lock-hours Sun-Sat loop back handler (fixed behavior: decrement only, no unset)
-simulate_lock_hours_back() {
-    local -n lock_hours_lines_ref="$1"
-    local day_index=2
-    local range="back"
-    local exit_code=2
+# Drive the real weekday loop: enter Monday, go back from Tuesday, then leave
+# from Monday. A regression that unsets the previous day drops Monday.
+test_real_weekday_back_keeps_monday() {
+    # shellcheck disable=SC1091
+    source "${LIB_DIR}/configure-core.sh"
+    # shellcheck disable=SC1091
+    source "${LIB_DIR}/configure-workflow.sh"
 
-    if [ "${range}" = "back" ] || [ ${exit_code} -eq 2 ]; then
-        if [ "${day_index}" -gt 0 ]; then
-            day_index=$((day_index - 1))
-        fi
-    fi
-    assert_set "Monday lock_hours preserved after back from Tuesday" lock_hours_lines_ref 1
+    ask_weekday_together() { return 1; }
+    prompt_continue_day_flow() { return 0; }
+    has_dialog_tool() { return 1; }
+    # get_day_hours runs in a command substitution, so a shell variable
+    # would reset every call. A file counter survives that subshell.
+    _GH_FILE="$(mktemp)"
+    echo 0 > "${_GH_FILE}"
+    get_day_hours() {
+        local _n
+        _n="$(cat "${_GH_FILE}")"
+        _n=$((_n + 1))
+        echo "${_n}" > "${_GH_FILE}"
+        case "${_n}" in
+            1) echo "7-23"; return 0 ;;
+            2) echo "back"; return 2 ;;
+            *) echo "back"; return 2 ;;
+        esac
+    }
+
+    local -a config_lines=()
+    local -a summary_lines=()
+    configure_weekdays_section false config_lines summary_lines
+    rm -f "${_GH_FILE}"
+    assert_set "real weekday back keeps Monday config_lines" config_lines 1
+    assert_contains_text "real weekday back keeps Monday=7-23" "${config_lines[1]}" "MONDAY=7-23"
+}
+
+# Same regression on the real lock-hours per-day loop.
+test_real_lock_hours_back_keeps_monday() {
+    ask_weekday_together() { return 1; }
+    ask_weekend_together() { return 1; }
+    configure_read() { return 0; }
+    has_dialog_tool() { return 1; }
+    _GH_FILE="$(mktemp)"
+    echo 0 > "${_GH_FILE}"
+    get_day_hours() {
+        local _n
+        _n="$(cat "${_GH_FILE}")"
+        _n=$((_n + 1))
+        echo "${_n}" > "${_GH_FILE}"
+        case "${_n}" in
+            1) echo "1-2"; return 0 ;;
+            2) echo "9-12"; return 0 ;;
+            *) echo "back"; return 2 ;;
+        esac
+    }
+
+    local -a lock_hours_lines=()
+    # The weekday call above returns through a nameref into this function's
+    # locals and leaves the day arrays empty here. Refill them before lock hours.
+    ensure_day_names
+    ensure_day_vars
+    configure_lock_hours_section false lock_hours_lines
+    rm -f "${_GH_FILE}"
+    assert_set "real lock-hours back keeps Monday" lock_hours_lines 1
+    assert_contains_text "real lock-hours back keeps Monday 9-12" "${lock_hours_lines[1]}" "CONFIG_LOCK_HOURS_MONDAY=9-12"
 }
 
 # write_config still emits Monday when config_lines[1] is set
@@ -78,8 +120,10 @@ test_write_config_preserves_monday() {
     CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"
     mkdir -p "${CONFIG_DIR}/config"
 
-    # shellcheck disable=SC1091
-    source "${LIB_DIR}/configure-core.sh" || return 1
+    if ! type ensure_day_names >/dev/null 2>&1; then
+        # shellcheck disable=SC1091
+        source "${LIB_DIR}/configure-core.sh" || return 1
+    fi
     # shellcheck disable=SC1091
     source "${LIB_DIR}/configure-config.sh" || return 1
 
@@ -98,16 +142,8 @@ test_write_config_preserves_monday() {
 
 echo "=== Configure back-navigation regression tests ==="
 
-declare -a config_lines=()
-declare -a summary_lines=()
-config_lines[1]="MONDAY=7-23"
-summary_lines[1]="Monday: 7-23"
-simulate_weekday_back_from_tuesday config_lines summary_lines
-
-declare -a lock_hours_lines=()
-lock_hours_lines[1]="CONFIG_LOCK_HOURS_MONDAY=22-23"
-simulate_lock_hours_back lock_hours_lines
-
+test_real_weekday_back_keeps_monday
+test_real_lock_hours_back_keeps_monday
 test_write_config_preserves_monday
 
 echo ""

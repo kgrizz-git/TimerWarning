@@ -22,11 +22,12 @@ Related: [testing.md](testing.md), [tests/README.md](../../tests/README.md), [ph
 | `test-grid-functions.sh` | Yes | Yes | No | Yes | **Fixed** — golden strings match `format_range_human` output |
 | `test-modular-refactor.sh` | Yes | Yes | No | Yes | **Fixed** — loader pattern + line budget |
 | `test-configure-blocking.sh` | Yes | Yes | No | Yes | **Fixed** — EOF cancel may exit 0 after `configure_read` hardening |
-| `test-mode-detection.sh` | Partial | Yes | No | Partial | **Fixed** — 2 Linux drop-in tests skipped on Darwin |
+| `test-mode-detection.sh` | Partial | Yes | No | Partial | Darwin runs the Linux drop-in cases; they fail because `create_service_dropin` is a no-op stub. They are not skipped |
 | `test-enhancement-03-integration.sh` | Partial | Yes | No | Partial | **Fixed** — display-based section skips without resolution |
 | `test-popup-safety-darwin.sh` | Yes (Tier-A) | No (use linux script) | No | macOS CI | Pass |
 | `test-popup-safety-linux.sh` | No | Yes (Tier-A) | No | Linux CI | Pass — PID-file watchdog + shared unit tests |
 | `test-platform-darwin.sh` | Yes (Tier-A) | No | No | macOS CI | Pass |
+| `test-darwin-persistent-disable.sh` | Yes (Tier-A) | Yes (Tier-A) | No | Yes | Stubbed launchctl; persistent disable, explicit enable and failure/reload paths |
 | `test-configure-comprehensive.sh` | expect + PTY | expect + PTY | No | No | **Fixed** — `.exp` updated for window-behavior submenu + prompt anchoring; 10/10 on macOS (2026-06-13) |
 | `test-dialog-abstraction.sh` | Skip | Skip | Yes | Skip | **Skip** — GUI manual |
 | `test-multi-column-specific.sh` | Skip | Skip | Yes | Skip | **Skip** — GUI manual |

@@ -18,7 +18,8 @@ High-level layout for agents navigating the codebase.
 ```
 sleep-warning.sh
   → platform.sh
-  → config.sh, time-validation.sh, pause-state.sh
+  → config.sh → config-safety.sh (safe defaults, effective cap inputs, standalone gates)
+  → time-validation.sh, pause-state.sh
   → display-detection[-darwin].sh
   → popup-safety.sh
   → popup-display.sh → popup-display-linux.sh (Linux lifecycle) / popup-display-darwin.sh (macOS)

@@ -27,8 +27,10 @@ if [ -z "${SCHEDULER_PLATFORM_LOADED:-}" ]; then
             fi
             return 1
         fi
-        systemctl --user stop sleep-warning.timer 2>/dev/null || true
-        systemctl --user disable sleep-warning.timer 2>/dev/null
+        local rc=0
+        systemctl --user stop sleep-warning.timer 2>/dev/null || rc=1
+        systemctl --user disable sleep-warning.timer 2>/dev/null || rc=1
+        return "${rc}"
     }
 
     scheduler_remove_files() {

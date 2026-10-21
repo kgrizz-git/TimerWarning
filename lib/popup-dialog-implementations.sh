@@ -33,6 +33,14 @@ _popup_spawn_warning_dialog() {
 
     # Ensure caller sees a cleared PID on failure.
     popup_pid=""
+    local zenity_stderr_file=""
+
+    local -a _dlg_prefix=()
+    if [ "${POPUP_FORCE_X11_BACKEND:-false}" = "true" ]; then
+        # Unset HiDPI scale vars so buffer size matches the requested window size
+        # under gamescope (scale mismatch breaks fit-to-canvas math).
+        _dlg_prefix=(env -u WAYLAND_DISPLAY -u GDK_SCALE -u GDK_DPI_SCALE -u QT_SCALE_FACTOR GDK_BACKEND=x11 QT_QPA_PLATFORM=xcb)
+    fi
 
     case "${dialog_tool}" in
         zenity)
@@ -41,28 +49,29 @@ _popup_spawn_warning_dialog() {
             if [ -z "${zenity_output_file:-}" ]; then
                 zenity_output_file=$(mktemp)
             fi
+            zenity_stderr_file=$(mktemp) || return 1
 
             if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                 # Add pause button based on configured duration
                 local pause_button_label="Pause ${pause_duration} min"
-                zenity --warning \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity --warning \
                     --title="${window_title}" \
                     --text="${popup_text}" \
                     --modal \
                     --width="${width}" \
                     --height="${height}" \
                     --extra-button="${pause_button_label}" \
-                    > "${zenity_output_file}" 2>/dev/null &
+                    > "${zenity_output_file}" 2>"${zenity_stderr_file}" &
                 popup_pid=$!
             else
                 # No pause button
-                zenity --warning \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity --warning \
                     --title="${window_title}" \
                     --text="${popup_text}" \
                     --modal \
                     --width="${width}" \
                     --height="${height}" \
-                    > "${zenity_output_file}" 2>/dev/null &
+                    > "${zenity_output_file}" 2>"${zenity_stderr_file}" &
                 popup_pid=$!
             fi
 
@@ -82,7 +91,7 @@ _popup_spawn_warning_dialog() {
                 # Use --center flag for proper centering
                 if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                     # Add pause button based on configured duration
-                    yad --warning \
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --warning \
                         --title="${window_title}" \
                         --text="${popup_text}" \
                         --modal \
@@ -91,13 +100,13 @@ _popup_spawn_warning_dialog() {
                         --center \
                         --fixed \
                         --on-top \
-                        --button="Pause ${pause_duration} min:${pause_duration}" \
+                        --button="Pause ${pause_duration} min:42" \
                         --button="OK:0" \
                         2>/dev/null &
                     popup_pid=$!
                 else
                     # No pause button
-                    yad --warning \
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --warning \
                         --title="${window_title}" \
                         --text="${popup_text}" \
                         --modal \
@@ -119,7 +128,7 @@ _popup_spawn_warning_dialog() {
 
                 if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                     # Add pause button based on configured duration
-                    yad --warning \
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --warning \
                         --title="${window_title}" \
                         --text="${popup_text}" \
                         --modal \
@@ -129,13 +138,13 @@ _popup_spawn_warning_dialog() {
                         --posy="${pos_y}" \
                         --fixed \
                         --on-top \
-                        --button="Pause ${pause_duration} min:${pause_duration}" \
+                        --button="Pause ${pause_duration} min:42" \
                         --button="OK:0" \
                         2>/dev/null &
                     popup_pid=$!
                 else
                     # No pause button
-                    yad --warning \
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --warning \
                         --title="${window_title}" \
                         --text="${popup_text}" \
                         --modal \
@@ -164,13 +173,13 @@ _popup_spawn_warning_dialog() {
                 local _kd_pause_label="Pause ${pause_duration} min"
                 # --warningyesno: Yes button = left, No button = right
                 # kdialog returns 0 for Yes (Pause), 1 for No (Dismiss)
-                kdialog --title "${window_title}" \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${window_title}" \
                     --warningyesno "${popup_text}" \
                     --yes-label "${_kd_pause_label}" \
                     --no-label "Dismiss" \
                     2>/dev/null &
             else
-                kdialog --title "${window_title}" \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${window_title}" \
                     --sorry "${popup_text}" \
                     2>/dev/null &
             fi
@@ -191,6 +200,208 @@ _popup_spawn_warning_dialog() {
             fi
             ;;
     esac
+
+    # A background command has a PID even when GTK fails immediately. Treat
+    # non-dismissal startup errors as failure so the dispatcher notifies users.
+    # Preserve normal OK/cancel/pause statuses from a quickly dismissed dialog.
+    if [ -n "${popup_pid}" ] && [ "${dialog_tool}" != "kdialog" ]; then
+        sleep 0.2
+        if ! kill -0 "${popup_pid}" 2>/dev/null; then
+            local startup_rc=0
+            wait "${popup_pid}" 2>/dev/null || startup_rc=$?
+            case "${dialog_tool}:${startup_rc}" in
+                yad:0|yad:252|zenity:0) ;;
+                zenity:1)
+                    # GTK initialization failures and ordinary Cancel both use
+                    # status 1. A startup diagnostic distinguishes the failure;
+                    # an explicit extra-button result remains a genuine pause.
+                    if [ -s "${zenity_stderr_file}" ] && \
+                        ! grep -qxF "Pause ${pause_duration} min" "${zenity_output_file}"; then
+                        log_to_file "ERROR" "zenity failed at startup (exit 1 with diagnostic)"
+                        popup_pid=""
+                    fi
+                    ;;
+                *)
+                    if [ "${pause_available}" != "true" ] || [ "${dialog_tool}" != "yad" ] || [ "${startup_rc}" != "42" ]; then
+                        log_to_file "ERROR" "${dialog_tool} failed at startup (exit ${startup_rc})"
+                        popup_pid=""
+                    fi
+                    ;;
+            esac
+        fi
+    fi
+    [ -z "${zenity_stderr_file}" ] || rm -f "${zenity_stderr_file}"
+    return 0
+}
+
+# Background-only watchdog. Cancel its current sleep and reap it on every exit;
+# killing a shell blocked in foreground sleep would orphan that sleep process.
+_popup_notice_watchdog() {
+    local notice_pid="$1" delay="$2"
+    local sleeper_pid="" cancelled=false signal_name
+    trap 'cancelled=true; if [ -n "${sleeper_pid}" ]; then kill -KILL "${sleeper_pid}" 2>/dev/null || true; fi' TERM INT HUP
+    trap 'if [ -n "${sleeper_pid}" ]; then kill -KILL "${sleeper_pid}" 2>/dev/null || true; wait "${sleeper_pid}" 2>/dev/null || true; fi' EXIT
+    for signal_name in TERM KILL; do
+        sleep "${delay}" &
+        sleeper_pid=$!
+        [ "${cancelled}" = false ] || return 0
+        wait "${sleeper_pid}" 2>/dev/null || return 0
+        sleeper_pid=""
+        [ "${cancelled}" = false ] || return 0
+        kill -"${signal_name}" "${notice_pid}" 2>/dev/null || true
+        delay=1
+    done
+}
+
+# Background-only wrapper. Give atom setup its own process group, so cancellation
+# terminates in-flight probes and their descendants as well as the worker shell.
+# Job control is changed only inside this background process. The inner worker
+# disables it so debug subjobs and command substitutions remain in that group.
+_popup_notice_atoms_worker() {
+    local atoms_group_pid="" cancelled=false
+    trap 'cancelled=true; if [ -n "${atoms_group_pid}" ]; then kill -KILL -- "-${atoms_group_pid}" 2>/dev/null || true; fi' TERM INT HUP
+    trap 'if [ -n "${atoms_group_pid}" ]; then kill -KILL -- "-${atoms_group_pid}" 2>/dev/null || true; wait "${atoms_group_pid}" 2>/dev/null || true; fi' EXIT
+    set -m
+    (
+        set +m
+        trap - TERM INT HUP EXIT
+        apply_gamescope_overlay_atoms "$1" "$2" "$3" || true
+        # Keep ownership of async debug work until it finishes or is cancelled.
+        wait 2>/dev/null || true
+    ) &
+    atoms_group_pid=$!
+    [ "${cancelled}" = false ] || return 0
+    wait "${atoms_group_pid}" 2>/dev/null || true
+}
+
+# Show the "Pause Activated" notice.
+# On gamescope, spawn a real X11 window in the background, tag it by that PID,
+# then wait. Desktop kdialog keeps a passive notification (no X window to tag).
+# Uses caller locals _dlg_prefix, _pause_info_timeout, dialog_tool, env_type, window_tool.
+# Parameters: $1 pause end time (HH:MM or "unknown")
+_popup_show_pause_activated_notice() {
+    local pause_end_time="$1"
+    local title="Pause Activated"
+    local text="Warning popups paused until ${pause_end_time}"
+
+    local info_pid=""
+    local pause_w=400 pause_h=150
+    local _gs_pause_req_w="${pause_w}"
+    local _gs_pause_req_h="${pause_h}"
+    # Desktop pause notices stay centered. Gamescope uses the same top-left
+    # hit region as the warning dialog once the root-size override succeeds.
+    local _pause_position="center"
+    if [ "${env_type:-}" = "gamescope" ] && type gamescope_interactive_dialog_dimensions >/dev/null 2>&1; then
+        local _pause_dims _pause_rc=0
+        _pause_dims=$(gamescope_interactive_dialog_dimensions "${pause_w}" "${pause_h}") || _pause_rc=$?
+        local _pw _ph
+        _pw=$(echo "${_pause_dims}" | awk '{print $1}')
+        _ph=$(echo "${_pause_dims}" | awk '{print $2}')
+        if [ "${_pause_rc}" -eq 0 ] && [[ "${_pw}" =~ ^[0-9]+$ ]] && [[ "${_ph}" =~ ^[0-9]+$ ]]; then
+            if type log_to_file >/dev/null 2>&1; then
+                log_to_file "INFO" "gamescope pause notice size override: ${pause_w}x${pause_h} -> ${_pw}x${_ph} (top-left)"
+            fi
+            pause_w="${_pw}"
+            pause_h="${_ph}"
+            _pause_position="top-left"
+        elif type log_to_file >/dev/null 2>&1; then
+            log_to_file "WARNING" "gamescope pause notice: root size unavailable; keeping ${pause_w}x${pause_h}"
+        fi
+    fi
+    case "${dialog_tool}" in
+        zenity)
+            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity --info \
+                --title="${title}" \
+                --text="${text}" \
+                --width="${pause_w}" \
+                --height="${pause_h}" \
+                --timeout="${_pause_info_timeout}" \
+                2>/dev/null &
+            info_pid=$!
+            ;;
+        yad)
+            local -a _pause_yad_pos=(--center)
+            if [ "${_pause_position}" = "top-left" ]; then
+                local _pause_coords _pause_x _pause_y
+                _pause_coords=$(calculate_popup_geometry "top-left" "${pause_w}" "${pause_h}" "true")
+                _pause_x=$(echo "${_pause_coords}" | cut -d' ' -f1)
+                _pause_y=$(echo "${_pause_coords}" | cut -d' ' -f2)
+                _pause_yad_pos=(--posx="${_pause_x}" --posy="${_pause_y}")
+            fi
+            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --info \
+                --title="${title}" \
+                --text="${text}" \
+                --width="${pause_w}" \
+                --height="${pause_h}" \
+                "${_pause_yad_pos[@]}" \
+                --fixed \
+                --button="OK:0" \
+                --timeout="${_pause_info_timeout}" \
+                2>/dev/null &
+            info_pid=$!
+            ;;
+        kdialog)
+            # kdialog msgbox has no reliable width flag on SteamOS; atoms still applied.
+            if [ "${env_type:-}" = "gamescope" ]; then
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${title}" --msgbox "${text}" 2>/dev/null &
+            else
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --passivepopup \
+                    "${text}" "${_pause_info_timeout}" 2>/dev/null &
+            fi
+            info_pid=$!
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+
+    # This is a new dialog PID: the warning's PID-file watchdog cannot kill it.
+    # Arm an independent deadline before any X11 probes, even for tools with a
+    # native --timeout (a stalled GUI event loop may never process that timeout).
+    _popup_notice_watchdog "${info_pid}" "${_pause_info_timeout}" >/dev/null 2>&1 &
+    local killer_pid=$!
+    local notice_atoms_pid=""
+
+    # zenity and kdialog have no position flags. Yad already passed --posx/--posy;
+    # the move is the same backup the warning dialog uses when a window tool exists.
+    if [ "${_pause_position}" = "top-left" ] && [ -n "${info_pid}" ] && [ -n "${window_tool:-}" ]; then
+        reposition_popup_window "${title}" "${window_tool}" "top-left" "${pause_w}" "${pause_h}" &
+    fi
+
+    if [ -n "${info_pid}" ] && [ "${env_type:-}" = "gamescope" ] && type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
+        local _gs_prev_event="${gamescope_debug_event:-spawn}"
+        local _gs_prev_rw="${gamescope_debug_requested_w:-}"
+        local _gs_prev_rh="${gamescope_debug_requested_h:-}"
+        local _gs_prev_ow="${gamescope_debug_override_w:-}"
+        local _gs_prev_oh="${gamescope_debug_override_h:-}"
+        gamescope_debug_event="pause"
+        gamescope_debug_requested_w="${_gs_pause_req_w}"
+        gamescope_debug_requested_h="${_gs_pause_req_h}"
+        gamescope_debug_override_w="${pause_w}"
+        gamescope_debug_override_h="${pause_h}"
+        # Do not let a stalled display probe prevent reaping the bounded notice.
+        _popup_notice_atoms_worker "${title}" "${window_tool:-}" "${info_pid}" >/dev/null 2>&1 &
+        notice_atoms_pid=$!
+        gamescope_debug_event="${_gs_prev_event}"
+        gamescope_debug_requested_w="${_gs_prev_rw}"
+        gamescope_debug_requested_h="${_gs_prev_rh}"
+        gamescope_debug_override_w="${_gs_prev_ow}"
+        gamescope_debug_override_h="${_gs_prev_oh}"
+    fi
+
+    local _pause_notice_rc=0
+    if [ -n "${info_pid}" ]; then
+        wait "${info_pid}" 2>/dev/null || _pause_notice_rc=$?
+        kill "${killer_pid}" 2>/dev/null || true
+        wait "${killer_pid}" 2>/dev/null || true
+        if [ -n "${notice_atoms_pid}" ]; then
+            kill "${notice_atoms_pid}" 2>/dev/null || true
+            wait "${notice_atoms_pid}" 2>/dev/null || true
+        fi
+        if [ "${env_type:-}" = "gamescope" ] && type gamescope_overlay_debug_log_exit >/dev/null 2>&1; then
+            gamescope_overlay_debug_log_exit "${_pause_notice_rc}" "false" "pause" || true
+        fi
+    fi
 }
 
 # Handle pause button/menu actions after a popup closes.
@@ -211,6 +422,13 @@ _popup_maybe_handle_pause_click() {
     # The caller already guards on pause availability, but keep this defensive.
     if [ "${pause_available}" != "true" ] || [ -z "${pause_duration}" ]; then
         return 1
+    fi
+
+    local -a _dlg_prefix=()
+    local _pause_info_timeout=30
+    if [ "${POPUP_FORCE_X11_BACKEND:-false}" = "true" ] || [ "${env_type:-}" = "gamescope" ]; then
+        _dlg_prefix=(env -u WAYLAND_DISPLAY -u GDK_SCALE -u GDK_DPI_SCALE -u QT_SCALE_FACTOR GDK_BACKEND=x11 QT_QPA_PLATFORM=xcb)
+        _pause_info_timeout=10
     fi
 
     case "${dialog_tool}" in
@@ -235,13 +453,7 @@ _popup_maybe_handle_pause_click() {
                             local pause_end_time
                             pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
 
-                            zenity --info \
-                                --title="Pause Activated" \
-                                --text="Warning popups paused until ${pause_end_time}" \
-                                --width=400 \
-                                --height=150 \
-                                --timeout=30 \
-                                2>/dev/null
+                            _popup_show_pause_activated_notice "${pause_end_time}"
 
                             if [ -n "${popup_pid}" ]; then
                                 cleanup_popup_pid "${popup_pid}"
@@ -255,8 +467,8 @@ _popup_maybe_handle_pause_click() {
             ;;
 
         yad)
-            # yad: exit code matches button value
-            if [ ${popup_exit_code} -eq "${pause_duration}" ]; then
+            # Use a reserved button status so GTK startup error 1 cannot become a pause.
+            if [ ${popup_exit_code} -eq 42 ]; then
                 # Pause button was clicked
                 if activate_pause "${pause_duration}"; then
                     # Show confirmation dialog
@@ -265,14 +477,7 @@ _popup_maybe_handle_pause_click() {
                     local pause_end_time
                     pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
 
-                    yad --info \
-                        --title="Pause Activated" \
-                        --text="Warning popups paused until ${pause_end_time}" \
-                        --width=400 \
-                        --height=150 \
-                        --button="OK:0" \
-                        --timeout=30 \
-                        2>/dev/null
+                    _popup_show_pause_activated_notice "${pause_end_time}"
 
                     if [ -n "${popup_pid}" ]; then
                         cleanup_popup_pid "${popup_pid}"
@@ -293,8 +498,7 @@ _popup_maybe_handle_pause_click() {
                     pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null \
                         || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null \
                         || echo "unknown")
-                    kdialog --passivepopup \
-                        "Warning popups paused until ${pause_end_time}" 30 2>/dev/null
+                    _popup_show_pause_activated_notice "${pause_end_time}"
                     if [ -n "${popup_pid}" ]; then
                         cleanup_popup_pid "${popup_pid}"
                     fi

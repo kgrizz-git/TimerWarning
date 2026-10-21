@@ -117,22 +117,26 @@ source_required_lib "service-config.sh" || exit 1
 # Ensure we have a UTF-8 locale so GUI dialogs (yad/zenity) can render
 # extended characters reliably. Without this, yad aborts when parsing
 # strings containing symbols like the multiplication sign.
+#
+# Prefer dialog_prepare_utf8_locale (portable C.UTF-8) when available: a host
+# LANG that already reports UTF-8 (e.g. en_US.UTF-8) is not enough for
+# Nix-packaged yad, which falls back to plain C and then rejects em dashes.
 ensure_utf8_locale() {
-    # If locale command is missing, there's nothing we can do
+    if type dialog_prepare_utf8_locale >/dev/null 2>&1; then
+        # Clear any inherited yes/no so we recompute and prefer portable C.UTF-8.
+        DIALOG_UTF8_CONFIRMED=""
+        dialog_prepare_utf8_locale
+        return
+    fi
+
+    # Fallback when unicode-dialog-safety.sh did not load (should be rare).
     if ! command -v locale >/dev/null 2>&1; then
         return
     fi
 
-    local current_charmap
-    current_charmap=$(locale charmap 2>/dev/null || echo "")
-    if printf '%s' "${current_charmap}" | grep -qi 'UTF-8'; then
-        return
-    fi
-
     local candidate
-    local candidates=("C.UTF-8" "en_US.UTF-8" "en_US.utf8")
-    for candidate in "${candidates[@]}"; do
-        if LC_ALL="${candidate}" locale charmap >/dev/null 2>&1; then
+    for candidate in "C.UTF-8" "C.utf8" "en_US.UTF-8" "en_US.utf8"; do
+        if LC_ALL="${candidate}" locale charmap 2>/dev/null | grep -qi 'utf-8'; then
             export LC_ALL="${candidate}"
             export LANG="${candidate}"
             export LC_CTYPE="${candidate}"
@@ -248,7 +252,7 @@ main() {
     # This is a sparse array indexed 0-6 (Sunday-Saturday) with entries like:
     #   UNINSTALL_LOCK_HOURS_MONDAY=9-17
     declare -g -a uninstall_lock_hours_lines=()
-    declare -g check_interval popup_size popup_size_mode popup_size_custom popup_size_custom_absolute popup_position min_display_time popup_immovable popup_auto_close configure_block_enabled uninstall_protection_mode pause_enabled pause_duration pause_cooldown_hours dialog_tool config_lock_enabled
+    declare -g check_interval popup_size popup_size_mode popup_size_custom popup_size_custom_absolute popup_position min_display_time popup_immovable popup_auto_close configure_block_enabled uninstall_protection_mode pause_enabled pause_duration pause_cooldown_hours dialog_tool config_lock_enabled gaming_mode_experimental_enabled
     
     # Load existing configuration
     # Function sets global variables and populates global arrays directly
@@ -279,6 +283,11 @@ main() {
         # Get current service mode for menu display (option 12)
         local current_service_mode
         current_service_mode=$(get_current_service_mode)
+        if [ "${gaming_mode_experimental_enabled:-false}" = "true" ]; then
+            current_service_mode="gaming"
+        elif [ "${current_service_mode}" = "gaming" ] && [ "${gaming_mode_experimental_enabled:-}" = "false" ]; then
+            current_service_mode="desktop"
+        fi
         local service_mode_status="[${current_service_mode}]"
         
         # Calculate dialog tool status for menu display (in-memory dialog_tool)
@@ -560,12 +569,18 @@ main() {
                     # Also run the legacy 24/7 check as a safety backstop.
                     local cap_violations=""
                     if type check_daily_caps >/dev/null 2>&1; then
+                        local -a _cap_default_lines=()
+                        if type append_missing_restriction_default_lines >/dev/null 2>&1; then
+                            append_missing_restriction_default_lines _cap_default_lines "${config_lines[@]}"
+                        fi
                         cap_violations=$(check_daily_caps \
                             "${configure_block_enabled:-false}" \
                             "${uninstall_protection_mode:-none}" \
+                            "CONFIG_LOCK_ENABLED=${config_lock_enabled:-false}" \
                             "${config_lines[@]}" \
                             "${lock_hours_lines[@]}" \
-                            "${uninstall_lock_hours_lines[@]}")
+                            "${uninstall_lock_hours_lines[@]}" \
+                            "${_cap_default_lines[@]}")
                         if [ -n "${cap_violations}" ]; then
                             # Hard block — no "save anyway" path for cap violations.
                             show_cap_violation_error "${use_gui}" "${cap_violations}"
@@ -613,7 +628,7 @@ main() {
                             fi
                             continue
                         fi
-                    elif ! check_config_lock_time; then
+                    elif configure_partial_lock_is_active; then
                         # Full mode: block save if we crossed into configure-block hours mid-session.
                         show_config_locked_error "${use_gui}" "Configuration"
                         continue
@@ -649,6 +664,11 @@ main() {
                         fi
                         exit 0
                     else
+                        local write_rc=$?
+                        if [ "${write_rc}" -eq 2 ]; then
+                            show_cap_violation_error "${use_gui}" "${CONFIG_WRITE_CAP_VIOLATIONS}"
+                            continue
+                        fi
                         local error_msg="Error: Failed to write configuration file.\n\nPlease check permissions for:\n${CONFIG_DIR}"
                         if [ "${use_gui}" = "true" ] && has_dialog_tool; then
                             show_info_dialog "Error" "${error_msg}" 600 250

@@ -726,8 +726,8 @@ calculate_restriction_end_time() {
         range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         
         # Check if current hour is in this range
-        if type is_hour_in_single_range >/dev/null 2>&1; then
-            if is_hour_in_single_range "${current_hour}" "${range}"; then
+        if type is_time_in_single_range >/dev/null 2>&1; then
+            if is_time_in_single_range "$(printf '%02d00' "${current_hour}")" "${range}" self; then
                 local start_part end_part end_12h
                 start_part="${range%%-*}"
                 end_part="${range##*-}"
@@ -751,7 +751,7 @@ calculate_restriction_end_time() {
             if type is_restricted_time >/dev/null 2>&1; then
                 local current_time_hhmm
                 current_time_hhmm=$(printf "%02d00" "${current_hour}")
-                if is_restricted_time "${current_time_hhmm}" "${range}"; then
+                if is_restricted_time "${current_time_hhmm}" "${range}" self; then
                     local start_part end_part end_12h
                     start_part="${range%%-*}"
                     end_part="${range##*-}"
@@ -777,7 +777,7 @@ calculate_restriction_end_time() {
             local in_range=false
             if [ "${start_hour}" -gt "${end_hour}" ]; then
                 # Overnight range
-                if [ "${current_hour}" -ge "${start_hour}" ] || [ "${current_hour}" -lt "${end_hour}" ]; then
+                if [ "${current_hour}" -ge "${start_hour}" ]; then
                     in_range=true
                 fi
             else

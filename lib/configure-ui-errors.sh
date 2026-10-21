@@ -275,7 +275,7 @@ show_config_locked_error() {
     
     # Check restriction hours (current day and previous day overnight)
     if type is_restricted_time >/dev/null 2>&1; then
-        if is_restricted_time "${current_time_hhmm}" "${restricted_range}"; then
+        if is_restricted_time "${current_time_hhmm}" "${restricted_range}" self; then
             in_restriction=true
         elif [ -n "${prev_day_range}" ]; then
             # Check previous day's overnight ranges
@@ -314,7 +314,7 @@ show_config_locked_error() {
     
     # Check lock hours (current day and previous day overnight) - Phase 2
     if type is_restricted_time >/dev/null 2>&1; then
-        if [ -n "${lock_hours_range}" ] && is_restricted_time "${current_time_hhmm}" "${lock_hours_range}"; then
+        if [ -n "${lock_hours_range}" ] && is_restricted_time "${current_time_hhmm}" "${lock_hours_range}" self; then
             in_lock_hours=true
         elif [ -n "${prev_day_lock_hours}" ]; then
             # Check previous day's overnight lock hours

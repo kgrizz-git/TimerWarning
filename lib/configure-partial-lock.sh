@@ -246,6 +246,13 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
                     return 1
                 fi
                 ;;
+            # Display routing only. Enabling or disabling the overlay is allowed
+            # during lock hours; this arm is intentional, not an unknown key.
+            GAMING_MODE_EXPERIMENTAL_ENABLED|gaming_mode_experimental_enabled)
+                ;;
+            # Log-only diagnostics. Either value is allowed during lock hours.
+            GAMESCOPE_OVERLAY_DEBUG|gamescope_overlay_debug)
+                ;;
             *)
                 ;;
         esac
@@ -278,6 +285,7 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
         _baseline_popup_size_custom_absolute="${popup_size_custom_absolute:-1280x720}"
         _baseline_popup_position="${popup_position:-center}"
         _baseline_dialog_tool="${dialog_tool:-auto}"
+        _baseline_gaming_mode_experimental_enabled="${gaming_mode_experimental_enabled:-false}"
     }
 
     # Echo human-readable errors (one per line); empty = OK.
@@ -323,6 +331,13 @@ if [ -z "${CONFIGURE_PARTIAL_LOCK_LOADED:-}" ]; then
         fi
         if ! configure_partial_lock_validate_scalar "dialog_tool" "${_baseline_dialog_tool}" "${dialog_tool:-auto}"; then
             errors="${errors}Cannot change dialog tool during lock hours.\n"
+        fi
+        # Live path for the overlay allow-arm. Option 12 also calls the scalar
+        # check directly because it writes the key without this save validator.
+        if ! configure_partial_lock_validate_scalar "GAMING_MODE_EXPERIMENTAL_ENABLED" \
+            "${_baseline_gaming_mode_experimental_enabled:-false}" \
+            "${gaming_mode_experimental_enabled:-false}"; then
+            errors="${errors}Cannot change Experimental Gaming Mode during lock hours.\n"
         fi
         if [ "${_baseline_popup_size_custom}" != "${popup_size_custom:-50%x50%}" ] || \
            [ "${_baseline_popup_size_custom_absolute}" != "${popup_size_custom_absolute:-1280x720}" ]; then

@@ -405,8 +405,9 @@ verify_uninstall_during_restrictions() {
     fi
     
     # Step 1: Confirmation phrase
-    if ! verify_confirmation_phrase "${use_gui}" 3; then
-        local exit_code=$?
+    verify_confirmation_phrase "${use_gui}" 3
+    local exit_code=$?
+    if [ "${exit_code}" -ne 0 ]; then
         if [ ${exit_code} -eq 2 ]; then
             # User cancelled
             return 2

@@ -23,7 +23,7 @@ What still must be true:
 | Category | Inputs that count (merge overlapping intervals before measuring) |
 |----------|------------------------------------------------------------------|
 | **Restriction** (popup hours) | `SUNDAY=…` … `SATURDAY=…` for that weekday, plus any overnight carry from the prior day |
-| **Configure block** | `CONFIG_LOCK_HOURS_<DAY>` ∪ (restriction hours for that day **if** `CONFIGURE_BLOCK_ENABLED=true`) |
+| **Configure block** | `CONFIG_LOCK_HOURS_<DAY>` ∪ (restriction hours for that day **if** `CONFIGURE_BLOCK_ENABLED=true` **or** `CONFIG_LOCK_ENABLED=true`) |
 | **Uninstall block** | `UNINSTALL_LOCK_HOURS_<DAY>` ∪ (restriction hours for that day **if** uninstall protection is enabled) |
 
 The three caps are **independent**. A user can have:
@@ -40,9 +40,13 @@ This must be enforced at **three** points:
 |-------|----------------------|
 | Configure wizard `write_config` | Hard block. No "save anyway" override. |
 | Runtime startup of `sleep-warning.sh` (`validate_config_safety`) | Fall back to safe defaults; warn in log. |
-| Manual `--text` edit + reload | Same runtime fallback fires. |
+| Manual `--text` edit + reload | Same runtime fallback fires. Absent days, `1`/`yes` configure-block, a missing uninstall mode (`difficult`), and an end time of 24:00 are counted the same way the features apply them. An unparseable range counts as a full day on the day that contains it. |
 
 A weekly average is **not** acceptable. A single day over 16 hours in any category is a violation.
+
+An overnight range belongs to its named evening and the following morning: `MONDAY=22:00-06:00` applies Monday 22:00–24:00 and Tuesday 00:00–06:00, never Monday morning. Runtime checks and cap accounting use this same split.
+
+Standalone configure, config-file locking, and uninstall protection also check the caps. If a hand-edited config is unsafe, these paths release locks and uninstall protection so the user can repair or remove it; the popup runtime uses safe default restriction hours. They re-read the config after repairs.
 
 ## Popup lifetime (the second invariant)
 
@@ -60,6 +64,12 @@ Popups **must never** be:
 
 The absolute popup lifetime cap is `POPUP_ABSOLUTE_MAX_SECONDS` (default **330** seconds in `lib/popup-safety.sh`, all platforms). That default is sized for the largest configurable min-display (300s) plus auto-close delay (10s) and a watchdog buffer (~15s). The number is expected to **grow** if we add longer lockouts. The invariant is "finite and bounded by an explicit cap," not a fixed small limit forever.
 
+On Linux, a countdown redraw keeps the outgoing dialog registered until it exits so the watchdog can still kill it if TERM fails. Watchdog expiry also prevents further respawns in that popup session, including expiry during a spawn. A failed respawn is retried at most three times within the same deadline before notification fallback. Failed watchdog setup closes the popup. Pause-confirmation notices have their own TERM-then-KILL deadline, armed before display probes; the warning's watchdog cannot protect a new notice PID. On macOS, the osascript wrapper force-terminates and reaps its dialog child on watchdog expiry.
+
+Gamescope root-size queries before dialog creation have a roughly two-second
+deadline. A stalled query is killed and reaped, and sizing uses fallback
+dimensions so it cannot indefinitely block warning or pause-notice creation.
+
 ## Always-available escape hatch (the third invariant)
 
 The user can always permanently disable the system through at least one documented path. These paths are not blocked by `CONFIGURE_BLOCK_ENABLED` or `CONFIG_LOCK_ENABLED`:
@@ -67,7 +77,12 @@ The user can always permanently disable the system through at least one document
 | Platform | Disable | Uninstall |
 |----------|---------|-----------|
 | Linux | `systemctl --user stop sleep-warning.timer && systemctl --user disable sleep-warning.timer` | `~/.local/bin/sleep-warning-uninstall` |
-| macOS | `launchctl bootout gui/$(id -u)/com.sleep-warning` | `~/.local/bin/sleep-warning-uninstall` |
+| macOS | Stop now: `launchctl bootout gui/$(id -u)/com.sleep-warning`; also run `launchctl disable gui/$(id -u)/com.sleep-warning` to stay disabled after login/reboot | `~/.local/bin/sleep-warning-uninstall` |
+
+On macOS, `bootout` alone is an immediate stop for the current session. The
+management **Disable service** action also sets the persistent `disable`
+override and reports failure of either operation. **Enable service** (or an
+explicit install) clears that override; ordinary reloads do not clear it.
 
 `sleep-warning-manage` is **convenience**, not the escape hatch. Disable service, status, and logs remain available during lock hours. **Configure** opens in **tighten-only partial mode** (see below) instead of being fully blocked.
 
@@ -83,9 +98,10 @@ When restriction hours, configure-block hours, or config-file lock (`CONFIG_LOCK
 | Enable `CONFIGURE_BLOCK_ENABLED` / `CONFIG_LOCK_ENABLED` | Disable those flags |
 | Stronger uninstall protection (`none` → `difficult`) | Weaken protection |
 | Disable pause, shorter pause duration, larger popup | Enable pause, longer pause, smaller popup |
-| Toggle `POPUP_AUTO_CLOSE` either way | Change position, dialog tool, service mode |
+| Toggle `POPUP_AUTO_CLOSE` either way | Change position, dialog tool |
+| Toggle `GAMING_MODE_EXPERIMENTAL_ENABLED` either way (SteamOS display routing only; does not change restriction hours) | — |
 
-`POPUP_AUTO_CLOSE=false` is **not** treated as loosening: popups still end via min-display and the absolute watchdog (`lib/popup-safety.sh`). On macOS, `DARWIN_FORCE_AUTO_CLOSE` may still force auto-close at runtime.
+`POPUP_AUTO_CLOSE=false` is **not** treated as loosening: popups still end via min-display and the absolute watchdog (`lib/popup-safety.sh`). On macOS (`DARWIN_FORCE_AUTO_CLOSE`) and SteamOS Gaming Mode (`GAMESCOPE_FORCE_AUTO_CLOSE`), auto-close is forced at runtime.
 
 Saves still run `check_daily_caps` and `check_restriction_coverage` (16 h/day per category, weekly backstop). Session baseline is captured at wizard entry; tighten-only rules apply for the **whole session** even if the clock leaves lock before save.
 

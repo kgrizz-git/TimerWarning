@@ -16,6 +16,9 @@ tier_a:
   description: Fast headless PR gate; required on every PR
   scripts:
     - test-daily-caps.sh
+    - test-review-regressions.sh
+    - test-greptile-regressions.sh
+    - test-safety-review-fixes.sh
     - test-invariant-messages.sh
     - test-time-picker-minutes.sh
     - name: test-popup-safety-darwin.sh
@@ -25,6 +28,11 @@ tier_a:
     - name: test-popup-watchdog-cleanup.sh
       platform: linux
     - test-configure-partial-lock.sh
+    - test-gamescope-overlay.sh
+    - test-popup-notice-deadlines.sh
+    - test-non-utf-dialog-safety.sh
+    - test-portable-utf8-dialog-locale.sh
+    - test-steam-deck-preflight.sh
     - test-configure-back-navigation.sh
     - test-input-time-cap-validation.sh
     - test-ifs-set-u.sh
@@ -32,6 +40,7 @@ tier_a:
     - test-uninstall-verification-eof.sh
     - test-config-lock-wizard-write-failure.sh
     - test-darwin-uninstall-failures.sh
+    - test-darwin-persistent-disable.sh
     - test-prune-backups.sh
     - test-prune-dev-docs-archive.sh
     - test-prune-completed-plans.sh

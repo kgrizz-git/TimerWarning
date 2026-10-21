@@ -123,6 +123,9 @@ _show_multi_column_list_yad() {
     done
     yad_args+=("${_data[@]}")
 
+    # Parent-shell prepare (show_multi_column_list_dialog) exports LC_ALL for this
+    # child. Do not invent LC_ALL=C.UTF-8 here — a missing C.UTF-8 would make glibc
+    # fall back to plain C and reintroduce the em-dash crash.
     local result
     result=$(yad "${yad_args[@]}" 2>/dev/null)
     local exit_code=$?

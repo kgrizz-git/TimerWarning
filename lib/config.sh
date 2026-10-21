@@ -86,6 +86,13 @@ DEFAULT_PAUSE_COOLDOWN_HOURS=24
 # This controls whether config file locking is enabled during restricted hours (Enhancement #18)
 DEFAULT_CONFIG_LOCK_ENABLED=false
 
+# Default experimental SteamOS Gaming Mode overlay support setting
+# When true, enables Xwayland (:0) + STEAM_OVERLAY/STEAM_INPUT_FOCUS tagging when gamescope is running
+DEFAULT_GAMING_MODE_EXPERIMENTAL_ENABLED=false
+
+# Default gamescope overlay debug logging. Log-only; does not change popup behavior.
+DEFAULT_GAMESCOPE_OVERLAY_DEBUG=false
+
 # Pause state file location - stores pause state and last pause date
 # This file tracks when pause expires and when pause was last used (Enhancement #21)
 PAUSE_STATE_FILE="${CONFIG_DIR}/.pause_state"
@@ -116,18 +123,6 @@ LAST_POPUP_TIME_FILE="${STATE_DIR}/last-popup-time"
 # Default popup display frequency (minutes) - used if config missing or invalid (Enhancement #30)
 # Range 1-60; user-facing "how often to show popups"
 DEFAULT_POPUP_DISPLAY_FREQUENCY=10
-
-# Default restricted hours (used if config file missing or invalid)
-# day_number: 0=Sunday .. 6=Saturday (bash 3.2 compatible — no associative arrays)
-get_default_hours_for_day() {
-    local day_num="$1"
-    case "${day_num}" in
-        0) echo "1-5" ;;       # Sunday: 1:00 AM to 4:59 AM
-        1|2|3|4|5) echo "0-5" ;;  # Mon–Fri: midnight to 4:59 AM
-        6) echo "1-5" ;;       # Saturday: 1:00 AM to 4:59 AM
-        *) return 1 ;;
-    esac
-}
 
 # Get check interval from configuration file (no args; read-only).
 # After Enhancement #30, user-facing popup frequency is POPUP_DISPLAY_FREQUENCY;
@@ -355,8 +350,10 @@ get_configure_block_enabled() {
 # This is for Enhancement #26 (Prevent uninstall.sh Execution During Restricted Hours)
 #
 # Returns:
-#   "none" - No protection (default)
-#   "difficult" - Difficult uninstall (verification required)
+#   "none" - No protection
+#   "difficult" - Difficult uninstall (verification required). This is also the
+#                 value used when the key is missing or invalid
+#                 (DEFAULT_UNINSTALL_PROTECTION_MODE).
 #
 # Exit Codes:
 #   0 - Success
@@ -815,3 +812,97 @@ parse_uninstall_lock_hours() {
     resolved_day=$(_resolve_lock_hours_day_num "${day_input}" "true") || return 1
     _parse_config_hours_for_day "${resolved_day}" "${CONFIG_KEY_PREFIX_UNINSTALL_LOCK_HOURS}" "uninstall lock hours"
 }
+
+# Get experimental SteamOS Gaming Mode overlay support setting.
+# Checks GAMING_MODE_EXPERIMENTAL_ENABLED environment override first, then CONFIG_FILE.
+# A missing key stays off. mode-gaming.conf alone does not enable the overlay:
+# that drop-in can exist from an older install or from Option 12's service environment.
+# Returns: "true" or "false"
+get_gaming_mode_experimental_enabled() {
+    if [ -n "${GAMING_MODE_EXPERIMENTAL_ENABLED:-}" ]; then
+        local env_val
+        env_val=$(echo "${GAMING_MODE_EXPERIMENTAL_ENABLED}" | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
+        case "${env_val}" in
+            true|1|yes)
+                echo "true"
+                return 0
+                ;;
+            false|0|no)
+                echo "false"
+                return 0
+                ;;
+        esac
+    fi
+
+    if [ -f "${CONFIG_FILE}" ]; then
+        local raw_val
+        raw_val=$(grep -E "^[[:space:]]*${CONFIG_KEY_GAMING_MODE_EXPERIMENTAL_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
+        if [ -n "${raw_val}" ]; then
+            case "${raw_val}" in
+                true|1|yes)
+                    echo "true"
+                    return 0
+                    ;;
+                false|0|no)
+                    echo "false"
+                    return 0
+                    ;;
+            esac
+        fi
+    fi
+
+    echo "${DEFAULT_GAMING_MODE_EXPERIMENTAL_ENABLED}"
+    return 0
+}
+
+# Same tokens as get_gaming_mode_experimental_enabled (trim, strip quotes, casefold).
+# Parameters: $1 raw token. Prints true/false and returns 0, or returns 1 if unrecognized.
+_config_parse_bool_token() {
+    local raw="${1:-}"
+    local val
+    val=$(printf '%s' "${raw}" | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
+    case "${val}" in
+        true|1|yes) printf '%s\n' "true"; return 0 ;;
+        false|0|no) printf '%s\n' "false"; return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# File-only GAMESCOPE_OVERLAY_DEBUG. Ignores the environment. Missing or unrecognized prints false.
+_get_gamescope_overlay_debug_from_config() {
+    if [ -f "${CONFIG_FILE:-}" ]; then
+        local raw_val parsed
+        raw_val=$(grep -E "^[[:space:]]*${CONFIG_KEY_GAMESCOPE_OVERLAY_DEBUG}=" "${CONFIG_FILE}" 2>/dev/null | tail -n1 | cut -d'=' -f2 || true)
+        if [ -n "${raw_val}" ]; then
+            if parsed=$(_config_parse_bool_token "${raw_val}"); then
+                printf '%s\n' "${parsed}"
+                return 0
+            fi
+        fi
+    fi
+    printf '%s\n' "false"
+    return 0
+}
+
+# Whether gamescope overlay debug logging is enabled.
+# Environment wins over the config file, including explicit false.
+# Unrecognized or unset environment falls through to the file.
+# A missing file key stays false. This flag is log-only.
+# Returns: prints "true" or "false"
+get_gamescope_overlay_debug() {
+    if [ -n "${GAMESCOPE_OVERLAY_DEBUG:-}" ]; then
+        local parsed
+        if parsed=$(_config_parse_bool_token "${GAMESCOPE_OVERLAY_DEBUG}"); then
+            printf '%s\n' "${parsed}"
+            return 0
+        fi
+    fi
+    _get_gamescope_overlay_debug_from_config
+    return 0
+}
+
+# Shared safety inputs and cap gates are kept separate from config getters.
+_CONFIG_SAFETY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${_CONFIG_SAFETY_DIR}/config-safety.sh"
+unset _CONFIG_SAFETY_DIR

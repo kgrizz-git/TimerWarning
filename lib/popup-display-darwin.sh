@@ -7,10 +7,16 @@
 show_warning_darwin() {
     local _pd_dir
     _pd_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    # shellcheck disable=SC1091
-    [ -f "${_pd_dir}/popup-safety.sh" ] && source "${_pd_dir}/popup-safety.sh"
-    # shellcheck disable=SC1091
-    [ -f "${_pd_dir}/popup-dialog-implementations-darwin.sh" ] && source "${_pd_dir}/popup-dialog-implementations-darwin.sh"
+    # Preserve already-loaded implementations (including direct-source callers)
+    # without a production environment flag that can skip safety loading.
+    if ! type popup_run_with_watchdog >/dev/null 2>&1; then
+        # shellcheck disable=SC1091
+        [ -f "${_pd_dir}/popup-safety.sh" ] && source "${_pd_dir}/popup-safety.sh"
+    fi
+    if ! type _popup_spawn_warning_dialog_darwin >/dev/null 2>&1; then
+        # shellcheck disable=SC1091
+        [ -f "${_pd_dir}/popup-dialog-implementations-darwin.sh" ] && source "${_pd_dir}/popup-dialog-implementations-darwin.sh"
+    fi
 
     local env_type display_id
     env_type=$(detect_display_environment)
@@ -67,15 +73,32 @@ show_warning_darwin() {
     fi
 
     local popup_pid window_title="ALERT: Restricted time window"
+    local _darwin_spawned_pid=""
     local watchdog_seconds
     watchdog_seconds=$(popup_compute_watchdog_seconds "${min_display_time}" "${popup_auto_close}")
 
     _popup_spawn_warning_dialog() {
         _popup_spawn_warning_dialog_darwin "${message}" "${base_message}"
+        if [ -n "${popup_pid}" ]; then
+            _darwin_spawned_pid="${popup_pid}"
+            save_popup_pid "${popup_pid}"
+        fi
     }
 
-    popup_run_with_watchdog _popup_spawn_warning_dialog "${watchdog_seconds}"
-    local watchdog_rc=$?
+    local watchdog_rc=0
+    popup_run_with_watchdog _popup_spawn_warning_dialog "${watchdog_seconds}" || watchdog_rc=$?
+    if [ -n "${_darwin_spawned_pid}" ]; then
+        cleanup_popup_pid "${_darwin_spawned_pid}"
+    fi
+
+    # The watchdog clears popup_pid and returns 124 after a successful spawn
+    # that it had to kill. Check that before treating an empty pid as failure,
+    # or a correctly capped popup is reported as "failed to display".
+    if [ "${watchdog_rc}" -eq 124 ]; then
+        log_to_file "WARNING" "macOS: Popup closed by safety watchdog"
+        rm -f "${POPUP_DARWIN_RESULT_FILE:-}" 2>/dev/null
+        return 0
+    fi
 
     if [ -z "${popup_pid}" ] || ! [[ "${popup_pid}" =~ ^[0-9]+$ ]]; then
         log_to_file "ERROR" "macOS: Failed to display popup"
@@ -88,7 +111,6 @@ show_warning_darwin() {
         return 1
     fi
 
-    save_popup_pid "${popup_pid}"
     log_to_file "INFO" \
         "macOS popup session ended: ui=${POPUP_DARWIN_UI_PATH:-unknown}, reason=${POPUP_DARWIN_UI_REASON:-unknown}, PID=${popup_pid}, watchdog=${watchdog_seconds}s, min_display=${min_display_time}s, rc=${watchdog_rc}"
 
@@ -103,10 +125,6 @@ show_warning_darwin() {
 
     cleanup_popup_pid "${popup_pid}"
     rm -f "${POPUP_DARWIN_RESULT_FILE:-}" 2>/dev/null
-
-    if [ "${watchdog_rc}" -eq 124 ]; then
-        log_to_file "WARNING" "macOS: Popup closed by safety watchdog"
-    fi
 
     return 0
 }

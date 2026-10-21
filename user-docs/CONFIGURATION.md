@@ -141,12 +141,12 @@ SATURDAY=0-16       # 16 hours
 ```
 
 **Runtime fallback**:
-If an unsafe config is loaded outside the wizard, `sleep-warning` falls back to safe defaults and logs a warning.
+If an unsafe config is loaded outside the wizard, `sleep-warning` uses the built-in restriction hours for that run (weekdays midnight–4:59, weekends 1:00–4:59) and logs a warning. It does not rewrite configure-block or uninstall settings in the file. The check uses the same flags as the features (`true`/`1`/`yes` enable configure-block; a missing uninstall mode is `difficult`) and counts restriction days that are absent from the file, because those days still use the built-in hours.
 
 **Important Notes**:
 - The validation correctly handles overlapping ranges (both within the same day and across day boundaries) to accurately calculate merged coverage per day.
 - The per-day cap applies to **each category independently** — restriction, configure-block, and uninstall-block are checked separately.
-- If you configure restriction hours (8 h/day) + config lock hours (16 h/day) on the same day, the configure-block category totals 24 h on that day and is **blocked**, even if `CONFIGURE_BLOCK_ENABLED=false` at save time (lock hours still count toward the category total).
+- If configure-block is on (`true`, `1`, or `yes`) and you configure restriction hours (8 h/day) plus config lock hours (16 h/day) on the same day, the configure-block category totals 24 h and is **blocked**. When the flag is off, only the extra lock hours count toward that category.
 
 **Combining Multiple and Overnight Ranges**:
 You can combine multiple ranges, including overnight ranges:
@@ -795,6 +795,35 @@ DIALOG_TOOL=kdialog   # Force use of kdialog (if installed)
 - A warning is logged when fallback occurs
 - The system continues to work normally with the best available tool
 
+### Experimental Gaming Mode Overlay
+
+**Option**: `GAMING_MODE_EXPERIMENTAL_ENABLED`
+
+**Purpose**: On Linux, route warning dialogs through gamescope's Xwayland overlay plane when you are in SteamOS Gaming Mode.
+
+**Default**: `false` (Desktop Mode dialogs only)
+
+**Valid Values**:
+- `true` — enable the experimental overlay path
+- `false` — keep normal desktop dialog routing
+
+**Example**:
+```
+GAMING_MODE_EXPERIMENTAL_ENABLED=false
+```
+
+**How to Change**:
+- Recommended: `sleep-warning-configure` → **Option 12: Service Mode Configuration**
+- Manual: edit `~/.config/sleep-warning/config/sleep-warning.conf`
+
+**Notes**:
+- Off unless this key is `true`. An older `mode-gaming.conf` drop-in does not turn it on.
+- Option 12 can turn it on or off during lock hours. It does not change restriction hours.
+- If no usable display can be found, the warning tries `notify-send` instead of a modal dialog. Gaming Mode may not have a notification daemon.
+- When the overlay path is active, zenity/yad warning dialogs request the full gamescope nested (`:0`) width and at least two thirds of that canvas height, placed at the top-left (gamescope 3.16.x treats narrower `STEAM_OVERLAY` windows as non-interactive notifications). Desktop Mode sizes and position are unchanged. Steam Deck verified 2026-10-20 (click + Enter).
+- **Button labels follow the tool:** zenity `--warning` has no Cancel (OK only, or OK + Pause). Yad without pause uses OK and Cancel; kdialog may say Dismiss. Gaming Mode often picks zenity, so a missing Cancel is expected. See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md).
+- Optional `GAMESCOPE_OVERLAY_DEBUG` (default off, not a wizard option) adds log-only diagnostics. Leave it unset unless you are collecting a Gaming Mode log.
+
 ## Complete Configuration Example
 
 Here is a complete example configuration file with all options:
@@ -847,6 +876,10 @@ UNINSTALL_PROTECTION_MODE=difficult
 # kdialog = Force use of kdialog (if installed)
 # If selected tool is not installed, system falls back to automatic selection
 DIALOG_TOOL=auto
+
+# Experimental SteamOS Gaming Mode overlay (true/false). Default false.
+# Does not change restriction hours. Option 12 can toggle this during lock hours.
+GAMING_MODE_EXPERIMENTAL_ENABLED=false
 
 # Config file locking: Lock the configuration file during restricted hours (and lock hours) (true/false)
 # This is an opt-in deterrence feature - disabled by default
@@ -1031,8 +1064,8 @@ vim ~/.config/sleep-warning/config/sleep-warning.conf
 
 The script automatically validates configuration values:
 
-- **Hours**: Must be integers between 0 and 23
-- **Hour ranges**: Start hour must be less than end hour
+- **Hours**: Start times are 0–23. An end of `24:00` (or `24`) means the end of that calendar day. `00:00-24:00` is the full day and exceeds the 16 h cap.
+- **Hour ranges**: A start earlier than the end stays on the same day. A start later than the end is an overnight range (for example `23-6`).
 - **CHECK_INTERVAL**: Must be between 1 and 60
 - **POPUP_SIZE**: Must be `xsmall`, `small`, `medium`, `large`, `xlarge`, `max`, `custom`, or match `WIDTHxHEIGHT` (pixel) or `WIDTH%xHEIGHT%` (percentage) format
 - **POPUP_SIZE_MODE**: Must be `fixed` or `display-based` (default: `fixed`). The value `display-based` is shown as "percentage" in the configuration wizard.

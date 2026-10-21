@@ -469,7 +469,7 @@ sudo pacman -S wmctrl xdotool
 **Limitations:**
 - Some exclusive full-screen games cannot be overlaid by window manager dialogs
 - This is a limitation of the windowing system, not the sleep warning system
-- SteamOS Gaming Mode may have additional limitations (see SteamOS-specific documentation)
+- SteamOS Gaming Mode overlay support is experimental, off unless `GAMING_MODE_EXPERIMENTAL_ENABLED=true` (Deck click path verified 2026-10-20; see SteamOS-specific documentation)
 
 ### Problem: Timer Not Starting on Boot
 
@@ -649,7 +649,7 @@ Future versions may support custom messages per day or time range.
 
 ### SteamOS Gaming Mode Compatibility
 
-**Current Status**: ⚠️ Partially Compatible - Requires Testing
+**Current Status**: ⚙️ Experimental Overlay Support (Opt-In via Settings)
 
 **Desktop Mode:**
 - Uses X11 (KDE Plasma), enabling full window management features
@@ -657,19 +657,24 @@ Future versions may support custom messages per day or time range.
 - Exclusive full-screen games may still block popups
 - No guarantees can be made for all games
 
-**Gaming Mode Known Limitations:**
-- Display detection in gamescope (Wayland compositor) may be limited
-- Exclusive full-screen games may block popups
-- Window management tools don't work on Wayland
-- Always-on-top behavior is best-effort on Wayland/gamescope and may not work
-- If dialog popups fail, a non-modal notification fallback may be used (notify-send)
+**Gaming Mode (Experimental Overlay):**
+- Disabled by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false` in `sleep-warning.conf`)
+- **How to Enable or Disable:**
+  1. Run `sleep-warning-configure`
+  2. Select **Option 12: Service Mode Configuration**
+  3. Toggle Experimental Gaming Mode overlay support on (`true`) or off (`false`)
+- **How It Works When Enabled:**
+  - Configures the systemd user service drop-in (`~/.config/systemd/user/sleep-warning.service.d/mode-gaming.conf`) with `DISPLAY=:0` and the gamescope Wayland socket. Re-run Option 12 to rewrite a drop-in that still contains `GAMESCOPE_SESSION`
+  - Forces GTK/Qt dialog tools (`yad`/`zenity`/`kdialog`) onto the X11/Xwayland backend (`:0`) instead of Wayland
+  - Tags popup windows with `xprop` atoms `STEAM_OVERLAY=1` and `STEAM_INPUT_FOCUS=1` so `gamescope` composites the warning above fullscreen games and routes controller/touch input to the dialog
+  - Requests full gamescope nested display width and at least two thirds of that display's height, placed at the top-left, so gamescope 3.16.x can treat the dialog as an interactive overlay and the window sits in the pointer band (Deck-verified 2026-10-20)
+  - Forces popup auto-close (`GAMESCOPE_FORCE_AUTO_CLOSE=true`) in addition to the hard watchdog timeout so a dialog can never leave you stuck in Gaming Mode if controller focus is lost
+- **Requirements & Limitations:**
+  - Requires `xprop` (`xorg-xprop`, pre-installed on SteamOS) for setting `STEAM_OVERLAY=1` and `STEAM_INPUT_FOCUS=1`
+  - Classic X11 window manager geometry/immovable loops (`wmctrl`/`xdotool`) do not apply under `gamescope` except for the gamescope zenity top-left move (`xdotool`); minimum display time is enforced via countdown respawn and auto-close
+  - **Buttons depend on the dialog tool:** zenity has no Cancel on `--warning` (OK only, or OK + Pause when pause is available). Desktop Mode may show Cancel (yad) or Dismiss (kdialog) if a different tool is selected. Missing Cancel in Gaming Mode with zenity is expected, not a gamescope bug. Prefer `DIALOG_TOOL=yad` if you want OK/Cancel-style chrome.
 
-**For Best Results:**
-- Use borderless windowed mode in games
-- Install window management tools (may help on some systems)
-- Check logs to diagnose issues
-
-**See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md) for detailed Gaming Mode compatibility information.**
+**See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md) for detailed Gaming Mode technical documentation.**
 
 ### Multiple User Sessions
 

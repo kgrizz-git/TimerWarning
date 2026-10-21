@@ -233,6 +233,12 @@ show_list_dialog() {
     shift 4
     local items=("$@")
 
+    # Must run in this shell (not only inside $(dialog_safe_text) subshells) so
+    # LC_ALL / DIALOG_UTF8_CONFIRMED persist for the yad/zenity child process.
+    if type dialog_prepare_utf8_locale >/dev/null 2>&1; then
+        dialog_prepare_utf8_locale
+    fi
+
     title="$(dialog_safe_text "${title}")"
     text="$(dialog_safe_text "${text}")"
     if [ ${#items[@]} -gt 0 ]; then
@@ -251,6 +257,7 @@ show_list_dialog() {
             for item in "${items[@]}"; do
                 yad_args+=("${item}")
             done
+            # Inherit LC_ALL from parent-shell prepare above; do not invent C.UTF-8.
             local result
             result=$(yad --list --title="${title}" --text="${text}" \
                 --width="${width}" --height="${height}" \
@@ -448,6 +455,12 @@ show_multi_column_list_dialog() {
     
     # Remaining arguments are data (alternating: col1_row1, col2_row1, col1_row2, col2_row2, ...)
     local data=("$@")
+
+    # Must run in this shell before $(dialog_safe_text) so locale exports stick
+    # for the eventual yad/zenity invocation (subshells cannot export upward).
+    if type dialog_prepare_utf8_locale >/dev/null 2>&1; then
+        dialog_prepare_utf8_locale
+    fi
 
     # Sanitize all user-visible strings for GUI safety under non-UTF locales.
     title="$(dialog_safe_text "${title}")"

@@ -39,9 +39,26 @@ validate_display_format() {
     return 1
 }
 
+# Socket path for an X11 display (:0 -> .../X0, :1.0 -> .../X1).
+# X11_UNIX_DIR overrides the directory so tests can use a temp socket dir.
+_x11_socket_path_for_display() {
+    local display_value="$1"
+    local num socket_dir
+    if [[ ! "${display_value}" =~ ^:([0-9]+)(\.[0-9]+)?$ ]]; then
+        return 1
+    fi
+    num=$((10#${BASH_REMATCH[1]}))
+    socket_dir="${X11_UNIX_DIR:-/tmp/.X11-unix}"
+    printf '%s\n' "${socket_dir}/X${num}"
+}
+
 # Check X11 display accessibility (best-effort)
+# With xdpyinfo or xset, those tools decide. Without them, a matching
+# listener socket counts as reachable (:1 is /tmp/.X11-unix/X1). A missing
+# socket stays unanswered so the notify-send fallback can run.
 is_x11_display_accessible() {
     local display_value="$1"
+    local socket_path=""
     if command -v xdpyinfo >/dev/null 2>&1; then
         DISPLAY="${display_value}" xdpyinfo >/dev/null 2>&1
         return $?
@@ -50,8 +67,10 @@ is_x11_display_accessible() {
         DISPLAY="${display_value}" xset q >/dev/null 2>&1
         return $?
     fi
-    # If no tool is available, assume accessible
-    return 0
+    if socket_path=$(_x11_socket_path_for_display "${display_value}") && [ -S "${socket_path}" ]; then
+        return 0
+    fi
+    return 1
 }
 
 # Check Wayland socket accessibility
@@ -72,7 +91,8 @@ find_wayland_socket_candidate() {
         return 1
     fi
     local candidate=""
-    for socket_path in "${XDG_RUNTIME_DIR}"/wayland-*; do
+    local socket_path
+    for socket_path in "${XDG_RUNTIME_DIR}"/wayland-* "${XDG_RUNTIME_DIR}"/gamescope-*; do
         if [ -S "${socket_path}" ]; then
             candidate=$(basename "${socket_path}")
             echo "${candidate}"
@@ -115,9 +135,71 @@ detect_wayland_with_helpers() {
     return 1
 }
 
-# Detect if gamescope is running (best-effort)
+# Detect if gamescope is the session compositor (best-effort).
+# GAMESCOPE_SESSION is ignored. A unit file or an imported session variable
+# can stay set after the user leaves Gaming Mode, so it is not a live signal.
+# Returns 0 when XDG_CURRENT_DESKTOP names gamescope, or when the gamescope
+# process is running and the desktop name is unset. A named non-gamescope
+# desktop (for example KDE) returns 1 even if a nested gamescope process exists.
 is_gamescope_running() {
-    if pgrep -x gamescope >/dev/null 2>&1 || [ -n "${GAMESCOPE_SESSION}" ]; then
+    if [ -n "${XDG_CURRENT_DESKTOP:-}" ]; then
+        local _desktop_lower
+        _desktop_lower=$(echo "${XDG_CURRENT_DESKTOP}" | tr '[:upper:]' '[:lower:]')
+        case "${_desktop_lower}" in
+            *gamescope*) return 0 ;;
+            *) return 1 ;;
+        esac
+    fi
+    if pgrep -x gamescope >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
+# Check whether Experimental Gaming Mode overlay support is enabled in settings/config.
+# Honors GAMING_MODE_EXPERIMENTAL_ENABLED only. A gamescope session variable does not enable the overlay.
+is_gaming_mode_enabled() {
+    if type get_gaming_mode_experimental_enabled >/dev/null 2>&1; then
+        [ "$(get_gaming_mode_experimental_enabled)" = "true" ]
+        return $?
+    fi
+    if [ -n "${GAMING_MODE_EXPERIMENTAL_ENABLED:-}" ]; then
+        local env_val
+        env_val=$(echo "${GAMING_MODE_EXPERIMENTAL_ENABLED}" | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
+        case "${env_val}" in
+            true|1|yes) return 0 ;;
+            false|0|no) return 1 ;;
+        esac
+    fi
+    local cfg_file="${CONFIG_FILE:-${HOME:-}/.config/sleep-warning/config/sleep-warning.conf}"
+    if [ -f "${cfg_file}" ]; then
+        local cfg_val
+        cfg_val=$(grep -E "^[[:space:]]*GAMING_MODE_EXPERIMENTAL_ENABLED=" "${cfg_file}" 2>/dev/null | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
+        if [ -n "${cfg_val}" ]; then
+            case "${cfg_val}" in
+                true|1|yes) return 0 ;;
+                false|0|no) return 1 ;;
+            esac
+        fi
+    fi
+    return 1
+}
+
+# Resolve an accessible Xwayland display for gamescope overlay windows.
+# Prefer :0 (Steam UI / overlay plane), then a different accessible DISPLAY,
+# then :1 (game plane). Returns 1 and prints nothing when none of those
+# displays answer, so callers do not aim dialogs at a dead :0.
+get_gamescope_x11_display() {
+    if is_x11_display_accessible ":0"; then
+        echo ":0"
+        return 0
+    fi
+    if [ -n "${DISPLAY:-}" ] && [ "${DISPLAY}" != ":0" ] && validate_display_format "${DISPLAY}" && is_x11_display_accessible "${DISPLAY}"; then
+        echo "${DISPLAY}"
+        return 0
+    fi
+    if is_x11_display_accessible ":1"; then
+        echo ":1"
         return 0
     fi
     return 1
@@ -165,6 +247,19 @@ detect_display_environment() {
         if validate_display_format "${DISPLAY}"; then
             if is_x11_display_accessible "${DISPLAY}"; then
                 append_display_detection_step "env:DISPLAY"
+                if is_gaming_mode_enabled && is_gamescope_running; then
+                    append_display_detection_step "gamescope:process"
+                    echo "gamescope"
+                    return 0
+                fi
+                # The gaming drop-in sets DISPLAY=:0 even when the overlay is off.
+                # Prefer the Wayland socket so that install does not silently
+                # route Gaming Mode popups as plain X11.
+                if is_gamescope_running && [ -n "${WAYLAND_DISPLAY:-}" ] && is_wayland_display_accessible "${WAYLAND_DISPLAY}"; then
+                    append_display_detection_step "wayland:overlay-off"
+                    echo "wayland"
+                    return 0
+                fi
                 echo "x11"
                 return 0
             fi
@@ -183,7 +278,7 @@ detect_display_environment() {
     if [ -n "${WAYLAND_DISPLAY}" ]; then
         if is_wayland_display_accessible "${WAYLAND_DISPLAY}"; then
             append_display_detection_step "env:WAYLAND_DISPLAY"
-            if is_gamescope_running; then
+            if is_gaming_mode_enabled && is_gamescope_running; then
                 append_display_detection_step "gamescope:process"
                 if [ "${fallback_used}" = "true" ]; then
                     DISPLAY_DETECTION_NOTE="Fallback used; see detection path."
@@ -211,7 +306,7 @@ detect_display_environment() {
         append_display_detection_step "socket:${helper_candidate}"
         if detect_wayland_with_helpers "${helper_candidate}"; then
             WAYLAND_DISPLAY="${helper_candidate}"
-            if is_gamescope_running; then
+            if is_gaming_mode_enabled && is_gamescope_running; then
                 append_display_detection_step "gamescope:process"
                 if [ "${fallback_used}" = "true" ]; then
                     DISPLAY_DETECTION_NOTE="Fallback used; see detection path. ${DISPLAY_DETECTION_NOTE}"
@@ -237,13 +332,19 @@ detect_display_environment() {
             session_type=$(loginctl show-session "${session_id}" -p Type --value 2>/dev/null)
             if [ "${session_type}" = "x11" ]; then
                 append_display_detection_step "loginctl:type=x11"
+                if is_gaming_mode_enabled && is_gamescope_running; then
+                    append_display_detection_step "gamescope:process"
+                    DISPLAY_DETECTION_NOTE="Fallback used; see detection path."
+                    echo "gamescope"
+                    return 0
+                fi
                 DISPLAY_DETECTION_NOTE="Fallback used; see detection path."
                 echo "x11"
                 return 0
             fi
             if [ "${session_type}" = "wayland" ]; then
                 append_display_detection_step "loginctl:type=wayland"
-                if is_gamescope_running; then
+                if is_gaming_mode_enabled && is_gamescope_running; then
                     append_display_detection_step "gamescope:process"
                     DISPLAY_DETECTION_NOTE="Fallback used; see detection path."
                     echo "gamescope"
@@ -262,7 +363,7 @@ detect_display_environment() {
     fi
 
     # 4) gamescope fallback (last resort)
-    if is_gamescope_running; then
+    if is_gaming_mode_enabled && is_gamescope_running; then
         append_display_detection_step "gamescope:fallback"
         DISPLAY_DETECTION_NOTE="Fallback used; see detection path."
         echo "gamescope"
@@ -285,7 +386,19 @@ get_display_identifier() {
                 return 0
             fi
             ;;
-        wayland|gamescope)
+        gamescope)
+            local gs_x11=""
+            gs_x11=$(get_gamescope_x11_display || true)
+            if [ -n "${gs_x11}" ]; then
+                echo "${gs_x11}"
+                return 0
+            fi
+            if [ -n "${WAYLAND_DISPLAY}" ] && is_wayland_display_accessible "${WAYLAND_DISPLAY}"; then
+                echo "${WAYLAND_DISPLAY}"
+                return 0
+            fi
+            ;;
+        wayland)
             if [ -n "${WAYLAND_DISPLAY}" ] && is_wayland_display_accessible "${WAYLAND_DISPLAY}"; then
                 echo "${WAYLAND_DISPLAY}"
                 return 0
@@ -333,7 +446,15 @@ get_display() {
                 return 0
             fi
             ;;
-        wayland|gamescope)
+        gamescope)
+            local gs_display=""
+            gs_display=$(get_gamescope_x11_display || true)
+            if [ -n "${gs_display}" ]; then
+                echo "${gs_display}"
+                return 0
+            fi
+            ;;
+        wayland)
             local wayland_id
             wayland_id=$(get_display_identifier "wayland")
             if [ -n "${wayland_id}" ] && [ "${wayland_id}" != "unknown" ]; then
@@ -349,12 +470,13 @@ get_display() {
             ;;
     esac
     
-    # Last resort: try common X11 display values
-    if [ -S "/tmp/.X11-unix/X0" ]; then
+    # Last resort for desktop X11/Wayland only. A gamescope path that already
+    # failed the accessibility check must not aim dialogs at a leftover :0 socket.
+    if [ "${env_type}" != "gamescope" ] && [ -S "/tmp/.X11-unix/X0" ]; then
         echo ":0"
         return 0
     fi
-    
+
     return 1
 }
 
@@ -370,10 +492,11 @@ get_display() {
 # Returns: "desktop", "gaming", or "unknown" (if detection fails)
 # Exit code: 0 if mode detected, 1 if unknown
 #
-# This function leverages existing display detection functions to determine
-# the system mode. Gaming Mode is detected when gamescope is running or when
-# Wayland is detected in a SteamOS-like environment. Desktop Mode is detected
-# when X11 is the primary display protocol.
+# This classifies the session so install and Option 12 can write the matching
+# systemd drop-in (DISPLAY / WAYLAND_DISPLAY). It is independent of
+# GAMING_MODE_EXPERIMENTAL_ENABLED. That flag only selects overlay routing in
+# detect_display_environment(); a gamescope session still reports "gaming"
+# while the overlay stays off.
 detect_system_mode() {
     # Primary detection: Check for gamescope (strongest indicator of Gaming Mode)
     if is_gamescope_running; then

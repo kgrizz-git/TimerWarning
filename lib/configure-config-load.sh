@@ -26,6 +26,7 @@ load_existing_config() {
     declare -g pause_cooldown_hours="24"
     declare -g dialog_tool="auto"
     declare -g config_lock_enabled="false"
+    declare -g gaming_mode_experimental_enabled="false"
     
     # Clear existing arrays (they should already be declared as global by caller)
     config_lines=()
@@ -204,6 +205,17 @@ load_existing_config() {
         fi
     fi
     # If invalid, keep default "false" (already set above)
+
+    # Read experimental SteamOS Gaming Mode overlay setting
+    local existing_gaming_mode_experimental
+    existing_gaming_mode_experimental=$(grep -E "^[[:space:]]*${CONFIG_KEY_GAMING_MODE_EXPERIMENTAL_ENABLED}=" "${CONFIG_FILE}" 2>/dev/null | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]"'\''' | tr '[:upper:]' '[:lower:]')
+    if [ -n "${existing_gaming_mode_experimental}" ]; then
+        if [ "${existing_gaming_mode_experimental}" = "true" ] || [ "${existing_gaming_mode_experimental}" = "1" ] || [ "${existing_gaming_mode_experimental}" = "yes" ]; then
+            declare -g gaming_mode_experimental_enabled="true"
+        elif [ "${existing_gaming_mode_experimental}" = "false" ] || [ "${existing_gaming_mode_experimental}" = "0" ] || [ "${existing_gaming_mode_experimental}" = "no" ]; then
+            declare -g gaming_mode_experimental_enabled="false"
+        fi
+    fi
     
     # Load day configurations
     for i in 0 1 2 3 4 5 6; do

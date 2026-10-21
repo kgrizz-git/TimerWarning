@@ -40,7 +40,7 @@ From [linux-warning-system-plan.md](plans/master/linux-warning-system-plan.md). 
 
 ## Testing and validation
 
-- [ ] SteamOS Gaming Mode with full-screen games
+- [ ] SteamOS Gaming Mode with full-screen games — **partial 2026-10-19:** overlay visible/stays up; **buttons click-through** (see [plan-gamescope-overlay-click-through-2026-10-19.md](plans/plan-gamescope-overlay-click-through-2026-10-19.md))
 - [ ] Edge cases: overnight ranges, invalid config, missing dependencies
 - [ ] Multi-distribution install scripts
 - [ ] Dialog tools (YAD / Zenity / KDialog) across X11, Wayland, KDE

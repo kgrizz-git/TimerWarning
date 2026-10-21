@@ -25,6 +25,13 @@ _popup_linux_release_spawn_lock() {
 _popup_linux_acquire_spawn_lock() {
     _popup_lock_fd=""
     local _popup_lock_file="${CONFIG_DIR}/.popup.lock"
+    # A killed parent cannot run normal marker cleanup. Never remove a recent
+    # expiry latch that a still-running popup session may be consulting.
+    local marker
+    for marker in "${CONFIG_DIR}"/.popup_pid.expired.*; do
+        [ -f "${marker}" ] || continue
+        find "${marker}" -mmin +10 -delete 2>/dev/null || true
+    done
     if command -v flock >/dev/null 2>&1; then
         exec {_popup_lock_fd}>"${_popup_lock_file}" 2>/dev/null || true
         if [ -n "${_popup_lock_fd}" ]; then
@@ -73,6 +80,10 @@ _popup_linux_cancel_watchdog() {
         wait "${_popup_watchdog_pid}" 2>/dev/null || true
         _popup_watchdog_pid=""
     fi
+    if [ -n "${_popup_watchdog_expired_file:-}" ]; then
+        rm -f "${_popup_watchdog_expired_file}"
+        _popup_watchdog_expired_file=""
+    fi
 }
 
 # Log spawn success, save PID, release lock, start absolute watchdog.
@@ -85,9 +96,11 @@ _popup_linux_on_spawn_success() {
             auto_close_status="enabled (10s after popup appears)"
         fi
     fi
-    log_to_file "INFO" "Popup displayed successfully (PID: ${popup_pid}), Dialog tool: ${dialog_tool}, Size: ${popup_size}, Position: ${popup_position}, Min display time: ${min_display_time}s, Auto-close: ${auto_close_status}"
-
-    save_popup_pid "${popup_pid}"
+    if ! save_popup_pid "${popup_pid}"; then
+        close_popup_process "${popup_pid}" "${dialog_tool}" || true
+        _popup_linux_release_spawn_lock
+        return 1
+    fi
     _popup_linux_release_spawn_lock
 
     local _popup_watchdog_seconds
@@ -97,11 +110,49 @@ _popup_linux_on_spawn_success() {
         _popup_watchdog_seconds="${POPUP_ABSOLUTE_MAX_SECONDS:-120}"
     fi
     if type popup_start_pid_file_watchdog >/dev/null 2>&1; then
-        popup_start_pid_file_watchdog "${_popup_watchdog_seconds}" "${POPUP_PID_FILE}" >/dev/null
+        _popup_watchdog_expired_file=$(mktemp "${POPUP_PID_FILE}.expired.XXXXXX") || {
+            close_popup_process "${popup_pid}" "${dialog_tool}" || true
+            cleanup_popup_pid "${popup_pid}"
+            return 1
+        }
+        if ! popup_start_pid_file_watchdog "${_popup_watchdog_seconds}" "${POPUP_PID_FILE}" "${_popup_watchdog_expired_file}" >/dev/null; then
+            close_popup_process "${popup_pid}" "${dialog_tool}" || true
+            cleanup_popup_pid "${popup_pid}"
+            _popup_linux_cancel_watchdog
+            return 1
+        fi
         _popup_watchdog_pid="${POPUP_WATCHDOG_LAST_PID:-}"
+        if ! [[ "${_popup_watchdog_pid}" =~ ^[0-9]+$ ]] || ! kill -0 "${_popup_watchdog_pid}" 2>/dev/null; then
+            close_popup_process "${popup_pid}" "${dialog_tool}" || true
+            cleanup_popup_pid "${popup_pid}"
+            _popup_linux_cancel_watchdog
+            return 1
+        fi
     else
         _popup_watchdog_pid=""
+        close_popup_process "${popup_pid}" "${dialog_tool}" || true
+        cleanup_popup_pid "${popup_pid}"
+        return 1
     fi
+    log_to_file "INFO" "Popup displayed successfully (PID: ${popup_pid}), Dialog tool: ${dialog_tool}, Size: ${popup_size}, Position: ${popup_position}, Min display time: ${min_display_time}s, Auto-close: ${auto_close_status}"
+    return 0
+}
+
+# Last-resort non-modal alert when no dialog can be shown (spawn failure or
+# no usable display). Returns 0 only when notify-send accepts the message.
+# Gaming Mode often has no notification daemon; a missing or failing
+# notify-send is logged and returns 1.
+_popup_linux_notify_send_fallback() {
+    if ! command -v notify-send >/dev/null 2>&1; then
+        log_to_file "ERROR" "notify-send fallback unavailable"
+        return 1
+    fi
+    if notify-send "ALERT: Restricted time window" "You are using your computer during restricted hours. Please consider resting." >/dev/null 2>&1; then
+        log_to_file "WARNING" "notify-send fallback used (non-modal)"
+        return 0
+    fi
+    log_to_file "ERROR" "notify-send fallback failed"
+    return 1
 }
 
 # Handle spawn failure: release lock, optional notify-send fallback.
@@ -109,24 +160,59 @@ _popup_linux_on_spawn_success() {
 _popup_linux_on_spawn_failure() {
     log_to_file "ERROR" "Failed to display popup, Dialog tool: ${dialog_tool}"
     _popup_linux_release_spawn_lock
-    if command -v notify-send >/dev/null 2>&1; then
-        notify-send "ALERT: Restricted time window" "You are using your computer during restricted hours. Please consider resting." >/dev/null 2>&1
-        log_to_file "WARNING" "notify-send fallback used (non-modal)"
+    _popup_linux_notify_send_fallback
+}
+
+# Log-only gamescope exit line. No-op when the debug flag is off.
+# Parameters: $1 exit code, $2 pause handler ran (true/false)
+_popup_linux_note_gamescope_debug_exit() {
+    if type gamescope_overlay_debug_log_exit >/dev/null 2>&1; then
+        gamescope_overlay_debug_log_exit "${1:-}" "${2:-false}" "${gamescope_debug_event:-spawn}" || true
+    fi
+}
+
+# Tag the current popup for the gamescope overlay plane without blocking the
+# min-display loop. apply_gamescope_overlay_atoms polls for up to a few seconds;
+# that wait runs in this background job, then atoms are refreshed every 2s
+# until duration elapses or popup_pid exits. Each respawn gets its own job;
+# the previous job exits once its captured PID is gone.
+# Parameters: $1 duration in seconds (min-display or remaining countdown).
+_popup_linux_arm_gamescope_atoms() {
+    local duration="${1:-0}"
+    if [ "${env_type:-}" != "gamescope" ] || [ -z "${popup_pid:-}" ]; then
         return 0
     fi
-    log_to_file "ERROR" "notify-send fallback unavailable"
-    return 1
+    if ! type apply_gamescope_overlay_atoms >/dev/null 2>&1; then
+        return 0
+    fi
+    local title="${window_title}"
+    local tool="${window_tool:-}"
+    local pid="${popup_pid}"
+    (
+        apply_gamescope_overlay_atoms "${title}" "${tool}" "${pid}" || true
+        if [ -z "${tool}" ]; then
+            local elapsed=0
+            while [ "${elapsed}" -lt "${duration}" ] && kill -0 "${pid}" 2>/dev/null; do
+                sleep 2
+                elapsed=$((elapsed + 2))
+                if kill -0 "${pid}" 2>/dev/null; then
+                    apply_gamescope_overlay_atoms "${title}" "" "${pid}" >/dev/null 2>&1 || true
+                fi
+            done
+        fi
+    ) &
 }
 
 # Keep popup window on top after spawn.
 _popup_linux_start_stay_on_top() {
+    local on_top_duration=${min_display_time}
+    if [ "${on_top_duration}" -eq 0 ]; then
+        on_top_duration=300
+    fi
+    _popup_linux_arm_gamescope_atoms "${on_top_duration}"
     if [ -n "${window_tool}" ] && [ -n "${popup_pid}" ]; then
         sleep 1.0
         keep_window_on_top "${window_title}" "${window_tool}"
-        local on_top_duration=${min_display_time}
-        if [ "${on_top_duration}" -eq 0 ]; then
-            on_top_duration=300
-        fi
         keep_window_on_top_periodic "${window_title}" "${window_tool}" "${popup_pid}" "${on_top_duration}" &
     fi
 }
@@ -135,19 +221,55 @@ _popup_linux_start_stay_on_top() {
 _popup_linux_update_countdown() {
     local remaining_seconds=$1
     local old_pid="${popup_pid}"
+    if [ -n "${_popup_watchdog_expired_file:-}" ] && [ -s "${_popup_watchdog_expired_file}" ]; then
+        return 1
+    fi
 
     local countdown_msg="\n\n⏱️  This popup must remain visible for ${remaining_seconds} more second(s) before it can be closed."
     local updated_message="${base_message}${countdown_msg}"
     updated_message="$(dialog_safe_text "${updated_message}")"
 
-    cleanup_popup_pid "${old_pid}"
-
+    # Keep the current PID registered until it is dead. The absolute watchdog
+    # must still be able to KILL a dialog that ignores this redraw's TERM.
     if kill -0 "${popup_pid}" 2>/dev/null; then
         kill "${popup_pid}" 2>/dev/null
         wait "${popup_pid}" 2>/dev/null
     fi
+    cleanup_popup_pid "${old_pid}"
 
-    _popup_spawn_warning_dialog "${updated_message}"
+    if [ -n "${_popup_watchdog_expired_file:-}" ] && [ -s "${_popup_watchdog_expired_file}" ]; then
+        return 1
+    fi
+
+    local spawn_attempt
+    for spawn_attempt in 1 2 3; do
+        if [ -n "${_popup_watchdog_expired_file:-}" ] && [ -s "${_popup_watchdog_expired_file}" ]; then
+            return 1
+        fi
+        _popup_spawn_warning_dialog "${updated_message}" || true
+        [ -z "${popup_pid}" ] || break
+        [ "${spawn_attempt}" -ge 3 ] || sleep 1
+    done
+    if [ -z "${popup_pid}" ]; then
+        _popup_linux_notify_send_fallback || true
+        return 1
+    fi
+
+    # Register immediately, before window-tool delays. Expiry may have raced
+    # with spawning while the previous PID file was absent: in that case the
+    # one-shot watchdog has already ended, so terminate this new child here.
+    if ! save_popup_pid "${popup_pid}"; then
+        close_popup_process "${popup_pid}" "${dialog_tool}" || true
+        return 1
+    fi
+    if [ -n "${_popup_watchdog_expired_file:-}" ] && [ -s "${_popup_watchdog_expired_file}" ]; then
+        close_popup_process "${popup_pid}" "${dialog_tool}" || true
+        cleanup_popup_pid "${popup_pid}"
+        return 1
+    fi
+
+    gamescope_debug_event="respawn"
+    _popup_linux_arm_gamescope_atoms "${remaining_seconds}"
 
     if [ -n "${window_tool}" ]; then
         sleep 0.3
@@ -157,7 +279,6 @@ _popup_linux_update_countdown() {
     fi
 
     if [ -n "${popup_pid}" ] && [[ "${popup_pid}" =~ ^[0-9]+$ ]]; then
-        save_popup_pid "${popup_pid}"
         if type log_to_file >/dev/null 2>&1; then
             log_to_file "INFO" "Popup respawned: Old PID ${old_pid} cleaned up, new PID ${popup_pid} saved"
         fi
@@ -179,6 +300,9 @@ _popup_linux_enforce_min_display_time() {
 
     while [ "${elapsed}" -lt "${min_display_time}" ]; do
         sleep 1
+        if [ -n "${_popup_watchdog_expired_file:-}" ] && [ -s "${_popup_watchdog_expired_file}" ]; then
+            break
+        fi
         local current_timestamp
         current_timestamp=$(date +%s)
         elapsed=$((current_timestamp - start_timestamp))
@@ -196,12 +320,14 @@ _popup_linux_enforce_min_display_time() {
 
             if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                 if _popup_maybe_handle_pause_click "${popup_exit_code}"; then
+                    _popup_linux_note_gamescope_debug_exit "${popup_exit_code}" "true"
                     _popup_linux_cancel_watchdog
                     return 0
                 fi
             fi
 
-            _popup_linux_update_countdown "${remaining}"
+            _popup_linux_note_gamescope_debug_exit "${popup_exit_code}" "false"
+            _popup_linux_update_countdown "${remaining}" || return 1
         else
             local should_redraw=false
 
@@ -233,7 +359,7 @@ _popup_linux_enforce_min_display_time() {
             fi
 
             if [ "${should_redraw}" = "true" ]; then
-                _popup_linux_update_countdown "${remaining}"
+                _popup_linux_update_countdown "${remaining}" || return 1
             fi
         fi
     done
@@ -255,9 +381,9 @@ _popup_linux_wait_after_min_display() {
         log_to_file "INFO" "Auto-close timer started (timer PID: ${auto_close_timer_pid})"
     fi
 
-    if kill -0 "${popup_pid}" 2>/dev/null; then
-        wait "${popup_pid}" 2>/dev/null
-        local popup_exit_code=$?
+    if [ -n "${popup_pid}" ]; then
+        local popup_exit_code=0
+        wait "${popup_pid}" 2>/dev/null || popup_exit_code=$?
 
         if [ -n "${auto_close_timer_pid}" ] && kill -0 "${auto_close_timer_pid}" 2>/dev/null; then
             log_to_file "INFO" "User closed popup manually, cancelling auto-close timer (timer PID: ${auto_close_timer_pid})"
@@ -267,11 +393,13 @@ _popup_linux_wait_after_min_display() {
 
         if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
             if _popup_maybe_handle_pause_click "${popup_exit_code}"; then
+                _popup_linux_note_gamescope_debug_exit "${popup_exit_code}" "true"
                 _popup_linux_cancel_watchdog
                 return 0
             fi
         fi
 
+        _popup_linux_note_gamescope_debug_exit "${popup_exit_code}" "false"
         if [ ${popup_exit_code} -eq 0 ]; then
             log_to_file "INFO" "Popup closed by user after minimum display time"
         else
@@ -280,8 +408,6 @@ _popup_linux_wait_after_min_display() {
 
         cleanup_popup_pid "${popup_pid}"
         _popup_linux_cancel_watchdog
-    else
-        log_to_file "WARNING" "Popup process (PID ${popup_pid}) already exited before wait"
     fi
 
     return 1
@@ -298,38 +424,38 @@ _popup_linux_wait_without_min_display() {
     fi
 
     if [ -n "${popup_pid}" ]; then
-        if kill -0 "${popup_pid}" 2>/dev/null; then
-            wait "${popup_pid}" 2>/dev/null
-            local popup_exit_code=$?
+        local popup_exit_code=0
+        wait "${popup_pid}" 2>/dev/null || popup_exit_code=$?
 
-            if [ -n "${auto_close_timer_pid}" ] && kill -0 "${auto_close_timer_pid}" 2>/dev/null; then
-                log_to_file "INFO" "User closed popup manually, cancelling auto-close timer (timer PID: ${auto_close_timer_pid})"
-                kill "${auto_close_timer_pid}" 2>/dev/null
-                wait "${auto_close_timer_pid}" 2>/dev/null
-            fi
-
-            if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
-                if _popup_maybe_handle_pause_click "${popup_exit_code}"; then
-                    _popup_linux_cancel_watchdog
-                    return 0
-                fi
-            fi
-
-            if [ ${popup_exit_code} -eq 0 ]; then
-                log_to_file "INFO" "Popup closed by user"
-            else
-                log_to_file "WARNING" "Popup exited with code ${popup_exit_code}"
-            fi
-
-            cleanup_popup_pid "${popup_pid}"
-            _popup_linux_cancel_watchdog
-        else
-            log_to_file "WARNING" "Popup process (PID ${popup_pid}) already exited before wait"
+        if [ -n "${auto_close_timer_pid}" ] && kill -0 "${auto_close_timer_pid}" 2>/dev/null; then
+            log_to_file "INFO" "User closed popup manually, cancelling auto-close timer (timer PID: ${auto_close_timer_pid})"
+            kill "${auto_close_timer_pid}" 2>/dev/null
+            wait "${auto_close_timer_pid}" 2>/dev/null
         fi
+
+        if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
+            if _popup_maybe_handle_pause_click "${popup_exit_code}"; then
+                _popup_linux_note_gamescope_debug_exit "${popup_exit_code}" "true"
+                _popup_linux_cancel_watchdog
+                return 0
+            fi
+        fi
+
+        _popup_linux_note_gamescope_debug_exit "${popup_exit_code}" "false"
+        if [ ${popup_exit_code} -eq 0 ]; then
+            log_to_file "INFO" "Popup closed by user"
+        else
+            log_to_file "WARNING" "Popup exited with code ${popup_exit_code}"
+        fi
+
+        cleanup_popup_pid "${popup_pid}"
+        _popup_linux_cancel_watchdog
+
     fi
 
     return 1
 }
+
 
 # Post-spawn lifecycle: stay-on-top, min-display, wait, pause semantics, watchdog cleanup.
 _popup_linux_run_post_spawn_lifecycle() {

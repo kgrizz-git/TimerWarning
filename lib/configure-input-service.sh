@@ -50,121 +50,158 @@ configure_service_mode() {
     source "${display_detection_file}"
     source "${service_config_file}"
     
-    # Detect current mode
+    # Detect current mode and experimental toggle state
     local detected_mode
     detected_mode=$(detect_system_mode)
     local current_mode
     current_mode=$(get_current_service_mode)
-    
-    # Build status message
-    local status_msg="Current System Mode: ${detected_mode}"
-    if [ "${detected_mode}" = "unknown" ]; then
-        status_msg="${status_msg}\n(Warning: Could not detect system mode)"
-    fi
-    status_msg="${status_msg}\n\nCurrent Service Configuration: ${current_mode}"
-    if [ "${current_mode}" = "none" ]; then
-        status_msg="${status_msg}\n(Using default configuration)"
-    fi
-    
-    if [ "${use_gui}" = "true" ] && type show_info_dialog >/dev/null 2>&1; then
-        # Show current status
-        show_info_dialog "Service Mode Configuration" "${status_msg}" 500 250
-        
-        # Ask if user wants to reconfigure
-        local reconfigure_msg="Do you want to reconfigure the service for the detected mode (${detected_mode})?"
-        if [ "${detected_mode}" = "unknown" ]; then
-            reconfigure_msg="Warning: Could not detect system mode.\n\nDo you want to configure the service anyway?"
+    # A leftover gaming drop-in is not the overlay toggle. If the getter is
+    # missing, stay off rather than treating the drop-in as enabled.
+    local current_exp="${gaming_mode_experimental_enabled:-}"
+    if [ -z "${current_exp}" ]; then
+        if type get_gaming_mode_experimental_enabled >/dev/null 2>&1; then
+            current_exp=$(get_gaming_mode_experimental_enabled)
+        else
+            current_exp="false"
         fi
-        
-        if ! show_question_dialog \
-            "Reconfigure Service?" \
-            "${reconfigure_msg}" \
-            "Yes, Reconfigure" \
-            "No, Cancel" \
-            500 \
-            250; then
-            return 2  # User cancelled
+    fi
+
+    local exp_label="Disabled (Desktop Mode Only)"
+    if [ "${current_exp}" = "true" ]; then
+        exp_label="Enabled (Desktop + Experimental SteamOS Gaming Mode Overlay)"
+    fi
+
+    local selected_mode=""
+    local opt_desktop="Desktop Mode Only (Default — Gaming Mode Overlay Disabled)"
+    local opt_gaming="Enable Experimental Gaming Mode (Desktop + SteamOS Gaming Mode Overlay)"
+    local opt_back="Back to Main Menu"
+
+    if [ "${use_gui}" = "true" ] && type show_list_dialog >/dev/null 2>&1; then
+        local prompt_msg="Detected System Environment: ${detected_mode}\nCurrent Service Drop-In: ${current_mode}\nExperimental Gaming Mode: ${exp_label}\n\nSelect Service / Experimental Gaming Mode setting:"
+        local mode_choice
+        mode_choice=$(show_list_dialog \
+            "Service Mode & Experimental Gaming Mode" \
+            "${prompt_msg}" \
+            620 \
+            340 \
+            "${opt_desktop}" \
+            "${opt_gaming}" \
+            "${opt_back}")
+        local dialog_rc=$?
+
+        if [ ${dialog_rc} -ne 0 ] || [ -z "${mode_choice}" ]; then
+            if type confirm_cancel >/dev/null 2>&1 && confirm_cancel "${use_gui}"; then
+                return 2
+            fi
+            return 0
         fi
+
+        # show_list_dialog returns dialog_safe_text output. In a non-UTF-8
+        # locale the em dash in the desktop label becomes "-", so compare
+        # against the same sanitized strings the dialog returns.
+        local opt_desktop_match="${opt_desktop}"
+        local opt_gaming_match="${opt_gaming}"
+        local opt_back_match="${opt_back}"
+        if type dialog_safe_text >/dev/null 2>&1; then
+            opt_desktop_match="$(dialog_safe_text "${opt_desktop}")"
+            opt_gaming_match="$(dialog_safe_text "${opt_gaming}")"
+            opt_back_match="$(dialog_safe_text "${opt_back}")"
+        fi
+
+        case "${mode_choice}" in
+            "${opt_desktop_match}")
+                selected_mode="desktop"
+                ;;
+            "${opt_gaming_match}")
+                selected_mode="gaming"
+                ;;
+            "${opt_back_match}")
+                return 0
+                ;;
+            *)
+                return 0
+                ;;
+        esac
     else
         # Text mode
         echo "" >&2
-        echo "=== Service Mode Configuration ===" >&2
+        echo "=== Service Mode & Experimental Gaming Mode ===" >&2
         echo "" >&2
-        echo "${status_msg}" >&2
+        echo "Detected System Environment: ${detected_mode}" >&2
+        echo "Current Service Drop-In:     ${current_mode}" >&2
+        echo "Experimental Gaming Mode:    ${exp_label}" >&2
         echo "" >&2
-        
-        if [ "${detected_mode}" = "unknown" ]; then
-            echo "Warning: Could not detect system mode." >&2
-            echo "" >&2
-            configure_read -p "Do you want to configure the service anyway? [y/N]: " answer
-            case "${answer}" in
-                [Yy]*) ;;
-                *) return 2 ;;
-            esac
-        else
-            configure_read -p "Reconfigure service for ${detected_mode} mode? [Y/n]: " answer
-            case "${answer}" in
-                [Nn]*) return 2 ;;
-            esac
-        fi
-    fi
-    
-    # Configure service
-    if [ "${detected_mode}" = "unknown" ]; then
-        # Ask user to choose mode manually
-        if [ "${use_gui}" = "true" ] && type show_list_dialog >/dev/null 2>&1; then
-            local mode_choice
-            mode_choice=$(show_list_dialog \
-                "Select System Mode" \
-                "Could not auto-detect system mode. Please select manually:" \
-                500 \
-                300 \
-                "Desktop Mode (X11/KDE Plasma)" \
-                "Gaming Mode (Wayland/gamescope)" \
-                "Cancel")
-            
-            case "${mode_choice}" in
-                "Desktop Mode (X11/KDE Plasma)")
-                    detected_mode="desktop"
+        echo "  1) ${opt_desktop}" >&2
+        echo "  2) ${opt_gaming}" >&2
+        echo "  3) ${opt_back}" >&2
+        echo "" >&2
+        while true; do
+            local choice=""
+            if ! configure_read -p "Select option [1-3]: " choice; then
+                return 2
+            fi
+            case "${choice}" in
+                1)
+                    selected_mode="desktop"
+                    break
                     ;;
-                "Gaming Mode (Wayland/gamescope)")
-                    detected_mode="gaming"
+                2)
+                    selected_mode="gaming"
+                    break
+                    ;;
+                3|[Bb]*|[Cc]*)
+                    return 0
                     ;;
                 *)
-                    return 2
+                    echo "Invalid option. Please enter 1, 2, or 3." >&2
                     ;;
             esac
-        else
-            # Text mode
-            echo "" >&2
-            echo "Could not auto-detect system mode. Please select:" >&2
-            echo "  1) Desktop Mode (X11/KDE Plasma)" >&2
-            echo "  2) Gaming Mode (Wayland/gamescope)" >&2
-            echo "" >&2
-            while true; do
-                configure_read -p "Select option [1-2]: " choice
-                case "${choice}" in
-                    1)
-                        detected_mode="desktop"
-                        break
-                        ;;
-                    2)
-                        detected_mode="gaming"
-                        break
-                        ;;
-                    *)
-                        echo "Invalid option. Please enter 1 or 2." >&2
-                        ;;
-                esac
-            done
+        done
+    fi
+
+    # Experimental Gaming Mode is display routing, not restriction strength.
+    # Option 12 may enable or disable it during lock hours so a broken
+    # gamescope overlay can be turned off without waiting for the lock window.
+
+    local new_exp="false"
+    if [ "${selected_mode}" = "gaming" ]; then
+        new_exp="true"
+    fi
+
+    if type configure_partial_lock_validate_scalar >/dev/null 2>&1; then
+        if ! configure_partial_lock_validate_scalar "GAMING_MODE_EXPERIMENTAL_ENABLED" \
+            "${gaming_mode_experimental_enabled:-false}" "${new_exp}"; then
+            local lock_err="Cannot change Experimental Gaming Mode during lock hours."
+            if [ "${use_gui}" = "true" ] && type show_error_dialog >/dev/null 2>&1; then
+                show_error_dialog "Error" "${lock_err}"
+            else
+                echo "Error: ${lock_err}" >&2
+            fi
+            return 1
         fi
     fi
-    
-    # Configure service for selected mode
-    if configure_service_for_mode "${detected_mode}"; then
-        local success_msg="Service successfully configured for ${detected_mode} mode."
+
+    # Persist config toggle first so a write failure is caught before modifying the drop-in
+    if type update_gaming_mode_config_in_place >/dev/null 2>&1; then
+        if ! update_gaming_mode_config_in_place "${new_exp}"; then
+            local save_err="Failed to save Experimental Gaming Mode setting to configuration file."
+            if [ "${use_gui}" = "true" ] && type show_error_dialog >/dev/null 2>&1; then
+                show_error_dialog "Error" "${save_err}"
+            elif [ "${use_gui}" = "true" ] && type show_info_dialog >/dev/null 2>&1; then
+                show_info_dialog "Error" "${save_err}" 500 200
+            else
+                echo "Error: ${save_err}" >&2
+            fi
+            return 1
+        fi
+    fi
+
+    # Configure service drop-in for selected mode; roll back config toggle on failure
+    if configure_service_for_mode "${selected_mode}"; then
+        declare -g gaming_mode_experimental_enabled="${new_exp}"
+        local success_msg="Service configured for ${selected_mode} mode (Experimental Gaming Mode: ${gaming_mode_experimental_enabled})."
         if [ "${use_gui}" = "true" ] && type show_info_dialog >/dev/null 2>&1; then
-            show_info_dialog "Success" "${success_msg}" 500 200
+            show_info_dialog "Success" "${success_msg}" 520 200
         else
             echo "" >&2
             echo "✓ ${success_msg}" >&2
@@ -172,7 +209,10 @@ configure_service_mode() {
         fi
         return 0
     else
-        local error_msg="Failed to configure service for ${detected_mode} mode."
+        if type update_gaming_mode_config_in_place >/dev/null 2>&1; then
+            update_gaming_mode_config_in_place "${current_exp}" || true
+        fi
+        local error_msg="Failed to configure service for ${selected_mode} mode."
         if [ "${use_gui}" = "true" ] && type show_info_dialog >/dev/null 2>&1; then
             show_info_dialog "Error" "${error_msg}" 500 200
         else

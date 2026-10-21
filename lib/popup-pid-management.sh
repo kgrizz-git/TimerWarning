@@ -162,7 +162,9 @@ is_popup_running() {
     
     # Final fallback: Process tree checking (Linux dialog tools)
     local dialog_pids
-    dialog_pids=$(pgrep -f "zenity.*ALERT: Restricted time window\\|yad.*ALERT: Restricted time window\\|kdialog.*ALERT: Restricted time window" 2>/dev/null | head -n1)
+    # pgrep -f uses extended regular expressions, where | is alternation.
+    # A backslash-escaped pipe is a literal "|" and never matches a dialog command.
+    dialog_pids=$(pgrep -f "zenity.*ALERT: Restricted time window|yad.*ALERT: Restricted time window|kdialog.*ALERT: Restricted time window" 2>/dev/null | head -n1)
     
     if [ -n "${dialog_pids}" ] && [[ "${dialog_pids}" =~ ^[0-9]+$ ]]; then
         local age

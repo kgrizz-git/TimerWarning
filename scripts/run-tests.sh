@@ -14,7 +14,20 @@
 #   CI_HEADLESS=1 ./scripts/run-tests.sh --tier a      # same as SKIP_GUI_TESTS
 #
 # See: dev-docs/testing-assessments/test-tiers.md
+#
+# Tier-A sources libraries that need bash >= 4 (declare -g, namerefs). macOS
+# /bin/bash is 3.2. Re-exec with Homebrew bash when this shell is older.
 ###############################################################################
+
+if [ -z "${BASH_VERSINFO:-}" ] || [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+    for _bash4 in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+        if [ -x "${_bash4}" ] && [ "$("${_bash4}" -c 'echo "${BASH_VERSINFO[0]}"')" -ge 4 ]; then
+            exec "${_bash4}" "$0" "$@"
+        fi
+    done
+    echo "run-tests.sh: bash >= 4 is required (this shell is ${BASH_VERSION:-unknown}). On macOS: brew install bash" >&2
+    exit 1
+fi
 
 set -euo pipefail
 
@@ -132,9 +145,9 @@ _run_with_timeout() {
     ) &
     watcher=$!
 
-    if ! wait "${pid}"; then
-        rc=$?
-    fi
+    # Do not write rc=$? inside `if ! wait`. The ! negation makes $? 0, so a
+    # failing test would be reported as success on macOS (no timeout/gtimeout).
+    wait "${pid}" || rc=$?
     kill "${watcher}" 2>/dev/null || true
     wait "${watcher}" 2>/dev/null || true
 
@@ -273,7 +286,7 @@ main() {
         fi
 
         echo "--- ${script} ---"
-        if ! _run_with_timeout 300 bash "${path}"; then
+        if ! _run_with_timeout 300 "${BASH}" "${path}"; then
             echo "FAIL: ${script}" >&2
             failed=1
         fi

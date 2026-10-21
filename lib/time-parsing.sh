@@ -258,7 +258,10 @@ convert_time_range_to_24hour() {
            [ "$(( 10#${end_h} ))"   -gt 23 ] || [ "$(( 10#${end_m} ))"   -gt 59 ]; then
             return 1  # Reject hours > 23 or minutes > 59
         fi
-        printf "%02d:%02d-%02d:%02d" "${start_h}" "${start_m}" "${end_h}" "${end_m}"
+        # 10# so a leading zero (08) is not read as an octal printf argument.
+        printf "%02d:%02d-%02d:%02d" \
+            "$((10#${start_h}))" "$((10#${start_m}))" \
+            "$((10#${end_h}))" "$((10#${end_m}))"
         return 0
     fi
     

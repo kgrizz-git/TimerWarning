@@ -270,7 +270,7 @@ disable_service() {
     if type scheduler_stop_and_disable >/dev/null 2>&1 && scheduler_is_darwin; then
         scheduler_stop_and_disable || _disable_ok=false
     else
-        systemctl --user stop "${TIMER_NAME}" 2>/dev/null || true  # stop may fail if already stopped
+        systemctl --user stop "${TIMER_NAME}" 2>/dev/null || _disable_ok=false
         systemctl --user disable "${TIMER_NAME}" 2>/dev/null || _disable_ok=false
     fi
 
