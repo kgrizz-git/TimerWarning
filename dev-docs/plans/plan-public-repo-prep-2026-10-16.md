@@ -64,9 +64,10 @@ separate work. Preserve the three safety invariants and the verified Deck geomet
   overnight regression passes against current libraries, and the current Linux
   watchdog-cleanup regression passes with stub dialogs and isolated scratch/HOME.
   Tests were bounded; no live service, GUI, or installed configuration was used.
-- [ ] Retire the remaining Cursor branch only after a separate deletion decision:
-  its commit is not an ancestor of `main`, so it was retained rather than classed
-  as a merged branch. Do not cherry-pick the old patch over newer safety code.
+- [x] Delete the superseded remote Cursor branch after explicit owner approval
+  on 2026-10-21. Its commit was not merged, but the fixes were independently
+  verified on `main`; no local branch existed. Do not cherry-pick the old patch
+  over newer safety code.
 
 ## Phase 1 — License and public contribution terms (next implementation slice)
 
