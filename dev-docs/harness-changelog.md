@@ -2,6 +2,12 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-24 — Project license and contribution terms
+
+- Root `LICENSE`: Apache License 2.0 with the Commons Clause. Source-available, not OSI open source.
+- [CONTRIBUTING.md](CONTRIBUTING.md) and the root pointer: contributions are submitted under those combined terms.
+- [info/LICENSE_OPTIONS.md](info/LICENSE_OPTIONS.md) records the decision and corrects the claim that noncommercial licenses allow internal business use.
+
 ## 2026-06-23 — Doc archive retention
 
 - [development/doc-retention.md](development/doc-retention.md) — policy for assessments, safety scans, completed plans, backups.

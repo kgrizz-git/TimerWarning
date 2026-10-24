@@ -4,7 +4,7 @@
 
 **Revised:** 2026-10-21
 
-**Status:** Planning revised; implementation Phases 1–5 remain open.
+**Status:** Phase 1 applied on 2026-10-24; Phases 2–5 remain open.
 
 **Working branch:** `chore/public-repo-prep-phase-1`, based on `main` at `86cfc7a`.
 
@@ -24,7 +24,7 @@ was finished. The existing `kgrizz-git/LinuxTimerWarning` repository is still pr
 | Automated verification for PR #7 | Ubuntu/macOS Tier-A and Ubuntu static analysis passed; latest local Tier-A: 25 scripts, 3 platform/GUI skips |
 | Deck hardware evidence | Popup visibility/min-display on Oct 19; click access and Enter exclusivity passed Oct 20, recorded in the [overlay plan](plan-gamescope-overlay-click-through-2026-10-19.md#manual-verification-checklist-on-deck) |
 | Tracked `backups/` files | Already removed; no repeat deletion needed |
-| License | No root `LICENSE`; README still has `[TO BE ADDED]` |
+| License | Apache License 2.0 with the Commons Clause, applied 2026-10-24 in root `LICENSE`. Source-available, not OSI open source |
 | Donation removal | PayPal links remain in README, GETTING_STARTED, and the Linux installer |
 | Branding and docs | Old clone URLs, root summary, redirects, and completed-plan backlog remain |
 | History sanitization / destination | Not performed / not created by this plan |
@@ -45,10 +45,13 @@ separate work. Preserve the three safety invariants and the verified Deck geomet
 - Public author identity for the owner's commits:
   `kgrizz-git <216068303+kgrizz-git@users.noreply.github.com>`. Recheck local commit
   identity before new commits; do not assume global Git configuration is unchanged.
-- The intended licensing policy is noncommercial availability with attribution.
-  The previous plan proposed **CC BY-NC-SA 4.0**, with **PolyForm Noncommercial
-  1.0.0** as an alternative. Do not silently substitute a permissive license or
-  assume these two licenses have identical terms.
+- License, chosen by the owner on 2026-10-24: **Apache License 2.0** with the
+  **Commons Clause License Condition v1.0**. Personal use, modification,
+  redistribution, and internal corporate use stay allowed. Selling the software,
+  as the Commons Clause defines Sell, does not. CC BY-NC-SA 4.0 and PolyForm
+  Noncommercial 1.0.0 were considered and not selected. The combination is
+  source-available, not OSI open source. Do not replace it with a permissive
+  license or describe those three licenses as the same terms.
 
 ## Phase 0 — Branch housekeeping and plan review
 
@@ -69,32 +72,31 @@ separate work. Preserve the three safety invariants and the verified Deck geomet
   verified on `main`; no local branch existed. Do not cherry-pick the old patch
   over newer safety code.
 
-## Phase 1 — License and public contribution terms (next implementation slice)
+## Phase 1 — License and public contribution terms
 
-1. Resolve the exact license before adding it. Keep CC BY-NC-SA as the previous
-   proposal, but surface its software suitability explicitly: [Creative Commons
-   recommends software-specific licenses for code](https://creativecommons.org/faq/#can-i-apply-a-creative-commons-license-to-software).
-   A change to PolyForm or another license is an owner decision, not housekeeping.
-2. Check third-party material and existing notices; establish what the owner can
-   license. Preserve others' notices and attribution. Distinguish any separately
-   licensed documentation/assets if applicable.
-3. Add the exact official license text to root `LICENSE`, with the intended
-   `Copyright (c) 2026 kgrizz-git` notice in the appropriate place. Keep explanatory
-   README prose separate from the unmodified license text.
-4. Replace README's placeholder with a short accurate summary and license link.
-   Do not promise that every educational/nonprofit use is automatically permitted
-   or invent a broader prohibition than the selected text. Under the proposed CC
-   option, use its [official terms](https://creativecommons.org/licenses/by-nc-sa/4.0/)
-   when describing NonCommercial, attribution, and ShareAlike.
-5. Update root and developer contribution guides with contribution licensing
-   consistent with the selected license. Correct conflicting advice in
-   [LICENSE_OPTIONS.md](../info/LICENSE_OPTIONS.md), particularly blanket claims
-   that noncommercial licenses permit internal business use.
-6. Describe the repository as publicly available/source-available if the chosen
-   license restricts commercial use; do not advertise it as OSI open source.
+Applied 2026-10-24 on `chore/public-repo-prep-phase-1`. No runtime change.
 
-**Acceptance:** exact license selected and applied, no license placeholder,
-consistent contribution terms, third-party notices retained, no runtime changes.
+- [x] Owner selected the Apache License 2.0 with the Commons Clause License
+  Condition v1.0. CC BY-NC-SA and PolyForm Noncommercial were not selected.
+  Creative Commons recommends a software license for code; the Commons Clause is
+  a software condition on Apache 2.0.
+- [x] Third-party audit: no vendored source, no existing copyright headers, and
+  no separately licensed assets in the tree. External programs the scripts call
+  keep their own licenses. Nothing of theirs was relicensed.
+- [x] Root `LICENSE` has `Copyright (c) 2026 kgrizz-git`, the Commons Clause with
+  Software, License, and Licensor filled in, and the official Apache 2.0 text
+  unmodified, including its appendix. README prose stays outside that text.
+- [x] README placeholder replaced with a short summary and a link to `LICENSE`.
+  The summary uses the Commons Clause definition of Sell and does not add a
+  broader ban.
+- [x] Root and developer contribution guides require contributions under the
+  same combined terms. [LICENSE_OPTIONS.md](../info/LICENSE_OPTIONS.md) records
+  the decision and no longer says noncommercial licenses blanket-permit internal
+  business use.
+- [x] Docs call the project source-available, not OSI open source.
+
+**Acceptance:** met for this slice. GitHub license settings for the destination
+repository remain in Phase 5. Per-file copyright headers were not added.
 
 ## Phase 2 — Public-facing docs, branding, and donation removal
 
@@ -220,6 +222,6 @@ Never run mode-detection tests against real HOME or edit the installed config.
 For each slice, report implemented, reviewed, committed, pushed, PR-submitted,
 CI-green, and merged states separately. Branch cleanup is not release completion.
 
-**Next action:** begin Phase 1 on `chore/public-repo-prep-phase-1`, resolving the
-license choice/suitability first. This revision does not install a license,
-rewrite history, create the destination, or change repository visibility.
+**Next action:** Phase 2 on `chore/public-repo-prep-phase-1`: remove donation
+links and align public branding. Phase 1 does not rewrite history, create the
+destination, or change repository visibility.

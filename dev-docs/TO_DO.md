@@ -46,7 +46,7 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 
 ## Documentation and release
 
-- [ ] **Public repository preparation — next: licensing** — Revised [publication plan](plans/plan-public-repo-prep-2026-10-16.md); Phase 1 starts on `chore/public-repo-prep-phase-1`. Resolve the proposed noncommercial license, then apply it and contribution terms. PR #7 completed the overlay/safety work, not publication preparation.
+- [ ] **Public repository preparation — next: donation removal and branding** — [Publication plan](plans/plan-public-repo-prep-2026-10-16.md) Phase 1 applied the Apache License 2.0 with the Commons Clause on `chore/public-repo-prep-phase-1`. Phase 2 is public-facing cleanup. History sanitization and the public repository are later phases.
 - [ ] **Donation cleanup** — Remove existing PayPal links and reconcile superseded [#27](enhancements/enhancement-27-paypal-donation-links.md) requests in publication Phase 2; do not add donation integrations as part of preparation.
 - [ ] **SteamOS locale docs** — User guide section (Nix + manual paths); do not automate `locale-gen` in install.sh → [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#documentation-work)
 

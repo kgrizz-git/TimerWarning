@@ -54,7 +54,7 @@ See [plan-phase-4-testing.md](plans/phases/plan-phase-4-testing.md). Record runs
 ## Documentation work
 
 - [ ] Contributing guidelines and development setup
-- [ ] **Licensing** — [LICENSE_OPTIONS.md](info/LICENSE_OPTIONS.md), [phase 5 §5.4](plans/phases/plan-phase-5-documentation.md#checklist-54-license-selection-and-implementation)
+- [x] **Licensing** — Apache License 2.0 with the Commons Clause in root `LICENSE` (2026-10-24). Recorded in [LICENSE_OPTIONS.md](info/LICENSE_OPTIONS.md). GitHub license settings remain for the destination repository.
 - [ ] **Donation links** — verify Phase 1; Phase 2 GitHub Sponsors after license
 - [ ] **SteamOS locale** — Document Nix (preferred) and manual `locale-gen` paths in user docs. **Do not** run `locale-gen` from `install.sh` (read-only `/usr`, stripped glibc on SteamOS). Optional: detect missing UTF-8 locale and print instructions; set `LANG` in user service when a UTF-8 locale exists.
 

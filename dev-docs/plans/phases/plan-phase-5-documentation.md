@@ -100,25 +100,18 @@
 - [x] **Include "I just want to..." sections** - Quick answers to common goals - IMPLEMENTED: Documented in GETTING_STARTED.md "Common First-Time Questions" and USER_GUIDE.md "Quick Reference" sections
 
 #### Checklist 5.4: License Selection and Implementation
-- [ ] **Review license options** - See info/LICENSE_OPTIONS.md for comprehensive comparison
-- [ ] **Consider project goals** - Maximum adoption (MIT/Apache) vs. keeping code free (GPL)
-- [ ] **Consider target audience** - Corporate users may prefer MIT/Apache, FSF-aligned projects prefer GPL
-- [ ] **Choose appropriate license** - Recommended: MIT License for utilities (maximum compatibility)
-- [ ] **Create LICENSE file** - Add license text to repository root
-  - [ ] Copy license text from official source (choosealicense.com, OSI, or license author)
-  - [ ] Replace placeholder text (e.g., [year], [fullname]) with actual values
-  - [ ] Ensure copyright notice includes correct year and name
-- [ ] **Update README.md** - Add license section referencing LICENSE file
-  - [ ] Include brief summary of license terms
-  - [ ] Link to LICENSE file
-  - [ ] Explain what the license allows (commercial use, modification, etc.)
-- [ ] **Add copyright notices to source files** (optional but recommended)
-  - [ ] Add copyright header to main scripts (sleep-warning.sh, configure.sh, manage.sh, etc.)
-  - [ ] Include copyright year and name
-  - [ ] Reference license (e.g., "Licensed under the MIT License")
-- [ ] **Verify license compatibility** - Ensure license works with all dependencies and tools used
-- [ ] **Update project metadata** - Add license to GitHub repository settings (if applicable)
-- [ ] **Document license choice** - Note in info/LICENSE_OPTIONS.md which license was chosen and why
+
+The MIT recommendation in this checklist is historical. On 2026-10-24 the owner selected the Apache License 2.0 with the Commons Clause. See [LICENSE_OPTIONS.md](../../info/LICENSE_OPTIONS.md) and the [publication plan](../plan-public-repo-prep-2026-10-16.md).
+
+- [x] **Review license options** - Compared in info/LICENSE_OPTIONS.md; owner chose Apache 2.0 plus the Commons Clause, not MIT
+- [x] **Consider project goals** - Decided: allow use, modification, redistribution, and internal corporate use; do not allow selling the software as the Commons Clause defines Sell
+- [x] **Choose appropriate license** - Apache License 2.0 with Commons Clause License Condition v1.0. Source-available, not OSI open source
+- [x] **Create LICENSE file** - Root `LICENSE` contains the Commons Clause with Software, License, and Licensor filled in, then the official Apache 2.0 text unmodified, plus `Copyright (c) 2026 kgrizz-git`
+- [x] **Update README.md** - License section links to `LICENSE` and summarizes Sell without adding a broader ban
+- [ ] **Add copyright notices to source files** - Not part of the applied decision. The notice is in root `LICENSE`
+- [x] **Verify license compatibility** - No vendored third-party source. External tools keep their own licenses
+- [ ] **Update project metadata** - GitHub license settings belong to publication of the destination repository
+- [x] **Document license choice** - Recorded in info/LICENSE_OPTIONS.md, including the correction that noncommercial licenses do not blanket-permit internal business use
 
 #### Checklist 5.5: PayPal Donation Links
 - **Status**: Moved to Enhancement #27 - See [enhancements/enhancement-27-paypal-donation-links.md](../../enhancements/enhancement-27-paypal-donation-links.md) for details

@@ -38,7 +38,7 @@ See [canonical-vs-archive.md](canonical-vs-archive.md) for what is current vs hi
 | [`plans/master/`](plans/master/) | [Master implementation plan](plans/master/linux-warning-system-plan.md) |
 | [`plans/phases/`](plans/phases/) | Phase 1–5 checklists, code-quality plan |
 | [`plans/`](plans/) | Active feature plans (in progress) |
-| [Public repository preparation](plans/plan-public-repo-prep-2026-10-16.md) | Revised after PR #7; next: licensing on `chore/public-repo-prep-phase-1`, then public-facing cleanup and an isolated publication export |
+| [Public repository preparation](plans/plan-public-repo-prep-2026-10-16.md) | Phase 1 applied (Apache 2.0 with the Commons Clause). Next: donation removal and branding on `chore/public-repo-prep-phase-1`, then an isolated publication export |
 | [`plans/plan-harness-engineering-improvements-2026-06-12.md`](plans/plan-harness-engineering-improvements-2026-06-12.md) | **Complete** — Phases 0–8 (contributor guide, PR template, file-size check) |
 | [`completed-plans/`](completed-plans/) | Finished or superseded implementation plans (archive) |
 
