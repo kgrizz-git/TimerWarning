@@ -27,13 +27,13 @@ isProject: false
 
 ## Problem
 
-Users can enter over-cap ranges (e.g. `1am-11pm` → 22 h) during **Configure Weekdays** with only format validation. The hard block runs at **Review and Save (option 13)** in [`configure.sh`](configure.sh) via `check_daily_caps`. That matches safety rules but creates a poor UX gap.
+Users can enter over-cap ranges (e.g. `1am-11pm` → 22 h) during **Configure Weekdays** with only format validation. The hard block runs at **Review and Save (option 13)** in [`configure.sh`](../../configure.sh) via `check_daily_caps`. That matches safety rules but creates a poor UX gap.
 
 ## Design
 
-Centralize input-time checks in **`get_day_hours()`** ([`lib/configure-input-time.sh`](lib/configure-input-time.sh)) because every hour-entry path flows through it (restrictions, lock hours, uninstall lock, grid edit, GUI + text, multi-range manage dialog).
+Centralize input-time checks in **`get_day_hours()`** ([`lib/configure-input-time.sh`](../../lib/configure-input-time.sh)) because every hour-entry path flows through it (restrictions, lock hours, uninstall lock, grid edit, GUI + text, multi-range manage dialog).
 
-Reuse **`check_daily_caps()`** from [`lib/daily-caps.sh`](lib/daily-caps.sh) (already sourced by [`lib/configure-validation.sh`](lib/configure-validation.sh)) so input-time and save-time share one mechanical invariant—no duplicate cap math.
+Reuse **`check_daily_caps()`** from [`lib/daily-caps.sh`](../../lib/daily-caps.sh) (already sourced by [`lib/configure-validation.sh`](../../lib/configure-validation.sh)) so input-time and save-time share one mechanical invariant—no duplicate cap math.
 
 ```mermaid
 flowchart TD
@@ -47,7 +47,7 @@ flowchart TD
 
 ### Session context (globals)
 
-`get_day_hours` needs to know **which category** is being edited and **which day indices** the answer applies to. Avoid changing 20+ call signatures by using two optional globals set by [`lib/configure-workflow.sh`](lib/configure-workflow.sh) immediately before each `get_day_hours` call:
+`get_day_hours` needs to know **which category** is being edited and **which day indices** the answer applies to. Avoid changing 20+ call signatures by using two optional globals set by [`lib/configure-workflow.sh`](../../lib/configure-workflow.sh) immediately before each `get_day_hours` call:
 
 | Global | Values | Default |
 |--------|--------|---------|
@@ -61,11 +61,11 @@ Workflow responsibilities:
 - **Lock / uninstall lock sections** → set `CONFIGURE_INPUT_HOURS_KIND` to `configure_lock` or `uninstall_lock` for that section’s calls.
 - **Per-day / grid edit** → leave apply indices unset (single day).
 
-Reads session state already in scope in [`configure.sh`](configure.sh): `config_lines[]`, `lock_hours_lines[]`, `uninstall_lock_hours_lines[]`, `configure_block_enabled`, `uninstall_protection_mode`.
+Reads session state already in scope in [`configure.sh`](../../configure.sh): `config_lines[]`, `lock_hours_lines[]`, `uninstall_lock_hours_lines[]`, `configure_block_enabled`, `uninstall_protection_mode`.
 
 ### New helper
 
-Add to [`lib/configure-validation.sh`](lib/configure-validation.sh):
+Add to [`lib/configure-validation.sh`](../../lib/configure-validation.sh):
 
 ```bash
 # check_input_time_daily_caps KIND DAY_INDEX PROPOSED_RANGES_CSV
@@ -87,11 +87,11 @@ Implementation sketch:
 5. Call `check_daily_caps "${configure_block_enabled}" "${uninstall_protection_mode}" "${lines[@]}"`.
 6. Return that result unchanged (caller checks non-empty stdout).
 
-**Important:** `proposed_ranges` must already be **normalized** (`01:00-23:00`), never raw `1am-11pm`—[`daily-caps.sh`](lib/daily-caps.sh) silently skips unrecognized formats.
+**Important:** `proposed_ranges` must already be **normalized** (`01:00-23:00`), never raw `1am-11pm`—[`daily-caps.sh`](../../lib/daily-caps.sh) silently skips unrecognized formats.
 
 ### UI wrapper in `get_day_hours`
 
-Add private helper in [`lib/configure-input-time.sh`](lib/configure-input-time.sh):
+Add private helper in [`lib/configure-input-time.sh`](../../lib/configure-input-time.sh):
 
 ```bash
 _validate_input_hours_cap_or_block() {
@@ -119,23 +119,23 @@ Skip cap check when `proposed` is empty / `skip`.
 
 | File | Change |
 |------|--------|
-| [`lib/configure-validation.sh`](lib/configure-validation.sh) | Add `check_input_time_daily_caps()` |
-| [`lib/configure-input-time.sh`](lib/configure-input-time.sh) | Add `_validate_input_hours_cap_or_block()`; hook all accept paths in `get_day_hours` |
-| [`lib/configure-workflow.sh`](lib/configure-workflow.sh) | Set/clear `CONFIGURE_INPUT_HOURS_KIND` and `CONFIGURE_INPUT_APPLY_DAY_INDICES` around section `get_day_hours` calls |
-| [`CHANGELOG.md`](CHANGELOG.md) | `[Unreleased]` entry |
-| [`dev-docs/development/invariants.md`](dev-docs/development/invariants.md) | Note CAP-*-DAY also surfaces at wizard input (not only save) |
+| [`lib/configure-validation.sh`](../../lib/configure-validation.sh) | Add `check_input_time_daily_caps()` |
+| [`lib/configure-input-time.sh`](../../lib/configure-input-time.sh) | Add `_validate_input_hours_cap_or_block()`; hook all accept paths in `get_day_hours` |
+| [`lib/configure-workflow.sh`](../../lib/configure-workflow.sh) | Set/clear `CONFIGURE_INPUT_HOURS_KIND` and `CONFIGURE_INPUT_APPLY_DAY_INDICES` around section `get_day_hours` calls |
+| [`CHANGELOG.md`](../../CHANGELOG.md) | `[Unreleased]` entry |
+| [`dev-docs/development/invariants.md`](../development/invariants.md) | Note CAP-*-DAY also surfaces at wizard input (not only save) |
 
-No change to [`docs/SAFETY.md`](docs/SAFETY.md) required (behavior already documented; this closes an enforcement gap).
+No change to [`docs/SAFETY.md`](../../docs/SAFETY.md) required (behavior already documented; this closes an enforcement gap).
 
 ### Tests
 
-Add [`tests/test-input-time-cap-validation.sh`](tests/test-input-time-cap-validation.sh) (Tier-A):
+Add [`tests/test-input-time-cap-validation.sh`](../../tests/test-input-time-cap-validation.sh) (Tier-A):
 
 - Source `configure-core.sh`, `time-parsing.sh`, `configure-validation.sh`.
 - Build minimal session arrays; call `check_input_time_daily_caps restriction 1 "01:00-23:00"` with Mon–Fri apply indices → expect violation lines for Monday–Friday.
 - Valid case: `MONDAY=7-23` (16 h) → no violations.
 - Lock-hours case: with `configure_block_enabled=true`, restriction `8-12` + proposed lock `13-24` → pass; lock that pushes configure_block category over 16 h → fail.
-- Register in [`tests/tiers.yaml`](tests/tiers.yaml) tier `a`.
+- Register in [`tests/tiers.yaml`](../../tests/tiers.yaml) tier `a`.
 
 Optional integration-style test: stub `_validate_input_hours_cap_or_block` behavior via `check_input_time_daily_caps` only (avoid driving full GUI `get_day_hours`).
 
@@ -148,10 +148,10 @@ Optional integration-style test: stub `_validate_input_hours_cap_or_block` behav
 
 ### Pre-work
 
-Backup [`lib/configure-validation.sh`](lib/configure-validation.sh), [`lib/configure-input-time.sh`](lib/configure-input-time.sh), [`lib/configure-workflow.sh`](lib/configure-workflow.sh) to `backups/` before edits.
+Backup [`lib/configure-validation.sh`](../../lib/configure-validation.sh), [`lib/configure-input-time.sh`](../../lib/configure-input-time.sh), [`lib/configure-workflow.sh`](../../lib/configure-workflow.sh) to `backups/` before edits.
 
 ### Out of scope
 
 - Changing cap math or the 16 h limit.
 - Save-time check in option 13 (keep as defense in depth).
-- [`manage.sh`](manage.sh) unless it sources the same `get_day_hours` path (verify during implementation; if separate, follow-up).
+- [`manage.sh`](../../manage.sh) unless it sources the same `get_day_hours` path (verify during implementation; if separate, follow-up).

@@ -1,6 +1,14 @@
 # Plan: Configurable Pause Cooldown and Duration
 
-Implements [TO_DO.md](../TO_DO.md) item **Configurable pause cooldown and duration**. Workspace copy with implementation todos: [`.cursor/plans/configurable_pause_cooldown_dfc6b7bb.plan.md`](../../.cursor/plans/configurable_pause_cooldown_dfc6b7bb.plan.md) — keep both files in sync.
+> **Archived 2026-10-25.** Implemented and shipped: `can_pause_now()` with
+> `PAUSE_COOLDOWN_HOURS` (6/8/12/24) and 1/2/3/5/10/15-minute durations
+> (`lib/pause-state.sh`, `lib/config.sh`, wizard, partial lock, status/manage),
+> tracked as complete in [TO_DO.md](../TO_DO.md). The "**Status:** Draft — not
+> started" banner below is stale (pre-implementation, 2026-05-31) and preserved
+> as history. Workspace copy archived alongside:
+> [`configurable_pause_cooldown_dfc6b7bb.plan.md`](configurable_pause_cooldown_dfc6b7bb.plan.md).
+
+Implements [TO_DO.md](../TO_DO.md) item **Configurable pause cooldown and duration**. Workspace copy with implementation todos: [`configurable_pause_cooldown_dfc6b7bb.plan.md`](configurable_pause_cooldown_dfc6b7bb.plan.md) — both files archived together; the sync note below is historical.
 
 **Related:** [enhancement-21-one-time-pause-feature.md](../enhancements/enhancement-21-one-time-pause-feature.md), [enhancement-21-pause-scope-clarification.md](../enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md), [docs/SAFETY.md](../../docs/SAFETY.md)
 
@@ -355,7 +363,7 @@ bash tests/test-platform-darwin.sh
 
 ## Documentation and release
 
-- Keep this file in sync with [`.cursor/plans/configurable_pause_cooldown_dfc6b7bb.plan.md`](../../.cursor/plans/configurable_pause_cooldown_dfc6b7bb.plan.md)
+- Keep this file in sync with [`configurable_pause_cooldown_dfc6b7bb.plan.md`](configurable_pause_cooldown_dfc6b7bb.plan.md) (both archived together; historical note)
 - Update [TO_DO.md](../TO_DO.md) line 27 — `N = 6, 8, 12, 24` (currently says `6, 12, 24`)
 - Update [enhancement-21-one-time-pause-feature.md](../enhancements/enhancement-21-one-time-pause-feature.md) — remove "always once per day"
 - [CHANGELOG.md](../../CHANGELOG.md) — Unreleased **Added** (configurable cooldown + duration options)

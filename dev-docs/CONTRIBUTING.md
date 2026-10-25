@@ -23,6 +23,12 @@ CI_HEADLESS=1 ./scripts/run-tests.sh --tier a
 
 **Safety first:** [docs/SAFETY.md](../docs/SAFETY.md) before any popup, scheduler, or config validation work.
 
+## License
+
+Copyright (c) 2026 kgrizz-git. Source in this repository is licensed under the Apache License, Version 2.0, subject to the Commons Clause License Condition v1.0. The root [`LICENSE`](../LICENSE) file is the terms. This project is source-available. Do not describe it as OSI open source.
+
+Submitting a contribution means you agree the project may include it under those same terms, including the Commons Clause. Apache License 2.0 section 5 would otherwise apply contributions under the Apache License alone. This section is the additional agreement that covers the Commons Clause. Submit only material you can license this way. Material owned by someone else must keep that owner's notices and license, and it must be compatible with distributing this repository under `LICENSE`.
+
 ## Documentation map
 
 | Audience | Start |

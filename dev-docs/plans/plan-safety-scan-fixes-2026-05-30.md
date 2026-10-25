@@ -25,7 +25,7 @@
 - [ ] `bash tests/test-uninstall-lock-hours.sh`
 - [ ] `bash tests/test-popup.sh` (if DISPLAY available)
 - [ ] Manual: set `POPUP_AUTO_CLOSE=false`, long `POPUP_MIN_DISPLAY_TIME`, confirm dialog dies within watchdog cap
-- [ ] Update [docs/safety-linux-macos-analysis.md](../../docs/safety-linux-macos-analysis.md) §5.1 after integration test exists
+- [ ] Update [dev-docs/safety-linux-macos-analysis.md](../safety-linux-macos-analysis.md) §5.1 after integration test exists
 
 ## Out of scope (this plan)
 

@@ -1,12 +1,18 @@
 # Plan: Gamescope Overlay Click-Through (Buttons Not Clickable)
 
+> **Archived 2026-10-25.** Phase 2 done: Streams A+B+E+F shipped and
+> Deck-verified 2026-10-20; Stream G docs recorded; Stream D not needed. The
+> remaining manual Deck checks are smoke items in
+> [TO_DO.md](../TO_DO.md#smoke-tests) (consolidated with the SteamOS Gaming
+> Mode checklist). Historical record.
+
 **Status: PHASE 2 DONE** — Streams A+B+E+F shipped and Deck-verified; Stream G docs recorded (zenity has no Cancel; yad/kdialog differ). Stream D not needed.
 
 | | |
 |---|---|
 | **Created** | 2026-10-19 |
 | **Updated** | 2026-10-20 (Stream F on-device click verified) |
-| **Related** | [plan-steamos-gaming-mode-overlay-2026-10-16.md](plan-steamos-gaming-mode-overlay-2026-10-16.md), [STEAMOS_GAMING_MODE.md](../STEAMOS_GAMING_MODE.md) |
+| **Related** | [plan-steamos-gaming-mode-overlay-2026-10-16.md](../plans/plan-steamos-gaming-mode-overlay-2026-10-16.md), [STEAMOS_GAMING_MODE.md](../STEAMOS_GAMING_MODE.md) |
 | **Reviews** | Opus CLI approved the Phase 1 plan. Grok 4.7 Phase 2 review 2026-10-20: approve-with-fixes, edits applied ([archive](../code-assessments/gamescope-clickthrough-phase2-plan-review-grok-2026-10-20.md)). Claude Opus 5.5 Phase 2 review 2026-10-20: approve-with-fixes, edits applied, plan approved for coding (Stream E first) ([archive](../code-assessments/gamescope-clickthrough-phase2-plan-review-opus-2026-10-20.md)). |
 | **On-device evidence** | See [Retest 2026-10-20](#retest-2026-10-20-after-full-width-fix) and earlier 2026-10-19 notes |
 | **Device context** | `gamescope` **3.16.23.6**; Deck Gaming Mode |
@@ -446,7 +452,7 @@ After the Stream F chunk, gamescope uses `popup_position=top-left` (not `center`
 
 - Code: `lib/window-management.sh`, `lib/popup-display.sh`, `lib/popup-dialog-implementations.sh`, `lib/popup-display-linux.sh`
 - Gamescope tag: **3.16.23** / device **3.16.23.6** — `nWidth > 1200` overlay vs notification; per-window `calc_scale_factor` fit scaling
-- Parent overlay plan: [plan-steamos-gaming-mode-overlay-2026-10-16.md](plan-steamos-gaming-mode-overlay-2026-10-16.md)
+- Parent overlay plan: [plan-steamos-gaming-mode-overlay-2026-10-16.md](../plans/plan-steamos-gaming-mode-overlay-2026-10-16.md)
 - TO_DO: [TO_DO.md](../TO_DO.md)
 - Prior Opus CLI reviews (archived): [initial](../code-assessments/gamescope-clickthrough-plan-review-opus-2026-10-19.md) · [docked follow-up](../code-assessments/gamescope-clickthrough-plan-review-opus-docked-followup-2026-10-19.md) · [final approve](../code-assessments/gamescope-clickthrough-plan-review-opus-final-approve-2026-10-19.md)
 - Phase 2 plan reviews: [Grok 4.7, 2026-10-20](../code-assessments/gamescope-clickthrough-phase2-plan-review-grok-2026-10-20.md) · [Claude Opus 5.5, 2026-10-20](../code-assessments/gamescope-clickthrough-phase2-plan-review-opus-2026-10-20.md)

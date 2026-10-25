@@ -1,131 +1,283 @@
-# Plan: Public Repository Preparation (`TimerWarning` — License, README, Repo/Doc Cleanup, Commit History Rewrite, and New Repo)
+# Plan: Prepare TimerWarning for public release
 
-**Date:** 2026-10-16  
-**Branch:** `chore/public-repo-prep`  
-**Target New Repository:** `kgrizz-git/TimerWarning` (created `--private` initially)  
-**Status:** Not started. Phases 1–4 below (license, PayPal removal, doc/stub cleanup, history rewrite, new repo) are still open. This branch also contains the experimental gamescope overlay, which is separate from this plan. Tracked `backups/*` snapshots were removed; do not treat that as Phases 1–3 being complete.  
-**Safety Reference:** [docs/SAFETY.md](../../docs/SAFETY.md) (no runtime/safety behavior changes)
+**Created:** 2026-10-16
 
----
+**Revised:** 2026-10-25
 
-## Locked-In Decisions
+**Status:** Phases 1–3 applied on 2026-10-24/25; Phases 4–5 remain open.
 
-1. **New Repository Name (`TimerWarning`):**
-   - Verified that `kgrizz-git/TimerWarning` is available on GitHub.
-   - We will create `kgrizz-git/TimerWarning` as a **private** repository first and push only the cleaned, history-rewritten `main` branch to it (leaving your existing `LinuxTimerWarning` repo untouched as a private backup until you no longer need it).
-   - Update clone URLs and repo references (`https://github.com/kgrizz-git/TimerWarning.git`, `cd TimerWarning`) in `README.md`, `GETTING_STARTED.md`, `user-docs/MACOS.md`, `dev-docs/CONTRIBUTING.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, and `.cursor/rules/project-conventions.mdc`.
-2. **Clear Platform & SteamOS Gaming Mode Messaging:**
-   - **Supported OSes:** Explicitly state in `README.md` and `GETTING_STARTED.md` that **TimerWarning supports Linux and macOS** (and is **not** designed for or supported on Windows).
-   - **SteamOS Gaming Mode:** Update `README.md`, `GETTING_STARTED.md`, `user-docs/USER_GUIDE.md`, and `dev-docs/STEAMOS_GAMING_MODE.md` to state clearly that **SteamOS Desktop Mode is supported**, whereas **SteamOS Gaming Mode (`gamescope`) does not currently work / is unsupported** (instead of the old "partially compatible" wording).
-3. **PayPal Links (`FMVBCJ2CT7L7S`):**
-   - Remove the PayPal donation links from all 3 files (`README.md`, `GETTING_STARTED.md`, and `lib/install-linux.sh`), archive/remove the PayPal todo references, and scrub `FMVBCJ2CT7L7S` from historical commit blobs during the Phase 4 rewrite.
-4. **Git Config Identity:**
-   - Confirmed — both `--global` and `--local` git config are set to `kgrizz-git <216068303+kgrizz-git@users.noreply.github.com>`.
+**Working branch:** `chore/public-repo-prep-phase-1`, based on `main` at `86cfc7a`.
 
----
+**Destination:** `kgrizz-git/TimerWarning`, private staging repository first.
 
-## Phase 1: Add a License Allowing Not-for-Profit Usage (`CC BY-NC-SA 4.0`)
+**Safety reference:** [docs/SAFETY.md](../../docs/SAFETY.md).
 
-1. **Create [`LICENSE`](../../LICENSE) at repository root:**
-   - Use **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (`CC BY-NC-SA 4.0`)** (or `PolyForm Noncommercial 1.0.0` if preferred), with copyright line:
-     `Copyright (c) 2026 kgrizz-git`
-   - Include a clear summary header at the top of `LICENSE` and under `## License` in `README.md`:
-     - Free to use, modify, and share for **personal, educational, academic research, charitable, and not-for-profit purposes** with attribution and under the same license.
-     - Commercial or for-profit usage is prohibited without separate permission from the author.
-     - Software is provided `"AS IS"`, without warranty of any kind.
-2. **Update `## License` in [`README.md`](../../README.md#L346-L349) and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) / [`dev-docs/CONTRIBUTING.md`](../../dev-docs/CONTRIBUTING.md):**
-   - Replace `[TO BE ADDED]` in `README.md` with the license summary and link to [`LICENSE`](../../LICENSE).
-   - Add an `Inbound = Outbound` note in `CONTRIBUTING.md` / `dev-docs/CONTRIBUTING.md` stating that contributions are licensed under the repository's `LICENSE`.
+## Current state and scope
 
----
+PR #7 merged on 2026-10-21. It delivered experimental SteamOS Gaming Mode support,
+safety fixes, and reviews; its old branch name did not mean publication preparation
+was finished. The existing `kgrizz-git/LinuxTimerWarning` repository is still private.
 
-## Phase 2: Touch Up `README.md`, `GETTING_STARTED.md`, `user-docs/`, & `lib/install-linux.sh`
+| Work | Verified state on 2026-10-21 |
+|------|-----------------------------|
+| Safety and overlay implementation | Merged through `ed0e8be`; merge commit `86cfc7a` |
+| Automated verification for PR #7 | Ubuntu/macOS Tier-A and Ubuntu static analysis passed; latest local Tier-A: 25 scripts, 3 platform/GUI skips |
+| Deck hardware evidence | Popup visibility/min-display on Oct 19; click access and Enter exclusivity passed Oct 20, recorded in the [overlay plan](../completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md#manual-verification-checklist-on-deck) |
+| Tracked `backups/` files | Already removed; no repeat deletion needed |
+| License | Apache License 2.0 with the Commons Clause, applied 2026-10-24 in root `LICENSE`. Source-available, not OSI open source |
+| Donation removal | PayPal links remain in README, GETTING_STARTED, and the Linux installer |
+| Branding and docs | Old clone URLs, root summary, redirects, and completed-plan backlog remain |
+| History sanitization / destination | Not performed / not created by this plan |
 
-### 2.1 Remove PayPal Links (All 3 Active Sites)
-1. **[`README.md`](../../README.md#L58-L65):** Remove `## Support Development` section with PayPal `FMVBCJ2CT7L7S` link.
-2. **[`GETTING_STARTED.md`](../../GETTING_STARTED.md#L354-L361):** Remove `## Support Development` section with PayPal `FMVBCJ2CT7L7S` link.
-3. **[`lib/install-linux.sh`](../../lib/install-linux.sh#L645-L650):** Remove the post-install terminal PayPal donation message from `install_print_summary()`.
+This work prepares licensing, documentation, repository contents, and a sanitized
+publication copy. Runtime enhancements and broad new hardware certification are
+separate work. Preserve the three safety invariants and the verified Deck geometry.
 
-### 2.2 Platform Clarity, SteamOS Gaming Mode, & Feature Updates
-1. **Title & Platform Scope (`README.md` & `GETTING_STARTED.md`):**
-   - Title: `# TimerWarning (Sleep Warning System for Linux & macOS)`
-   - Explicitly note: **Works on Linux (`systemd`) and macOS (`LaunchAgent`). Windows is not supported.**
-   - Update clone URLs from `LinuxTimerWarning` to `TimerWarning`.
-2. **Honest SteamOS Gaming Mode Status (`README.md`, `GETTING_STARTED.md`, `user-docs/USER_GUIDE.md`, `dev-docs/STEAMOS_GAMING_MODE.md`):**
-   - State clearly under `Disclaimer`, `Supported Systems`, and `USER_GUIDE.md`:
-     - **SteamOS Desktop Mode:** Supported (uses standard KDE Plasma desktop environment).
-     - **SteamOS Gaming Mode:** **Not supported / does not currently work** (Gaming Mode's isolated `gamescope` compositor prevents standard desktop dialog tools from appearing over the Gaming Mode UI).
-3. **Modernize Feature & Configuration Docs (`README.md` & `GETTING_STARTED.md`):**
-   - Update `## Features` to reflect Linux & macOS support, configurable pause durations (`1, 2, 3, 5, 10, 15` minutes) and cooldowns (`6, 8, 12, 24` hours), **15-minute `HH:MM` schedule resolution**, and mechanical safety guardrails (**16h/day per-category cap**, **finite popup watchdog**, and **tighten-only partial configure mode during lock hours**).
-   - Add `HH:MM` examples (e.g., `22:30-06:15`) alongside integer-hour examples in `## Configuration`.
-   - Include macOS equivalents (`launchctl bootout gui/$(id -u)/com.sleep-warning`, `~/.zshrc`, [`user-docs/MACOS.md`](../../user-docs/MACOS.md)) alongside Linux `systemctl` commands in `Prerequisites`, `Installation`, `Manual Control`, `Uninstallation`, `Requirements`, and `Troubleshooting`.
+## Decisions to preserve
 
----
+- Public-facing name: **TimerWarning**. Support Linux with systemd and macOS with
+  a user LaunchAgent; Windows is unsupported.
+- Keep the existing repository private as the development/history backup. Perform
+  history rewriting only in a disposable, separate export clone.
+- Create the destination **private**, publish only the reviewed export `main`,
+  verify its CI/settings, and treat making it public as a separate final step.
+- PayPal donation links stay until the owner reopens removal (deferred 2026-10-24).
+  Do not add donation verification or GitHub Sponsors during this preparation.
+- Public author identity for the owner's commits:
+  `kgrizz-git <216068303+kgrizz-git@users.noreply.github.com>`. Recheck local commit
+  identity before new commits; do not assume global Git configuration is unchanged.
+- License, chosen by the owner on 2026-10-24: **Apache License 2.0** with the
+  **Commons Clause License Condition v1.0**. Personal use, modification,
+  redistribution, and internal corporate use stay allowed. Selling the software,
+  as the Commons Clause defines Sell, does not. CC BY-NC-SA 4.0 and PolyForm
+  Noncommercial 1.0.0 were considered and not selected. The combination is
+  source-available, not OSI open source. Do not replace it with a permissive
+  license or describe those three licenses as the same terms.
 
-## Phase 3: Clean Up Docs & Repository Structure
+## Phase 0 — Branch housekeeping and plan review
 
-### 3.1 Root Directory & Redirect Stub Cleanup
-1. **Delete [`GENERALIZATION_SUMMARY.txt`](../../GENERALIZATION_SUMMARY.txt) from repo root.**
-2. **Delete all 7 tracked `backups/*` files.**
-3. **Remove the 13 expired `# Moved` redirect stubs under `docs/` and `dev-docs/`:**
-   - Delete `docs/agent-workflow.md`, `docs/core-beliefs.md`, `docs/harness-engineering.md`, `docs/safety-linux-macos-analysis.md`, `docs/architecture/{map,platforms}.md`, `docs/development/{platform-test-matrix,security-scanning,testing,versioning}.md`, `docs/references/openai-harness-engineering.md`, `docs/superpowers/plans/2026-06-14-bug-review-fixes.md`, and `dev-docs/CONFIGURE_GUI_FLOW.md`.
-   - Leaves `docs/` with only `docs/SAFETY.md` and `docs/index.md`. Update `docs/index.md`, `dev-docs/canonical-vs-archive.md`, and `scripts/check-doc-drift.sh`.
-4. **Update `.gitignore`:**
-   - Add `*.bundle` and `.cursor/plans/` to `.gitignore`, and delete any local untracked `.DS_Store` files.
+- [x] Confirm PR #7 merged and current checkout is based on merged `main`.
+- [x] Create `chore/public-repo-prep-phase-1` for this revision and the next phase.
+- [x] Delete fully merged remote branches: `WIP`, `WIP-mac`, and
+  `copilot/copy-templates-generalize`.
+- [x] Delete merged local branches: `WIP`, `WIP-mac`, `chore/public-repo-prep`, and
+  `cursor/critical-bug-investigation-6462` (the last two remotes were already gone).
+- [x] Inspect `cursor/critical-bug-investigation-a628`, closed PR #2, commit
+  `cea8362`. Its overnight-carry and pause-watchdog fixes have newer equivalents
+  in `main`; its backup snapshots are not material to merge. The original
+  overnight regression passes against current libraries, and the current Linux
+  watchdog-cleanup regression passes with stub dialogs and isolated scratch/HOME.
+  Tests were bounded; no live service, GUI, or installed configuration was used.
+- [x] Delete the superseded remote Cursor branch after explicit owner approval
+  on 2026-10-21. Its commit was not merged, but the fixes were independently
+  verified on `main`; no local branch existed. Do not cherry-pick the old patch
+  over newer safety code.
 
-### 3.2 Archive Completed Plans & Triage `dev-docs/`
-1. **Move completed/superseded plans from `dev-docs/plans/` into `dev-docs/completed-plans/`:**
-   - `plan-harness-engineering-improvements-2026-06-12.md`
-   - `phase-0-verification-2026-06-12.md`
-   - `plan-real-bugs-fix-2026-05-24.md`
-   - `plan-refactor-assessment-2026-06-12.md`
-   - `refactor-plan-high-priority-2026-02-05.md`
-   - `plan-safety-scan-fixes-2026-05-30.md`
-   - `plan-configurable-pause-interval.md`
-   - `plan-status-restricted-hours-display-16b.md`
-   - `plan-popup-percentage-size-labels.md`
-   - `plan-extend-24-7-prevention-to-additional-hours.md`
-   - `plan-additional-hours-no-restrictions.md`
-2. **Move root `dev-docs/` bug-fix docs & `.cursor/plans/`:**
-   - `dev-docs/weekday-gui-bug-fix-plan.md` → `dev-docs/completed-plans/`
-   - `dev-docs/weekday-gui-bug-assessment.md` → `dev-docs/code-assessments/`
-   - Move the 8 completed `.cursor/plans/*.plan.md` files → `dev-docs/completed-plans/`.
-3. **Update references & scripts:**
-   - Update relative links in `AGENTS.md`, `docs/SAFETY.md`, `dev-docs/README.md`, and `dev-docs/TO_DO.md`.
-   - Tighten `scripts/check-stale-plans.sh` regex so markdown-bolded `**Status:** **Complete**` and `**Status:** **fully implemented**` are detected automatically.
-   - Run `./scripts/prune-dev-docs-archive.sh --apply` (prunes `safety-scan-2026-05-29-003308.md` while keeping `safety-scan-2026-05-30-011454.md`).
+## Phase 1 — License and public contribution terms
 
----
+Applied 2026-10-24 on `chore/public-repo-prep-phase-1`. No runtime change.
 
-## Phase 4: Rewrite History & Push to New Private `kgrizz-git/TimerWarning` Repo
+- [x] Owner selected the Apache License 2.0 with the Commons Clause License
+  Condition v1.0. CC BY-NC-SA and PolyForm Noncommercial were not selected.
+  Creative Commons recommends a software license for code; the Commons Clause is
+  a software condition on Apache 2.0.
+- [x] Third-party audit: no vendored source, no existing copyright headers, and
+  no separately licensed assets in the tree. External programs the scripts call
+  keep their own licenses. Nothing of theirs was relicensed.
+- [x] Root `LICENSE` has `Copyright (c) 2026 kgrizz-git`, the Commons Clause with
+  Software, License, and Licensor filled in, and the official Apache 2.0 text
+  unmodified, including its appendix. README prose stays outside that text.
+- [x] README placeholder replaced with a short summary and a link to `LICENSE`.
+  The summary uses the Commons Clause definition of Sell and does not add a
+  broader ban.
+- [x] Root and developer contribution guides require contributions under the
+  same combined terms. [LICENSE_OPTIONS.md](../info/LICENSE_OPTIONS.md) records
+  the decision and no longer says noncommercial licenses blanket-permit internal
+  business use.
+- [x] Docs call the project source-available, not OSI open source.
 
-1. **Merge `chore/public-repo-prep` into `main`** once Phases 1–3 pass all verification gates (and move this plan `plan-public-repo-prep-2026-10-16.md` into `dev-docs/completed-plans/`).
-2. **Create a safety backup bundle outside the repo:**
-   ```bash
-   git bundle create /Users/kgrizz-git/MyCode/LinuxTimerWarning-pre-rewrite.bundle --all
-   ```
-3. **Rewrite commit author/committer metadata AND scrub `FMVBCJ2CT7L7S` across all history:**
-   - Map `kgrizz-git <216068303+kgrizz-git@users.noreply.github.com>` and `kgrizz-git <216068303+kgrizz-git@users.noreply.github.com>` → `kgrizz-git <216068303+kgrizz-git@users.noreply.github.com>`.
-   - Scrub `FMVBCJ2CT7L7S` from all historical file blobs across every revision.
-4. **Verify 100% clean history & blobs:**
-   ```bash
-   git log main --format="%an <%ae> | %cn <%ce>" | sort -u
-   git log main --grep="grizzard" -i
-   git rev-list main | xargs git grep -i -E "kevingrizzard|kevin\.grizzard|FMVBCJ2CT7L7S" || true
-   ```
-5. **Create new private GitHub repository `kgrizz-git/TimerWarning` and push clean `main`:**
-   ```bash
-   gh repo create kgrizz-git/TimerWarning --private --description "Configurable late-night computer usage warning & lockout system for Linux (systemd) and macOS (LaunchAgent)"
-   git remote add timerwarning https://github.com/kgrizz-git/TimerWarning.git
-   git push -u timerwarning main
-   ```
+**Acceptance:** met for this slice. GitHub license settings for the destination
+repository remain in Phase 5. Per-file copyright headers were not added.
 
----
+## Phase 2 — Public-facing docs, branding, and donation removal
 
-## Verification Gates
+- [ ] Remove donation sections from `README.md` and `GETTING_STARTED.md`, and the
+  post-install donation message from `lib/install-linux.sh`. **Deferred by the
+  owner on 2026-10-24.** Leave the existing PayPal links in place for now. Do not
+  add donation verification or GitHub Sponsors as part of this preparation.
+- [ ] Use `TimerWarning (Sleep Warning System for Linux & macOS)` and the planned
+  `kgrizz-git/TimerWarning` clone URL/directory in installation examples. **Deferred
+  by the owner on 2026-10-24 to the first commit on the new private repository,
+  before that repository is made public.** Leave names, clone URLs, and installed
+  identifiers unchanged in this development repository. Do not rename installed
+  `sleep-warning*` executables, config paths, or services in either place.
+- [x] State **Desktop Mode supported; Gaming Mode experimental, opt-in**. Cite
+  the Oct 19–20 Deck results accurately. Remove both the old “does not work” claim
+  and unqualified claims that no hardware test has happened. Keep remaining
+  manual checks visible: pause-enabled buttons/notice, countdown input, touch,
+  QAM after closure, forced timeout, and docked/undocked coverage as recorded.
+  Updated 2026-10-24 in README, GETTING_STARTED, user docs, and the SteamOS
+  summary. Names and clone URLs were left unchanged.
+- [x] Document current features: pause durations/cooldowns, 15-minute wizard
+  schedule resolution and `HH:MM` examples, daily per-category caps, watchdog,
+  and tighten-only configuration. Do not promise arbitrary minute entry where
+  wizard inputs are restricted to quarter-hour values. Text mode and hand-edited
+  config still accept any valid minute. Corrected the pause docs that said the
+  limit resets at midnight; the cooldown is 6, 8, 12, or 24 hours from the last
+  pause.
+- [x] Keep emergency commands accurate: Linux stop/disable; macOS `bootout` for
+  immediate stop plus `disable` for persistence, with explicit re-enable steps.
+  Updated in GETTING_STARTED, the user guide, and CONFIGURATION. `user-docs/MACOS.md`
+  already had both macOS steps.
+- [ ] Check install/status/help output for the deferred public name, and for private
+  material other than the PayPal link the owner is keeping. Branding text changes
+  with the first commit on the new repository. The 2026-10-24 scan of install,
+  status, and help strings found the PayPal business id and no personal email or
+  home-directory path.
 
-1. `./scripts/check-doc-drift.sh --strict` — exits `0`.
-2. `./scripts/check-stale-plans.sh --strict` — exits `0`.
-3. `./scripts/run-security-scan.sh --ci` — ShellCheck, Gitleaks, and Semgrep pass with `0` findings.
-4. `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a` — Tier-A test suite passes.
-5. Zero occurrences of `kgrizz-git`, `216068303+kgrizz-git@users.noreply.github.com`, or `FMVBCJ2CT7L7S` in commit headers, commit messages, or historical file blobs on `main`.
+**Acceptance:** PayPal links remain until the owner reopens that item. Branding
+and platform claims are consistent, recovery instructions are current, and
+installed identifiers and behavior are unchanged.
+
+## Phase 3 — Repository and documentation cleanup
+
+Done 2026-10-25 on `chore/public-repo-prep-phase-1`. No runtime change.
+
+1. Remove `GENERALIZATION_SUMMARY.txt` after preserving anything still useful.
+   Done 2026-10-24. The generalized template directory is not in this repo.
+   The record is [note-template-generalization-summary.md](../completed-plans/note-template-generalization-summary.md).
+2. Inventory redirect stubs under `docs/` and `dev-docs/CONFIGURE_GUI_FLOW.md`;
+   update inbound links before removing obsolete stubs. Keep the user/developer
+   documentation boundary and update `docs/index.md`, canonical-doc guidance,
+   and `scripts/check-doc-drift.sh` together. Done 2026-10-25: all `Moved`
+   stubs under `docs/` (architecture, development, harness, agent-workflow,
+   core-beliefs, safety analysis, references, superpowers) and
+   `dev-docs/CONFIGURE_GUI_FLOW.md` removed. Live docs already pointed at
+   `dev-docs/`; historical Markdown links (CHANGELOG, dated assessments/scans) now also
+   resolve to their canonical destinations. The live safety-scan plan pointer
+   was retargeted to `dev-docs/`. `docs/index.md`, `canonical-vs-archive.md`, and the drift
+   script's exclusion list updated together.
+3. Add `*.bundle` and local `.cursor/plans/` to `.gitignore` as appropriate.
+   `*.bundle` and `.cursor/plans/` were added on 2026-10-24. Eight plans were
+   still tracked; ignoring the path did not untrack them. Their frontmatter
+   todos are complete. Done 2026-10-25: all eight moved to
+   `dev-docs/completed-plans/` after retargeting inbound links (the dev-docs
+   pause plan's sync notes; the archived May refactor plan's pointer now
+   resolves via git history). Verified against code: the conditional osascript
+   `activate` throttle the performance plan body still calls unimplemented is
+   shipped (`_cd_darwin_should_osascript_activate`,
+   `lib/configure-dialogs-darwin.sh`); only the manual z-order QA remains,
+   kept visible as a [TO_DO smoke item](../TO_DO.md#smoke-tests).
+4. Audit completed-plan candidates individually, including harness engineering,
+   refactor, safety-scan, pause, status-display, and popup-size plans. Move only
+   completed/superseded work to `dev-docs/completed-plans/`; keep unresolved
+   requirements active. In particular, the additional-hours-on-unrestricted-days
+   proposal is still listed as open and was not archived. Done 2026-10-25:
+   archived the percentage-size, phase-0, Feb refactor (superseded), pause,
+   harness, real-bugs, June refactor, gamescope click-through, extend-24/7,
+   and 16b status-display plans with archive banners; kept additional-hours,
+   popup-frequency (needs review), safety-scan (unimplemented integration
+   test), SteamOS overlay (partial verification), and this plan active.
+   Repaired relative links from AGENTS, SAFETY, developer README, TO_DO,
+   REMAINING_WORK_SUMMARY, STEAMOS_GAMING_MODE, enhancement-22, and the
+   platform test matrix.
+5. Review the old weekday-GUI notes and tracked `.cursor/plans/` files before
+   moving them to completed plans or assessments. Repair relative links and
+   links from AGENTS, SAFETY, developer README, and TO_DO. Done 2026-10-25:
+   review correction: the [weekday fix plan](weekday-gui-bug-fix-plan.md) remains active
+   for Phase 2 systematic dialog hardening; only the targeted fixes shipped.
+   Its assessment stays in place because
+   `lib/configure-dialogs-darwin.sh` references it.
+6. Improve stale-plan detection for bolded completion statuses, with focused
+   tests if changing the script. Preview retention tools before any `--apply`;
+   use current age/reference rules, not the old plan's hardcoded deletion list.
+   Evaluated 2026-10-25: after the archiving above, no remaining active plan
+   carries a completable bolded status the script misses (remaining matches
+   are genuinely open work), so the script is unchanged. No test added — no
+   behavior change to pin. Retention scripts previewed dry-run only; no
+   archives deleted.
+7. Retain safety guidance, user instructions, contributor guidance, and tests.
+   Public release does not require implementing the entire feature backlog.
+   Kept: SAFETY, user docs, CONTRIBUTING, tests, and the open backlog untouched.
+
+**Acceptance:** strict doc/stale-plan checks pass, archived work is traceable via
+banners, unresolved work (additional-hours proposal, popup-frequency review,
+safety-scan integration test, weekday dialog hardening, SteamOS verification, smoke list) remains visible,
+root/docs are coherent, no safety-doc loss.
+
+## Phase 4 — Sanitize history in a separate publication clone
+
+Start only after Phases 1–3 are reviewed, committed, tested, and merged through a
+PR into source `main`. Keep this plan active until publication is finished.
+
+1. Record the exact source `main` SHA and inventory prerequisites/PRs. Verify
+   every intended implementation commit is included; no unsubmitted base slices.
+2. Create and verify a complete private backup bundle outside the working tree.
+   It contains unsanitized history: never upload it or include it in the export.
+3. Create a separate export clone of the reviewed `main`. Do not rewrite source
+   `main`, force-push the existing remote, or export old branches, tags, stashes,
+   remote-tracking refs, PR refs, backup refs, or local agent state.
+4. Build a private sanitization manifest outside the export: owner identity
+   aliases, personal email/name variants, home-directory paths, donation ID,
+   private endpoints, and any discovered secrets. Keep actual match results out
+   of public CI logs. Public handle/no-reply identity is intentionally retained.
+5. Rewrite owner author/committer aliases, matching co-author trailers and other
+   message content, and sensitive file content/paths across exported history.
+   Preserve legitimate third-party attribution and notices. Exclude historic
+   backups/local artifacts where required. Record old-to-new SHA mapping privately.
+6. Verify **all objects reachable from the exact export refs**, not just HEAD:
+   commit metadata/messages, tree paths and blobs, binary artifacts, and any tags
+   deliberately added later. A clean current tree or Gitleaks pass alone does not
+   prove personal-data removal. `grep ... || true` is not a passing privacy gate:
+   distinguish forbidden matches, allowed matches, and scan/tool errors.
+7. Run `git fsck`, review the rewritten tip against the approved source tree
+   (only intended sanitization differences), then rerun doc, test, and security
+   gates in the export clone. Keep all rewrite recipes/manifests/reports that
+   contain private originals outside the publication repository.
+
+**Acceptance:** verified backup, isolated rewritten `main`, no unexplained tree
+changes or forbidden reachable material, reproducible private audit record.
+
+## Phase 5 — Private staging, then public release
+
+1. Recheck destination name/access at execution time; the Oct 16 availability
+   check is historical. Create `kgrizz-git/TimerWarning` **private** if absent;
+   inspect rather than overwrite any existing repository.
+2. Push only the sanitized `main` ref with a normal push to the new destination;
+   never `--mirror`, `--all`, an unsanitized tag, or a hook/protection bypass.
+3. Configure default branch, required checks/PR protection, Actions permissions,
+   and desired repository metadata. Review integrations and artifacts for old
+   private links/data; do not import old private issues, logs, or review threads.
+4. Verify the destination's Ubuntu/macOS CI, documentation/clone links, license,
+   and install instructions from a fresh checkout. Use temp HOME, bounded tests,
+   and no installed-config or live-service changes for automation.
+5. Present the exact destination, sanitized SHA, scan/test evidence, and visibility
+   change for owner approval. Make the repository public only after that approval.
+6. Verify public clone/access and public metadata. Archive this plan under
+   `dev-docs/completed-plans/` after final status and any residual work are recorded.
+   Keep source `LinuxTimerWarning` private unless separately directed.
+
+## Verification and delivery gates
+
+| Slice | Required evidence |
+|-------|-------------------|
+| This planning revision | Diff/link review; doc/stale-plan checks with existing failures recorded; no runtime changes |
+| Phases 1–3 | `./scripts/check-doc-drift.sh --strict`; `./scripts/check-stale-plans.sh --strict`; license/link/donation/branding checks |
+| Shell or entrypoint changes | Targeted regressions, temp-HOME `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a`, and `./scripts/run-security-scan.sh --ci`; normal hooks intact |
+| Sanitized export | All preceding checks plus reachable-history privacy scan, `git fsck`, source/export comparison |
+| Public release | Private destination CI green, settings reviewed, explicit public-visibility approval, fresh public clone verified |
+
+Follow the operational rules in AGENTS: never unbounded configure menus; timeout,
+controlled stdin, and bounded output are all required if a menu test is necessary.
+Never run mode-detection tests against real HOME or edit the installed config.
+
+For each slice, report implemented, reviewed, committed, pushed, PR-submitted,
+CI-green, and merged states separately. Branch cleanup is not release completion.
+
+**Next action:** Parent review of the Phase 3 working tree on
+`chore/public-repo-prep-phase-1`, then commit, PR, and merge into source `main`
+(per AGENTS.md, the parent agent reviews and commits). Phase 4 (isolated
+publication export) starts only after that merge. Public renaming waits for the
+first commit on the new private repository. PayPal removal stays deferred. This
+work does not rewrite history, create the destination, or change repository
+visibility.

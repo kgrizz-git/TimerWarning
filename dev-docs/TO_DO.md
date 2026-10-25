@@ -4,7 +4,7 @@ Short queue of open work. For full status per enhancement, see [FUTURE_ENHANCEME
 
 ## Harness engineering (active — post-refactor)
 
-- [x] **Harness engineering improvements** — Phases 1–8 complete → [plan](plans/plan-harness-engineering-improvements-2026-06-12.md) (move to completed-plans when convenient)
+- [x] **Harness engineering improvements** — Phases 1–8 complete → [plan](completed-plans/plan-harness-engineering-improvements-2026-06-12.md) (archived 2026-10-25)
 
 Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents (see plan Phase 4).
 
@@ -31,24 +31,44 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 - [ ] **Popup frequency early tolerance** — Allow last-popup-time gate to fire up to `min(5% of POPUP_DISPLAY_FREQUENCY, 5 min)` early so 10-min settings do not slip to ~15 min on the 5-min timer grid; clamp early so earliest gap stays above popup on-screen time (`+60s` and `≤90%` cushions). **Plan needs human review — do not implement yet.** → [plan](plans/plan-popup-frequency-early-tolerance-2026-10-19.md)
 - [ ] **#29** — kdialog window size via `--textbox` + `--geometry` → [enhancement-29](enhancements/enhancement-29-kdialog-window-size-control.md)
 - [ ] **#10** — Audio alerts → [enhancement-10](enhancements/enhancement-10-audio-alerts.md)
-- [x] **Configurable pause cooldown and duration** — Pause disabled, or cooldown every N hours (N = 6, 8, 12, 24; default 24); pause length 1/2/3/5/10/15 min → [plan](plans/plan-configurable-pause-interval.md) (scope: [enhancement-21 pause](enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md))
+- [x] **Configurable pause cooldown and duration** — Pause disabled, or cooldown every N hours (N = 6, 8, 12, 24; default 24); pause length 1/2/3/5/10/15 min → [plan](completed-plans/plan-configurable-pause-interval.md) (scope: [enhancement-21 pause](enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md))
+
+- [ ] **macOS dialog hardening** — Weekday/continuation fixes shipped; Phase 2 caller audit and systematic question/info dialog hardening remain open → [active plan](plans/weekday-gui-bug-fix-plan.md).
 
 ## Testing (high impact)
 
 - [ ] **SteamOS Gaming Mode** — Full validation with full-screen games → [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md), [phase 4 plan](plans/phases/plan-phase-4-testing.md)
   - [x] **2026-10-19 on-device:** popup **displays and stays up** in Gaming Mode (experimental overlay on)
-  - [x] **Click-through + magnification (Phase 1 code):** full `:0` root-width gamescope dialogs + atom/geometry logging → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md)
-  - [x] **Click-through Phase 2 Streams E+F:** debug capture + top-left / ≥⅔-root height; on-device click retest passed 2026-10-20 → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md)
-  - [x] **Click-through Phase 2 Stream G (docs):** zenity OK-only vs yad Cancel / kdialog Dismiss documented 2026-10-20 → [plan](plans/plan-gamescope-overlay-click-through-2026-10-19.md)
+  - [x] **Click-through + magnification (Phase 1 code):** full `:0` root-width gamescope dialogs + atom/geometry logging → [plan](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md)
+  - [x] **Click-through Phase 2 Streams E+F:** debug capture + top-left / ≥⅔-root height; on-device click retest passed 2026-10-20 → [plan](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md)
+  - [x] **Click-through Phase 2 Stream G (docs):** zenity OK-only vs yad Cancel / kdialog Dismiss documented 2026-10-20 → [plan](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md)
   - [ ] **Minor log bug (separate):** after auto-close SIGTERM, log may say `User closed popup manually` then exit 143 — fix classification when convenient
 - [ ] **Desktop Mode, no external display** — Run test suite on Steam Deck internal display only
 - [ ] **Multi-distribution install** — Debian/Ubuntu, Fedora/RHEL, Arch/SteamOS, openSUSE, Alpine → [phase 3 plan](plans/phases/plan-phase-3-installation.md)
 
 ## Documentation and release
 
-- [ ] **Licensing** — Select and apply license → [LICENSE_OPTIONS.md](info/LICENSE_OPTIONS.md), [phase 5 plan](plans/phases/plan-phase-5-documentation.md)
-- [ ] **#27** — Verify PayPal donation links; Phase 2 GitHub Sponsors after license → [enhancement-27](enhancements/enhancement-27-paypal-donation-links.md)
+- [ ] **Public repository preparation — next: review and merge, then publication export** — [Publication plan](plans/plan-public-repo-prep-2026-10-16.md) Phase 3 repository and documentation cleanup is done in the working tree (redirect stubs removed, completed plans archived with smoke items below, Cursor drafts archived). Public renaming waits for the first commit on the new private repository. PayPal removal stays deferred. History sanitization and publication are later phases.
+- [ ] **Donation cleanup — deferred 2026-10-24** — Leave existing PayPal links in place until the owner reopens this. Do not add donation integrations as part of publication preparation. Spec: [#27](enhancements/enhancement-27-paypal-donation-links.md).
 - [ ] **SteamOS locale docs** — User guide section (Nix + manual paths); do not automate `locale-gen` in install.sh → [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#documentation-work)
+
+## Smoke tests
+
+Manual-only checks left over from archived plans. Code and docs are done; each
+item needs a human (or a hardware host) to run it once and record the result in
+[testing-assessments/test-history.md](testing-assessments/test-history.md). Do not
+re-implement code for these — verify and close.
+
+- [ ] **macOS conditional osascript `activate` (throttle shipped, QA open)** — `_cd_darwin_should_osascript_activate` in `lib/configure-dialogs-darwin.sh` already skips redundant `activate` when the previous dialog was osascript and closed <500 ms ago (always activates after tkinter and on the first dialog). Manual z-order matrix still open: terminal-focused vs IDE launches, Cancel/Back/Escape, confirm-after-list, osascript-after-tk. Source: archived [macOS configure GUI performance plan](completed-plans/macos_configure_gui_performance_acc3b24e.plan.md) Tier B1.
+- [ ] **macOS sleep/wake grace** — real laptop sleep/wake cycle; popup/watchdog behavior across resume.
+- [ ] **Full manual flow (macOS)** — configure → save → run → popup → dismiss, end to end.
+- [ ] **Uninstall on macOS** — manual uninstall run; LaunchAgent removed, status truthful.
+- [ ] **Lock error dialog** — trigger in GUI and text mode; confirm dialog text matches fixtures.
+- [ ] **Wizard option 13 (Review and Save)** — text-mode run with bounded `configure.sh` (`timeout`, controlled stdin).
+- [ ] **Range editing across dialog tools** — yad, zenity, kdialog GUI entry + text entry.
+- [ ] **Fresh Linux install** — clean host; verify config directory, service files, installed binaries.
+- [ ] **24/7 + additional-hours integration** — configure a dangerous restriction+lock combination and verify blocking; configure a high-restriction combination and verify the warning plus additional-hours clearing. (Unit coverage is Tier-A in `tests/test-24-7-prevention-additional-hours.sh`.)
+- [ ] **Deck overlay manual checks** — consolidated with the [SteamOS Gaming Mode checklist](#testing-high-impact): pause-enabled buttons/notice, countdown input, touch, QAM usable after closure, forced watchdog timeout, docked + undocked. Detail in archived [overlay plan](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md).
 
 ## Distribution (lower priority)
 
@@ -61,12 +81,12 @@ Track detail in [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#mostly-imp
 
 ## Recently completed
 
-- [x] **June 2026 refactor assessment** — Facade splits for configure display/UI/config/input, UI errors, dialog dispatch, config load/write, status display, install-linux, `show_warning` orchestration; success metrics met (`configure-display.sh` 195 lines, `install.sh` 313, `show_warning` 169). Residual: manual smoke + some verification checkboxes in plan → [plan](plans/plan-refactor-assessment-2026-06-12.md) · [assessment](refactor-assessments/refactor-assessment-2026-06-12-001417.md)
-- [x] **Per-day 16 h cap + popup lifetime + escape-hatch (2026-05-24 audit)** — Shipped 2026-05-24 (Phases 0–4): `lib/daily-caps.sh` / `check_daily_caps`, HH:MM lockout math, configure hard-block + runtime fallback, popup watchdog wiring, macOS blocker/osascript/min-display and uninstall/manage escape-hatch fixes. Plan: [plan-real-bugs-fix-2026-05-24](plans/plan-real-bugs-fix-2026-05-24.md) · Audit: [bug-and-lockout-review-2026-05-24](code-assessments/bug-and-lockout-review-2026-05-24-203354.md) · Tests: `tests/test-daily-caps.sh`. **Linux host verification** remains open: [Linux popup watchdog (verify on Linux build)](#features-and-safety).
+- [x] **June 2026 refactor assessment** — Facade splits for configure display/UI/config/input, UI errors, dialog dispatch, config load/write, status display, install-linux, `show_warning` orchestration; success metrics met (`configure-display.sh` 195 lines, `install.sh` 313, `show_warning` 169). Plan archived → [plan](completed-plans/plan-refactor-assessment-2026-06-12.md) · [assessment](refactor-assessments/refactor-assessment-2026-06-12-001417.md). Residual manual checks moved to [Smoke tests](#smoke-tests).
+- [x] **Per-day 16 h cap + popup lifetime + escape-hatch (2026-05-24 audit)** — Shipped 2026-05-24 (Phases 0–4): `lib/daily-caps.sh` / `check_daily_caps`, HH:MM lockout math, configure hard-block + runtime fallback, popup watchdog wiring, macOS blocker/osascript/min-display and uninstall/manage escape-hatch fixes. Plan: [plan-real-bugs-fix-2026-05-24](completed-plans/plan-real-bugs-fix-2026-05-24.md) (archived) · Audit: [bug-and-lockout-review-2026-05-24](code-assessments/bug-and-lockout-review-2026-05-24-203354.md) · Tests: `tests/test-daily-caps.sh`. **Linux host verification** remains open: [Linux popup watchdog (verify on Linux build)](#features-and-safety). Residual manual flows moved to [Smoke tests](#smoke-tests).
 - [x] **#30** — Separate timer check interval from popup display frequency (`POPUP_DISPLAY_FREQUENCY`, derived run interval, last-popup-time throttling). Implemented 2026-02-09 → [enhancement-30](enhancements/enhancement-30-separate-timer-check-interval-from-popup-display-frequency.md)
 
 ---
 
 **Plans index:** [Master plan](plans/master/linux-warning-system-plan.md) · [Active plans](plans/) · [Completed plans](completed-plans/)
 
-**Last updated:** 2026-10-20 (gamescope Phase 2 done: click verified; Stream G button docs)
+**Last updated:** 2026-10-25 (publication Phase 3 done: stubs removed, completed plans archived, smoke items collected; PayPal removal and public rename deferred)

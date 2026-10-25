@@ -1,10 +1,17 @@
 # Plan: Refactor Assessment 2026-06-12 Follow-up
 
+> **Archived 2026-10-25.** Code phases 0–10 shipped 2026-06-12 (split modules
+> exist in `lib/`, e.g. `configure-input-security.sh`,
+> `configure-input-feature-helpers.sh`, `config-keys.sh`). Residual verification
+> checkboxes (fixture parity, bounded text-mode runs, GUI/manual smokes, fresh
+> Linux install) are now smoke items in [TO_DO.md](../TO_DO.md#smoke-tests).
+> Historical record.
+
 **Status:** **Complete** (2026-06-12) — code phases 0–10 shipped; open checkboxes below are manual smoke / Linux-host verification only. Harness work unblocked: [plan-harness-engineering-improvements-2026-06-12.md](plan-harness-engineering-improvements-2026-06-12.md).
 
 **Source assessment:** [refactor-assessment-2026-06-12-001417.md](../refactor-assessments/refactor-assessment-2026-06-12-001417.md)
 
-**Continues:** [plan-refactor-assessment-2026-05-31.md](../completed-plans/plan-refactor-assessment-2026-05-31.md) (May plan; open items below re-evaluated against June data)
+**Continues:** [plan-refactor-assessment-2026-05-31.md](plan-refactor-assessment-2026-05-31.md) (May plan; open items below re-evaluated against June data)
 
 **Safety:** [docs/SAFETY.md](../../docs/SAFETY.md) invariants are non-negotiable during all refactors.
 
@@ -396,7 +403,7 @@ Manual (when GUI session available): configure wizard review step; one popup per
 ## Tracking
 
 - **TO_DO:** [dev-docs/TO_DO.md](../TO_DO.md) — Update refactor assessment follow-up item
-- **Supersedes:** [plan-refactor-assessment-2026-05-31.md](../completed-plans/plan-refactor-assessment-2026-05-31.md) (archived; open items merged into this plan)
+- **Supersedes:** [plan-refactor-assessment-2026-05-31.md](plan-refactor-assessment-2026-05-31.md) (archived; open items merged into this plan)
 - **Assessment record:** [refactor-assessment-2026-06-12-001417.md](../refactor-assessments/refactor-assessment-2026-06-12-001417.md)
 
 **Last updated:** 2026-06-12 (marked complete; post-refactor metrics; harness plan unblocked)

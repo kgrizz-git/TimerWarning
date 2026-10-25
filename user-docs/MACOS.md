@@ -48,11 +48,11 @@ Logs: `~/.config/sleep-warning/logs/launchd-stdout.log` and `launchd-stderr.log`
 The macOS build is designed so you are **not** left with a blocking dialog all day:
 
 - **Hard watchdog:** each popup is killed if it runs longer than `POPUP_ABSOLUTE_MAX_SECONDS` (default 330s).
-- **Auto-close forced on** for new installs (`POPUP_AUTO_CLOSE=true`).
+- **Auto-close forced on** at runtime by default (`DARWIN_FORCE_AUTO_CLOSE=true`), even if `POPUP_AUTO_CLOSE=false`.
 - **Min display time capped** at 300 seconds (5 minutes) on macOS — the same ceiling as Linux.
 - **Duplicate popup prevention:** if a warning is still open, the next scheduled check skips showing another.
-- **24/7 configure block:** saving restrictions that cover the entire week is blocked (same as Linux).
-- **Pause button** on the warning dialog (once-per-day rules apply).
+- **Per-day caps:** saving more than 16 hours in any lockout category on any calendar day is blocked (same as Linux).
+- **Pause button** on the warning dialog (6, 8, 12, or 24-hour cooldown; default 24).
 
 ## Troubleshooting playbook
 
@@ -72,7 +72,7 @@ The macOS build is designed so you are **not** left with a blocking dialog all d
 ### Popup too often
 
 - Adjust hours: `sleep-warning-configure --text`
-- Use **Pause N min** on the dialog (subject to once-per-day settings).
+- Use **Pause N min** on the dialog (1, 2, 3, 5, 10, or 15 minutes, then a cooldown of 6, 8, 12, or 24 hours; default 24).
 - Disable scheduling: `sleep-warning-manage` → Disable, or see emergency stop below.
 
 ### Stuck or frozen popup (emergency)
@@ -104,7 +104,7 @@ The macOS build is designed so you are **not** left with a blocking dialog all d
 
 ### Cannot configure (locked)
 
-Configuration may be blocked during restricted hours or when config lock is enabled. Wait for an unrestricted window, or disable the LaunchAgent first (step 1 above).
+During restriction or active lock hours, configuration opens in tighten-only mode. You can strengthen settings; wait until lock hours end to loosen them. Disabling the LaunchAgent stops scheduling but does not change the configured lock hours. Service disable, status, and logs remain available.
 
 ### Timer not firing
 

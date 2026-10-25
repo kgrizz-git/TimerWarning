@@ -36,3 +36,8 @@ Thumbs.db
 tmp/
 *.tmp
 *.bak
+
+# Local Git bundles and Cursor plan drafts. Already-tracked plans under
+# .cursor/plans/ stay in history until they are archived and removed from the index.
+*.bundle
+.cursor/plans/

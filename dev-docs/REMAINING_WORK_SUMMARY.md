@@ -22,7 +22,7 @@ Open work is testing, docs, or small gaps — not greenfield implementation.
 | 24–25 | Cross-tool and cross-environment dialog tests | [#24](enhancements/enhancement-24-unified-dialog-priority-yad-first.md) · [#25](enhancements/enhancement-25-user-selectable-dialog-tool.md) |
 | 26 | Phase 1 integration tests; Phase 2 uninstall UI tests | [enhancement-26](enhancements/enhancement-26-prevent-uninstall-during-restricted-hours.md) |
 | 27 | Verify PayPal links; Phase 2 after license | [enhancement-27](enhancements/enhancement-27-paypal-donation-links.md) |
-| — | 24/7 + additional hours plan — Phase 5 testing | [plan-extend-24-7…](plans/plan-extend-24-7-prevention-to-additional-hours.md) |
+| — | 24/7 + additional hours plan — Phase 5 testing (manual integration; smoke items in TO_DO) | [plan-extend-24-7…](completed-plans/plan-extend-24-7-prevention-to-additional-hours.md) |
 
 ---
 
@@ -40,7 +40,7 @@ From [linux-warning-system-plan.md](plans/master/linux-warning-system-plan.md). 
 
 ## Testing and validation
 
-- [ ] SteamOS Gaming Mode with full-screen games — **partial 2026-10-19:** overlay visible/stays up; **buttons click-through** (see [plan-gamescope-overlay-click-through-2026-10-19.md](plans/plan-gamescope-overlay-click-through-2026-10-19.md))
+- [ ] SteamOS Gaming Mode with full-screen games — **partial 2026-10-19:** overlay visible/stays up; **buttons click-through** (see [plan-gamescope-overlay-click-through-2026-10-19.md](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md) — archived; remaining manual checks are TO_DO smoke items)
 - [ ] Edge cases: overnight ranges, invalid config, missing dependencies
 - [ ] Multi-distribution install scripts
 - [ ] Dialog tools (YAD / Zenity / KDialog) across X11, Wayland, KDE
@@ -54,7 +54,7 @@ See [plan-phase-4-testing.md](plans/phases/plan-phase-4-testing.md). Record runs
 ## Documentation work
 
 - [ ] Contributing guidelines and development setup
-- [ ] **Licensing** — [LICENSE_OPTIONS.md](info/LICENSE_OPTIONS.md), [phase 5 §5.4](plans/phases/plan-phase-5-documentation.md#checklist-54-license-selection-and-implementation)
+- [x] **Licensing** — Apache License 2.0 with the Commons Clause in root `LICENSE` (2026-10-24). Recorded in [LICENSE_OPTIONS.md](info/LICENSE_OPTIONS.md). GitHub license settings remain for the destination repository.
 - [ ] **Donation links** — verify Phase 1; Phase 2 GitHub Sponsors after license
 - [ ] **SteamOS locale** — Document Nix (preferred) and manual `locale-gen` paths in user docs. **Do not** run `locale-gen` from `install.sh` (read-only `/usr`, stripped glibc on SteamOS). Optional: detect missing UTF-8 locale and print instructions; set `LANG` in user service when a UTF-8 locale exists.
 

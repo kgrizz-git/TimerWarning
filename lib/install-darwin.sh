@@ -146,9 +146,21 @@ install_darwin_prompt_reenable() {
     fi
 }
 
+# Copy the combined Apache 2.0 and Commons Clause license beside installed libraries.
+# Inputs: SCRIPT_DIR (repository root), LIB_DIR (destination). Exits 1 when LICENSE is missing.
+install_copy_license() {
+    if [ ! -f "${SCRIPT_DIR}/LICENSE" ]; then
+        print_error "LICENSE not found next to the installer; refusing to install without the copyright notice"
+        exit 1
+    fi
+    cp "${SCRIPT_DIR}/LICENSE" "${LIB_DIR}/LICENSE"
+    print_success "License notice installed"
+}
+
 install_darwin_install_files() {
     print_info "Installing files..."
     mkdir -p "${LIB_DIR}"
+    install_copy_license
     if [ -d "${SCRIPT_DIR}/lib" ]; then
         cp "${SCRIPT_DIR}/lib"/*.sh "${LIB_DIR}/"
         chmod +x "${LIB_DIR}"/*.sh
@@ -254,6 +266,7 @@ install_darwin_print_summary() {
     echo "  - Configuration: ${CONFIG_DIR}/config/sleep-warning.conf"
     echo "  - LaunchAgent: ${HOME}/Library/LaunchAgents/com.sleep-warning.plist"
     echo "  - Logs: ${CONFIG_DIR}/logs/"
+    echo "  - License: ${LIB_DIR}/LICENSE"
     echo ""
     echo "Next steps:"
     echo "  1. Configure: sleep-warning-configure (or --text)"

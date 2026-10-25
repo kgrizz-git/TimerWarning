@@ -42,7 +42,7 @@ experimental tool coverage, not evidence that all three tools were verified.
 5. **Safety Guardrails (`GAMESCOPE_FORCE_AUTO_CLOSE=true`)**:
    - `lib/popup-safety.sh` forces `auto_close="true"` when `env_type == "gamescope"`, ensuring popups always auto-close after `POPUP_MIN_DISPLAY_TIME + POPUP_AUTO_CLOSE_DELAY_SECONDS` in addition to the hard `POPUP_ABSOLUTE_MAX_SECONDS` watchdog.
 
-The percentage tables and “planned changes” sections later in this document are historical planning estimates from before the experimental overlay. They are not measurements. Current behavior is the opt-in path above. Gaming Mode is not fully compatible until it has been verified on a Steam Deck.
+The percentage tables and “planned changes” sections later in this document are historical planning estimates from before the experimental overlay. They are not measurements. Current behavior is the opt-in path above. Desktop Mode is supported. Gaming Mode remains experimental. A Steam Deck check on 2026-10-19 showed the popup over a fullscreen game, and a 2026-10-20 check showed click and Enter reaching the dialog without Enter also firing into Steam. Still unchecked: pause-enabled buttons and the pause notice, countdown input, touch, the Quick Access Menu after the popup closes, a forced timeout, and docked versus undocked.
 
 ## Key Challenges
 
@@ -548,7 +548,7 @@ Experimental Gaming Mode overlay support is implemented and **off by default**. 
 
 **On-device (2026-10-19):** With the experimental toggle on in Gaming Mode, the warning **appeared and stayed visible** over a fullscreen game, but **buttons were not clickable** (notification classification) and a **small** dialog looked **heavily magnified** (per-window fit scaling). **Code fix (same day):** gamescope-only dialogs now request **full `:0` root width** + modest height, keep `STEAM_OVERLAY` / `STEAM_INPUT_FOCUS=1`, and log geometry/atom read-back.
 
-**On-device (2026-10-20):** After Stream F (top-left + ≥⅔ root height, zenity moved with `xdotool`), cursor reaches the dialog chrome and **click works** (user confirmed). Enter dismisses the dialog and did **not** appear to fire into Steam. Do not turn off forced auto-close or the popup watchdog. Plan: [plans/plan-gamescope-overlay-click-through-2026-10-19.md](plans/plan-gamescope-overlay-click-through-2026-10-19.md).
+**On-device (2026-10-20):** After Stream F (top-left + ≥⅔ root height, zenity moved with `xdotool`), cursor reaches the dialog chrome and **click works** (user confirmed). Enter dismisses the dialog and did **not** appear to fire into Steam. Do not turn off forced auto-close or the popup watchdog. Plan: [completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md) (archived; Phase 2 done).
 
 **Code (2026-10-20, Stream F):** gamescope warning dialogs, countdown respawns, and the pause notice are forced to **top-left** with a height of at least two thirds of the `:0` root (capped at the root; still full root width). gamescope 3.16.23 paints the overlay centered and fit-scaled, but draws the cursor offset by the window's X11 position, so the window must sit at 0,0. zenity is moved after map with `xdotool windowmove` (preferred over `wmctrl` under gamescope). Desktop Mode unchanged. `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1`, forced auto-close, and the watchdog unchanged.
 

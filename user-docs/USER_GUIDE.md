@@ -26,7 +26,7 @@ The Sleep Warning System is a background service that monitors your computer usa
 3. **Warning Display**: If you're using the computer during restricted hours, a modal popup appears
 4. **User Interaction**: The popup requires acknowledgment and must remain visible for a minimum time (configurable)
 5. **Auto-Close** (Optional): The popup automatically closes 10 seconds after minimum display time completes (enabled by default)
-6. **Pause Feature** (Optional): Users can pause warning popups for 5 or 10 minutes once per day directly from the warning popup
+6. **Pause Feature** (Optional): From the warning popup, pause for 1, 2, 3, 5, 10, or 15 minutes (default 5). Another pause waits for the cooldown: 6, 8, 12, or 24 hours (default 24). It does not reset at midnight.
 
 ### Key Concepts
 
@@ -35,7 +35,7 @@ The Sleep Warning System is a background service that monitors your computer usa
 - **Minimum Display Time**: How long the popup must remain visible before it can be closed (default: 30 seconds)
 - **Auto-Close**: Popup automatically closes 10 seconds after minimum display time completes (enabled by default)
 - **Popup Behavior**: Modal, stays on top, optionally immovable during minimum display time
-- **Pause Feature**: One-time pause option (5 or 10 minutes) available once per day from the warning popup
+- **Pause Feature**: Optional pause of 1, 2, 3, 5, 10, or 15 minutes (default 5), then a cooldown of 6, 8, 12, or 24 hours (default 24)
 
 ## Quick Reference
 
@@ -51,10 +51,9 @@ sleep-warning-manage              # Interactive management menu
 
 # Service Control (direct commands)
 systemctl --user status sleep-warning.timer    # Check timer status
-systemctl --user stop sleep-warning.timer       # Stop temporarily
-systemctl --user start sleep-warning.timer      # Start again
-systemctl --user disable sleep-warning.timer    # Disable (won't start on boot)
-systemctl --user enable sleep-warning.timer     # Enable (will start on boot)
+systemctl --user stop sleep-warning.timer       # Stop now
+systemctl --user disable sleep-warning.timer    # Stay disabled after login/boot
+systemctl --user enable --now sleep-warning.timer  # Turn scheduling back on
 
 # Logs
 tail ~/.config/sleep-warning/warnings.log      # View user log file
@@ -96,6 +95,8 @@ sleep-warning-configure
 - Review and Save - Review your configuration before saving
 
 The **Visual Day/Time Grid** shows all 7 days at once with time ranges in human-readable format and allows quick editing of any day.
+
+The graphical time picker offers `:00`, `:15`, `:30`, and `:45` only. Text mode (`sleep-warning-configure --text`) and a hand-edited config accept any valid minute, including `HH:MM` such as `23:30-05:30` and older integer hours such as `23-6`. Each calendar day can include at most 16 hours of restriction, 16 hours of configure-block, and 16 hours of uninstall-block. The wizard refuses a longer day. During lock hours the wizard is tighten-only: you can make the lockout stricter, and you cannot loosen it. Popups also end by an absolute watchdog (default 330 seconds) even when auto-close is off.
 
 For detailed information about the configuration wizard, see [CONFIGURATION.md](CONFIGURATION.md#editing-the-configuration-file).
 
@@ -652,10 +653,9 @@ Future versions may support custom messages per day or time range.
 **Current Status**: ⚙️ Experimental Overlay Support (Opt-In via Settings)
 
 **Desktop Mode:**
-- Uses X11 (KDE Plasma), enabling full window management features
-- Limited testing indicates popups work with some full-screen games in Desktop Mode, but results vary by game
-- Exclusive full-screen games may still block popups
-- No guarantees can be made for all games
+- Supported. Uses X11 (KDE Plasma), so window-management tools can run
+- Popups work with some full-screen games. Results vary by game
+- Exclusive full-screen games may still cover the popup
 
 **Gaming Mode (Experimental Overlay):**
 - Disabled by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false` in `sleep-warning.conf`)
@@ -673,6 +673,7 @@ Future versions may support custom messages per day or time range.
   - Requires `xprop` (`xorg-xprop`, pre-installed on SteamOS) for setting `STEAM_OVERLAY=1` and `STEAM_INPUT_FOCUS=1`
   - Classic X11 window manager geometry/immovable loops (`wmctrl`/`xdotool`) do not apply under `gamescope` except for the gamescope zenity top-left move (`xdotool`); minimum display time is enforced via countdown respawn and auto-close
   - **Buttons depend on the dialog tool:** zenity has no Cancel on `--warning` (OK only, or OK + Pause when pause is available). Desktop Mode may show Cancel (yad) or Dismiss (kdialog) if a different tool is selected. Missing Cancel in Gaming Mode with zenity is expected, not a gamescope bug. Prefer `DIALOG_TOOL=yad` if you want OK/Cancel-style chrome.
+- **Checked on a Steam Deck:** popup visible and held for min-display (2026-10-19); click and Enter reached the dialog, and Enter did not also fire into Steam (2026-10-20). **Still unchecked:** pause-enabled buttons and the pause notice, countdown input, touch, the Quick Access Menu after the popup closes, a forced timeout, and docked versus undocked.
 
 **See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md) for detailed Gaming Mode technical documentation.**
 

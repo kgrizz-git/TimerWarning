@@ -1,6 +1,18 @@
 # License Options Summary
 
-This document provides an overview of common open-source licenses to help you choose the right license for the Linux Sleep Warning System project.
+This document compares licenses that were considered for TimerWarning. It is background. The root [`LICENSE`](../../LICENSE) file is the terms.
+
+## Decision (2026-10-24)
+
+TimerWarning is licensed under the **Apache License, Version 2.0**, with the **Commons Clause License Condition v1.0**. The owner chose that combination on 2026-10-24 so that personal use, modification, redistribution, and a company's own internal use remain allowed, while someone else may not sell the software as defined by the Commons Clause.
+
+The combination is **source-available**. It is not an OSI-approved open source license. Apache 2.0 by itself is OSI-approved. Adding the Commons Clause removes that status. Do not describe the project as open source.
+
+Sell, in the Commons Clause, means providing the software to third parties, for a fee or other consideration (including fees for hosting or consulting/support services related to the software), as a product or service whose value derives, entirely or substantially, from the functionality of the software. Uses that are not that kind of sale stay under the Apache 2.0 terms. Every copy must keep the copyright notice, the Commons Clause, and the Apache License.
+
+No third-party source is vendored in this repository, and source files had no existing copyright headers. System tools the software calls, such as yad, zenity, kdialog, systemd, and the macOS frameworks, remain under their own licenses. Per-file copyright headers were not added. The notice lives in `LICENSE`.
+
+Sections below that recommend MIT, or that describe noncommercial licenses as allowing internal business use, are not the project license. See [What the license texts actually say](#what-the-license-texts-actually-say).
 
 ## Quick Comparison
 
@@ -261,8 +273,8 @@ This document provides an overview of common open-source licenses to help you ch
 
 ## Recommendations for This Project
 
-### For Maximum Adoption (Recommended)
-**MIT License** - Best choice for a utility tool like this:
+### For Maximum Adoption
+**MIT License** was the older suggestion for maximum adoption. The 2026-10-24 decision did not select it. For the comparison:
 - ✅ Maximum compatibility
 - ✅ Easiest for users to understand and use
 - ✅ No barriers to adoption
@@ -285,9 +297,11 @@ This document provides an overview of common open-source licenses to help you ch
 
 ## How to Choose
 
+The project already chose the Apache License 2.0 with the Commons Clause. Use the questions below only when comparing other projects.
+
 **Choose MIT if:**
 - You want maximum adoption and minimal friction
-- You're building a utility/tool (like this project)
+- You're building a utility and want the fewest conditions
 - You want the simplest license possible
 - You don't need patent protection
 
@@ -344,7 +358,7 @@ Example copyright notice for source files:
 | GPL v3 | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
 | AGPL v3 | ⭐⭐ | ⭐⭐ | ⭐ | ⭐⭐ |
 
-**Note:** For a utility tool like the Sleep Warning System, permissive licenses (MIT, Apache, BSD) are generally recommended for maximum adoption and ease of use.
+**Note:** Permissive licenses maximize adoption. This project did not choose one. TimerWarning uses the Apache License 2.0 with the Commons Clause, which is source-available.
 
 ---
 
@@ -354,52 +368,15 @@ Example copyright notice for source files:
 
 **If you want to restrict commercial use, your project cannot be "open source"** according to the OSI definition. The Open Source Definition requires that licenses must not restrict use in any field of endeavor, including business/commercial use. However, you can still share your source code publicly—it would be considered "source-available" rather than "open source."
 
-### What Does "Commercial Use" Mean?
+### What the license texts actually say
 
-"Commercial use" in software licensing typically refers to **monetizing or selling the software itself**, not just using it in a business context. Here are the key distinctions:
+"Commercial use" is not one rule shared by every restrictive license. Read the license you are applying.
 
-#### ✅ Usually NOT Considered Commercial Use (Allowed Under Non-Commercial Licenses)
+**PolyForm Noncommercial 1.0.0** permits noncommercial purposes, listed noncommercial organizations, and personal use for research, study, hobby, and similar activities without any anticipated commercial application. It does not grant a for-profit company ordinary internal use.
 
-1. **Internal Business Use**
-   - A company installing your Sleep Warning System for their employees
-   - Using it as a tool within a business for operational purposes
-   - Example: A company uses your tool to help employees manage screen time
+**CC BY-NC 4.0** defines NonCommercial as use not primarily intended for or directed toward commercial advantage or monetary compensation. It does not contain a blanket permission for internal business use. Creative Commons also recommends a software license for code, so this was not selected.
 
-2. **Using Software as a Tool to Create Commercial Products**
-   - Using the software to create something else you sell
-   - Example: A developer uses your tool while creating a commercial game (the tool is a utility, not the product)
-
-#### ❌ Usually Considered Commercial Use (Prohibited Under Non-Commercial Licenses)
-
-1. **Selling/Repackaging the Software**
-   - Taking your code and selling it as-is or with modifications
-   - Bundling it into a commercial product you sell
-   - Example: Someone takes your Sleep Warning System, rebrands it, and sells it as "Premium Screen Time Manager Pro"
-
-2. **Incorporating Into a Commercial Product**
-   - Including your code in software you sell
-   - Example: A company includes your tool as a feature in their commercial Linux distribution
-
-3. **Selling Support/Services for the Software**
-   - Charging for installation, configuration, or support services
-   - Example: A consultant charges clients to install and configure your tool
-
-#### ⚠️ Gray Areas (Varies by License)
-
-- **SaaS/Cloud Services**: Hosting the software as a service (depends on license terms)
-- **Indirect Commercial Benefit**: Using software to maintain infrastructure that enables sales (usually allowed if software isn't the product)
-
-#### For Your Sleep Warning System
-
-If you want to prevent someone from:
-- **Repackaging and selling it** → Non-commercial license would prevent this
-- **Including it in a commercial Linux distribution** → Non-commercial license would require their permission/licensing
-
-If you're okay with:
-- **Companies using it internally** → Most non-commercial licenses allow this
-- **People using it as a personal tool** → Non-commercial licenses allow this
-
-**Key Point**: Most non-commercial licenses focus on preventing **monetization of the software itself**, not preventing businesses from using it as an internal tool.
+**Commons Clause v1.0 on Apache 2.0**, the license in effect, does allow a company's own internal use. It removes only the right to Sell, using the definition in the [decision](#decision-2026-10-24) above and in [`LICENSE`](../../LICENSE). It does not ban every activity that earns money. A product whose value does not derive entirely or substantially from this software is outside that Sell definition. Paid hosting or support is inside the definition when the product or service being sold derives entirely or substantially from this software.
 
 ### Option 1: Non-Commercial Licenses
 
@@ -485,6 +462,8 @@ If you're okay with:
 ---
 
 ## Recommendations for Restricting Commercial Use
+
+The project already chose the Commons Clause on Apache 2.0. The list below is historical comparison, not an open decision.
 
 **If you want to prevent commercial repackaging:**
 

@@ -1,5 +1,14 @@
 # Plan: fix real bugs from the 2026-05-24 audit
 
+> **Archived 2026-10-25.** Fully implemented 2026-05-24. Residual items at
+> archive time: cosmetic-only wizard help-text strings referencing old warn
+> semantics (deferred), and manual verification flows now tracked as smoke items
+> in [TO_DO.md](../TO_DO.md#smoke-tests) (macOS sleep/wake grace, full
+> configure→popup→dismiss flow, uninstall on macOS). The stricter-than-spec
+> hard-block (no "save anyway") is a decided safety behavior, not open work.
+> Unit coverage (`tests/test-popup-safety-linux.sh`) now runs in Tier-A on Linux
+> CI. Historical record.
+
 **Source audit:** [../code-assessments/bug-and-lockout-review-2026-05-24-203354.md](../code-assessments/bug-and-lockout-review-2026-05-24-203354.md)  
 **Driving safety model:** [../../docs/SAFETY.md](../../docs/SAFETY.md) (updated 2026-05-24)  
 **Status:** **fully implemented** (2026-05-24, all phases including 3.4)  

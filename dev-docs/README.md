@@ -38,7 +38,8 @@ See [canonical-vs-archive.md](canonical-vs-archive.md) for what is current vs hi
 | [`plans/master/`](plans/master/) | [Master implementation plan](plans/master/linux-warning-system-plan.md) |
 | [`plans/phases/`](plans/phases/) | Phase 1–5 checklists, code-quality plan |
 | [`plans/`](plans/) | Active feature plans (in progress) |
-| [`plans/plan-harness-engineering-improvements-2026-06-12.md`](plans/plan-harness-engineering-improvements-2026-06-12.md) | **Complete** — Phases 0–8 (contributor guide, PR template, file-size check) |
+| [Public repository preparation](plans/plan-public-repo-prep-2026-10-16.md) | Phase 1 applied. PayPal removal and public renaming are deferred (rename on the first commit of the new private repository). Next: repository cleanup, then an isolated publication export |
+| [`completed-plans/plan-harness-engineering-improvements-2026-06-12.md`](completed-plans/plan-harness-engineering-improvements-2026-06-12.md) | **Complete** — Phases 0–8 (archived 2026-10-25) |
 | [`completed-plans/`](completed-plans/) | Finished or superseded implementation plans (archive) |
 
 ## Enhancement specs

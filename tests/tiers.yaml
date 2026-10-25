@@ -59,6 +59,7 @@ tier_b:
     - test-popup-display-source.sh
     - test-status-display.sh
     - test-install-linux-source.sh
+    - test-install-license-notice.sh
     - test-configure-text-mode.sh
     - test-configure-modular.sh
     - test-modular-refactor.sh

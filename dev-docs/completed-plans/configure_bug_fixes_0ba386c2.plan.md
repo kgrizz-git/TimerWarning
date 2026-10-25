@@ -27,11 +27,11 @@ isProject: false
 
 ## Scope
 
-Fix the **five actionable bugs** from the audit (high/medium/low). **Out of scope** for this pass: AppleScript newline escaping, removing dead `show_high_restriction_warning()`, runtime warnings for malformed on-disk ranges (silent skip in [`lib/daily-caps.sh`](lib/daily-caps.sh) — document-only or follow-up).
+Fix the **five actionable bugs** from the audit (high/medium/low). **Out of scope** for this pass: AppleScript newline escaping, removing dead `show_high_restriction_warning()`, runtime warnings for malformed on-disk ranges (silent skip in [`lib/daily-caps.sh`](../../lib/daily-caps.sh) — document-only or follow-up).
 
 ## Pre-work
 
-- Back up files before edits (per project workflow): [`lib/configure-workflow.sh`](lib/configure-workflow.sh), [`lib/time-validation.sh`](lib/time-validation.sh), [`lib/time-parsing.sh`](lib/time-parsing.sh), [`lib/daily-caps.sh`](lib/daily-caps.sh), [`configure.sh`](configure.sh), [`lib/uninstall-verification.sh`](lib/uninstall-verification.sh) → `backups/`.
+- Back up files before edits (per project workflow): [`lib/configure-workflow.sh`](../../lib/configure-workflow.sh), [`lib/time-validation.sh`](../../lib/time-validation.sh), [`lib/time-parsing.sh`](../../lib/time-parsing.sh), [`lib/daily-caps.sh`](../../lib/daily-caps.sh), [`configure.sh`](../../configure.sh), [`lib/uninstall-verification.sh`](../../lib/uninstall-verification.sh) → `backups/`.
 - Run verification with `./scripts/run-tests.sh --tier a` plus new targeted tests; `shellcheck -S error` on changed shell files.
 
 ---
@@ -40,7 +40,7 @@ Fix the **five actionable bugs** from the audit (high/medium/low). **Out of scop
 
 ### Root cause
 
-In [`lib/configure-workflow.sh`](lib/configure-workflow.sh), back navigation **decrements the day index then unsets the previous day’s array slot**. [`lib/configure-config-write.sh`](lib/configure-config-write.sh) only writes days present in `config_lines[]`; unset entries are omitted → restrictions silently removed on save.
+In [`lib/configure-workflow.sh`](../../lib/configure-workflow.sh), back navigation **decrements the day index then unsets the previous day’s array slot**. [`lib/configure-config-write.sh`](../../lib/configure-config-write.sh) only writes days present in `config_lines[]`; unset entries are omitted → restrictions silently removed on save.
 
 Affected sites (3):
 
@@ -70,7 +70,7 @@ flowchart TD
 
 ### Test
 
-Add [`tests/test-configure-back-navigation.sh`](tests/test-configure-back-navigation.sh) (Tier-A candidate):
+Add [`tests/test-configure-back-navigation.sh`](../../tests/test-configure-back-navigation.sh) (Tier-A candidate):
 
 - Source workflow + write helpers with temp `HOME`.
 - Pre-populate `config_lines[1]=MONDAY=7-23`.
@@ -79,7 +79,7 @@ Add [`tests/test-configure-back-navigation.sh`](tests/test-configure-back-naviga
 - Assert `write_config` output still contains `MONDAY=7-23`.
 - Mirror one case for `lock_hours_lines` per-day back.
 
-Register in [`tests/tiers.yaml`](tests/tiers.yaml) under tier `a` if stable headless.
+Register in [`tests/tiers.yaml`](../../tests/tiers.yaml) under tier `a` if stable headless.
 
 ---
 
@@ -87,22 +87,22 @@ Register in [`tests/tiers.yaml`](tests/tiers.yaml) under tier `a` if stable head
 
 ### Root cause
 
-[`validate_single_range()`](lib/time-validation.sh) (integer `7-7`) rejects `start == end`, but [`validate_time_range()`](lib/time-validation.sh) calls only [`validate_single_time_range()`](lib/time-validation.sh), which accepts `7-7`, `07:00-07:00`, `7am-7am`, etc. Cap math counts **0 minutes**; user believes a restriction exists.
+[`validate_single_range()`](../../lib/time-validation.sh) (integer `7-7`) rejects `start == end`, but [`validate_time_range()`](../../lib/time-validation.sh) calls only [`validate_single_time_range()`](../../lib/time-validation.sh), which accepts `7-7`, `07:00-07:00`, `7am-7am`, etc. Cap math counts **0 minutes**; user believes a restriction exists.
 
 ### Fix
 
 Extend `validate_single_time_range()` after part validation:
 
 1. Split `start_part` / `end_part`.
-2. Normalize via [`parse_time_token_to_24h_hm()`](lib/time-parsing.sh) (already used in [`lib/configure-time.sh`](lib/configure-time.sh)).
+2. Normalize via [`parse_time_token_to_24h_hm()`](../../lib/time-parsing.sh) (already used in [`lib/configure-time.sh`](../../lib/configure-time.sh)).
 3. Compare `(start_h * 60 + start_m)` vs `(end_h * 60 + end_m)`; **return 1 if equal** (zero-length window).
 4. If `parse_time_token_to_24h_hm` is unavailable (should not happen in production load order), fall back to integer-hour `cut` comparison for `^[0-9]+-[0-9]+$`.
 
-Ensure [`lib/time-validation.sh`](lib/time-validation.sh) is sourced after [`lib/time-parsing.sh`](lib/time-parsing.sh) in configure/test harness (match existing [`tests/test-16b-core.sh`](tests/test-16b-core.sh) sourcing).
+Ensure [`lib/time-validation.sh`](../../lib/time-validation.sh) is sourced after [`lib/time-parsing.sh`](../../lib/time-parsing.sh) in configure/test harness (match existing [`tests/test-16b-core.sh`](../../tests/test-16b-core.sh) sourcing).
 
 ### Test
 
-Extend [`tests/test-16b-core.sh`](tests/test-16b-core.sh):
+Extend [`tests/test-16b-core.sh`](../../tests/test-16b-core.sh):
 
 - `validate_time_range "7-7"` → invalid
 - `validate_time_range "07:00-07:00"` → invalid
@@ -115,7 +115,7 @@ Extend [`tests/test-16b-core.sh`](tests/test-16b-core.sh):
 
 ### Root cause
 
-`local old_ifs="${IFS}"` / `saved_IFS="${IFS}"` throws `IFS: unbound variable` under `set -u` when `IFS` was unset. Reproduced in [`tests/test-next-unrestricted-hhmm.sh`](tests/test-next-unrestricted-hhmm.sh) (test passes but prints error).
+`local old_ifs="${IFS}"` / `saved_IFS="${IFS}"` throws `IFS: unbound variable` under `set -u` when `IFS` was unset. Reproduced in [`tests/test-next-unrestricted-hhmm.sh`](../../tests/test-next-unrestricted-hhmm.sh) (test passes but prints error).
 
 ### Fix
 
@@ -131,13 +131,13 @@ Default when restoring: `${old_ifs-$' \t\n'}` if empty-unset semantics matter fo
 
 Files:
 
-- [`lib/time-parsing.sh`](lib/time-parsing.sh) (~271, ~295)
-- [`lib/daily-caps.sh`](lib/daily-caps.sh) (`_parse_range_to_minute_intervals`)
-- Also harden same pattern in [`lib/configure-dialogs-ranges.sh`](lib/configure-dialogs-ranges.sh) and [`lib/configure-partial-lock.sh`](lib/configure-partial-lock.sh) (same audit class; minimal diff).
+- [`lib/time-parsing.sh`](../../lib/time-parsing.sh) (~271, ~295)
+- [`lib/daily-caps.sh`](../../lib/daily-caps.sh) (`_parse_range_to_minute_intervals`)
+- Also harden same pattern in [`lib/configure-dialogs-ranges.sh`](../../lib/configure-dialogs-ranges.sh) and [`lib/configure-partial-lock.sh`](../../lib/configure-partial-lock.sh) (same audit class; minimal diff).
 
 ### Test
 
-Add small test (e.g. [`tests/test-ifs-set-u.sh`](tests/test-ifs-set-u.sh)):
+Add small test (e.g. [`tests/test-ifs-set-u.sh`](../../tests/test-ifs-set-u.sh)):
 
 ```bash
 set -u
@@ -153,13 +153,13 @@ Wire into tier `a` if lightweight.
 
 ### Root cause
 
-[`validate_popup_timing_config()`](lib/configure-validation.sh) runs when editing min-display or frequency ([`lib/configure-input-popup.sh`](lib/configure-input-popup.sh), [`lib/configure-input-time.sh`](lib/configure-input-time.sh)), but **option 13 (Review and Save)** in [`configure.sh`](configure.sh) (~543–612) never calls it before `write_config`. Manual/tampered config + unrelated wizard edits can save an invalid min-display vs frequency pair.
+[`validate_popup_timing_config()`](../../lib/configure-validation.sh) runs when editing min-display or frequency ([`lib/configure-input-popup.sh`](../../lib/configure-input-popup.sh), [`lib/configure-input-time.sh`](../../lib/configure-input-time.sh)), but **option 13 (Review and Save)** in [`configure.sh`](../../configure.sh) (~543–612) never calls it before `write_config`. Manual/tampered config + unrelated wizard edits can save an invalid min-display vs frequency pair.
 
 Partial-lock design doc intent: timing should be checked on every save.
 
 ### Fix
 
-In [`configure.sh`](configure.sh), after cap validation (~574) and before partial-lock / `write_config` (~594):
+In [`configure.sh`](../../configure.sh), after cap validation (~574) and before partial-lock / `write_config` (~594):
 
 ```bash
 if type validate_popup_timing_config >/dev/null 2>&1; then
@@ -171,11 +171,11 @@ if type validate_popup_timing_config >/dev/null 2>&1; then
 fi
 ```
 
-Use existing `show_error_dialog` pattern from [`lib/configure-input-time.sh`](lib/configure-input-time.sh) (~150). Hard block (no override), consistent with cap violations.
+Use existing `show_error_dialog` pattern from [`lib/configure-input-time.sh`](../../lib/configure-input-time.sh) (~150). Hard block (no override), consistent with cap violations.
 
 ### Test
 
-Add [`tests/test-popup-timing-save-validation.sh`](tests/test-popup-timing-save-validation.sh):
+Add [`tests/test-popup-timing-save-validation.sh`](../../tests/test-popup-timing-save-validation.sh):
 
 - Source validation + set `min_display_time=120`, `check_interval=1` (60s interval).
 - Assert `validate_popup_timing_config` fails.
@@ -187,7 +187,7 @@ Add [`tests/test-popup-timing-save-validation.sh`](tests/test-popup-timing-save-
 
 ### Root cause
 
-[`lib/uninstall-verification.sh`](lib/uninstall-verification.sh) uses bare `read -p` at lines ~101, ~397, ~476. Module already documents dependency on [`lib/configure-core.sh`](lib/configure-core.sh) for dialogs; `configure_read` is the project-standard EOF-safe reader.
+[`lib/uninstall-verification.sh`](../../lib/uninstall-verification.sh) uses bare `read -p` at lines ~101, ~397, ~476. Module already documents dependency on [`lib/configure-core.sh`](../../lib/configure-core.sh) for dialogs; `configure_read` is the project-standard EOF-safe reader.
 
 ### Fix
 
@@ -208,8 +208,8 @@ Extend existing uninstall/configure test or add minimal test: `printf '' | … v
 
 ## 6. Documentation and changelog
 
-- [`CHANGELOG.md`](CHANGELOG.md) — `[Unreleased]` entries for each user-visible fix (back navigation data loss, zero-length range rejection, save-time popup timing block, IFS robustness, uninstall EOF safety).
-- No change to [`docs/SAFETY.md`](docs/SAFETY.md) required unless we document zero-length ranges as explicitly invalid (optional one-line under config validation).
+- [`CHANGELOG.md`](../../CHANGELOG.md) — `[Unreleased]` entries for each user-visible fix (back navigation data loss, zero-length range rejection, save-time popup timing block, IFS robustness, uninstall EOF safety).
+- No change to [`docs/SAFETY.md`](../../docs/SAFETY.md) required unless we document zero-length ranges as explicitly invalid (optional one-line under config validation).
 
 ---
 

@@ -2,6 +2,25 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-25 — Publication Phase 3: stubs removed, completed plans archived
+
+- Removed all `Moved` redirect stubs under `docs/` and `dev-docs/CONFIGURE_GUI_FLOW.md`. Live docs already pointed at `dev-docs/`; `docs/index.md`, `canonical-vs-archive.md`, and `scripts/check-doc-drift.sh` updated together.
+- Moved the eight tracked `.cursor/plans/` drafts to `dev-docs/completed-plans/` after retargeting inbound and repository-relative links. Verified the osascript `activate` throttle is shipped in code; only manual z-order QA remains ([TO_DO smoke](TO_DO.md#smoke-tests)).
+- Archived ten completed/superseded dev-docs plans with banners (percentage-size, phase-0, Feb + June refactor, pause, harness, real-bugs, gamescope click-through, extend-24/7, 16b status display). The weekday plan remains active under `plans/` for unimplemented systematic dialog hardening. Assessment stays in place (referenced by `lib/configure-dialogs-darwin.sh`).
+- New [TO_DO smoke section](TO_DO.md#smoke-tests) collects the manual-only remainders. Kept active: weekday dialog hardening, additional-hours proposal, popup-frequency review, safety-scan integration test, SteamOS overlay verification. No archives deleted; retention scripts previewed dry-run only.
+
+## 2026-10-24 — Publication docs, rename deferred
+
+- Public name and clone URL changes wait for the first commit on the new private repository, before it is made public.
+- User docs now match pause durations 1, 2, 3, 5, 10, or 15 and the hour-based cooldown. PayPal links stay.
+- `*.bundle` and `.cursor/plans/` are gitignored. Eight already-tracked Cursor plans stay until their links are retargeted. The root generalization summary was archived and removed.
+
+## 2026-10-24 — Project license and contribution terms
+
+- Root `LICENSE`: Apache License 2.0 with the Commons Clause. Source-available, not OSI open source.
+- [CONTRIBUTING.md](CONTRIBUTING.md) and the root pointer: contributions are submitted under those combined terms.
+- [info/LICENSE_OPTIONS.md](info/LICENSE_OPTIONS.md) records the decision and corrects the claim that noncommercial licenses allow internal business use.
+
 ## 2026-06-23 — Doc archive retention
 
 - [development/doc-retention.md](development/doc-retention.md) — policy for assessments, safety scans, completed plans, backups.

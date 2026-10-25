@@ -33,7 +33,7 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 **Compatibility:**
 - Compatibility cannot be guaranteed for all systems
 - Some features may not work on all Linux distributions or desktop environments
-- SteamOS Gaming Mode overlay support is experimental and off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). It needs on-device verification and may fail to appear over fullscreen games
+- SteamOS Desktop Mode is supported. Gaming Mode overlay support is experimental and off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). A Steam Deck check on 2026-10-19 showed the popup over a fullscreen game, and a 2026-10-20 check showed click and Enter reaching the dialog without Enter also firing into Steam. Still unchecked: pause-enabled buttons, touch, countdown input, the Quick Access Menu after the popup closes, forced timeout, and docked versus undocked. Some fullscreen games can still hide the popup.
 - On Wayland/gamescope, always-on-top behavior is best-effort and full-screen games may block popups
 
 **Support:**
@@ -48,12 +48,12 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 - 🔔 **Modal warning popups** - Ensures you're aware of late-night usage
 - 🚀 **Easy installation** - Automated installation script handles everything
 - 🔄 **Auto-start on boot** - Runs automatically via systemd timer
-- 🎮 **Full-screen compatible** - Works with games and full-screen applications
-- 🐧 **Cross-distribution** - Works on any Linux distribution with systemd
+- 🎮 **Desktop and experimental Gaming Mode** - Desktop Mode is supported. Gaming Mode is experimental, off by default, and partially checked on a Steam Deck (2026-10-19 and 2026-10-20)
+- 🐧 **Cross-distribution** - Works on Linux with systemd, and on macOS with a user LaunchAgent
 - 🔒 **Minimum display time** - Ensures warnings are visible for a set duration
 - 📌 **Immovable windows** - Prevents popup from being moved during countdown (optional)
 - ⬆️ **Always on top** - Popup windows automatically stay above other windows
-- ⏸️ **One-time pause feature** - Temporarily suppress warnings for 5 or 10 minutes once per day
+- ⏸️ **Pause** - Suppress warnings for 1, 2, 3, 5, 10, or 15 minutes (default 5), then wait 6, 8, 12, or 24 hours (default 24) before another pause
 
 ## Support Development
 
@@ -218,9 +218,9 @@ This provides an interactive menu for service management, configuration viewing,
 
 **Quick Commands**:
 - **Check status**: `systemctl --user status sleep-warning.timer`
-- **Stop temporarily**: `systemctl --user stop sleep-warning.timer`
-- **Start again**: `systemctl --user start sleep-warning.timer`
-- **Disable**: `systemctl --user disable sleep-warning.timer`
+- **Stop now**: `systemctl --user stop sleep-warning.timer`
+- **Stay stopped after login/boot**: `systemctl --user disable sleep-warning.timer`
+- **Turn scheduling back on**: `systemctl --user enable --now sleep-warning.timer`
 
 For complete service management documentation, see [user-docs/USER_GUIDE.md](user-docs/USER_GUIDE.md#managing-the-service).
 
@@ -261,8 +261,8 @@ systemctl --user daemon-reload
 
 ### Linux Distributions
 - ✅ Steam OS (Arch-based)
-  - **Desktop Mode**: Full functionality with X11. Limited testing indicates popups work with some full-screen games in Desktop Mode, but results vary by game. No guarantees for all games.
-  - **Gaming Mode (Experimental)**: Off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). Can be enabled in `sleep-warning-configure` (**Option 12: Service Mode**) to route dialogs through `gamescope`'s Xwayland overlay plane (`:0`) with `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1` atoms and forced auto-close safety — see [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md) for details.
+  - **Desktop Mode**: Supported on SteamOS Desktop Mode (KDE on X11). Popups work with some full-screen games; results vary by game, and exclusive full-screen games may still cover them.
+  - **Gaming Mode (Experimental)**: Off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). Option 12 in `sleep-warning-configure` routes dialogs through `gamescope`'s Xwayland overlay plane (`:0`) with `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1` and forced auto-close. Deck results: visible on 2026-10-19; click and Enter reached the dialog on 2026-10-20, and Enter did not also fire into Steam. Still unchecked: pause-enabled buttons, touch, countdown input, the Quick Access Menu after close, forced timeout, and docked versus undocked. See [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md).
 - ✅ Ubuntu (18.04+)
 - ✅ Debian (8+)
 - ✅ Fedora
@@ -345,5 +345,11 @@ For detailed troubleshooting with diagnosis steps and decision trees, see [user-
 
 ## License
 
-[TO BE ADDED]
+Copyright (c) 2026 kgrizz-git
+
+TimerWarning is source-available under the [Apache License 2.0](LICENSE) with the [Commons Clause License Condition v1.0](LICENSE). The combination is not an OSI open-source license.
+
+You may use, modify, and redistribute this software, including for a company's own internal use, if you follow [`LICENSE`](LICENSE). You may not Sell it. The Commons Clause defines Sell as providing the software to third parties, for a fee or other consideration (including fees for hosting or consulting/support services related to the software), as a product or service whose value derives, entirely or substantially, from the functionality of the software.
+
+Keep this copyright notice, the Commons Clause, and the Apache License with every copy. Installation copies `LICENSE` to `~/.local/lib/sleep-warning/LICENSE`. The software is provided as-is, without warranty. [`LICENSE`](LICENSE) is the full terms.
 

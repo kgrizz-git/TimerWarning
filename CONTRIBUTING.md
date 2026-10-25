@@ -10,3 +10,5 @@ CI_HEADLESS=1 ./scripts/run-tests.sh --tier a
 ```
 
 Read [docs/SAFETY.md](docs/SAFETY.md) before popup, scheduler, or config changes.
+
+The project is source-available under the Apache License 2.0 with the Commons Clause. Contribution terms are in [dev-docs/CONTRIBUTING.md](dev-docs/CONTRIBUTING.md#license). [`LICENSE`](LICENSE) is the full text.

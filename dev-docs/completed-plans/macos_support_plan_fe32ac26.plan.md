@@ -38,13 +38,13 @@ isProject: false
 
 The project is **Linux-first** end to end:
 
-- **Scheduling:** systemd user timer ([`sleep-warning.timer`](sleep-warning.timer)) + oneshot service ([`sleep-warning.service`](sleep-warning.service))
-- **Install:** [`install.sh`](install.sh) requires `/etc/os-release`, `systemctl`, and a Linux package manager
-- **Popups:** yad / zenity / kdialog via [`lib/popup-dialog-implementations.sh`](lib/popup-dialog-implementations.sh)
-- **Windows:** wmctrl / xdotool via [`lib/window-management.sh`](lib/window-management.sh)
-- **Display:** X11/Wayland/gamescope via [`lib/display-detection.sh`](lib/display-detection.sh)
+- **Scheduling:** systemd user timer ([`sleep-warning.timer`](../../sleep-warning.timer)) + oneshot service ([`sleep-warning.service`](../../sleep-warning.service))
+- **Install:** [`install.sh`](../../install.sh) requires `/etc/os-release`, `systemctl`, and a Linux package manager
+- **Popups:** yad / zenity / kdialog via [`lib/popup-dialog-implementations.sh`](../../lib/popup-dialog-implementations.sh)
+- **Windows:** wmctrl / xdotool via [`lib/window-management.sh`](../../lib/window-management.sh)
+- **Display:** X11/Wayland/gamescope via [`lib/display-detection.sh`](../../lib/display-detection.sh)
 
-**Already portable (reuse as-is):** [`lib/time-parsing.sh`](lib/time-parsing.sh), [`lib/time-validation.sh`](lib/time-validation.sh), [`lib/config.sh`](lib/config.sh), [`lib/pause-state.sh`](lib/pause-state.sh), [`lib/configure-validation.sh`](lib/configure-validation.sh), most of [`sleep-warning.sh`](sleep-warning.sh) orchestration after platform hooks.
+**Already portable (reuse as-is):** [`lib/time-parsing.sh`](../../lib/time-parsing.sh), [`lib/time-validation.sh`](../../lib/time-validation.sh), [`lib/config.sh`](../../lib/config.sh), [`lib/pause-state.sh`](../../lib/pause-state.sh), [`lib/configure-validation.sh`](../../lib/configure-validation.sh), most of [`sleep-warning.sh`](../../sleep-warning.sh) orchestration after platform hooks.
 
 ```mermaid
 flowchart TB
@@ -113,7 +113,7 @@ Use **four phases**. Phase 1 is shippable on your Mac; safety guardrails are man
 
 ### 1. Central platform detection
 
-Add [`lib/platform.sh`](lib/platform.sh):
+Add [`lib/platform.sh`](../../lib/platform.sh):
 
 ```bash
 detect_platform()   # echoes: linux | darwin
@@ -123,7 +123,7 @@ get_init_system()   # systemd | launchd
 
 Use `uname -s` (`Darwin` vs `Linux`). **Do not** use `/etc/os-release` on macOS.
 
-Extend [`lib/library-loader.sh`](lib/library-loader.sh) with helpers:
+Extend [`lib/library-loader.sh`](../../lib/library-loader.sh) with helpers:
 
 - `source_platform_lib "service-config"` → loads `service-config.sh` or `service-config-darwin.sh`
 - Or: `lib/platform/linux/*.sh` and `lib/platform/darwin/*.sh` with thin facades
@@ -132,26 +132,26 @@ Extend [`lib/library-loader.sh`](lib/library-loader.sh) with helpers:
 
 ### 2. Init system adapter (systemd vs launchd)
 
-| Concern | Linux ([`lib/service-config.sh`](lib/service-config.sh), [`install.sh`](install.sh)) | macOS (new) |
+| Concern | Linux ([`lib/service-config.sh`](../../lib/service-config.sh), [`install.sh`](../../install.sh)) | macOS (new) |
 |---------|--------------------------------------------------------------------------------------|-------------|
 | Timer install path | `~/.config/systemd/user/` | `~/Library/LaunchAgents/com.sleep-warning.plist` |
 | Enable/start | `systemctl --user enable/start` | `launchctl bootstrap gui/$UID ~/Library/LaunchAgents/...` then `launchctl kickstart -k gui/$UID/com.sleep-warning` |
 | Interval from `CHECK_INTERVAL` | `OnCalendar=*:0/N` | `StartInterval` = N * 60 (seconds) |
-| Logs | `journalctl --user` | File log only ([`lib/logging.sh`](lib/logging.sh)) + optional `log show` note in docs |
+| Logs | `journalctl --user` | File log only ([`lib/logging.sh`](../../lib/logging.sh)) + optional `log show` note in docs |
 | Uninstall | remove `.service`/`.timer` | `launchctl bootout gui/$UID/com.sleep-warning` + remove plist |
 | Runs when logged out? | `loginctl enable-linger` optional on Linux | **No** — user LaunchAgents run only while user session is active; document in MACOS.md |
 
-**Structural difference:** Linux uses a **timer unit** that triggers a **oneshot service** ([`sleep-warning.service`](sleep-warning.service) runs the script once per tick). macOS uses a **single LaunchAgent** whose `ProgramArguments` invoke `sleep-warning.sh` directly on each `StartInterval` tick — no separate service file.
+**Structural difference:** Linux uses a **timer unit** that triggers a **oneshot service** ([`sleep-warning.service`](../../sleep-warning.service) runs the script once per tick). macOS uses a **single LaunchAgent** whose `ProgramArguments` invoke `sleep-warning.sh` directly on each `StartInterval` tick — no separate service file.
 
 **Plist label:** use `com.sleep-warning` consistently (matches Linux unit naming intent).
 
-**Regenerating interval:** `update_timer_file()` on darwin rewrites plist `StartInterval` and runs `launchctl bootout` + `bootstrap` (or `kickstart` after plist replace) — mirror [`lib/configure-config.sh`](lib/configure-config.sh) `update_timer_file()` (~line 294) which today only writes systemd timer.
+**Regenerating interval:** `update_timer_file()` on darwin rewrites plist `StartInterval` and runs `launchctl bootout` + `bootstrap` (or `kickstart` after plist replace) — mirror [`lib/configure-config.sh`](../../lib/configure-config.sh) `update_timer_file()` (~line 294) which today only writes systemd timer.
 
 New files:
 
-- [`launchd/com.sleep-warning.plist.template`](launchd/com.sleep-warning.plist.template) — `ProgramArguments`, `StartInterval`, `RunAtLoad=false`, `StandardOutPath`/`StandardErrorPath` under `~/.config/sleep-warning/logs/`
-- [`lib/service-config-darwin.sh`](lib/service-config-darwin.sh) — `install_launch_agent()`, `update_timer_interval()`, `remove_launch_agent()`
-- Refactor [`lib/configure-config.sh`](lib/configure-config.sh) `update_timer_file()` to call platform adapter instead of hardcoding systemd
+- [`launchd/com.sleep-warning.plist.template`](../../launchd/com.sleep-warning.plist.template) — `ProgramArguments`, `StartInterval`, `RunAtLoad=false`, `StandardOutPath`/`StandardErrorPath` under `~/.config/sleep-warning/logs/`
+- [`lib/service-config-darwin.sh`](../../lib/service-config-darwin.sh) — `install_launch_agent()`, `update_timer_interval()`, `remove_launch_agent()`
+- Refactor [`lib/configure-config.sh`](../../lib/configure-config.sh) `update_timer_file()` to call platform adapter instead of hardcoding systemd
 
 **manage.sh / status.sh / uninstall.sh:** branch on `is_darwin()` — replace `systemctl`/`journalctl` strings with launchctl equivalents; keep shared config display logic.
 
@@ -159,9 +159,9 @@ New files:
 
 | Linux | macOS |
 |-------|-------|
-| `check_dialog_tool()` in [`lib/desktop-environment.sh`](lib/desktop-environment.sh) | `check_dialog_tool_darwin()` → `osascript` (always present) |
+| `check_dialog_tool()` in [`lib/desktop-environment.sh`](../../lib/desktop-environment.sh) | `check_dialog_tool_darwin()` → `osascript` (always present) |
 | `_popup_spawn_warning_dialog()` | `_popup_spawn_warning_dialog_darwin()` using `display alert` / `display dialog` |
-| Configure `show_*_dialog()` in [`lib/configure-dialogs.sh`](lib/configure-dialogs.sh) | Phase 2: `configure-dialogs-darwin.sh` with list/entry/question wrappers |
+| Configure `show_*_dialog()` in [`lib/configure-dialogs.sh`](../../lib/configure-dialogs.sh) | Phase 2: `configure-dialogs-darwin.sh` with list/entry/question wrappers |
 
 **MVP warning popup (Phase 1):**
 
@@ -179,23 +179,23 @@ New files:
 
 | Module | Phase 1 | Phase 3 |
 |--------|---------|---------|
-| [`lib/display-detection.sh`](lib/display-detection.sh) | `display-detection-darwin.sh`: assume GUI if `osascript` works and session is console user | — |
-| [`lib/resolution-detection.sh`](lib/resolution-detection.sh) | `system_profiler SPDisplaysDataType` or AppleScript screen bounds for popup sizing | — |
-| [`lib/window-management.sh`](lib/window-management.sh) | **No-op stubs** on darwin (popups still show; no stay-on-top/immovable) | `window-management-darwin.sh` via System Events — requires **Accessibility** permission; document TCC prompt |
+| [`lib/display-detection.sh`](../../lib/display-detection.sh) | `display-detection-darwin.sh`: assume GUI if `osascript` works and session is console user | — |
+| [`lib/resolution-detection.sh`](../../lib/resolution-detection.sh) | `system_profiler SPDisplaysDataType` or AppleScript screen bounds for popup sizing | — |
+| [`lib/window-management.sh`](../../lib/window-management.sh) | **No-op stubs** on darwin (popups still show; no stay-on-top/immovable) | `window-management-darwin.sh` via System Events — requires **Accessibility** permission; document TCC prompt |
 
-[`lib/popup-display.sh`](lib/popup-display.sh): at top, `source_platform_lib` for display + dialog + window; guard Linux-only branches (gamescope, `DISPLAY` forcing).
+[`lib/popup-display.sh`](../../lib/popup-display.sh): at top, `source_platform_lib` for display + dialog + window; guard Linux-only branches (gamescope, `DISPLAY` forcing).
 
-### 5. Sleep-resume grace ([`lib/sleep-detection.sh`](lib/sleep-detection.sh))
+### 5. Sleep-resume grace ([`lib/sleep-detection.sh`](../../lib/sleep-detection.sh))
 
 - Linux: keep `systemctl show` + `/proc/uptime`
 - Darwin: use `sysctl kern.boottime` and/or compare `sysctl kern.boottime` / last wake — **or** skip grace on MVP and log “macOS: resume grace not yet implemented”
 - Existing `date -r` fallback in sleep-detection is already mac-friendly for timestamp parsing
 
-### 6. Config locking ([`lib/config-locking.sh`](lib/config-locking.sh))
+### 6. Config locking ([`lib/config-locking.sh`](../../lib/config-locking.sh))
 
 - `stat -c` vs `stat -f` fallbacks already partially exist — verify all `chmod`/`stat` paths use portable helpers
-- Lock behavior (read-only config dir during restricted hours) should work on APFS; add darwin-specific tests in [`tests/test-config-locking.sh`](tests/test-config-locking.sh)
-- **Uninstall protection** ([`lib/uninstall-verification.sh`](lib/uninstall-verification.sh), Enhancement #26): portable — same Q&A flow on darwin; no platform branch needed
+- Lock behavior (read-only config dir during restricted hours) should work on APFS; add darwin-specific tests in [`tests/test-config-locking.sh`](../../tests/test-config-locking.sh)
+- **Uninstall protection** ([`lib/uninstall-verification.sh`](../../lib/uninstall-verification.sh), Enhancement #26): portable — same Q&A flow on darwin; no platform branch needed
 
 ### 7. Config keys: behavior by phase on macOS
 
@@ -209,11 +209,11 @@ New files:
 | `POPUP_POSITION`, `POPUP_SIZE*`, `POPUP_IMMOVABLE` | **Ignored** (document) | Phase 3 partial |
 | `DIALOG_TOOL` | Hidden / ignored (`osascript` only) | — |
 | Service mode / gaming drop-ins | Hidden | N/A |
-| [`popup-pid-management.sh`](lib/popup-pid-management.sh) dedup | **Keep** — same PID file logic | — |
+| [`popup-pid-management.sh`](../../lib/popup-pid-management.sh) dedup | **Keep** — same PID file logic | — |
 
 ### 8. Installer
 
-**Unified [`install.sh`](install.sh)** (recommended):
+**Unified [`install.sh`](../../install.sh)** (recommended):
 
 ```
 detect_platform
@@ -247,7 +247,7 @@ Optional later: Homebrew formula — **not** required for Phase 1.
 |--------------|---------------------|-----------|
 | Modal open all day | `POPUP_AUTO_CLOSE=false` + user away from keyboard | Darwin MVP: **force** `POPUP_AUTO_CLOSE=true`; watchdog kills dialog anyway |
 | Script hung forever | Blocking `osascript` / AppleScript `delay` in foreground | Background spawn + **`POPUP_ABSOLUTE_MAX_SECONDS`** watchdog (parent kills PID) |
-| Stacked modals | launchd fires again while previous dialog still open | Reuse [`popup-pid-management.sh`](lib/popup-pid-management.sh): skip new popup if PID alive; stale PID cleanup |
+| Stacked modals | launchd fires again while previous dialog still open | Reuse [`popup-pid-management.sh`](../../lib/popup-pid-management.sh): skip new popup if PID alive; stale PID cleanup |
 | Warnings 24/7 | Misconfigured hours covering entire week | **Save-time:** `check_restriction_coverage` → `block` in configure (existing). **Runtime:** `sleep-warning.sh` falls back to `DEFAULT_HOURS` if `block` detected (existing) |
 | Cannot change config to fix | Locked during restricted hours | Existing configure block + lock hours; document `--text` from unrestricted time or `manage` disable timer |
 | Cannot uninstall | Uninstall lock / running timer | `manage.sh` disable timer; emergency commands in MACOS.md; uninstall verification unchanged |
@@ -257,7 +257,7 @@ Optional later: Homebrew formula — **not** required for Phase 1.
 Constants (darwin may override via `platform.sh`):
 
 - `POPUP_ABSOLUTE_MAX_SECONDS` — hard ceiling per invocation (recommend **120** on darwin MVP even if `POPUP_MIN_DISPLAY_TIME` + auto-close math is lower)
-- `DARWIN_MAX_MIN_DISPLAY_TIME` — cap enforced at read time (recommend **60** on MVP; Linux keeps 300 from [`lib/config.sh`](lib/config.sh))
+- `DARWIN_MAX_MIN_DISPLAY_TIME` — cap enforced at read time (recommend **60** on MVP; Linux keeps 300 from [`lib/config.sh`](../../lib/config.sh))
 - `DARWIN_FORCE_AUTO_CLOSE` — `true` on MVP
 
 Functions:
@@ -292,10 +292,10 @@ sequenceDiagram
 
 ### Reuse existing Linux safety (no regression)
 
-- [`check_restriction_coverage()`](lib/configure-validation.sh) — blocks saving 24/7 config (`block` / `warn`)
-- [`validate_config_safety()`](sleep-warning.sh) — runtime fallback to defaults on `block`
-- [`get_min_display_time()`](lib/config.sh) — clamp to `MAX_DISPLAY_TIME` (300 on Linux); darwin adds lower cap in `popup_assert_safe_config`
-- [`auto_close_popup()`](lib/popup-display.sh) — keep on Linux; on darwin integrate into watchdog timing instead of unbounded wait
+- [`check_restriction_coverage()`](../../lib/configure-validation.sh) — blocks saving 24/7 config (`block` / `warn`)
+- [`validate_config_safety()`](../../sleep-warning.sh) — runtime fallback to defaults on `block`
+- [`get_min_display_time()`](../../lib/config.sh) — clamp to `MAX_DISPLAY_TIME` (300 on Linux); darwin adds lower cap in `popup_assert_safe_config`
+- [`auto_close_popup()`](../../lib/popup-display.sh) — keep on Linux; on darwin integrate into watchdog timing instead of unbounded wait
 
 ### Install-time safety (darwin)
 
@@ -342,7 +342,7 @@ Document verbatim recovery steps:
 
 ## Phase 4 appendix: configure dialog inventory
 
-Full parity checklist for Phase 4 (source: [`lib/configure-dialogs.sh`](lib/configure-dialogs.sh), [`lib/configure-dialogs-time.sh`](lib/configure-dialogs-time.sh), consumers in `configure-input-*.sh`, `configure-ui.sh`, `configure-display.sh`).
+Full parity checklist for Phase 4 (source: [`lib/configure-dialogs.sh`](../../lib/configure-dialogs.sh), [`lib/configure-dialogs-time.sh`](../../lib/configure-dialogs-time.sh), consumers in `configure-input-*.sh`, `configure-ui.sh`, `configure-display.sh`).
 
 ### Core primitives (implement first in Phase 2 subset)
 
@@ -448,20 +448,20 @@ Outline to write during Phase 1 (expand in later phases):
 
 | File | Change |
 |------|--------|
-| [`install.sh`](install.sh) | Branch darwin vs linux |
-| [`uninstall.sh`](uninstall.sh), [`manage.sh`](manage.sh), [`status.sh`](status.sh) | launchctl paths |
-| [`sleep-warning.sh`](sleep-warning.sh) | Platform lib loading |
-| [`configure.sh`](configure.sh) | Platform menus + GUI path |
-| [`lib/popup-display.sh`](lib/popup-display.sh) | Delegate spawn/close to platform |
-| [`lib/configure-config.sh`](lib/configure-config.sh) | `update_timer_file` → adapter |
-| [`lib/configure-core.sh`](lib/configure-core.sh) | `has_gui()` darwin branch |
-| [`README.md`](README.md) | Supported systems: macOS (version range), link MACOS.md |
-| [`AGENTS.md`](AGENTS.md) | Platform notes for agents |
+| [`install.sh`](../../install.sh) | Branch darwin vs linux |
+| [`uninstall.sh`](../../uninstall.sh), [`manage.sh`](../../manage.sh), [`status.sh`](../../status.sh) | launchctl paths |
+| [`sleep-warning.sh`](../../sleep-warning.sh) | Platform lib loading |
+| [`configure.sh`](../../configure.sh) | Platform menus + GUI path |
+| [`lib/popup-display.sh`](../../lib/popup-display.sh) | Delegate spawn/close to platform |
+| [`lib/configure-config.sh`](../../lib/configure-config.sh) | `update_timer_file` → adapter |
+| [`lib/configure-core.sh`](../../lib/configure-core.sh) | `has_gui()` darwin branch |
+| [`README.md`](../../README.md) | Supported systems: macOS (version range), link MACOS.md |
+| [`AGENTS.md`](../../AGENTS.md) | Platform notes for agents |
 
 ### Low touch (verify only)
 
-- [`lib/config-locking.sh`](lib/config-locking.sh) — stat portability
-- [`lib/logging.sh`](lib/logging.sh) — ensure file logging default on darwin
+- [`lib/config-locking.sh`](../../lib/config-locking.sh) — stat portability
+- [`lib/logging.sh`](../../lib/logging.sh) — ensure file logging default on darwin
 
 ---
 
@@ -480,18 +480,18 @@ Outline to write during Phase 1 (expand in later phases):
 
 **Headless / SSH on Mac:** `configure.sh --text` works without GUI; `sleep-warning.sh` when no GUI session should log and exit 0 (no crash loop) — same policy as Linux notify-send fallback path.
 
-Add to [`tests/README.md`](tests/README.md) a **macOS** section listing which tests run locally vs Linux-only.
+Add to [`tests/README.md`](../../tests/README.md) a **macOS** section listing which tests run locally vs Linux-only.
 
-Document runs in [`dev-docs/testing-assessments/test-history.md`](dev-docs/testing-assessments/test-history.md) per project rules.
+Document runs in [`dev-docs/testing-assessments/test-history.md`](../testing-assessments/test-history.md) per project rules.
 
 ---
 
 ## Documentation and versioning
 
-- Add **Supported Systems → macOS** in [`README.md`](README.md) (macOS 12+ or 13+; Apple Silicon + Intel)
-- New [`user-docs/MACOS.md`](user-docs/MACOS.md): install, grant Accessibility (Phase 3), launchctl troubleshooting, differences from Linux
+- Add **Supported Systems → macOS** in [`README.md`](../../README.md) (macOS 12+ or 13+; Apple Silicon + Intel)
+- New [`user-docs/MACOS.md`](../../user-docs/MACOS.md): install, grant Accessibility (Phase 3), launchctl troubleshooting, differences from Linux
 - Create `CHANGELOG.md` (project has none yet) — **minor** bump when macOS MVP ships (new platform support)
-- Update [`dev-docs/FUTURE_ENHANCEMENTS.md`](dev-docs/FUTURE_ENHANCEMENTS.md) with enhancement doc cross-link
+- Update [`dev-docs/FUTURE_ENHANCEMENTS.md`](../FUTURE_ENHANCEMENTS.md) with enhancement doc cross-link
 
 ---
 

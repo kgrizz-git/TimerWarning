@@ -25,9 +25,3 @@ End-user and safety documentation for the Sleep Warning System. **Developers and
 | **`dev-docs/`** | Developers and agents | Architecture, testing, CI, plans, harness workflow |
 
 Coding agents: start at [AGENTS.md](../AGENTS.md), then [dev-docs/README.md](../dev-docs/README.md).
-
-## Moved developer pages
-
-These formerly lived under `docs/` and now live under `dev-docs/` (stubs remain for one release cycle):
-
-- Architecture, development/testing, harness engineering, agent workflow → [dev-docs/README.md](../dev-docs/README.md)

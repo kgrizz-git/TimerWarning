@@ -84,15 +84,13 @@ Non-commercial licenses (like License Zero Noncommercial) are **not OSI-approved
 
 ## Project Eligibility Assessment
 
-For the LinuxTimerWarning project:
+For the LinuxTimerWarning project, as of the 2026-10-24 license decision:
 
-✅ **Public Repository**: Project is publicly available on GitHub  
-✅ **Active Development**: Regular commits, documentation, and feature development  
-✅ **Open Source License**: [Note: License needs to be added - see LICENSE_OPTIONS.md]  
-✅ **Community Value**: Useful utility that others can benefit from  
-✅ **Supported Region**: Project maintainer lives in the United States (supported region)
+- **License**: [`LICENSE`](../../LICENSE) is the Apache License 2.0 with the Commons Clause. That combination is source-available. It is not an OSI open-source license, so this repository does not by itself meet a Sponsors requirement for an open-source license.
+- **Publication**: The development repository is still private. A public staging repository is later work in the [publication plan](../plans/plan-public-repo-prep-2026-10-16.md).
+- **Donations**: PayPal links stay until the owner reopens removal (deferred 2026-10-24). This note does not add a donation integration.
 
-**Conclusion**: Once a license is added to the project, the maintainer likely qualifies for GitHub Sponsors eligibility.
+**Conclusion**: Do not treat the current license as satisfying GitHub Sponsors' open-source-license expectation.
 
 ## Application Process
 
