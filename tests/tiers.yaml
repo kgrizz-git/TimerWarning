@@ -28,6 +28,7 @@ tier_a:
     - name: test-popup-watchdog-cleanup.sh
       platform: linux
     - test-configure-partial-lock.sh
+    - test-popup-icon-args.sh
     - test-gamescope-overlay.sh
     - test-popup-notice-deadlines.sh
     - test-non-utf-dialog-safety.sh
@@ -60,7 +61,6 @@ tier_b:
     - test-status-display.sh
     - test-install-linux-source.sh
     - test-install-license-notice.sh
-    - test-popup-icon-args.sh
     - test-configure-text-mode.sh
     - test-configure-modular.sh
     - test-modular-refactor.sh

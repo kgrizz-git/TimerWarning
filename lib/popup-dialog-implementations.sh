@@ -32,11 +32,46 @@ _popup_icon_path() {
     fi
 }
 
+# Print a dialog tool's help text with a 1s deadline and 1s KILL grace, so a
+# stalled toolkit can never hold up a popup spawn. Parameters: command and args.
+_popup_icon_help_probe() {
+    if command -v timeout >/dev/null 2>&1; then
+        timeout --kill-after=1s 1s "$@" 2>/dev/null || true
+        return 0
+    fi
+    if command -v gtimeout >/dev/null 2>&1; then
+        gtimeout --kill-after=1s 1s "$@" 2>/dev/null || true
+        return 0
+    fi
+
+    local pid watcher
+    "$@" 2>/dev/null &
+    pid=$!
+    (
+        sleep 1 || exit 0
+        if kill -0 "${pid}" 2>/dev/null; then
+            kill -TERM "${pid}" 2>/dev/null || true
+            sleep 1
+            kill -KILL "${pid}" 2>/dev/null || true
+        fi
+    ) >/dev/null 2>&1 &
+    watcher=$!
+    wait "${pid}" 2>/dev/null || true
+    kill "${watcher}" 2>/dev/null || true
+    wait "${watcher}" 2>/dev/null || true
+    return 0
+}
+
 # Build window-icon arguments for a dialog tool.
 # Only adds the flag when the icon exists and the tool's help lists the option,
 # so an older or newer toolkit never fails to start over an unknown flag.
+# The help probe is bounded and runs once per tool per process; countdown
+# respawns reuse the cached answer.
 # Parameters: $1 dialog tool (yad | zenity | kdialog).
 # Outputs: sets `_dlg_icon` array in the caller's scope (may be empty).
+_POPUP_ICON_SUPPORT_yad=""
+_POPUP_ICON_SUPPORT_zenity=""
+_POPUP_ICON_SUPPORT_kdialog=""
 _popup_icon_args() {
     _dlg_icon=()
     local icon
@@ -44,13 +79,25 @@ _popup_icon_args() {
     [ -n "${icon}" ] || return 0
     case "$1" in
         yad)
-            yad --help-all 2>/dev/null | grep -q -- '--window-icon' && _dlg_icon=(--window-icon="${icon}")
+            if [ -z "${_POPUP_ICON_SUPPORT_yad}" ]; then
+                _POPUP_ICON_SUPPORT_yad=no
+                _popup_icon_help_probe yad --help-all | grep -q -- '--window-icon' && _POPUP_ICON_SUPPORT_yad=yes
+            fi
+            [ "${_POPUP_ICON_SUPPORT_yad}" = "yes" ] && _dlg_icon=(--window-icon="${icon}")
             ;;
         zenity)
-            zenity --help-general 2>/dev/null | grep -q -- '--window-icon' && _dlg_icon=(--window-icon="${icon}")
+            if [ -z "${_POPUP_ICON_SUPPORT_zenity}" ]; then
+                _POPUP_ICON_SUPPORT_zenity=no
+                _popup_icon_help_probe zenity --help-general | grep -q -- '--window-icon' && _POPUP_ICON_SUPPORT_zenity=yes
+            fi
+            [ "${_POPUP_ICON_SUPPORT_zenity}" = "yes" ] && _dlg_icon=(--window-icon="${icon}")
             ;;
         kdialog)
-            kdialog --help-all 2>/dev/null | grep -q -- '--icon' && _dlg_icon=(--icon "${icon}")
+            if [ -z "${_POPUP_ICON_SUPPORT_kdialog}" ]; then
+                _POPUP_ICON_SUPPORT_kdialog=no
+                _popup_icon_help_probe kdialog --help-all | grep -q -- '--icon' && _POPUP_ICON_SUPPORT_kdialog=yes
+            fi
+            [ "${_POPUP_ICON_SUPPORT_kdialog}" = "yes" ] && _dlg_icon=(--icon "${icon}")
             ;;
     esac
     return 0
@@ -382,7 +429,7 @@ _popup_show_pause_activated_notice() {
         kdialog)
             # kdialog msgbox has no reliable width flag on SteamOS; atoms still applied.
             if [ "${env_type:-}" = "gamescope" ]; then
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog ${_dlg_icon[@]+"${_dlg_icon[@]}"} --title "${title}" --msgbox "${text}" 2>/dev/null &
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${title}" --msgbox "${text}" 2>/dev/null &
             else
                 ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --passivepopup \
                     "${text}" "${_pause_info_timeout}" 2>/dev/null &

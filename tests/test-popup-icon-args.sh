@@ -50,7 +50,7 @@ run_case() {
     local module_dir="$1" tool="$2" help="$3"
     local bin="${WORK}/bin-$RANDOM"
     make_tool "$bin" "$tool" "$help"
-    PATH="${bin}:${PATH}" bash -c '
+    PATH="${bin}:${PATH}" "${BASH:-bash}" -c '
         source "$1/popup-dialog-implementations.sh"
         _popup_icon_args "$2"
         printf "%s\n" "${_dlg_icon[@]+"${_dlg_icon[@]}"}"
@@ -80,3 +80,32 @@ echo "PASS: missing icon file gives no flag"
 out="$(run_case "${ROOT}/lib" yad "  --window-icon=ICONPATH")"
 [ "$out" = "--window-icon=${ROOT}/lib/../assets/icon-256.png" ] || fail "repo fallback: got '${out}'"
 echo "PASS: repo checkout uses assets/icon-256.png"
+
+# A stalled toolkit must not hold up the spawn: the help probe has a deadline.
+HANG="${WORK}/bin-hang"
+mkdir -p "$HANG"
+printf '#!/bin/sh\nexec sleep 30\n' > "${HANG}/yad"
+chmod +x "${HANG}/yad"
+start=$SECONDS
+out="$(PATH="${HANG}:${PATH}" "${BASH:-bash}" -c '
+    source "$1/popup-dialog-implementations.sh"
+    _popup_icon_args yad
+    printf "%s\n" "${_dlg_icon[@]+"${_dlg_icon[@]}"}"
+' _ "$INST")"
+elapsed=$((SECONDS - start))
+[ -z "$out" ] || fail "hung yad still produced '${out}'"
+[ "$elapsed" -le 5 ] || fail "hung help probe took ${elapsed}s"
+echo "PASS: hung help probe is cut off (${elapsed}s)"
+
+# Countdown respawns reuse the cached probe result.
+COUNT="${WORK}/bin-count"
+mkdir -p "$COUNT"
+printf '#!/bin/sh\necho x >> "%s"\necho "  --window-icon=ICONPATH"\n' "${WORK}/probe-count" > "${COUNT}/yad"
+chmod +x "${COUNT}/yad"
+PATH="${COUNT}:${PATH}" "${BASH:-bash}" -c '
+    source "$1/popup-dialog-implementations.sh"
+    _popup_icon_args yad; _popup_icon_args yad; _popup_icon_args yad
+    [ "${#_dlg_icon[@]}" -eq 1 ]
+' _ "$INST" || fail "cached call lost the icon flag"
+[ "$(wc -l < "${WORK}/probe-count" | tr -d ' ')" = "1" ] || fail "help probe ran more than once"
+echo "PASS: help probe runs once per process"
