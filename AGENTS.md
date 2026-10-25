@@ -113,7 +113,7 @@ Contributor guide: [dev-docs/CONTRIBUTING.md](dev-docs/CONTRIBUTING.md). Full sc
 
 - Archive superseded implementation plans under `dev-docs/completed-plans/` (the repo's established archive, not a separate deferred folder).
 - Keep `AGENTS.md` as a brief map; agent/harness detail belongs in `dev-docs/`, not in root `AGENTS.md`.
-- Harness engineering Phases 1–2 and 4 complete; follow [dev-docs/plans/plan-harness-engineering-improvements-2026-06-12.md](dev-docs/plans/plan-harness-engineering-improvements-2026-06-12.md) for Phase 3+.
+- Harness engineering Phases 1–8 complete; plan archived at [dev-docs/completed-plans/plan-harness-engineering-improvements-2026-06-12.md](dev-docs/completed-plans/plan-harness-engineering-improvements-2026-06-12.md).
 - `git push` / `gh` failures in Cursor are almost always sandbox credential/network limits — retry with full permissions (`all`) before assuming the token is broken.
 
 ## Learned Workspace Facts

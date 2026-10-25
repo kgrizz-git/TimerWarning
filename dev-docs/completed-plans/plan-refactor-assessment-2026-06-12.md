@@ -1,5 +1,12 @@
 # Plan: Refactor Assessment 2026-06-12 Follow-up
 
+> **Archived 2026-10-25.** Code phases 0–10 shipped 2026-06-12 (split modules
+> exist in `lib/`, e.g. `configure-input-security.sh`,
+> `configure-input-feature-helpers.sh`, `config-keys.sh`). Residual verification
+> checkboxes (fixture parity, bounded text-mode runs, GUI/manual smokes, fresh
+> Linux install) are now smoke items in [TO_DO.md](../TO_DO.md#smoke-tests).
+> Historical record.
+
 **Status:** **Complete** (2026-06-12) — code phases 0–10 shipped; open checkboxes below are manual smoke / Linux-host verification only. Harness work unblocked: [plan-harness-engineering-improvements-2026-06-12.md](plan-harness-engineering-improvements-2026-06-12.md).
 
 **Source assessment:** [refactor-assessment-2026-06-12-001417.md](../refactor-assessments/refactor-assessment-2026-06-12-001417.md)

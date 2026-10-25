@@ -1,5 +1,12 @@
 # Weekday GUI Bug — Detailed Fix Plan
 
+> **Archived 2026-10-25.** Fix shipped (macOS `show_list_dialog` for the
+> weekday/weekend together prompts and continuation prompt, plus loop hardening;
+> see CHANGELOG). Diagnosis record kept at
+> [`../weekday-gui-bug-assessment.md`](../weekday-gui-bug-assessment.md), which
+> stays in place because `lib/configure-dialogs-darwin.sh` references it.
+> Historical record.
+
 ## Overview
 
 This plan addresses the bug where weekday configuration in GUI mode (especially macOS) only applies to Monday. The root cause is a macOS z-order regression where `display alert` dialogs (used by `show_question_dialog` and `show_info_dialog` on macOS) appear behind the terminal after tkinter dialogs close, causing users to miss or dismiss the "same hours for all weekdays?" prompt. This silently routes them into the per-day flow where the continuation prompt is also vulnerable, leaving only Monday configured.
@@ -243,7 +250,7 @@ In `configure-dialogs-darwin.sh`, add a header comment above the macOS implement
 # a tkinter dialog closes. Callers in the configure path should prefer
 # show_list_dialog (for questions) or show_text_dialog (for info) when
 # the dialog immediately follows a tkinter window.
-# See: dev-docs/weekday-gui-bug-assessment.md
+# See: ../weekday-gui-bug-assessment.md
 ```
 
 This prevents future developers from accidentally introducing new vulnerable callers.

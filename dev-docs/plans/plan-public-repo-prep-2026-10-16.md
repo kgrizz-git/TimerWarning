@@ -2,9 +2,9 @@
 
 **Created:** 2026-10-16
 
-**Revised:** 2026-10-21
+**Revised:** 2026-10-25
 
-**Status:** Phase 1 applied on 2026-10-24; Phases 2–5 remain open.
+**Status:** Phases 1–3 applied on 2026-10-24/25; Phases 4–5 remain open.
 
 **Working branch:** `chore/public-repo-prep-phase-1`, based on `main` at `86cfc7a`.
 
@@ -22,7 +22,7 @@ was finished. The existing `kgrizz-git/LinuxTimerWarning` repository is still pr
 |------|-----------------------------|
 | Safety and overlay implementation | Merged through `ed0e8be`; merge commit `86cfc7a` |
 | Automated verification for PR #7 | Ubuntu/macOS Tier-A and Ubuntu static analysis passed; latest local Tier-A: 25 scripts, 3 platform/GUI skips |
-| Deck hardware evidence | Popup visibility/min-display on Oct 19; click access and Enter exclusivity passed Oct 20, recorded in the [overlay plan](plan-gamescope-overlay-click-through-2026-10-19.md#manual-verification-checklist-on-deck) |
+| Deck hardware evidence | Popup visibility/min-display on Oct 19; click access and Enter exclusivity passed Oct 20, recorded in the [overlay plan](../completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md#manual-verification-checklist-on-deck) |
 | Tracked `backups/` files | Already removed; no repeat deletion needed |
 | License | Apache License 2.0 with the Commons Clause, applied 2026-10-24 in root `LICENSE`. Source-available, not OSI open source |
 | Donation removal | PayPal links remain in README, GETTING_STARTED, and the Linux installer |
@@ -141,36 +141,67 @@ installed identifiers and behavior are unchanged.
 
 ## Phase 3 — Repository and documentation cleanup
 
+Done 2026-10-25 on `chore/public-repo-prep-phase-1`. No runtime change.
+
 1. Remove `GENERALIZATION_SUMMARY.txt` after preserving anything still useful.
    Done 2026-10-24. The generalized template directory is not in this repo.
    The record is [note-template-generalization-summary.md](../completed-plans/note-template-generalization-summary.md).
 2. Inventory redirect stubs under `docs/` and `dev-docs/CONFIGURE_GUI_FLOW.md`;
    update inbound links before removing obsolete stubs. Keep the user/developer
    documentation boundary and update `docs/index.md`, canonical-doc guidance,
-   and `scripts/check-doc-drift.sh` together.
+   and `scripts/check-doc-drift.sh` together. Done 2026-10-25: all `Moved`
+   stubs under `docs/` (architecture, development, harness, agent-workflow,
+   core-beliefs, safety analysis, references, superpowers) and
+   `dev-docs/CONFIGURE_GUI_FLOW.md` removed. Live docs already pointed at
+   `dev-docs/`; only history (CHANGELOG, dated assessments/scans) still cites
+   the old paths, plus one live pointer in the safety-scan plan retargeted to
+   `dev-docs/`. `docs/index.md`, `canonical-vs-archive.md`, and the drift
+   script's exclusion list updated together.
 3. Add `*.bundle` and local `.cursor/plans/` to `.gitignore` as appropriate.
-   `*.bundle` and `.cursor/plans/` were added on 2026-10-24. Eight plans are
-   still tracked. Ignoring the path does not untrack them. Their frontmatter
-   todos are complete. `macos_configure_gui_performance_acc3b24e.plan.md` still
-   records an unimplemented osascript activate throttle, so do not archive that
-   requirement as finished. Move the tracked plans only after inbound links are
-   retargeted.
+   `*.bundle` and `.cursor/plans/` were added on 2026-10-24. Eight plans were
+   still tracked; ignoring the path did not untrack them. Their frontmatter
+   todos are complete. Done 2026-10-25: all eight moved to
+   `dev-docs/completed-plans/` after retargeting inbound links (the dev-docs
+   pause plan's sync notes; the archived May refactor plan's pointer now
+   resolves via git history). Verified against code: the conditional osascript
+   `activate` throttle the performance plan body still calls unimplemented is
+   shipped (`_cd_darwin_should_osascript_activate`,
+   `lib/configure-dialogs-darwin.sh`); only the manual z-order QA remains,
+   kept visible as a [TO_DO smoke item](../TO_DO.md#smoke-tests).
 4. Audit completed-plan candidates individually, including harness engineering,
    refactor, safety-scan, pause, status-display, and popup-size plans. Move only
    completed/superseded work to `dev-docs/completed-plans/`; keep unresolved
    requirements active. In particular, the additional-hours-on-unrestricted-days
-   proposal is still listed as open and must not be archived as implemented.
+   proposal is still listed as open and was not archived. Done 2026-10-25:
+   archived the percentage-size, phase-0, Feb refactor (superseded), pause,
+   harness, real-bugs, June refactor, gamescope click-through, extend-24/7,
+   and 16b status-display plans with archive banners; kept additional-hours,
+   popup-frequency (needs review), safety-scan (unimplemented integration
+   test), SteamOS overlay (partial verification), and this plan active.
+   Repaired relative links from AGENTS, SAFETY, developer README, TO_DO,
+   REMAINING_WORK_SUMMARY, STEAMOS_GAMING_MODE, enhancement-22, and the
+   platform test matrix.
 5. Review the old weekday-GUI notes and tracked `.cursor/plans/` files before
    moving them to completed plans or assessments. Repair relative links and
-   links from AGENTS, SAFETY, developer README, and TO_DO.
+   links from AGENTS, SAFETY, developer README, and TO_DO. Done 2026-10-25:
+   the weekday fix plan is archived; its assessment stays in place because
+   `lib/configure-dialogs-darwin.sh` references it.
 6. Improve stale-plan detection for bolded completion statuses, with focused
    tests if changing the script. Preview retention tools before any `--apply`;
    use current age/reference rules, not the old plan's hardcoded deletion list.
+   Evaluated 2026-10-25: after the archiving above, no remaining active plan
+   carries a completable bolded status the script misses (remaining matches
+   are genuinely open work), so the script is unchanged. No test added — no
+   behavior change to pin. Retention scripts previewed dry-run only; no
+   archives deleted.
 7. Retain safety guidance, user instructions, contributor guidance, and tests.
    Public release does not require implementing the entire feature backlog.
+   Kept: SAFETY, user docs, CONTRIBUTING, tests, and the open backlog untouched.
 
-**Acceptance:** strict doc checks pass, archived work is traceable, unresolved
-work remains visible, root/docs are coherent, no accidental safety-doc loss.
+**Acceptance:** strict doc/stale-plan checks pass, archived work is traceable via
+banners, unresolved work (additional-hours proposal, popup-frequency review,
+safety-scan integration test, SteamOS verification, smoke list) remains visible,
+root/docs are coherent, no safety-doc loss.
 
 ## Phase 4 — Sanitize history in a separate publication clone
 
@@ -241,8 +272,10 @@ Never run mode-detection tests against real HOME or edit the installed config.
 For each slice, report implemented, reviewed, committed, pushed, PR-submitted,
 CI-green, and merged states separately. Branch cleanup is not release completion.
 
-**Next action:** Phase 3 repository and documentation cleanup on
-`chore/public-repo-prep-phase-1`, after the Phase 2 documentation corrections.
-Public renaming waits for the first commit on the new private repository.
-PayPal removal stays deferred. This work does not rewrite history, create the
-destination, or change repository visibility.
+**Next action:** Parent review of the Phase 3 working tree on
+`chore/public-repo-prep-phase-1`, then commit, PR, and merge into source `main`
+(per AGENTS.md, the parent agent reviews and commits). Phase 4 (isolated
+publication export) starts only after that merge. Public renaming waits for the
+first commit on the new private repository. PayPal removal stays deferred. This
+work does not rewrite history, create the destination, or change repository
+visibility.

@@ -2,7 +2,7 @@
 
 **Canonical reference** for which tests run on macOS vs Linux, headless vs GUI, and known failure categories. Update this file when adding tests or fixing platform-specific expectations.
 
-Related: [testing.md](testing.md), [tests/README.md](../../tests/README.md), [phase-0 verification record](../../dev-docs/plans/phase-0-verification-2026-06-12.md).
+Related: [testing.md](testing.md), [tests/README.md](../../tests/README.md), [phase-0 verification record](../completed-plans/phase-0-verification-2026-06-12.md).
 
 ## Categories
 

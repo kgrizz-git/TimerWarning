@@ -1,3 +1,12 @@
+# Archived — Fix `status.sh` Restricted-Hours Display for Minute Precision (Enhancement 16b)
+
+> **Archived 2026-10-25.** Enhancement #16b is fully done
+> ([REMAINING_WORK_SUMMARY.md](../REMAINING_WORK_SUMMARY.md#completed-enhancements-reference)):
+> minute-aware `format_hour_12h` / `format_range_human` with `HHMM` overnight
+> comparison shipped in `lib/status-config-display.sh`, legacy hour-only ranges
+> still supported, golden `tests/test-status-display.sh` passes. This proposal
+> predates that implementation. Historical record.
+
 ## Plan: Fix `status.sh` Restricted-Hours Display for Minute Precision (Enhancement 16b Compatibility)
 
 ### 1. Goals

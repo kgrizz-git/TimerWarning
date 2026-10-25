@@ -158,6 +158,6 @@ When changing behavior, review these files together:
 
 ## Further reading
 
-- [safety-linux-macos-analysis.md](safety-linux-macos-analysis.md) — how Linux safety patterns map to macOS, gaps, and documentation drift.
-- [../dev-docs/plans/plan-real-bugs-fix-2026-05-24.md](../dev-docs/plans/plan-real-bugs-fix-2026-05-24.md) — current bug-fix plan derived from the 2026-05-24 audit.
+- [safety-linux-macos-analysis.md](../dev-docs/safety-linux-macos-analysis.md) — how Linux safety patterns map to macOS, gaps, and documentation drift.
+- [../dev-docs/completed-plans/plan-real-bugs-fix-2026-05-24.md](../dev-docs/completed-plans/plan-real-bugs-fix-2026-05-24.md) — archived bug-fix plan derived from the 2026-05-24 audit.
 - [../dev-docs/code-assessments/bug-and-lockout-review-2026-05-24-203354.md](../dev-docs/code-assessments/bug-and-lockout-review-2026-05-24-203354.md) — full audit report.

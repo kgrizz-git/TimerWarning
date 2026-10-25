@@ -22,7 +22,7 @@ Open work is testing, docs, or small gaps — not greenfield implementation.
 | 24–25 | Cross-tool and cross-environment dialog tests | [#24](enhancements/enhancement-24-unified-dialog-priority-yad-first.md) · [#25](enhancements/enhancement-25-user-selectable-dialog-tool.md) |
 | 26 | Phase 1 integration tests; Phase 2 uninstall UI tests | [enhancement-26](enhancements/enhancement-26-prevent-uninstall-during-restricted-hours.md) |
 | 27 | Verify PayPal links; Phase 2 after license | [enhancement-27](enhancements/enhancement-27-paypal-donation-links.md) |
-| — | 24/7 + additional hours plan — Phase 5 testing | [plan-extend-24-7…](plans/plan-extend-24-7-prevention-to-additional-hours.md) |
+| — | 24/7 + additional hours plan — Phase 5 testing (manual integration; smoke items in TO_DO) | [plan-extend-24-7…](completed-plans/plan-extend-24-7-prevention-to-additional-hours.md) |
 
 ---
 
@@ -40,7 +40,7 @@ From [linux-warning-system-plan.md](plans/master/linux-warning-system-plan.md). 
 
 ## Testing and validation
 
-- [ ] SteamOS Gaming Mode with full-screen games — **partial 2026-10-19:** overlay visible/stays up; **buttons click-through** (see [plan-gamescope-overlay-click-through-2026-10-19.md](plans/plan-gamescope-overlay-click-through-2026-10-19.md))
+- [ ] SteamOS Gaming Mode with full-screen games — **partial 2026-10-19:** overlay visible/stays up; **buttons click-through** (see [plan-gamescope-overlay-click-through-2026-10-19.md](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md) — archived; remaining manual checks are TO_DO smoke items))
 - [ ] Edge cases: overnight ranges, invalid config, missing dependencies
 - [ ] Multi-distribution install scripts
 - [ ] Dialog tools (YAD / Zenity / KDialog) across X11, Wayland, KDE

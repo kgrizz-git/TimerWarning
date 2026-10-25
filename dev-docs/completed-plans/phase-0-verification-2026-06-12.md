@@ -1,5 +1,9 @@
 # Phase 0 verification record — 2026-06-12
 
+> **Archived 2026-10-25.** Phase 0 closed for Phase 1 refactor work on
+> 2026-06-12; baselines consumed by the (also archived) June refactor plan.
+> Historical record.
+
 Baseline captured before refactor work on [plan-refactor-assessment-2026-06-12.md](plan-refactor-assessment-2026-06-12.md).
 
 ## Gate 1: `write_config()` output parity

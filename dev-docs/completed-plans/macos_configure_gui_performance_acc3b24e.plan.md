@@ -56,9 +56,9 @@ sequenceDiagram
 | Tk cold start | [`configure-dialogs-darwin-daemon.py`](lib/configure-dialogs-darwin-daemon.py) + eager start in `configure.sh` ~L262–265 | **Shipped** (Phase 3) |
 | Menus / confirms | `show_list_dialog` → daemon `list` op (not per-prompt osascript) | **Shipped** (recent) |
 | Profiling | `CONFIGURE_PROFILE=1` → `prep_ms` / `ui_ms` for **table, time, text** only | **Partial** |
-| osascript `activate` throttle | Phase 4 in [`.cursor/plans/configure_gui_responsiveness_facddfc8.plan.md`](.cursor/plans/configure_gui_responsiveness_facddfc8.plan.md) | **Not implemented** |
+| osascript `activate` throttle | Phase 4 in [`configure_gui_responsiveness_facddfc8.plan.md`](configure_gui_responsiveness_facddfc8.plan.md) | **Implemented** (conditional `activate` shipped; manual z-order QA open — see TO_DO smoke tests) |
 
-Reference doc: [`dev-docs/CONFIGURE_GUI_FLOW.md`](dev-docs/CONFIGURE_GUI_FLOW.md) (§ macOS performance).
+Reference doc: [`dev-docs/architecture/configure-flow.md`](../architecture/configure-flow.md) (§ macOS performance).
 
 ---
 
@@ -253,7 +253,7 @@ Import `table_ui` / `list_ui` / etc. inside `_run_dialog` per `op` to shrink ini
 
 For any shipped tier-A/B work:
 
-- Update [`dev-docs/CONFIGURE_GUI_FLOW.md`](dev-docs/CONFIGURE_GUI_FLOW.md) performance table  
+- Update [`dev-docs/architecture/configure-flow.md`](../architecture/configure-flow.md) performance table  
 - [`CHANGELOG.md`](CHANGELOG.md) under `[Unreleased]` → Performance  
 - Brief note in [`user-docs/MACOS.md`](user-docs/MACOS.md) only if user-visible (e.g. “wizard opens faster”) — optional  
 

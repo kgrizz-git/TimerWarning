@@ -20,10 +20,6 @@ Two **active** documentation trees plus historical records. Any coding agent (Cu
 4. [agent-workflow.md](agent-workflow.md)
 5. Task area: [architecture/](architecture/), [development/](development/), [TO_DO.md](TO_DO.md)
 
-## Stubs in `docs/`
-
-Moved developer pages leave a short **Moved** stub under `docs/` for one release cycle (e.g. `docs/harness-engineering.md` → `dev-docs/harness-engineering.md`). Follow the stub link.
-
 ## Archive (historical — do not treat as current spec)
 
 | Location | Contents |

@@ -1,3 +1,12 @@
+# Archived — Percentage Labels for Display-Based Popup Sizes
+
+> **Archived 2026-10-25.** Implementation shipped: GUI size selection shows
+> percentage mappings (`lib/configure-input-popup-size.sh`, e.g. `xsmall (15%x15%)`),
+> terminology standardized on percentage-based sizing, automated tests recorded in
+> `dev-docs/testing-assessments/test-history.md`. All completion criteria checked.
+> Historical record; see [REMAINING_WORK_SUMMARY.md](../REMAINING_WORK_SUMMARY.md)
+> for current enhancement tracking.
+
 ## Plan: Percentage Labels for Display-Based Popup Sizes
 
 ### Overview

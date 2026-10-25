@@ -1,5 +1,10 @@
 # Plan: Extend 24/7 Prevention and High Restriction Warnings to Additional Hours
 
+> **Archived 2026-10-25.** Validation code shipped (Phases 1–4) with automated
+> coverage in Tier-A `tests/test-24-7-prevention-additional-hours.sh`. The only
+> remainder is manual integration verification, now tracked as smoke items in
+> [TO_DO.md](../TO_DO.md#smoke-tests). Historical record.
+
 **Related Enhancement**: Enhancement #22 (Prevent 24/7 Restriction Configuration)  
 **Status**: Implementation Complete (Phases 1-5), Unit Tests Passing (27/27), Manual Integration Testing Pending  
 **Priority**: High (safety feature extension)  

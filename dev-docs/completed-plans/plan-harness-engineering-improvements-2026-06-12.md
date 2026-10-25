@@ -1,5 +1,10 @@
 # Plan: Harness engineering improvements (post-refactor)
 
+> **Archived 2026-10-25.** Phases 0–8 complete since 2026-06-12. Residual items
+> at archive time: optional weekly Tier-B scheduled workflow (deferred, not
+> decided) and slice-verification checkboxes (security scan, CI runners, agent
+> smoke, CHANGELOG) covered by normal CI. Historical record.
+
 **Created:** 2026-06-12  
 **Status:** **Complete** — Phases 0–8 closed 2026-06-12.
 
@@ -279,6 +284,6 @@ Phases 3+4 touch many links — do Phase 4 before or atomically with Phase 3 rul
 - [OpenAI harness engineering (Feb 2026)](https://openai.com/index/harness-engineering/)
 - [plan-refactor-assessment-2026-06-12.md](plan-refactor-assessment-2026-06-12.md) — prerequisite (complete)
 - [refactor-assessment-2026-06-12-001417.md](../refactor-assessments/refactor-assessment-2026-06-12-001417.md)
-- [docs/safety-linux-macos-analysis.md](../../docs/safety-linux-macos-analysis.md)
+- [safety-linux-macos-analysis.md](../safety-linux-macos-analysis.md)
 
 **Last updated:** 2026-06-12 (Phase 8 contributor hygiene — plan complete)

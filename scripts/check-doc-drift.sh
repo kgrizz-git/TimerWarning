@@ -56,9 +56,6 @@ note() {
 is_excluded_scan_path() {
     local rel="$1"
     case "${rel}" in
-        docs/development/*|docs/architecture/*|docs/harness-engineering.md|docs/agent-workflow.md|docs/core-beliefs.md|docs/safety-linux-macos-analysis.md|docs/references/*)
-            return 0
-            ;;
         dev-docs/safety-scans/*|dev-docs/completed-plans/*|dev-docs/refactor-assessments/*|dev-docs/enhancements/*|dev-docs/plans/*|scripts/check-doc-drift.sh|backups/*|.cursor/plans/*|.git/*)
             return 0
             ;;
