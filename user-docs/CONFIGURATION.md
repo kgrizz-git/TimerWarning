@@ -496,7 +496,7 @@ CONFIG_LOCK_HOURS_WEDNESDAY=23-6     # Block overnight (11 PM to 5:59 AM)
 
 **How It Works**:
 - Lock hours are **separate** from restriction hours (the hours when warnings appear)
-- When `CONFIGURE_BLOCK_ENABLED=true`, `configure.sh` and `manage.sh` are blocked during:
+- When `CONFIGURE_BLOCK_ENABLED=true`, `configure.sh` and **Configure** in `manage.sh` enter tighten-only mode during:
   - **Restriction hours** (when warnings appear), OR
   - **Lock hours** (additional configured hours)
 - This allows you to block configuration changes during specific times (e.g., work hours) even if those times are not restricted hours
@@ -571,8 +571,8 @@ CONFIG_LOCK_HOURS_WEDNESDAY=23-6     # Block overnight (11 PM to 5:59 AM)
   - Runs automatically on each timer tick
 
 **Uninstall During Lock Hours**:
-- The `uninstall.sh` script can always restore permissions and uninstall successfully, even during lock hours
-- This ensures you can always uninstall the system if needed
+- The `uninstall.sh` script restores config permissions when removal is allowed; config-file locking itself does not prevent removal
+- Uninstall protection has its own lock hours. `sleep-warning-uninstall` is available outside uninstall-block hours (at least 8 hours per day). Service disable remains available at all times; see [docs/SAFETY.md](../docs/SAFETY.md#always-available-escape-hatch-the-third-invariant)
 
 ### Uninstall Protection During Restricted Hours
 
@@ -650,7 +650,7 @@ UNINSTALL_LOCK_HOURS_WEDNESDAY=23-6      # Require verification overnight (11 PM
 - If the current time falls within either restriction hours or uninstall lock hours, the verification process is required.
 - Uninstall lock hours are completely separate from:
   - Restriction hours (main schedule for warnings)
-  - Configure.sh lock hours (hours when configure.sh/manage.sh are blocked)
+  - Configure lock hours (hours when configuration is tighten-only)
 - This allows you to configure different schedules for uninstall protection vs. other features.
 
 **Important Notes**:
@@ -1019,7 +1019,7 @@ The wizard will guide you through setting all configuration options with a user-
 4. **Weekends Configuration** - Set restricted hours for Saturday and Sunday
 5. **Visual Day/Time Grid** - View and edit all days in a visual grid format (see below)
 6. **Configuration Lock (Tighten-Only) and Config File Locking** - Restrict configure.sh and manage.sh to tighten-only edits during restricted/lock hours, and lock the config file
-7. **Lock Hours Configuration** - Configure additional hours when configuration/management is blocked (separate from restriction hours)
+7. **Lock Hours Configuration** - Configure additional hours when configuration is tighten-only (separate from restriction hours)
 8. **Uninstall Protection** - Configure protection mode for uninstall.sh during restricted hours
 9. **Uninstall Lock Hours Configuration** - Configure additional hours when difficult uninstall verification is required
 10. **Enable pause and configure duration** - Configure pause feature for warning popups

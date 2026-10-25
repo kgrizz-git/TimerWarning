@@ -16,6 +16,17 @@ When a test is run again, **update the date/time and findings** for that test en
 
 ---
 
+## Public repository preparation branch review — 2026-10-25
+
+**Status**: PASS (headless macOS; isolated test fixtures)
+
+- `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a`: 25 scripts run, 3 expected platform/GUI skips. The sandbox run failed only when the gamescope fixture tried to create a local socket; the full run outside the sandbox passed.
+- `./scripts/run-security-scan.sh --ci`: ShellCheck, Gitleaks, and Semgrep passed. The initial sandbox run could not access certificate trust anchors; the run outside the sandbox passed.
+- `shellcheck -S error lib/configure-input-pause.sh scripts/check-doc-drift.sh`, both strict doc/stale-plan checks, and `git diff --check` passed.
+- Link review repaired references to moved plans and deleted redirect stubs, including repository-root links in archived Cursor drafts. The weekday GUI plan remains active for unimplemented systematic dialog hardening. No runtime behavior or installed configuration changed.
+
+---
+
 ## Safety review fixes — 2026-10-18
 
 **Status**: PASS (headless macOS; temporary HOME)
@@ -1036,7 +1047,7 @@ Based on the latest test execution results:
 
 **Related Enhancement**: Enhancement #22 - Prevent 24/7 Restriction Configuration (extended to include additional hours)
 
-**Related Plan**: [Plan: Extend 24/7 Prevention and High Restriction Warnings to Additional Hours](../plans/plan-extend-24-7-prevention-to-additional-hours.md)
+**Related Plan**: [Plan: Extend 24/7 Prevention and High Restriction Warnings to Additional Hours](../completed-plans/plan-extend-24-7-prevention-to-additional-hours.md)
 
 **Test File Location**: `tests/test-24-7-prevention-additional-hours.sh`
 

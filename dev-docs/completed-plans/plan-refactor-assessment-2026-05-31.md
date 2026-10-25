@@ -1,10 +1,10 @@
 # Plan: Refactor assessment follow-up (2026-05-31)
 
-> **Status: Superseded (archived).** Open items were merged into [plan-refactor-assessment-2026-06-12.md](../plans/plan-refactor-assessment-2026-06-12.md). Kept for history only — do not execute this checklist.
+> **Status: Superseded (archived).** Open items were merged into [plan-refactor-assessment-2026-06-12.md](plan-refactor-assessment-2026-06-12.md). Kept for history only — do not execute this checklist.
 
 **Source assessment:** [refactor-assessment-2026-05-31-140925.md](../refactor-assessments/refactor-assessment-2026-05-31-140925.md)
 
-**Continues:** [refactor-plan-high-priority-2026-02-05.md](../plans/refactor-plan-high-priority-2026-02-05.md) (Feb extractions largely done; this plan covers remaining hotspots and May findings)
+**Continues:** [refactor-plan-high-priority-2026-02-05.md](refactor-plan-high-priority-2026-02-05.md) (Feb extractions largely done; this plan covers remaining hotspots and May findings)
 
 **Safety:** [docs/SAFETY.md](../../docs/SAFETY.md) invariants are non-negotiable during all refactors.
 
@@ -22,7 +22,7 @@
 - User-visible UX or wording changes (unless fixing a bug discovered during extraction).
 - On-disk config format changes.
 - Rewriting tests to match refactored internals without behavior benefit.
-- macOS configure GUI performance work (see [.cursor/plans/macos_configure_gui_performance_acc3b24e.plan.md](../../.cursor/plans/macos_configure_gui_performance_acc3b24e.plan.md) — coordinate if touching `configure-dialogs-darwin.sh`).
+- macOS configure GUI performance work (see [.cursor/plans/macos_configure_gui_performance_acc3b24e.plan.md](macos_configure_gui_performance_acc3b24e.plan.md) — coordinate if touching `configure-dialogs-darwin.sh`).
 
 ## Guardrails
 
@@ -156,7 +156,7 @@ Manual (when GUI session available): configure wizard review step; one popup per
 
 - No production `.sh` file above **900 lines** except `install.sh` and `configure-display.sh` (menus may remain ~900 until Phase 5 menu dedupe).
 - All Phase 0 verification gates passed and recorded in this plan or assessment appendix.
-- [refactor-plan-high-priority-2026-02-05.md](../plans/refactor-plan-high-priority-2026-02-05.md) checkboxes updated as items complete.
+- [refactor-plan-high-priority-2026-02-05.md](refactor-plan-high-priority-2026-02-05.md) checkboxes updated as items complete.
 - Re-run [refactor assessment template](../templates/refactor-assessment-template.md) after Phase 4 to confirm line counts and close the loop.
 
 ---

@@ -11,7 +11,7 @@
 
 **Source assessment:** [refactor-assessment-2026-06-12-001417.md](../refactor-assessments/refactor-assessment-2026-06-12-001417.md)
 
-**Continues:** [plan-refactor-assessment-2026-05-31.md](../completed-plans/plan-refactor-assessment-2026-05-31.md) (May plan; open items below re-evaluated against June data)
+**Continues:** [plan-refactor-assessment-2026-05-31.md](plan-refactor-assessment-2026-05-31.md) (May plan; open items below re-evaluated against June data)
 
 **Safety:** [docs/SAFETY.md](../../docs/SAFETY.md) invariants are non-negotiable during all refactors.
 
@@ -403,7 +403,7 @@ Manual (when GUI session available): configure wizard review step; one popup per
 ## Tracking
 
 - **TO_DO:** [dev-docs/TO_DO.md](../TO_DO.md) — Update refactor assessment follow-up item
-- **Supersedes:** [plan-refactor-assessment-2026-05-31.md](../completed-plans/plan-refactor-assessment-2026-05-31.md) (archived; open items merged into this plan)
+- **Supersedes:** [plan-refactor-assessment-2026-05-31.md](plan-refactor-assessment-2026-05-31.md) (archived; open items merged into this plan)
 - **Assessment record:** [refactor-assessment-2026-06-12-001417.md](../refactor-assessments/refactor-assessment-2026-06-12-001417.md)
 
 **Last updated:** 2026-06-12 (marked complete; post-refactor metrics; harness plan unblocked)

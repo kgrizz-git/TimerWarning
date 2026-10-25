@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Public docs:** Desktop Mode is described as supported, and Gaming Mode as experimental and opt-in, with the 2026-10-19 visibility result and the 2026-10-20 click and Enter result. The still-open Deck checks stay listed. Pause durations are 1, 2, 3, 5, 10, or 15 minutes (default 5), then a cooldown of 6, 8, 12, or 24 hours (default 24), measured from the last pause. The graphical schedule picker is documented as quarter-hour steps. Emergency stop text pairs Linux stop with disable, and macOS `bootout` with `disable`, and includes re-enable. Installed names and behavior are unchanged.
+- **Public docs:** Desktop Mode is described as supported, and Gaming Mode as experimental and opt-in, with the 2026-10-19 visibility result and the 2026-10-20 click and Enter result. The still-open Deck checks stay listed. Pause durations are 1, 2, 3, 5, 10, or 15 minutes (default 5), then a cooldown of 6, 8, 12, or 24 hours (default 24), measured from the last pause. The graphical schedule picker is documented as quarter-hour steps. Emergency stop text pairs Linux stop with disable, and macOS `bootout` with `disable`, and includes re-enable. Configure lock hours are described as tighten-only, and uninstall is described as available outside uninstall-block hours. macOS docs state that auto-close is forced at runtime and that the per-day cap is 16 hours. Installed names and behavior are unchanged.
 - **Gamescope overlay hit region:** Experimental Gaming Mode dialogs (warning, countdown respawn, and pause notice) are placed at the top-left of the nested `:0` canvas and are at least two thirds of that canvas tall, still full root width and still capped at the root height. The 2026-10-20 capture showed the cursor confined to roughly the top third while a short centered banner sat outside it. gamescope paints the overlay centered but draws the cursor offset by the window's position, so the window has to sit at 0,0. The zenity move uses `xdotool` under gamescope even when `wmctrl` is installed, since `wmctrl` cannot list windows there. Desktop Mode is unchanged. `STEAM_OVERLAY=1` and `STEAM_INPUT_FOCUS=1` stay as they are. Patch; the 16 h cap, popup watchdog, and escape hatch are unchanged. **Steam Deck verified 2026-10-20** (cursor reaches chrome; click works; Enter did not fire into Steam).
 - **Gaming Mode warning buttons (docs):** Document that button labels follow the dialog tool — zenity `--warning` has no Cancel (OK only, or OK + Pause); yad may show Cancel; kdialog may say Dismiss. A missing Cancel in Gaming Mode with zenity is expected. Prefer `DIALOG_TOOL=yad` for OK/Cancel-style chrome.
 
@@ -121,9 +121,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Phase 4 refactor (`config.sh`):** Merged `parse_lock_hours()` / `parse_uninstall_lock_hours()` into shared `_parse_config_hours_for_day()` with thin wrappers; preserved numeric-only API for configure lock hours and day-name support for uninstall lock hours. ~53 lines removed (864→811). Tests: `test-daily-caps.sh`, `test-lock-hours-phase2.sh`, `test-uninstall-lock-hours*.sh`, `test-24-7-prevention-additional-hours.sh`.
 
-- **Phase 1 refactor (`configure-input-features`):** Split feature getters into `lib/configure-input-feature-helpers.sh`, `configure-input-security.sh`, `configure-input-pause.sh`, `configure-input-dialog-tool.sh`; `configure-input-features.sh` is now a thin facade (~35 lines). Shared bool/list/text prompt helpers; behavior unchanged per `test-configure-partial-lock.sh`, `test-pause-feature.sh`, `test-dialog-tool-selection.sh`. Phase 0 baseline: [dev-docs/plans/phase-0-verification-2026-06-12.md](dev-docs/plans/phase-0-verification-2026-06-12.md).
+- **Phase 1 refactor (`configure-input-features`):** Split feature getters into `lib/configure-input-feature-helpers.sh`, `configure-input-security.sh`, `configure-input-pause.sh`, `configure-input-dialog-tool.sh`; `configure-input-features.sh` is now a thin facade (~35 lines). Shared bool/list/text prompt helpers; behavior unchanged per `test-configure-partial-lock.sh`, `test-pause-feature.sh`, `test-dialog-tool-selection.sh`. Phase 0 baseline: [dev-docs/plans/phase-0-verification-2026-06-12.md](dev-docs/completed-plans/phase-0-verification-2026-06-12.md).
 
-- **Refactor plan (2026-06-12):** Review pass on [dev-docs/plans/plan-refactor-assessment-2026-06-12.md](dev-docs/plans/plan-refactor-assessment-2026-06-12.md) — fixed popup-size module name, aligned `configure-display.sh` line targets with 900-line cap, added `test-daily-caps.sh` and concrete test names, documented indent metric, Phase 1c popup-getter follow-up, Phase 8 sequencing after config phases, facade-only sourcing guardrail. May plan moved to [dev-docs/completed-plans/](dev-docs/completed-plans/) (superseded archive).
+- **Refactor plan (2026-06-12):** Review pass on [dev-docs/plans/plan-refactor-assessment-2026-06-12.md](dev-docs/completed-plans/plan-refactor-assessment-2026-06-12.md) — fixed popup-size module name, aligned `configure-display.sh` line targets with 900-line cap, added `test-daily-caps.sh` and concrete test names, documented indent metric, Phase 1c popup-getter follow-up, Phase 8 sequencing after config phases, facade-only sourcing guardrail. May plan moved to [dev-docs/completed-plans/](dev-docs/completed-plans/) (superseded archive).
 
 ### Added
 
@@ -132,14 +132,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configurable pause cooldown and duration:** New `PAUSE_COOLDOWN_HOURS` config key (6, 8, 12, or 24 hours; default 24). Expanded `PAUSE_DURATION` allowlist to 1, 2, 3, 5, 10, and 15 minutes. Runtime cooldown uses `LAST_PAUSE_TIMESTAMP` in `.pause_state` with migration from legacy `LAST_PAUSE_DATE`-only files. Configure wizard option 10 prompts for enable, cooldown, and duration; partial-lock rejects shortening cooldown or increasing duration during lock hours. Status/manage show active, cooldown, or available states.
 
 - **Safety scan template:** Expanded `dev-docs/templates/safety-scan-template.md` — aligned with `docs/SAFETY.md` (per-day caps, partial lock, popup watchdog), scan tiers A/B/C, automated tooling (ShellCheck, Semgrep, Gitleaks/TruffleHog, git hooks, Dependabot when CI exists), and regression test matrix.
-- **Security automation:** `scripts/run-security-scan.sh`, `scripts/pre-commit-checks.sh` (ShellCheck + gitleaks on staged files), `.gitleaks.toml`, `.semgrep/sleep-warning.yml`, GitHub Actions [`.github/workflows/security.yml`](.github/workflows/security.yml), Dependabot for Actions [`.github/dependabot.yml`](.github/dependabot.yml). Docs: [docs/development/security-scanning.md](docs/development/security-scanning.md).
+- **Security automation:** `scripts/run-security-scan.sh`, `scripts/pre-commit-checks.sh` (ShellCheck + gitleaks on staged files), `.gitleaks.toml`, `.semgrep/sleep-warning.yml`, GitHub Actions [`.github/workflows/security.yml`](.github/workflows/security.yml), Dependabot for Actions [`.github/dependabot.yml`](.github/dependabot.yml). Docs: [docs/development/security-scanning.md](dev-docs/development/security-scanning.md).
 - **Security scan tuning:** Fixed `.gitleaks.toml` for gitleaks 8.30+ (`[[allowlists]]`); Semgrep uses project rules only (`p/bash` 404); ShellCheck CI scope excludes `tests/` and uses `-S error` on production scripts.
 
 - **Partial configure during lock hours (tighten-only):** When configure-block or config-file lock is active, `configure.sh` and **Configure** in `manage.sh` open the wizard in limited mode instead of exiting. Users may increase lockout (more frequent popups, longer min display, add-only hours, enable locks) but not weaken existing settings. `POPUP_AUTO_CLOSE` may be toggled freely. Saves still enforce per-day 16 h caps and weekly backstop; config writes temporarily unlock chmod-locked files when needed. New module `lib/configure-partial-lock.sh`; tests `tests/test-configure-partial-lock.sh`.
 
 ### Added
 
-- **Platform test matrix:** [docs/development/platform-test-matrix.md](docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
+- **Platform test matrix:** [docs/development/platform-test-matrix.md](dev-docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
 
 ### Changed
 
@@ -151,7 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Pause cooldown follow-ups:** Configure review summary shows pause enable/duration/cooldown; wizard cooldown copy clarifies timing is from activation click. Atomic write for retained pause-state fields; expanded pause/cooldown tests and corrected `write_config` parameter docs (16 positional args).
 
-- **Backlog:** Marked the 2026-05-24 safety/lockout audit complete in [dev-docs/TO_DO.md](dev-docs/TO_DO.md) (implementation was already shipped per [dev-docs/plans/plan-real-bugs-fix-2026-05-24.md](dev-docs/plans/plan-real-bugs-fix-2026-05-24.md)); Linux popup watchdog verification stays open as a separate item.
+- **Backlog:** Marked the 2026-05-24 safety/lockout audit complete in [dev-docs/TO_DO.md](dev-docs/TO_DO.md) (implementation was already shipped per [dev-docs/plans/plan-real-bugs-fix-2026-05-24.md](dev-docs/completed-plans/plan-real-bugs-fix-2026-05-24.md)); Linux popup watchdog verification stays open as a separate item.
 
 - **macOS configure wizard: menus/prompts share the tkinter daemon:** `show_list_dialog` now renders through the dialog daemon (new `configure_dialogs_darwin_list_ui.py`, daemon `list` op) instead of osascript `choose from list`. The main menu, every submenu, all true/false & yes/no-via-confirm prompts, and the weekly grid now run as one tkinter process on one root — consistent z-order, no per-prompt osascript spawn, and the daemon root is reused. Falls back to `choose from list` when tkinter is unavailable, `CONFIGURE_DARWIN_NO_DAEMON=1`, the daemon fails, or the window never maps (`shown=false`). Leaf alerts (info/error/question/text-entry) still use osascript. No menu-building code changed; the return contract (selected item text, non-zero on cancel) is unchanged.
 
@@ -220,7 +220,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configure wizard: `printf: 30PM: invalid number` on macOS:** `format_range_human()` parsed `11:30PM` with a naive `cut` on `:`, leaving `30PM` as the minute. It now uses `parse_time_token_to_24h_hm()` so 12-hour tokens from the macOS picker or config (e.g. `11:30PM-5:30AM`) format without shell errors. `normalize_time_range()` fallback also converts 12-hour parts instead of passing them through unchanged.
 - **macOS scheduled popup → notification only:** `configure-core.sh` defines `readonly DARWIN_MAX_MIN_DISPLAY_TIME`; `popup-safety.sh` tried to assign it again, aborting load of `popup_run_with_watchdog` so LaunchAgent runs fell back to a notification. Skip reassignment when the variable already exists.
 
-- **macOS weekday/weekend GUI configuration only applied to first day:** `ask_weekday_together`, `ask_weekend_together`, and `prompt_continue_day_flow` used `show_question_dialog` (osascript `display alert`), which on macOS 13+ appears behind the terminal after a tkinter window closes (z-order regression). The "same hours for all weekdays?" dialog was hidden, so users silently entered the per-day flow where the continuation prompt after Monday was also vulnerable. Fixed by using `show_list_dialog` (tkinter daemon / `choose from list`) on macOS for all three functions; Linux paths remain unchanged. Also hardened `local` declarations inside loops across `configure_weekdays_section`, `configure_weekends_section`, `configure_lock_hours_section`, and `configure_uninstall_lock_hours_section` to eliminate the nameref scoping anti-pattern. Docs: `dev-docs/weekday-gui-bug-assessment.md`, `dev-docs/weekday-gui-bug-fix-plan.md`.
+- **macOS weekday/weekend GUI configuration only applied to first day:** `ask_weekday_together`, `ask_weekend_together`, and `prompt_continue_day_flow` used `show_question_dialog` (osascript `display alert`), which on macOS 13+ appears behind the terminal after a tkinter window closes (z-order regression). The "same hours for all weekdays?" dialog was hidden, so users silently entered the per-day flow where the continuation prompt after Monday was also vulnerable. Fixed by using `show_list_dialog` (tkinter daemon / `choose from list`) on macOS for all three functions; Linux paths remain unchanged. Also hardened `local` declarations inside loops across `configure_weekdays_section`, `configure_weekends_section`, `configure_lock_hours_section`, and `configure_uninstall_lock_hours_section` to eliminate the nameref scoping anti-pattern. Docs: `dev-docs/weekday-gui-bug-assessment.md`, `dev-docs/plans/weekday-gui-bug-fix-plan.md`.
 
 - **Configure wizard: `printf: 01 00: invalid octal number`:** `format_ranges_human()` sets `IFS=','` before calling `format_range_human()`, so a `read` on space-separated `01 00` left the hour as `01 00`. Splitting now uses `_split_24h_hm_parts()` (parameter expansion, IFS-safe). `24hour_to_12hour()` also uses `10#` arithmetic for leading-zero hours.
 
@@ -228,7 +228,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Platform test matrix:** [docs/development/platform-test-matrix.md](docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
+- **Platform test matrix:** [docs/development/platform-test-matrix.md](dev-docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
 
 ### Changed — weekly-average lockout thresholds tightened (2026-05-24, evening pass)
 
@@ -273,7 +273,7 @@ The following bugs, identified in [dev-docs/code-assessments/bug-and-lockout-rev
 
 ### Added
 
-- **Platform test matrix:** [docs/development/platform-test-matrix.md](docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
+- **Platform test matrix:** [docs/development/platform-test-matrix.md](dev-docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
 
 ### Changed
 
@@ -282,11 +282,11 @@ The following bugs, identified in [dev-docs/code-assessments/bug-and-lockout-rev
 ### Added
 
 - **Bug-and-lockout audit (2026-05-24):** [dev-docs/code-assessments/bug-and-lockout-review-2026-05-24-203354.md](dev-docs/code-assessments/bug-and-lockout-review-2026-05-24-203354.md) — 35 findings across configure validation, popup display, scheduler, install/uninstall, and time math.
-- **Bug-fix plan derived from that audit:** [dev-docs/plans/plan-real-bugs-fix-2026-05-24.md](dev-docs/plans/plan-real-bugs-fix-2026-05-24.md) — five phases (helpers → lockout math → popup lifetime → escape hatches → UX → verify) with acceptance criteria and test matrix.
-- **Versioning guide:** [docs/development/versioning.md](docs/development/versioning.md) — semver bump rules, CHANGELOG workflow, release tagging; linked from [AGENTS.md](AGENTS.md) and [docs/index.md](docs/index.md).
+- **Bug-fix plan derived from that audit:** [dev-docs/plans/plan-real-bugs-fix-2026-05-24.md](dev-docs/completed-plans/plan-real-bugs-fix-2026-05-24.md) — five phases (helpers → lockout math → popup lifetime → escape hatches → UX → verify) with acceptance criteria and test matrix.
+- **Versioning guide:** [docs/development/versioning.md](dev-docs/development/versioning.md) — semver bump rules, CHANGELOG workflow, release tagging; linked from [AGENTS.md](AGENTS.md) and [docs/index.md](docs/index.md).
 - **`dev-docs/` organization:** [dev-docs/README.md](dev-docs/README.md) map, [dev-docs/TO_DO.md](dev-docs/TO_DO.md) priority queue; restructured [FUTURE_ENHANCEMENTS.md](dev-docs/FUTURE_ENHANCEMENTS.md) and [REMAINING_WORK_SUMMARY.md](dev-docs/REMAINING_WORK_SUMMARY.md); subfolders `plans/master/`, `plans/phases/`, `notes/`, `fixes/`, `alternatives/`; linked from [docs/index.md](docs/index.md).
-- **Harness engineering docs:** `docs/` system of record, [AGENTS.md](AGENTS.md) as agent map, [docs/harness-engineering.md](docs/harness-engineering.md) (OpenAI article patterns), architecture and agent-workflow pages.
-- **Safety discoverability:** [docs/SAFETY.md](docs/SAFETY.md) as #1 priority doc; [docs/safety-linux-macos-analysis.md](docs/safety-linux-macos-analysis.md) (Linux vs macOS gap analysis); README safety banner; always-on Cursor rules `safety-guardrails.mdc` and `harness-engineering.mdc`.
+- **Harness engineering docs:** `docs/` system of record, [AGENTS.md](AGENTS.md) as agent map, [docs/harness-engineering.md](dev-docs/harness-engineering.md) (OpenAI article patterns), architecture and agent-workflow pages.
+- **Safety discoverability:** [docs/SAFETY.md](docs/SAFETY.md) as #1 priority doc; [docs/safety-linux-macos-analysis.md](dev-docs/safety-linux-macos-analysis.md) (Linux vs macOS gap analysis); README safety banner; always-on Cursor rules `safety-guardrails.mdc` and `harness-engineering.mdc`.
 - **macOS support (MVP):** Install via `./install.sh` on macOS 13+ using a LaunchAgent (`com.sleep-warning`) and `osascript` warning dialogs with OK + Pause.
 - Platform abstraction: `lib/platform.sh`, `lib/service-config-{linux,darwin}.sh`, `lib/scheduler-platform.sh`.
 - Safety guardrails on macOS: popup watchdog (`lib/popup-safety.sh`), forced auto-close, capped min display time, duplicate-popup prevention.
@@ -297,7 +297,7 @@ The following bugs, identified in [dev-docs/code-assessments/bug-and-lockout-rev
 
 ### Added
 
-- **Platform test matrix:** [docs/development/platform-test-matrix.md](docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
+- **Platform test matrix:** [docs/development/platform-test-matrix.md](dev-docs/development/platform-test-matrix.md) — macOS vs Linux, headless vs GUI, remediation status for pre-existing test failures. Linked from `docs/index.md`, `testing.md`, `tests/README.md`, `AGENTS.md`.
 
 ### Changed
 

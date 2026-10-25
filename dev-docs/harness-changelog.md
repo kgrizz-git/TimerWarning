@@ -5,9 +5,9 @@ Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANG
 ## 2026-10-25 — Publication Phase 3: stubs removed, completed plans archived
 
 - Removed all `Moved` redirect stubs under `docs/` and `dev-docs/CONFIGURE_GUI_FLOW.md`. Live docs already pointed at `dev-docs/`; `docs/index.md`, `canonical-vs-archive.md`, and `scripts/check-doc-drift.sh` updated together.
-- Moved the eight tracked `.cursor/plans/` drafts to `dev-docs/completed-plans/` (pure renames) after retargeting inbound links. Verified the osascript `activate` throttle is shipped in code; only manual z-order QA remains ([TO_DO smoke](../TO_DO.md#smoke-tests)).
-- Archived ten completed/superseded dev-docs plans with banners (percentage-size, phase-0, Feb + June refactor, pause, harness, real-bugs, gamescope click-through, extend-24/7, 16b status display, weekday fix plan). Assessment stays in place (referenced by `lib/configure-dialogs-darwin.sh`).
-- New [TO_DO smoke section](../TO_DO.md#smoke-tests) collects the manual-only remainders. Kept active: additional-hours proposal, popup-frequency review, safety-scan integration test, SteamOS overlay verification. No archives deleted; retention scripts previewed dry-run only.
+- Moved the eight tracked `.cursor/plans/` drafts to `dev-docs/completed-plans/` after retargeting inbound and repository-relative links. Verified the osascript `activate` throttle is shipped in code; only manual z-order QA remains ([TO_DO smoke](TO_DO.md#smoke-tests)).
+- Archived ten completed/superseded dev-docs plans with banners (percentage-size, phase-0, Feb + June refactor, pause, harness, real-bugs, gamescope click-through, extend-24/7, 16b status display). The weekday plan remains active under `plans/` for unimplemented systematic dialog hardening. Assessment stays in place (referenced by `lib/configure-dialogs-darwin.sh`).
+- New [TO_DO smoke section](../TO_DO.md#smoke-tests) collects the manual-only remainders. Kept active: weekday dialog hardening, additional-hours proposal, popup-frequency review, safety-scan integration test, SteamOS overlay verification. No archives deleted; retention scripts previewed dry-run only.
 
 ## 2026-10-24 — Publication docs, rename deferred
 

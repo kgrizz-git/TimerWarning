@@ -1,7 +1,7 @@
 # Stream F final review — gamescope top-left + taller overlay (Claude Opus 5.5, 2026-10-20)
 
 **Scope:** commit `93604ac` (Stream F: gamescope top-left + height ≥ ½ root) against its parent `52d81b3`, plus the follow-up fixes from this review.
-**Plan:** [plan-gamescope-overlay-click-through-2026-10-19.md](../plans/plan-gamescope-overlay-click-through-2026-10-19.md) (On-device debug capture 2026-10-20; Stream F spike 4).
+**Plan:** [plan-gamescope-overlay-click-through-2026-10-19.md](../completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md) (On-device debug capture 2026-10-20; Stream F spike 4).
 **Verdict:** **Approve with fixes (applied).** On-device click retest still open.
 
 ## What 93604ac does

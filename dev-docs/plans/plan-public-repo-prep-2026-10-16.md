@@ -153,9 +153,9 @@ Done 2026-10-25 on `chore/public-repo-prep-phase-1`. No runtime change.
    stubs under `docs/` (architecture, development, harness, agent-workflow,
    core-beliefs, safety analysis, references, superpowers) and
    `dev-docs/CONFIGURE_GUI_FLOW.md` removed. Live docs already pointed at
-   `dev-docs/`; only history (CHANGELOG, dated assessments/scans) still cites
-   the old paths, plus one live pointer in the safety-scan plan retargeted to
-   `dev-docs/`. `docs/index.md`, `canonical-vs-archive.md`, and the drift
+   `dev-docs/`; historical Markdown links (CHANGELOG, dated assessments/scans) now also
+   resolve to their canonical destinations. The live safety-scan plan pointer
+   was retargeted to `dev-docs/`. `docs/index.md`, `canonical-vs-archive.md`, and the drift
    script's exclusion list updated together.
 3. Add `*.bundle` and local `.cursor/plans/` to `.gitignore` as appropriate.
    `*.bundle` and `.cursor/plans/` were added on 2026-10-24. Eight plans were
@@ -184,7 +184,9 @@ Done 2026-10-25 on `chore/public-repo-prep-phase-1`. No runtime change.
 5. Review the old weekday-GUI notes and tracked `.cursor/plans/` files before
    moving them to completed plans or assessments. Repair relative links and
    links from AGENTS, SAFETY, developer README, and TO_DO. Done 2026-10-25:
-   the weekday fix plan is archived; its assessment stays in place because
+   review correction: the [weekday fix plan](weekday-gui-bug-fix-plan.md) remains active
+   for Phase 2 systematic dialog hardening; only the targeted fixes shipped.
+   Its assessment stays in place because
    `lib/configure-dialogs-darwin.sh` references it.
 6. Improve stale-plan detection for bolded completion statuses, with focused
    tests if changing the script. Preview retention tools before any `--apply`;
@@ -200,7 +202,7 @@ Done 2026-10-25 on `chore/public-repo-prep-phase-1`. No runtime change.
 
 **Acceptance:** strict doc/stale-plan checks pass, archived work is traceable via
 banners, unresolved work (additional-hours proposal, popup-frequency review,
-safety-scan integration test, SteamOS verification, smoke list) remains visible,
+safety-scan integration test, weekday dialog hardening, SteamOS verification, smoke list) remains visible,
 root/docs are coherent, no safety-doc loss.
 
 ## Phase 4 — Sanitize history in a separate publication clone

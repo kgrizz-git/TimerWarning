@@ -1,6 +1,6 @@
 # Stream E implementation review (Claude Opus 5.5, 2026-10-20)
 
-**Scope:** commit `2ae2f71` (`feat(gamescope): log overlay focus behind a default-off flag`) on `chore/public-repo-prep`, checked against Stream E in [plan-gamescope-overlay-click-through-2026-10-19.md](../plans/plan-gamescope-overlay-click-through-2026-10-19.md) and the Phase 2 plan reviews ([Grok 4.7](gamescope-clickthrough-phase2-plan-review-grok-2026-10-20.md), [Opus 5.5](gamescope-clickthrough-phase2-plan-review-opus-2026-10-20.md)).
+**Scope:** commit `2ae2f71` (`feat(gamescope): log overlay focus behind a default-off flag`) on `chore/public-repo-prep`, checked against Stream E in [plan-gamescope-overlay-click-through-2026-10-19.md](../completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md) and the Phase 2 plan reviews ([Grok 4.7](gamescope-clickthrough-phase2-plan-review-grok-2026-10-20.md), [Opus 5.5](gamescope-clickthrough-phase2-plan-review-opus-2026-10-20.md)).
 
 **Verdict:** approve-with-fixes. Two small log-only fixes applied in the follow-up commit. No safety invariant touched.
 

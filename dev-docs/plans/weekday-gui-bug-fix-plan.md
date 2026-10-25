@@ -1,11 +1,13 @@
 # Weekday GUI Bug — Detailed Fix Plan
 
-> **Archived 2026-10-25.** Fix shipped (macOS `show_list_dialog` for the
-> weekday/weekend together prompts and continuation prompt, plus loop hardening;
-> see CHANGELOG). Diagnosis record kept at
-> [`../weekday-gui-bug-assessment.md`](../weekday-gui-bug-assessment.md), which
-> stays in place because `lib/configure-dialogs-darwin.sh` references it.
-> Historical record.
+**Status:** Partially implemented; Phase 2 systematic dialog hardening remains open.
+
+The weekday/weekend together prompts, continuation prompt, and loop hardening
+shipped (see CHANGELOG). Phase 2.2's systematic macOS question/info override
+has not shipped: `lib/configure-dialogs-darwin.sh` still uses osascript
+`display alert` for those functions. Keep this plan active for the remaining
+caller audit and hardening decision. The z-order warning comment (Phase 2.3)
+is present. Diagnosis: [weekday-gui-bug-assessment.md](../weekday-gui-bug-assessment.md).
 
 ## Overview
 

@@ -33,6 +33,8 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 - [ ] **#10** — Audio alerts → [enhancement-10](enhancements/enhancement-10-audio-alerts.md)
 - [x] **Configurable pause cooldown and duration** — Pause disabled, or cooldown every N hours (N = 6, 8, 12, 24; default 24); pause length 1/2/3/5/10/15 min → [plan](completed-plans/plan-configurable-pause-interval.md) (scope: [enhancement-21 pause](enhancements/enhancement-21/enhancement-21-pause-scope-clarification.md))
 
+- [ ] **macOS dialog hardening** — Weekday/continuation fixes shipped; Phase 2 caller audit and systematic question/info dialog hardening remain open → [active plan](plans/weekday-gui-bug-fix-plan.md).
+
 ## Testing (high impact)
 
 - [ ] **SteamOS Gaming Mode** — Full validation with full-screen games → [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md), [phase 4 plan](plans/phases/plan-phase-4-testing.md)
