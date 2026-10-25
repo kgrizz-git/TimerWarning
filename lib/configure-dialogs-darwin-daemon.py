@@ -115,6 +115,9 @@ def main() -> None:
 
     _respond({"ok": True, "ready": True})
     _warm_imports()
+    import configure_dialogs_darwin_window as _cd_window
+
+    _cd_window.apply_app_icon(root)
 
     for line in sys.stdin:
         line = line.strip()

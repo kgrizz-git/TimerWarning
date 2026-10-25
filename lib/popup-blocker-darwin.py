@@ -187,6 +187,22 @@ def _boost_window_level(title: str) -> None:
 
 # ── main blocker ──────────────────────────────────────────────────────────────
 
+def _apply_app_icon(root: "Any") -> None:
+    """Set the TimerWarning Dock icon; keep the default when the file is missing."""
+    import tkinter as tk
+
+    here = Path(__file__).resolve().parent
+    for candidate in (here / "timerwarning-icon.png", here.parent / "assets" / "icon-256.png"):
+        if candidate.is_file():
+            try:
+                image = tk.PhotoImage(master=root, file=str(candidate))
+                root.iconphoto(True, image)
+                setattr(root, "_sw_app_icon", image)  # keep a reference alive
+            except tk.TclError:
+                pass
+            return
+
+
 def run_blocker(payload: dict[str, Any]) -> int:
     """
     Build and run the fullscreen tkinter blocking popup.
@@ -208,6 +224,7 @@ def run_blocker(payload: dict[str, Any]) -> int:
     # ── root window ───────────────────────────────────────────────────────────
     root = tk.Tk()
     root.title(title)
+    _apply_app_icon(root)
     root.configure(bg=_BG_OVERLAY)
 
     screen_w, screen_h = _screen_pixels(root)

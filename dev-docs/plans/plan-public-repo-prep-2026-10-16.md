@@ -4,7 +4,7 @@
 
 **Revised:** 2026-10-25
 
-**Status:** Phases 1–4 applied. This repository is the sanitized private staging copy. It is not public. Phase 5 settings review and the public-visibility decision remain open.
+**Status:** Phases 1–4 applied. This repository is the sanitized private staging copy. It is not public yet. On 2026-10-25 the private destination's CI was green, the full-history Gitleaks scan was clean, and the tracked file list matched the source. Branch protection needs the repository to be public on the current plan. The public-visibility decision remains open.
 
 **Working branch:** `chore/public-repo-prep-phase-1`, based on `main` at `86cfc7a`.
 
@@ -105,12 +105,13 @@ repository remain in Phase 5. Per-file copyright headers were not added.
   post-install donation message from `lib/install-linux.sh`. **Deferred by the
   owner on 2026-10-24.** Leave the existing PayPal links in place for now. Do not
   add donation verification or GitHub Sponsors as part of this preparation.
-- [ ] Use `TimerWarning (Sleep Warning System for Linux & macOS)` and the planned
+- [x] Use `TimerWarning (Sleep Warning System for Linux & macOS)` and the planned
   `kgrizz-git/TimerWarning` clone URL/directory in installation examples. **Deferred
   by the owner on 2026-10-24 to the first commit on the new private repository,
   before that repository is made public.** Leave names, clone URLs, and installed
   identifiers unchanged in this development repository. Do not rename installed
   `sleep-warning*` executables, config paths, or services in either place.
+  Done in `f7a22a9`, the first commit on the new private repository.
 - [x] State **Desktop Mode supported; Gaming Mode experimental, opt-in**. Cite
   the Oct 19–20 Deck results accurately. Remove both the old “does not work” claim
   and unqualified claims that no hardware test has happened. Keep remaining
@@ -253,6 +254,8 @@ changes or forbidden reachable material, reproducible private audit record.
    and no installed-config or live-service changes for automation.
 5. Present the exact destination, sanitized SHA, scan/test evidence, and visibility
    change for owner approval. Make the repository public only after that approval.
+   Branch protection cannot be set while the repository is private on the free
+   plan (GitHub returns 403), so configure it right after the visibility change.
 6. Verify public clone/access and public metadata. Archive this plan under
    `dev-docs/completed-plans/` after final status and any residual work are recorded.
    Keep source `LinuxTimerWarning` private unless separately directed.

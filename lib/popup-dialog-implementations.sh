@@ -20,6 +20,42 @@
 #   - pid management: cleanup_popup_pid (from popup-pid-management.sh)
 ###############################################################################
 
+# Resolve the app icon: installed copy beside this module, else the repo asset.
+# Outputs: icon path on stdout, or nothing when no icon file exists.
+_popup_icon_path() {
+    local here
+    here="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || return 0
+    if [ -f "${here}/timerwarning-icon.png" ]; then
+        printf '%s' "${here}/timerwarning-icon.png"
+    elif [ -f "${here}/../assets/icon-256.png" ]; then
+        printf '%s' "${here}/../assets/icon-256.png"
+    fi
+}
+
+# Build window-icon arguments for a dialog tool.
+# Only adds the flag when the icon exists and the tool's help lists the option,
+# so an older or newer toolkit never fails to start over an unknown flag.
+# Parameters: $1 dialog tool (yad | zenity | kdialog).
+# Outputs: sets `_dlg_icon` array in the caller's scope (may be empty).
+_popup_icon_args() {
+    _dlg_icon=()
+    local icon
+    icon="$(_popup_icon_path)"
+    [ -n "${icon}" ] || return 0
+    case "$1" in
+        yad)
+            yad --help-all 2>/dev/null | grep -q -- '--window-icon' && _dlg_icon=(--window-icon="${icon}")
+            ;;
+        zenity)
+            zenity --help-general 2>/dev/null | grep -q -- '--window-icon' && _dlg_icon=(--window-icon="${icon}")
+            ;;
+        kdialog)
+            kdialog --help-all 2>/dev/null | grep -q -- '--icon' && _dlg_icon=(--icon "${icon}")
+            ;;
+    esac
+    return 0
+}
+
 # Spawn a warning dialog using the currently selected dialog tool.
 #
 # Parameters:
@@ -42,6 +78,9 @@ _popup_spawn_warning_dialog() {
         _dlg_prefix=(env -u WAYLAND_DISPLAY -u GDK_SCALE -u GDK_DPI_SCALE -u QT_SCALE_FACTOR GDK_BACKEND=x11 QT_QPA_PLATFORM=xcb)
     fi
 
+    local -a _dlg_icon=()
+    _popup_icon_args "${dialog_tool}"
+
     case "${dialog_tool}" in
         zenity)
             # zenity doesn't support position natively, only size
@@ -54,7 +93,7 @@ _popup_spawn_warning_dialog() {
             if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                 # Add pause button based on configured duration
                 local pause_button_label="Pause ${pause_duration} min"
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity --warning \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity ${_dlg_icon[@]+"${_dlg_icon[@]}"} --warning \
                     --title="${window_title}" \
                     --text="${popup_text}" \
                     --modal \
@@ -65,7 +104,7 @@ _popup_spawn_warning_dialog() {
                 popup_pid=$!
             else
                 # No pause button
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity --warning \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity ${_dlg_icon[@]+"${_dlg_icon[@]}"} --warning \
                     --title="${window_title}" \
                     --text="${popup_text}" \
                     --modal \
@@ -91,7 +130,7 @@ _popup_spawn_warning_dialog() {
                 # Use --center flag for proper centering
                 if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                     # Add pause button based on configured duration
-                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --warning \
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad ${_dlg_icon[@]+"${_dlg_icon[@]}"} --warning \
                         --title="${window_title}" \
                         --text="${popup_text}" \
                         --modal \
@@ -106,7 +145,7 @@ _popup_spawn_warning_dialog() {
                     popup_pid=$!
                 else
                     # No pause button
-                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --warning \
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad ${_dlg_icon[@]+"${_dlg_icon[@]}"} --warning \
                         --title="${window_title}" \
                         --text="${popup_text}" \
                         --modal \
@@ -128,7 +167,7 @@ _popup_spawn_warning_dialog() {
 
                 if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                     # Add pause button based on configured duration
-                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --warning \
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad ${_dlg_icon[@]+"${_dlg_icon[@]}"} --warning \
                         --title="${window_title}" \
                         --text="${popup_text}" \
                         --modal \
@@ -144,7 +183,7 @@ _popup_spawn_warning_dialog() {
                     popup_pid=$!
                 else
                     # No pause button
-                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --warning \
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad ${_dlg_icon[@]+"${_dlg_icon[@]}"} --warning \
                         --title="${window_title}" \
                         --text="${popup_text}" \
                         --modal \
@@ -173,13 +212,13 @@ _popup_spawn_warning_dialog() {
                 local _kd_pause_label="Pause ${pause_duration} min"
                 # --warningyesno: Yes button = left, No button = right
                 # kdialog returns 0 for Yes (Pause), 1 for No (Dismiss)
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${window_title}" \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog ${_dlg_icon[@]+"${_dlg_icon[@]}"} --title "${window_title}" \
                     --warningyesno "${popup_text}" \
                     --yes-label "${_kd_pause_label}" \
                     --no-label "Dismiss" \
                     2>/dev/null &
             else
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${window_title}" \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog ${_dlg_icon[@]+"${_dlg_icon[@]}"} --title "${window_title}" \
                     --sorry "${popup_text}" \
                     2>/dev/null &
             fi
@@ -343,7 +382,7 @@ _popup_show_pause_activated_notice() {
         kdialog)
             # kdialog msgbox has no reliable width flag on SteamOS; atoms still applied.
             if [ "${env_type:-}" = "gamescope" ]; then
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${title}" --msgbox "${text}" 2>/dev/null &
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog ${_dlg_icon[@]+"${_dlg_icon[@]}"} --title "${title}" --msgbox "${text}" 2>/dev/null &
             else
                 ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --passivepopup \
                     "${text}" "${_pause_info_timeout}" 2>/dev/null &
