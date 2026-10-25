@@ -1,4 +1,4 @@
-# Linux Sleep Warning System
+# TimerWarning (Sleep Warning System for Linux & macOS)
 
 A monitoring system that displays interactive warning popups when your computer is used during configurable restricted hours (e.g., late night/early morning). **Linux:** systemd timer. **macOS:** LaunchAgent — see [user-docs/MACOS.md](user-docs/MACOS.md).
 
@@ -61,7 +61,7 @@ If you find this software useful and would like to support future development, d
 
 [Donate via PayPal](https://www.paypal.com/donate/?business=FMVBCJ2CT7L7S&no_recurring=0&item_name=Making+software+I+hope+people+find+useful.+Thank+you+for+supporting+future+development.&currency_code=USD)
 
-Thank you for using Linux Sleep Warning System!
+Thank you for using TimerWarning!
 
 ## Quick Start
 
@@ -89,16 +89,16 @@ Thank you for using Linux Sleep Warning System!
 
    **Option A: Clone with Git** (recommended for easy updates):
    ```bash
-   git clone https://github.com/kgrizz-git/LinuxTimerWarning.git
-   cd LinuxTimerWarning
+   git clone https://github.com/kgrizz-git/TimerWarning.git
+   cd TimerWarning
    ```
    *Note: With Git, you can easily update to newer versions later by running `git pull` in the repository directory.*
 
    **Option B: Download ZIP file**:
-   - Go to the GitHub repository: https://github.com/kgrizz-git/LinuxTimerWarning
+   - Go to the GitHub repository: https://github.com/kgrizz-git/TimerWarning
    - Click the green "Code" button, then select "Download ZIP"
    - Extract the ZIP file to a location of your choice
-   - Open a terminal in the extracted `LinuxTimerWarning` directory
+   - Open a terminal in the extracted `TimerWarning` directory
 
 2. **Install the system** (recommended first step):
 ```bash

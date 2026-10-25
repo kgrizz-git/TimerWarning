@@ -1,4 +1,4 @@
-# Copilot instructions — LinuxTimerWarning
+# Copilot instructions — TimerWarning
 
 For the full agent guide see [AGENTS.md](../AGENTS.md), [dev-docs/README.md](../dev-docs/README.md), and [docs/SAFETY.md](../docs/SAFETY.md).
 
@@ -17,7 +17,7 @@ When running it, use **all three**:
 2. controlled stdin — `</dev/null` (clean immediate exit) or finite valid input,
 3. bounded output (pipe to `head`, capture small, don't redirect to an unbounded file).
 
-Then clean up: `pkill -f LinuxTimerWarning/configure.sh` and delete any temp output.
+Then clean up: `pkill -f TimerWarning/configure.sh` and delete any temp output.
 **Never** `./configure.sh ... > out.txt 2>&1 &` and walk away.
 
 Safe example: `printf '13\n' | timeout 15 ./configure.sh --text 2>&1 | head -200`

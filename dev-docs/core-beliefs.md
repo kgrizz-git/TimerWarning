@@ -1,6 +1,6 @@
 # Core beliefs
 
-Principles for humans and agents working on Linux Sleep Warning System.
+Principles for humans and agents working on TimerWarning (Sleep Warning System for Linux & macOS).
 
 ## 1. Safety before features
 

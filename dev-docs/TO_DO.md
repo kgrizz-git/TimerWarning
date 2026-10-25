@@ -48,7 +48,7 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 
 ## Documentation and release
 
-- [ ] **Public repository preparation — next: review and merge, then publication export** — [Publication plan](plans/plan-public-repo-prep-2026-10-16.md) Phase 3 repository and documentation cleanup is done in the working tree (redirect stubs removed, completed plans archived with smoke items below, Cursor drafts archived). Public renaming waits for the first commit on the new private repository. PayPal removal stays deferred. History sanitization and publication are later phases.
+- [ ] **Public repository preparation — next: private staging checks, then an explicit public-visibility decision** — [Publication plan](plans/plan-public-repo-prep-2026-10-16.md). History sanitization and the TimerWarning installation-name commit are in this repository. PayPal removal stays deferred. Do not make the repository public without a separate approval.
 - [ ] **Donation cleanup — deferred 2026-10-24** — Leave existing PayPal links in place until the owner reopens this. Do not add donation integrations as part of publication preparation. Spec: [#27](enhancements/enhancement-27-paypal-donation-links.md).
 - [ ] **SteamOS locale docs** — User guide section (Nix + manual paths); do not automate `locale-gen` in install.sh → [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#documentation-work)
 

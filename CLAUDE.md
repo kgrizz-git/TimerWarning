@@ -1,4 +1,4 @@
-# CLAUDE.md — agent guidance for LinuxTimerWarning
+# CLAUDE.md — agent guidance for TimerWarning
 
 Full agent map and safety docs: @AGENTS.md (the canonical guide; this file adds
 the operational warning below plus a brief project shape).
@@ -28,7 +28,7 @@ Example (safe): `printf '13\n' | timeout 15 ./configure.sh --text 2>&1 | head -2
 (`./configure.sh ... > out.txt 2>&1 &`). If you must background, add `timeout`,
 `</dev/null`, and check/kill it before ending your turn.
 
-**After driving it, clean up**: `pkill -f LinuxTimerWarning/configure.sh` and remove
+**After driving it, clean up**: `pkill -f TimerWarning/configure.sh` and remove
 any temp output files. Don't leave runaway processes between sessions.
 
 The interactive read loops are being hardened to exit on EOF instead of spinning

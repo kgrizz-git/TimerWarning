@@ -6,7 +6,7 @@ Thanks for helping improve the Sleep Warning System. This repo is built for huma
 
 ```bash
 git clone <repo-url>
-cd LinuxTimerWarning
+cd TimerWarning
 
 # One-time: repo git hooks (pre-commit ShellCheck + gitleaks on staged files)
 ./scripts/install-git-hooks.sh

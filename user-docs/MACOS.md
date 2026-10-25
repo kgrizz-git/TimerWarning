@@ -2,13 +2,13 @@
 
 > **Safety:** Read [**docs/SAFETY.md**](../docs/SAFETY.md) before install or development. If popups will not dismiss: `launchctl bootout gui/$(id -u)/com.sleep-warning` (details in [Troubleshooting](#troubleshooting-playbook) below).
 
-Linux Sleep Warning System also runs on **macOS 13 (Ventura)** and later using a per-user **LaunchAgent** and **osascript** dialogs.
+TimerWarning (Sleep Warning System for Linux & macOS) also runs on **macOS 13 (Ventura)** and later using a per-user **LaunchAgent** and **osascript** dialogs.
 
 ## Installation
 
 ```bash
-git clone https://github.com/kgrizz-git/LinuxTimerWarning.git
-cd LinuxTimerWarning
+git clone https://github.com/kgrizz-git/TimerWarning.git
+cd TimerWarning
 ./install.sh
 ```
 
@@ -16,8 +16,8 @@ Requirements: `bash` **4+** (via Homebrew on macOS — system `/bin/bash` is 3.2
 
 ```bash
 brew install bash   # if not already installed
-git clone https://github.com/kgrizz-git/LinuxTimerWarning.git
-cd LinuxTimerWarning
+git clone https://github.com/kgrizz-git/TimerWarning.git
+cd TimerWarning
 ./install.sh
 ```
 

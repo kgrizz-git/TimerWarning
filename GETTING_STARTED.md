@@ -1,4 +1,4 @@
-# Getting Started with Linux Sleep Warning System
+# Getting Started with TimerWarning (Sleep Warning System for Linux & macOS)
 
 This guide will help you get the Sleep Warning System up and running in just a few minutes. If you're new to Linux or systemd services, don't worry - we'll walk you through everything step by step.
 
@@ -46,15 +46,15 @@ Choose one of these methods:
 
 **Option A: Clone with Git** (recommended for easy updates):
 ```bash
-git clone https://github.com/kgrizz-git/LinuxTimerWarning.git
-cd LinuxTimerWarning
+git clone https://github.com/kgrizz-git/TimerWarning.git
+cd TimerWarning
 ```
 
 **Option B: Download ZIP file:**
 1. Go to the GitHub repository
 2. Click the green "Code" button, then select "Download ZIP"
 3. Extract the ZIP file to a location of your choice
-4. Open a terminal in the extracted `LinuxTimerWarning` directory
+4. Open a terminal in the extracted `TimerWarning` directory
 
 ### Step 2: Run the Installation Script
 
@@ -363,7 +363,7 @@ If you find this software useful and would like to support future development, d
 
 [Donate via PayPal](https://www.paypal.com/donate/?business=FMVBCJ2CT7L7S&no_recurring=0&item_name=Making+software+I+hope+people+find+useful.+Thank+you+for+supporting+future+development.&currency_code=USD)
 
-Thank you for using Linux Sleep Warning System!
+Thank you for using TimerWarning!
 
 ## Getting Help
 

@@ -4,7 +4,7 @@
 
 **Revised:** 2026-10-25
 
-**Status:** Phases 1–3 applied on 2026-10-24/25; Phases 4–5 remain open.
+**Status:** Phases 1–4 applied. This repository is the sanitized private staging copy. It is not public. Phase 5 settings review and the public-visibility decision remain open.
 
 **Working branch:** `chore/public-repo-prep-phase-1`, based on `main` at `86cfc7a`.
 
@@ -27,7 +27,7 @@ was finished. The existing `kgrizz-git/LinuxTimerWarning` repository is still pr
 | License | Apache License 2.0 with the Commons Clause, applied 2026-10-24 in root `LICENSE`. Source-available, not OSI open source |
 | Donation removal | PayPal links remain in README, GETTING_STARTED, and the Linux installer |
 | Branding and docs | Old clone URLs, root summary, redirects, and completed-plan backlog remain |
-| History sanitization / destination | Not performed / not created by this plan |
+| History sanitization / destination | Sanitized history is this repository. Source `LinuxTimerWarning` `06dbdbc` was the unsanitized base. PayPal links remain. |
 
 This work prepares licensing, documentation, repository contents, and a sanitized
 publication copy. Runtime enhancements and broad new hardware certification are
@@ -274,10 +274,7 @@ Never run mode-detection tests against real HOME or edit the installed config.
 For each slice, report implemented, reviewed, committed, pushed, PR-submitted,
 CI-green, and merged states separately. Branch cleanup is not release completion.
 
-**Next action:** Parent review of the Phase 3 working tree on
-`chore/public-repo-prep-phase-1`, then commit, PR, and merge into source `main`
-(per AGENTS.md, the parent agent reviews and commits). Phase 4 (isolated
-publication export) starts only after that merge. Public renaming waits for the
-first commit on the new private repository. PayPal removal stays deferred. This
-work does not rewrite history, create the destination, or change repository
-visibility.
+**Next action:** Review destination CI and repository settings. Make this
+repository public only after a separate owner approval. PayPal removal stays
+deferred. Do not rewrite this history again, and do not change the private
+source repository's history.
