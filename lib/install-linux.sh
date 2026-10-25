@@ -381,6 +381,17 @@ EOF
     print_success "Timer file generated (run interval: ${run_interval} min; popup frequency: ${popup_freq} min)"
 }
 
+# Copy the combined Apache 2.0 and Commons Clause license beside installed libraries.
+# Inputs: SCRIPT_DIR (repository root), LIB_DIR (destination). Exits 1 when LICENSE is missing.
+install_copy_license() {
+    if [ ! -f "$SCRIPT_DIR/LICENSE" ]; then
+        print_error "LICENSE not found next to the installer; refusing to install without the copyright notice"
+        exit 1
+    fi
+    cp "$SCRIPT_DIR/LICENSE" "$LIB_DIR/LICENSE"
+    print_success "License notice installed"
+}
+
 # Function to install files
 install_files() {
     print_info "Installing files..."
@@ -408,6 +419,7 @@ install_files() {
             chmod +x "$LIB_DIR"/*.py 2>/dev/null || true
         fi
         print_success "Library modules installed (${module_count} modules)"
+        install_copy_license
     else
         print_error "Library directory not found"
         exit 1
@@ -620,6 +632,7 @@ print_summary() {
     echo "  - Configuration: ${CONFIG_DIR}/config/sleep-warning.conf"
     echo "  - Systemd service: $SYSTEMD_USER_DIR/sleep-warning.service"
     echo "  - Systemd timer: $SYSTEMD_USER_DIR/sleep-warning.timer"
+    echo "  - License: $LIB_DIR/LICENSE"
     echo ""
     echo "Next steps:"
     echo "  1. Configure restricted hours (recommended):"

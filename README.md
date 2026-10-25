@@ -351,5 +351,5 @@ TimerWarning is source-available under the [Apache License 2.0](LICENSE) with th
 
 You may use, modify, and redistribute this software, including for a company's own internal use, if you follow [`LICENSE`](LICENSE). You may not Sell it. The Commons Clause defines Sell as providing the software to third parties, for a fee or other consideration (including fees for hosting or consulting/support services related to the software), as a product or service whose value derives, entirely or substantially, from the functionality of the software.
 
-Keep this copyright notice, the Commons Clause, and the Apache License with every copy. The software is provided as-is, without warranty. [`LICENSE`](LICENSE) is the full terms.
+Keep this copyright notice, the Commons Clause, and the Apache License with every copy. Installation copies `LICENSE` to `~/.local/lib/sleep-warning/LICENSE`. The software is provided as-is, without warranty. [`LICENSE`](LICENSE) is the full terms.
 
