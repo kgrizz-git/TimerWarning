@@ -41,7 +41,8 @@ separate work. Preserve the three safety invariants and the verified Deck geomet
   history rewriting only in a disposable, separate export clone.
 - Create the destination **private**, publish only the reviewed export `main`,
   verify its CI/settings, and treat making it public as a separate final step.
-- Remove the existing PayPal donation links and historical donation identifier.
+- PayPal donation links stay until the owner reopens removal (deferred 2026-10-24).
+  Do not add donation verification or GitHub Sponsors during this preparation.
 - Public author identity for the owner's commits:
   `kgrizz-git <216068303+kgrizz-git@users.noreply.github.com>`. Recheck local commit
   identity before new commits; do not assume global Git configuration is unchanged.
@@ -101,41 +102,59 @@ repository remain in Phase 5. Per-file copyright headers were not added.
 ## Phase 2 — Public-facing docs, branding, and donation removal
 
 - [ ] Remove donation sections from `README.md` and `GETTING_STARTED.md`, and the
-  post-install donation message from `lib/install-linux.sh`. Reconcile the PayPal
-  enhancement spec and TO_DO; archive obsolete requests rather than implementing
-  donation verification or Sponsors as part of this preparation.
+  post-install donation message from `lib/install-linux.sh`. **Deferred by the
+  owner on 2026-10-24.** Leave the existing PayPal links in place for now. Do not
+  add donation verification or GitHub Sponsors as part of this preparation.
 - [ ] Use `TimerWarning (Sleep Warning System for Linux & macOS)` and the planned
-  `kgrizz-git/TimerWarning` clone URL/directory in installation examples. Update
-  references in README, GETTING_STARTED, user docs, contribution guides,
-  `CLAUDE.md`, `.github/copilot-instructions.md`, and Cursor rules as applicable.
-  Do not rename installed `sleep-warning*` executables, config paths, or services.
-- [ ] State **Desktop Mode supported; Gaming Mode experimental, opt-in**. Cite
+  `kgrizz-git/TimerWarning` clone URL/directory in installation examples. **Deferred
+  by the owner on 2026-10-24 to the first commit on the new private repository,
+  before that repository is made public.** Leave names, clone URLs, and installed
+  identifiers unchanged in this development repository. Do not rename installed
+  `sleep-warning*` executables, config paths, or services in either place.
+- [x] State **Desktop Mode supported; Gaming Mode experimental, opt-in**. Cite
   the Oct 19–20 Deck results accurately. Remove both the old “does not work” claim
   and unqualified claims that no hardware test has happened. Keep remaining
   manual checks visible: pause-enabled buttons/notice, countdown input, touch,
   QAM after closure, forced timeout, and docked/undocked coverage as recorded.
-- [ ] Document current features: pause durations/cooldowns, 15-minute wizard
+  Updated 2026-10-24 in README, GETTING_STARTED, user docs, and the SteamOS
+  summary. Names and clone URLs were left unchanged.
+- [x] Document current features: pause durations/cooldowns, 15-minute wizard
   schedule resolution and `HH:MM` examples, daily per-category caps, watchdog,
   and tighten-only configuration. Do not promise arbitrary minute entry where
-  wizard inputs are restricted to quarter-hour values.
-- [ ] Keep emergency commands accurate: Linux stop/disable; macOS `bootout` for
+  wizard inputs are restricted to quarter-hour values. Text mode and hand-edited
+  config still accept any valid minute. Corrected the pause docs that said the
+  limit resets at midnight; the cooldown is 6, 8, 12, or 24 hours from the last
+  pause.
+- [x] Keep emergency commands accurate: Linux stop/disable; macOS `bootout` for
   immediate stop plus `disable` for persistence, with explicit re-enable steps.
-- [ ] Check install/status/help output for stale branding and privacy material.
+  Updated in GETTING_STARTED, the user guide, and CONFIGURATION. `user-docs/MACOS.md`
+  already had both macOS steps.
+- [ ] Check install/status/help output for the deferred public name, and for private
+  material other than the PayPal link the owner is keeping. Branding text changes
+  with the first commit on the new repository. The 2026-10-24 scan of install,
+  status, and help strings found the PayPal business id and no personal email or
+  home-directory path.
 
-**Acceptance:** no active donation message, consistent branding and platform
-claims, current recovery instructions, unchanged installed identifiers/behavior.
+**Acceptance:** PayPal links remain until the owner reopens that item. Branding
+and platform claims are consistent, recovery instructions are current, and
+installed identifiers and behavior are unchanged.
 
 ## Phase 3 — Repository and documentation cleanup
 
 1. Remove `GENERALIZATION_SUMMARY.txt` after preserving anything still useful.
+   Done 2026-10-24. The generalized template directory is not in this repo.
+   The record is [note-template-generalization-summary.md](../completed-plans/note-template-generalization-summary.md).
 2. Inventory redirect stubs under `docs/` and `dev-docs/CONFIGURE_GUI_FLOW.md`;
    update inbound links before removing obsolete stubs. Keep the user/developer
    documentation boundary and update `docs/index.md`, canonical-doc guidance,
    and `scripts/check-doc-drift.sh` together.
 3. Add `*.bundle` and local `.cursor/plans/` to `.gitignore` as appropriate.
-   Ignoring a path does not untrack it or remove history: inspect tracked files
-   first and preserve useful plans in the normal archive. Remove only identified
-   repository-local junk; do not sweep unrelated folders or installed config.
+   `*.bundle` and `.cursor/plans/` were added on 2026-10-24. Eight plans are
+   still tracked. Ignoring the path does not untrack them. Their frontmatter
+   todos are complete. `macos_configure_gui_performance_acc3b24e.plan.md` still
+   records an unimplemented osascript activate throttle, so do not archive that
+   requirement as finished. Move the tracked plans only after inbound links are
+   retargeted.
 4. Audit completed-plan candidates individually, including harness engineering,
    refactor, safety-scan, pause, status-display, and popup-size plans. Move only
    completed/superseded work to `dev-docs/completed-plans/`; keep unresolved
@@ -222,6 +241,8 @@ Never run mode-detection tests against real HOME or edit the installed config.
 For each slice, report implemented, reviewed, committed, pushed, PR-submitted,
 CI-green, and merged states separately. Branch cleanup is not release completion.
 
-**Next action:** Phase 2 on `chore/public-repo-prep-phase-1`: remove donation
-links and align public branding. Phase 1 does not rewrite history, create the
+**Next action:** Phase 3 repository and documentation cleanup on
+`chore/public-repo-prep-phase-1`, after the Phase 2 documentation corrections.
+Public renaming waits for the first commit on the new private repository.
+PayPal removal stays deferred. This work does not rewrite history, create the
 destination, or change repository visibility.

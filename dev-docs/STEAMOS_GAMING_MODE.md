@@ -42,7 +42,7 @@ experimental tool coverage, not evidence that all three tools were verified.
 5. **Safety Guardrails (`GAMESCOPE_FORCE_AUTO_CLOSE=true`)**:
    - `lib/popup-safety.sh` forces `auto_close="true"` when `env_type == "gamescope"`, ensuring popups always auto-close after `POPUP_MIN_DISPLAY_TIME + POPUP_AUTO_CLOSE_DELAY_SECONDS` in addition to the hard `POPUP_ABSOLUTE_MAX_SECONDS` watchdog.
 
-The percentage tables and “planned changes” sections later in this document are historical planning estimates from before the experimental overlay. They are not measurements. Current behavior is the opt-in path above. Gaming Mode is not fully compatible until it has been verified on a Steam Deck.
+The percentage tables and “planned changes” sections later in this document are historical planning estimates from before the experimental overlay. They are not measurements. Current behavior is the opt-in path above. Desktop Mode is supported. Gaming Mode remains experimental. A Steam Deck check on 2026-10-19 showed the popup over a fullscreen game, and a 2026-10-20 check showed click and Enter reaching the dialog without Enter also firing into Steam. Still unchecked: pause-enabled buttons and the pause notice, countdown input, touch, the Quick Access Menu after the popup closes, a forced timeout, and docked versus undocked.
 
 ## Key Challenges
 

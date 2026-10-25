@@ -72,7 +72,7 @@ The macOS build is designed so you are **not** left with a blocking dialog all d
 ### Popup too often
 
 - Adjust hours: `sleep-warning-configure --text`
-- Use **Pause N min** on the dialog (subject to once-per-day settings).
+- Use **Pause N min** on the dialog (1, 2, 3, 5, 10, or 15 minutes, then a cooldown of 6, 8, 12, or 24 hours; default 24).
 - Disable scheduling: `sleep-warning-manage` → Disable, or see emergency stop below.
 
 ### Stuck or frozen popup (emergency)

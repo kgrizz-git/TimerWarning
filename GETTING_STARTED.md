@@ -10,8 +10,12 @@ The Sleep Warning System displays warning popups when you're using your computer
 - ⏰ Automatically checks every 10 minutes (configurable)
 - 🔔 Shows modal popup warnings during restricted hours
 - 🚀 Runs automatically in the background
-- 🎮 Works with games and full-screen applications
-- 📌 Popups stay visible for a minimum time (configurable)
+- 📌 Popups stay visible for a minimum time, then end. A watchdog also ends a popup that stays up too long (default 330 seconds)
+- ⏸️ Optional pause of 1, 2, 3, 5, 10, or 15 minutes (default 5), then a cooldown of 6, 8, 12, or 24 hours (default 24)
+- 🛡️ At most 16 hours per day in each lockout category. The wizard will not save a longer day
+- 🔒 During lock hours, configuration can only get stricter (tighten-only)
+
+**SteamOS:** Desktop Mode is supported. Gaming Mode is experimental and off until you turn it on. A Deck check on 2026-10-19–20 showed the popup, click, and Enter. Pause-enabled buttons, touch, countdown input, the Quick Access Menu after close, forced timeout, and docked versus undocked are still unchecked. Details are in [user-docs/USER_GUIDE.md](user-docs/USER_GUIDE.md#steamos-gaming-mode-compatibility).
 
 ## Before You Begin
 
@@ -307,11 +311,13 @@ sleep-warning-manage
 ```
 Select "Disable Service" from the menu.
 
-**Command-line method**:
+**Command-line method** (both commands; stop alone lasts only until the next login or boot):
 ```bash
-systemctl --user stop sleep-warning.timer        # Stop temporarily
-systemctl --user disable sleep-warning.timer    # Disable (won't start on boot)
+systemctl --user stop sleep-warning.timer        # Stop now
+systemctl --user disable sleep-warning.timer    # Stay disabled after login/boot
 ```
+
+Turn it back on with `systemctl --user enable --now sleep-warning.timer`. On macOS, use `launchctl bootout` to stop now and `launchctl disable` to stay stopped. The re-enable commands are in [user-docs/MACOS.md](user-docs/MACOS.md#stuck-or-frozen-popup-emergency).
 
 For complete service management options, see [user-docs/USER_GUIDE.md](user-docs/USER_GUIDE.md#managing-the-service).
 

@@ -46,7 +46,7 @@ The configuration file uses a simple key-value format with comments. Lines start
 **Time Formats**:
 - **12-hour format** (e.g., `11:30pm-5:30am`): User-friendly format with AM/PM.
 - **24-hour format** (e.g., `23:30-05:30`): Standard 24-hour time.
-- **Minute precision**: Both formats support minutes (e.g., `:30`, `:15`).
+- **Minute precision**: The config accepts any minute. The graphical wizard offers `:00`, `:15`, `:30`, and `:45` only. Text mode accepts any valid minute, such as `11:17pm-5:42am`.
 - **Legacy format**: Hour-only 24-hour format (`23-5`) is still supported and automatically migrated to `23:00-05:00`.
 
 **Examples**:
@@ -448,7 +448,7 @@ CONFIGURE_BLOCK_ENABLED=false  # Disable (default)
 - If the current time falls within your configured restricted hours (or any configured lock hours), the wizard opens in **tighten-only mode** with a banner explaining the limited mode.
 - In tighten-only mode you **can**: make popups more frequent, lengthen minimum display time, add restriction ranges, enable lock/protection flags, and strengthen uninstall protection.
 - You **cannot**: slow popups, shorten display time, remove/edit/clear ranges, disable lock/protection flags, weaken uninstall protection, or otherwise loosen the configuration.
-- Disabling the service (`systemctl --user disable` / `launchctl bootout`) and the uninstall script (`uninstall.sh`) are **never blocked** - you can always disable or uninstall the system if needed.
+- Disabling the service is never blocked. On Linux, stop now and stay stopped with `systemctl --user stop sleep-warning.timer` and `systemctl --user disable sleep-warning.timer`. Turn it back on with `systemctl --user enable --now sleep-warning.timer`. On macOS, stop now with `launchctl bootout gui/$(id -u)/com.sleep-warning`, and stay stopped with `launchctl disable gui/$(id -u)/com.sleep-warning`. Re-enable with `launchctl enable gui/$(id -u)/com.sleep-warning` and `launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.sleep-warning.plist"`, or use **Enable service** in `sleep-warning-manage`. `sleep-warning-uninstall` remains available outside uninstall-block hours.
 
 **Important Notes**:
 - This is an **opt-in feature** - it is disabled by default to avoid frustrating users.
@@ -676,19 +676,21 @@ UNINSTALL_LOCK_HOURS_WEDNESDAY=23-6      # Require verification overnight (11 PM
 - Same limitations as uninstall protection - can be bypassed by modifying system time, editing scripts, or using the manual uninstall guide
 - Designed as a **self-control aid**, not a security measure against determined users with system access
 
-### Pause Feature (One-Time Pause)
+### Pause Feature
 
-**Option**: `PAUSE_ENABLED` and `PAUSE_DURATION`
+**Option**: `PAUSE_ENABLED`, `PAUSE_DURATION`, and `PAUSE_COOLDOWN_HOURS`
 
-**Description**: Allows users to temporarily suppress warning popups for a short period (5 or 10 minutes) once per day, directly from the warning popup window. This provides flexibility for legitimate exceptions (e.g., finishing a task, handling an emergency) while maintaining overall restriction effectiveness.
+**Description**: From the warning popup, suppress further warnings for 1, 2, 3, 5, 10, or 15 minutes (default 5). The next pause waits until the cooldown elapses. The cooldown is 6, 8, 12, or 24 hours, default 24. It is measured from the last pause, not from midnight.
 
 **Format**:
 - `PAUSE_ENABLED`: `true` or `false`
-- `PAUSE_DURATION`: `5` or `10` (minutes)
+- `PAUSE_DURATION`: `1`, `2`, `3`, `5`, `10`, or `15` (minutes)
+- `PAUSE_COOLDOWN_HOURS`: `6`, `8`, `12`, or `24`
 
 **Default**: 
 - `PAUSE_ENABLED=true` (enabled by default)
 - `PAUSE_DURATION=5` (5 minutes)
+- `PAUSE_COOLDOWN_HOURS=24` (default)
 
 **Examples**:
 ```
@@ -696,15 +698,16 @@ PAUSE_ENABLED=true        # Enable pause feature (default)
 PAUSE_ENABLED=false       # Disable pause feature
 PAUSE_DURATION=5          # 5 minute pause duration (default)
 PAUSE_DURATION=10         # 10 minute pause duration
+PAUSE_COOLDOWN_HOURS=24   # Hours before another pause can start (6, 8, 12, or 24)
 ```
 
 **How It Works**:
 - When enabled, warning popups display a pause button (e.g., "Pause 5 min" or "Pause 10 min") directly in the popup window
 - Users can click the pause button to activate the pause
 - The popup closes immediately and a confirmation message appears showing when the pause expires
-- Warning popups are suppressed during the pause period (5 or 10 minutes, depending on configuration)
+- Warning popups are suppressed during the pause period (1, 2, 3, 5, 10, or 15 minutes, depending on configuration)
 - After the pause expires, warning popups resume normally
-- **Once Per Day Limit**: The pause feature can only be used once per day (resets at midnight). This limit is always enforced and cannot be disabled.
+- **Cooldown**: Another pause cannot start until `PAUSE_COOLDOWN_HOURS` has elapsed (6, 8, 12, or 24; default 24). This is not a midnight reset.
 
 **Important Notes**:
 - **What Pause Affects**:
@@ -713,13 +716,13 @@ PAUSE_DURATION=10         # 10 minute pause duration
   - ❌ **Does NOT affect `uninstall.sh` protection** - Still requires verification during restricted hours if `UNINSTALL_PROTECTION_MODE=difficult`
   - ❌ **Does NOT release restrictions** - Restrictions are still active, only warnings are suppressed
 - **Pause is a temporary "quiet period" for warnings only**, not a release of restrictions
-- The once-per-day limit is **always enforced** and cannot be disabled
+- The cooldown is **always enforced** and cannot be disabled. During lock hours it can be lengthened, not shortened.
 - Pause buttons are available even during minimum display time - clicking pause immediately closes the popup (bypasses minimum display time)
 
 **Configuration via Wizard**:
 - Use menu option 10: **Enable pause and configure duration** in the configuration wizard
-- Configure pause enabled/disabled and duration (5 or 10 minutes)
-- Settings are saved to the config file with the `PAUSE_ENABLED` and `PAUSE_DURATION` format
+- Configure pause enabled/disabled, duration (1, 2, 3, 5, 10, or 15 minutes), and cooldown (6, 8, 12, or 24 hours)
+- Settings are saved as `PAUSE_ENABLED`, `PAUSE_DURATION`, and `PAUSE_COOLDOWN_HOURS`
 
 **Viewing Pause Status**:
 - Check pause status: `sleep-warning-status` (shows pause configuration and current status)
@@ -728,7 +731,7 @@ PAUSE_DURATION=10         # 10 minute pause duration
 **Use Cases**:
 - **Legitimate Exceptions**: Finish a task or handle an emergency without constant popup interruptions
 - **Flexibility**: Provides a controlled way to temporarily suppress warnings while maintaining restriction effectiveness
-- **Self-Control Aid**: The once-per-day limit prevents overuse while allowing necessary exceptions
+- **Self-Control Aid**: The cooldown limits how often a pause can be used
 
 ### Dialog Tool Selection
 
@@ -820,7 +823,7 @@ GAMING_MODE_EXPERIMENTAL_ENABLED=false
 - Off unless this key is `true`. An older `mode-gaming.conf` drop-in does not turn it on.
 - Option 12 can turn it on or off during lock hours. It does not change restriction hours.
 - If no usable display can be found, the warning tries `notify-send` instead of a modal dialog. Gaming Mode may not have a notification daemon.
-- When the overlay path is active, zenity/yad warning dialogs request the full gamescope nested (`:0`) width and at least two thirds of that canvas height, placed at the top-left (gamescope 3.16.x treats narrower `STEAM_OVERLAY` windows as non-interactive notifications). Desktop Mode sizes and position are unchanged. Steam Deck verified 2026-10-20 (click + Enter).
+- When the overlay path is active, zenity/yad warning dialogs request the full gamescope nested (`:0`) width and at least two thirds of that canvas height, placed at the top-left (gamescope 3.16.x treats narrower `STEAM_OVERLAY` windows as non-interactive notifications). Desktop Mode sizes and position are unchanged. Steam Deck verified 2026-10-20 (click + Enter). Still unchecked on device: pause-enabled buttons and the pause notice, countdown input, touch, the Quick Access Menu after close, a forced timeout, and docked versus undocked.
 - **Button labels follow the tool:** zenity `--warning` has no Cancel (OK only, or OK + Pause). Yad without pause uses OK and Cancel; kdialog may say Dismiss. Gaming Mode often picks zenity, so a missing Cancel is expected. See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md).
 - Optional `GAMESCOPE_OVERLAY_DEBUG` (default off, not a wizard option) adds log-only diagnostics. Leave it unset unless you are collecting a Gaming Mode log.
 

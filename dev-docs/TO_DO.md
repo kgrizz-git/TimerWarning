@@ -46,8 +46,8 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 
 ## Documentation and release
 
-- [ ] **Public repository preparation — next: donation removal and branding** — [Publication plan](plans/plan-public-repo-prep-2026-10-16.md) Phase 1 applied the Apache License 2.0 with the Commons Clause on `chore/public-repo-prep-phase-1`. Phase 2 is public-facing cleanup. History sanitization and the public repository are later phases.
-- [ ] **Donation cleanup** — Remove existing PayPal links and reconcile superseded [#27](enhancements/enhancement-27-paypal-donation-links.md) requests in publication Phase 2; do not add donation integrations as part of preparation.
+- [ ] **Public repository preparation — next: repository and documentation cleanup** — [Publication plan](plans/plan-public-repo-prep-2026-10-16.md) Phase 2 documentation corrections are in the working tree. Public renaming waits for the first commit on the new private repository. PayPal removal stays deferred. History sanitization and publication are later phases.
+- [ ] **Donation cleanup — deferred 2026-10-24** — Leave existing PayPal links in place until the owner reopens this. Do not add donation integrations as part of publication preparation. Spec: [#27](enhancements/enhancement-27-paypal-donation-links.md).
 - [ ] **SteamOS locale docs** — User guide section (Nix + manual paths); do not automate `locale-gen` in install.sh → [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#documentation-work)
 
 ## Distribution (lower priority)
@@ -69,4 +69,4 @@ Track detail in [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#mostly-imp
 
 **Plans index:** [Master plan](plans/master/linux-warning-system-plan.md) · [Active plans](plans/) · [Completed plans](completed-plans/)
 
-**Last updated:** 2026-10-21 (PR #7 merged; publication plan revised and next licensing phase identified)
+**Last updated:** 2026-10-24 (publication Phase 2 docs corrected; PayPal removal and public rename deferred)

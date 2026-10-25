@@ -15,7 +15,7 @@ get_pause_enabled_config() {
         _prompt_bool_setting_gui_strict \
             "${use_gui}" \
             "Sleep Warning Configuration - Pause Feature" \
-            "Enable pause feature for warning popups?\n\nWhen enabled, users can pause warning popups for a short period (5 or 10 minutes) directly from the warning popup window.\n\nNote: Pause only suppresses warning popups, not restrictions. configure.sh blocking and uninstall.sh protection still apply during pause.\n\nCurrent setting: ${default_enabled}" \
+            "Enable pause feature for warning popups?\n\nWhen enabled, users can pause warning popups for 1, 2, 3, 5, 10, or 15 minutes directly from the warning popup window.\n\nNote: Pause only suppresses warning popups, not restrictions. Tighten-only configuration and uninstall protection still apply during pause.\n\nCurrent setting: ${default_enabled}" \
             650 \
             400 \
             "pause_enabled" \
@@ -26,8 +26,9 @@ get_pause_enabled_config() {
     echo "" >&2
     echo "Pause Feature - Enable/Disable:" >&2
     echo "  When enabled, users can pause warning popups for a short period" >&2
-    echo "  (5 or 10 minutes) directly from the warning popup window." >&2
+    echo "  (1, 2, 3, 5, 10, or 15 minutes) directly from the warning popup window." >&2
     echo "  Note: Pause only suppresses warning popups, not restrictions." >&2
+    echo "  Tighten-only configuration and uninstall protection still apply." >&2
     echo "" >&2
     _prompt_bool_setting_text_yn \
         "${use_gui}" \

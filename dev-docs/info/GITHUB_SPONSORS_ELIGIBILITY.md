@@ -88,7 +88,7 @@ For the LinuxTimerWarning project, as of the 2026-10-24 license decision:
 
 - **License**: [`LICENSE`](../../LICENSE) is the Apache License 2.0 with the Commons Clause. That combination is source-available. It is not an OSI open-source license, so this repository does not by itself meet a Sponsors requirement for an open-source license.
 - **Publication**: The development repository is still private. A public staging repository is later work in the [publication plan](../plans/plan-public-repo-prep-2026-10-16.md).
-- **Donations**: Removing the existing PayPal links is publication Phase 2. This note does not add a donation integration.
+- **Donations**: PayPal links stay until the owner reopens removal (deferred 2026-10-24). This note does not add a donation integration.
 
 **Conclusion**: Do not treat the current license as satisfying GitHub Sponsors' open-source-license expectation.
 

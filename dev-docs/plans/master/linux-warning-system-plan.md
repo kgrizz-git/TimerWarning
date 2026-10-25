@@ -151,9 +151,9 @@ Detailed checklists and implementation notes are split into phase-specific plan 
 - [ ] Edge case testing - Overnight ranges, invalid configs, missing dependencies
 - [ ] Installation/uninstall testing - Scripts need testing on clean systems
 - [-] Integration testing - Systemd service/timer tested, Desktop Mode tested
-- [ ] SteamOS Gaming Mode validation - Critical Gaming Mode testing not yet done
+- [-] SteamOS Gaming Mode validation - Partial Deck checks 2026-10-19 (visible) and 2026-10-20 (click and Enter). Pause-enabled buttons, touch, countdown input, Quick Access Menu after close, forced timeout, and docked versus undocked are still open
 
-**Status**: [-] **Partially Started** - Basic functional and integration testing done, Gaming Mode and edge cases pending.
+**Status**: [-] **Partially Started** - Basic functional and integration testing done. Gaming Mode has partial Deck evidence; edge cases and the checks above are still open.
 
 ## Phase 5: Documentation and Maintenance
 
@@ -199,7 +199,7 @@ See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) for detailed descriptions a
 - [ ] **18. Config File Locking During Restricted Hours** - Prevent config file modification during restricted hours - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#18-config-file-locking-during-restricted-hours)
 - [x] **19. Prevent configure.sh and manage.sh Execution During Restricted Hours** - Block configure.sh and manage.sh execution during restricted hours to prevent circumvention (Phase 1 Implemented) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#19-prevent-configuresh-and-managesh-execution-during-restricted-hours-phase-1-implemented)
 - [x] **20. Additional Hours for Config Locking and configure.sh Blocking** - Configure separate hours for config locking/blocking (Phase 1 Implemented) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#20-additional-hours-for-config-locking-and-configuresh-blocking-phase-1-implemented)
-- [ ] **21. One-Time Pause Feature (5 or 10 Minutes)** - Allow 5 or 10 minute pause of restrictions once per day, available from popup - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#21-one-time-pause-feature-5-or-10-minutes)
+- [x] **21. Pause** - Implemented: durations 1, 2, 3, 5, 10, or 15 minutes (default 5) and cooldown 6, 8, 12, or 24 hours (default 24), measured from the last pause. The older “5 or 10 minutes once per day” wording is obsolete. See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#21-one-time-pause-feature-5-or-10-minutes)
 - [x] **22. Prevent 24/7 Restriction Configuration** - Prevent users from configuring 24/7 restrictions (Mostly Implemented - core validation complete, revisit when #18 and/or #19 are implemented) - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#22-prevent-247-restriction-configuration)
 - [ ] **22a. Fix Validation Edge Cases in 24/7 Restriction Detection** - Address edge cases and bugs in Enhancement 22 validation logic - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#22a-fix-validation-edge-cases-in-247-restriction-detection)
 - [ ] **23. Display Restricted Times/Days in Popup** - Show configured restricted hours in the warning popup for transparency - See [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md#23-display-restricted-timesdays-in-popup)

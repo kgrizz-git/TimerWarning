@@ -2,6 +2,12 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-24 — Publication docs, rename deferred
+
+- Public name and clone URL changes wait for the first commit on the new private repository, before it is made public.
+- User docs now match pause durations 1, 2, 3, 5, 10, or 15 and the hour-based cooldown. PayPal links stay.
+- `*.bundle` and `.cursor/plans/` are gitignored. Eight already-tracked Cursor plans stay until their links are retargeted. The root generalization summary was archived and removed.
+
 ## 2026-10-24 — Project license and contribution terms
 
 - Root `LICENSE`: Apache License 2.0 with the Commons Clause. Source-available, not OSI open source.
