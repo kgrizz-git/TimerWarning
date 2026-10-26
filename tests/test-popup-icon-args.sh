@@ -11,6 +11,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Help text repeated by the fake dialog tools. Sonar treats each copy as a duplicate literal.
 HELP_WINDOW_ICON="  --window-icon=ICONPATH"
+HELP_KDIALOG_ICON="  --icon <icon>"
 # Stdin marker fed to the help probe. One definition so the same bytes are not repeated.
 STDIN_MARKER='SECRET-MARKER'
 HELP_WINDOW_ICON_DETAIL="${HELP_WINDOW_ICON}  Set the window icon"
@@ -184,7 +185,7 @@ cp "${ROOT}/lib/popup-dialog-implementations.sh" "$SPACE_MOD/"
 cp "${ROOT}/assets/icon-256.png" "${SPACE_MOD}/timerwarning-icon.png"
 out="$(run_case "$SPACE_MOD" yad "${HELP_WINDOW_ICON}")"
 [[ "$out" = "--window-icon=${SPACE_MOD}/timerwarning-icon.png" ]] || fail "spaced yad path: got '${out}'"
-out="$(run_case "$SPACE_MOD" kdialog "  --icon <icon>")"
+out="$(run_case "$SPACE_MOD" kdialog "${HELP_KDIALOG_ICON}")"
 [[ "$out" = "$(printf -- '--icon\n%s' "${SPACE_MOD}/timerwarning-icon.png")" ]] || fail "spaced kdialog path: got '${out}'"
 echo "PASS: icon paths with spaces stay one argument"
 
@@ -713,7 +714,7 @@ spawn_case() {
 spawn_case yad "${HELP_WINDOW_ICON}" "${WORK}/spawn-yad"
 grep -qxF -- "--window-icon=${SPACE_MOD}/timerwarning-icon.png" "${WORK}/spawn-yad" \
     || fail "yad spawn args: $(cat "${WORK}/spawn-yad")"
-spawn_case kdialog "  --icon <icon>" "${WORK}/spawn-kdialog"
+spawn_case kdialog "${HELP_KDIALOG_ICON}" "${WORK}/spawn-kdialog"
 [[ "$(sed -n '1p' "${WORK}/spawn-kdialog")" = "--icon" ]] || fail "kdialog spawn missing --icon"
 [[ "$(sed -n '2p' "${WORK}/spawn-kdialog")" = "${SPACE_MOD}/timerwarning-icon.png" ]] \
     || fail "kdialog spawn path: $(sed -n '2p' "${WORK}/spawn-kdialog")"
@@ -769,13 +770,13 @@ grep -qxF -- "--window-icon=${SPACE_MOD}/timerwarning-icon.png" "${WORK}/notice-
 notice_case zenity "${HELP_WINDOW_ICON}" "${WORK}/notice-zenity"
 grep -qxF -- "--window-icon=${SPACE_MOD}/timerwarning-icon.png" "${WORK}/notice-zenity" \
     || fail "zenity pause notice args: $(cat "${WORK}/notice-zenity")"
-notice_case kdialog "  --icon <icon>" "${WORK}/notice-kdialog"
+notice_case kdialog "${HELP_KDIALOG_ICON}" "${WORK}/notice-kdialog"
 [[ "$(sed -n '1p' "${WORK}/notice-kdialog")" = "--icon" ]] || fail "kdialog pause notice missing --icon"
 [[ "$(sed -n '2p' "${WORK}/notice-kdialog")" = "${SPACE_MOD}/timerwarning-icon.png" ]] \
     || fail "kdialog pause notice path: $(sed -n '2p' "${WORK}/notice-kdialog")"
 grep -qxF -- "--passivepopup" "${WORK}/notice-kdialog" \
     || fail "desktop kdialog pause notice args: $(cat "${WORK}/notice-kdialog")"
-notice_case kdialog "  --icon <icon>" "${WORK}/notice-kdialog-gs" gamescope
+notice_case kdialog "${HELP_KDIALOG_ICON}" "${WORK}/notice-kdialog-gs" gamescope
 [[ "$(sed -n '1p' "${WORK}/notice-kdialog-gs")" = "--icon" ]] || fail "gamescope kdialog pause notice missing --icon"
 grep -qxF -- "--msgbox" "${WORK}/notice-kdialog-gs" \
     || fail "gamescope kdialog pause notice args: $(cat "${WORK}/notice-kdialog-gs")"
