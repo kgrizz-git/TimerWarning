@@ -36,22 +36,13 @@ _popup_icon_path() {
 # stalled toolkit can never hold up a popup spawn.
 # Inputs: command and args. Stdin is /dev/null so the tool cannot read the
 # caller's input. Output: help text on stdout; stderr is discarded.
-# The bash fallback runs the tool in its own process group. A wrapper that
-# exits, or that is killed, must not leave a child holding the help pipe: grep
-# would otherwise wait for that child. The watcher sends SIGTERM to the group
-# after 1s and SIGKILL 1s later. If the leader exits sooner, the group is
-# killed immediately. The watcher's own sleep is reaped when this function
-# signals it.
+# The tool runs in its own process group. GNU timeout is not used: it signals
+# the group only when the deadline fires, and returns as soon as the direct
+# child exits, so a descendant that inherited the pipe would keep grep waiting.
+# The watcher sends SIGTERM to the group after 1s and SIGKILL 1s later. If the
+# leader exits sooner, the group is killed immediately. The watcher's own sleep
+# is reaped when this function signals it.
 _popup_icon_help_probe() {
-    if command -v timeout >/dev/null 2>&1; then
-        timeout --kill-after=1s 1s "$@" </dev/null 2>/dev/null || true
-        return 0
-    fi
-    if command -v gtimeout >/dev/null 2>&1; then
-        gtimeout --kill-after=1s 1s "$@" </dev/null 2>/dev/null || true
-        return 0
-    fi
-
     local pid watcher
     # Monitor mode gives the tool its own process group. This runs in the
     # help pipeline's subshell, so the caller's job control is unchanged.

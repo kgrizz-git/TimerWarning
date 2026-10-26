@@ -1,9 +1,9 @@
 #!/bin/bash
 # Verify popup icon flags: installers copy the icon, and each dialog tool gets the
 # window-icon flag only when the icon exists and the tool's help lists the option.
-# Also checks the help-probe deadline (GNU timeout and the bash fallback), the
-# positive and negative probe caches, paths that contain spaces, and that the
-# warning spawn actually places those flags on the dialog command.
+# Also checks the help-probe deadline (including when a GNU-style timeout is
+# on PATH), the positive and negative probe caches, paths that contain spaces,
+# and that the warning spawn actually places those flags on the dialog command.
 # Inputs: lib/popup-dialog-implementations.sh, lib/install-{linux,darwin}.sh, assets/.
 # Output: PASS lines or a failing exit. Uses fake tools under tmp/; no real dialogs.
 set -euo pipefail
@@ -264,11 +264,13 @@ write_holder "${SILENT}/yad" no
 write_holder "${PRINT}/yad" yes
 
 run_holder() {
-    local bin="$1" output_file="$2"
-    local inner guard
+    local bin="$1" output_file="$2" path_prefix="${3:-}"
+    local inner guard probe_path
     : > "${WORK}/hold-pids"
+    probe_path="${bin}:${MASK}"
+    [[ -z "${path_prefix}" ]] || probe_path="${path_prefix}:${probe_path}"
     set -m
-    PATH="${bin}:${MASK}" "${BASH:-bash}" -c '
+    PATH="${probe_path}" "${BASH:-bash}" -c '
         set -euo pipefail
         source "$1/popup-dialog-implementations.sh"
         _popup_icon_args yad
@@ -318,24 +320,57 @@ while read -r hold_pid; do
 done < "${WORK}/hold-pids"
 echo "PASS: bash fallback keeps the icon flag and reaps the holder child (${elapsed}s)"
 
-# A stand-in named timeout forces the timeout branch on machines without GNU timeout.
-# It drops the deadline arguments and runs the tool with the stdin it inherited.
-FAKE_TIMEOUT="${WORK}/bin-timeout"
-mkdir -p "$FAKE_TIMEOUT"
-cat > "${FAKE_TIMEOUT}/timeout" <<'EOF'
+# A timeout with GNU timeout's early-exit hole: wait for the direct child and
+# leave descendants running. The probe must still bound the reader.
+LEAKY="${WORK}/bin-leaky-timeout"
+mkdir -p "$LEAKY"
+cat > "${LEAKY}/timeout" <<'EOF'
 #!/bin/sh
 shift 2
-exec "$@"
+"$@" &
+child=$!
+wait "$child"
 EOF
-chmod +x "${FAKE_TIMEOUT}/timeout"
+cp "${LEAKY}/timeout" "${LEAKY}/gtimeout"
+chmod +x "${LEAKY}/timeout" "${LEAKY}/gtimeout"
+
+start=$SECONDS
+run_holder "$SILENT" "${WORK}/hold-leaky-silent-out" "$LEAKY"
+elapsed=$((SECONDS - start))
+[[ "$elapsed" -le 3 ]] || fail "leaky timeout left the silent holder blocking for ${elapsed}s"
+[[ -s "${WORK}/hold-pids" ]] || fail "leaky-timeout silent holder did not start a child"
+while read -r hold_pid; do
+    if kill -0 "${hold_pid}" 2>/dev/null; then
+        kill -KILL "${hold_pid}" 2>/dev/null || true
+        fail "leaky timeout left silent holder child ${hold_pid} running"
+    fi
+done < "${WORK}/hold-pids"
+[[ -z "$(cat "${WORK}/hold-leaky-silent-out")" ]] || fail "leaky-timeout silent holder produced a flag"
+echo "PASS: help probe does not wait on a pipe holder when timeout is installed (${elapsed}s)"
+
+start=$SECONDS
+run_holder "$PRINT" "${WORK}/hold-leaky-print-out" "$LEAKY"
+elapsed=$((SECONDS - start))
+[[ "$elapsed" -le 3 ]] || fail "leaky timeout left the printing holder blocking for ${elapsed}s"
+[[ "$(cat "${WORK}/hold-leaky-print-out")" = "--window-icon=${INST}/timerwarning-icon.png" ]] \
+    || fail "leaky-timeout printing holder flag: $(cat "${WORK}/hold-leaky-print-out")"
+while read -r hold_pid; do
+    if kill -0 "${hold_pid}" 2>/dev/null; then
+        kill -KILL "${hold_pid}" 2>/dev/null || true
+        fail "leaky timeout left printing holder child ${hold_pid} running"
+    fi
+done < "${WORK}/hold-pids"
+echo "PASS: help probe keeps the icon flag when timeout is installed (${elapsed}s)"
+
+# The same stand-in sits on PATH for a fast tool. Stdin stays /dev/null.
 : > "${WORK}/probe-stdin"
-printf 'SECRET-MARKER\n' | PATH="${FAST}:${FAKE_TIMEOUT}:${MASK}" "${BASH:-bash}" -c '
+printf 'SECRET-MARKER\n' | PATH="${FAST}:${LEAKY}:${MASK}" "${BASH:-bash}" -c '
     set -euo pipefail
     source "$1/popup-dialog-implementations.sh"
     _popup_icon_args yad
-' _ "$INST" || fail "timeout probe failed"
-[[ ! -s "${WORK}/probe-stdin" ]] || fail "timeout probe read caller stdin: $(cat "${WORK}/probe-stdin")"
-echo "PASS: timeout probe ignores caller stdin"
+' _ "$INST" || fail "timeout-on-PATH probe failed"
+[[ ! -s "${WORK}/probe-stdin" ]] || fail "probe read caller stdin with timeout on PATH: $(cat "${WORK}/probe-stdin")"
+echo "PASS: help probe ignores caller stdin when timeout is installed"
 
 # The spawn path must pass the same flag the helper built.
 make_spawn_tool() {
