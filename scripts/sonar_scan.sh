@@ -62,8 +62,8 @@ echo "== Running sonar-scanner against ${SONAR_HOST_URL} =="
 sonar-scanner \
     -Dsonar.host.url="${SONAR_HOST_URL}"
 
-if [[ "$(git rev-parse HEAD)" != "${commit}" ]]; then
-    echo "HEAD changed during the scan. Not recording ${commit}." >&2
+if [[ "$(git rev-parse HEAD)" != "${commit}" || -n "$(git status --porcelain)" ]]; then
+    echo "The tree changed during the scan. Not recording ${commit}." >&2
     exit 1
 fi
 
@@ -83,12 +83,10 @@ echo "== Waiting for Compute Engine task ${ce_task_id} =="
 python3 "${ROOT}/scripts/sonar_collect.py" \
     --task-id "${ce_task_id}" \
     --project-key "${project_key}" \
-    --commit "${commit}" \
-    --state "${ROOT}/tmp/sonar-state.json" \
-    --issues "${ROOT}/tmp/sonar-latest-issues.json"
+    --commit "${commit}"
 
-if [[ "$(git rev-parse HEAD)" != "${commit}" ]]; then
+if [[ "$(git rev-parse HEAD)" != "${commit}" || -n "$(git status --porcelain)" ]]; then
     rm -f "${ROOT}/tmp/sonar-state.json" "${ROOT}/tmp/sonar-latest-issues.json"
-    echo "HEAD changed while the Compute Engine task ran. Removed the scan record." >&2
+    echo "The tree changed while the Compute Engine task ran. Removed the scan record." >&2
     exit 1
 fi

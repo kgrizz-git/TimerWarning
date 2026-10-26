@@ -9,8 +9,9 @@ Inputs:
     --task-id       ceTaskId from .scannerwork/report-task.txt
     --project-key   sonar.projectKey
     --commit        git commit that was scanned
-    --state         path for tmp/sonar-state.json
-    --issues        path for tmp/sonar-latest-issues.json
+
+The issue dump and the state file are always tmp/sonar-latest-issues.json and
+tmp/sonar-state.json. They are not command-line arguments.
 
 Outputs:
     On success, both JSON files and a type/rule count on stdout.
@@ -82,6 +83,36 @@ def wait_for_task(host: str, token: str, task_id: str) -> None:
     raise SystemExit(1)
 
 
+def take_page(collected: list[dict[str, Any]], batch: object, total: int) -> bool:
+    """Append one issues page. Return True when the download is finished.
+
+    An empty page before ``total`` is reached is a partial response, not a
+    clean project. A non-object issue is the same: dropping it would under-count.
+    """
+    if not isinstance(batch, list) or any(not isinstance(issue, dict) for issue in batch):
+        print("api/issues/search returned a page that is not a list of objects.", file=sys.stderr)
+        raise SystemExit(1)
+    if not batch and len(collected) < total:
+        print(
+            f"api/issues/search ended after {len(collected)} of {total} issues.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    for issue in batch:
+        collected.append(
+            {
+                "key": issue.get("key", ""),
+                "rule": issue.get("rule", ""),
+                "component": issue.get("component", ""),
+                "type": issue.get("type", ""),
+                "severity": issue.get("severity", ""),
+                "message": issue.get("message", ""),
+                "line": issue.get("line"),
+            }
+        )
+    return len(collected) >= total or not batch
+
+
 def fetch_issues(host: str, token: str, project_key: str) -> list[dict[str, Any]]:
     """Download every unresolved issue. Keep the fields the gate and the summary use."""
     collected: list[dict[str, Any]] = []
@@ -95,29 +126,17 @@ def fetch_issues(host: str, token: str, project_key: str) -> list[dict[str, Any]
         if status_code != 200:
             raise SystemExit(1)
         batch = payload.get("issues")
-        if not isinstance(batch, list):
-            print("api/issues/search response has no issues array.", file=sys.stderr)
-            raise SystemExit(1)
         if total is None:
-            total = int(payload.get("total", len(batch)))
-        for issue in batch:
-            if not isinstance(issue, dict):
-                continue
-            collected.append(
-                {
-                    "key": issue.get("key", ""),
-                    "rule": issue.get("rule", ""),
-                    "component": issue.get("component", ""),
-                    "type": issue.get("type", ""),
-                    "severity": issue.get("severity", ""),
-                    "message": issue.get("message", ""),
-                    "line": issue.get("line"),
-                }
-            )
-        if len(collected) >= total or not batch:
+            total = int(payload.get("total", len(batch) if isinstance(batch, list) else 0))
+        if take_page(collected, batch, total):
             return collected
     print(f"api/issues/search exceeded {MAX_PAGES} pages.", file=sys.stderr)
     raise SystemExit(1)
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+STATE_PATH = REPO_ROOT / "tmp" / "sonar-state.json"
+ISSUES_PATH = REPO_ROOT / "tmp" / "sonar-latest-issues.json"
 
 
 def _write(path: Path, payload: dict[str, Any]) -> None:
@@ -145,8 +164,6 @@ def main() -> None:
     parser.add_argument("--task-id", required=True)
     parser.add_argument("--project-key", required=True)
     parser.add_argument("--commit", required=True)
-    parser.add_argument("--state", type=Path, required=True)
-    parser.add_argument("--issues", type=Path, required=True)
     args = parser.parse_args()
 
     token = os.environ.get("SONAR_TOKEN", "")
@@ -162,8 +179,8 @@ def main() -> None:
         "host": host,
         "project_key": args.project_key,
     }
-    _write(args.issues, {**recorded, "issues": issues})
-    _write(args.state, recorded)
+    _write(ISSUES_PATH, {**recorded, "issues": issues})
+    _write(STATE_PATH, recorded)
     print_summary(issues)
     print(f"Scan recorded for {args.commit}")
 

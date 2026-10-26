@@ -2,6 +2,12 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-26 — Sonar gate fails closed
+
+- The `.env` mode check uses GNU `stat -c` before BSD `stat -f`, so Ubuntu Tier-A no longer dies on `8#`.
+- A push whose scan state matches the commit fails when the issue dump is missing, has no commit, or would erase every baselined bug. An empty API page before the reported total is a failed scan.
+- The collector writes only `tmp/sonar-state.json` and `tmp/sonar-latest-issues.json`. Those paths are not command-line arguments.
+
 ## 2026-10-26 — Local Sonar issue ratchet
 
 - `scripts/sonar_scan.sh` refuses a dirty tree, waits for the Compute Engine task without putting the token on a command line, and writes `tmp/sonar-latest-issues.json` with counts by type and by rule.

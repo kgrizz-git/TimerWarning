@@ -3,25 +3,28 @@
 
 from __future__ import annotations
 
+import contextlib
+import importlib.util
+import io
 import json
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CHECK = ROOT / "scripts" / "check_sonar_issues.py"
 
 
-def run_check(baseline: Path, issues: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, str(CHECK), "--baseline", str(baseline), "--issues", str(issues), *args],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+def load_module(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+GATE = load_module("check_sonar_issues", ROOT / "scripts" / "check_sonar_issues.py")
+COLLECT = load_module("sonar_collect", ROOT / "scripts" / "sonar_collect.py")
 
 
 class SonarIssueGateTests(unittest.TestCase):
@@ -44,36 +47,51 @@ class SonarIssueGateTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def invoke(self, **kwargs: object) -> tuple[int, str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        commits = kwargs.get("commits", ["abc"])
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = GATE.run(
+                baseline_path=self.baseline,
+                issues_path=kwargs.get("issues", self.issues),
+                state_path=self.root / "state.json",
+                strict=bool(kwargs.get("strict", False)),
+                update=bool(kwargs.get("update", False)),
+                push=bool(kwargs.get("push", True)),
+                commits=list(commits) if commits is not None else None,
+            )
+        return code, out.getvalue(), err.getvalue()
+
     def test_missing_dump_exits_zero(self) -> None:
-        result = run_check(self.baseline, self.root / "missing.json", "--strict", "--push", "abc")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("no issue dump", result.stdout)
+        code, out, err = self.invoke(issues=self.root / "missing.json", strict=True)
+        self.assertEqual(code, 0, err)
+        self.assertIn("no issue dump", out)
+
+    def test_missing_dump_fails_when_state_matches(self) -> None:
+        (self.root / "state.json").write_text(json.dumps({"commit": "abc", "host": "http://127.0.0.1:9000"}) + "\n", encoding="utf-8")
+        code, _out, err = self.invoke(issues=self.root / "missing.json", strict=True)
+        self.assertEqual(code, 1)
+        self.assertIn("issue dump is missing", err)
 
     def test_code_smell_is_not_gated(self) -> None:
         self.write_dump(
             [{"rule": "python:S3776", "component": "timer-warning:lib/a.py", "type": "CODE_SMELL", "severity": "CRITICAL"}]
         )
-        result = run_check(self.baseline, self.issues, "--strict", "--push", "abc")
-        self.assertEqual(result.returncode, 0, result.stderr)
+        code, _out, err = self.invoke(strict=True)
+        self.assertEqual(code, 0, err)
 
     def test_new_bug_fails_strict(self) -> None:
         self.write_dump(
             [{"rule": "python:S123", "component": "timer-warning:lib/a.py", "type": "BUG", "severity": "MAJOR"}]
         )
-        result = run_check(self.baseline, self.issues, "--strict", "--push", "abc")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("NEW", result.stderr)
-        self.assertIn("python:S123|lib/a.py", result.stderr)
+        code, _out, err = self.invoke(strict=True)
+        self.assertEqual(code, 1)
+        self.assertIn("NEW", err)
+        self.assertIn("python:S123|lib/a.py", err)
 
     def test_same_count_passes_and_update_does_not_add(self) -> None:
         self.baseline.write_text(
-            json.dumps(
-                {
-                    "schema": 1,
-                    "issues": {"python:S123|lib/a.py": {"count": 1, "note": "accepted"}},
-                }
-            )
-            + "\n",
+            json.dumps({"schema": 1, "issues": {"python:S123|lib/a.py": {"count": 1, "note": "accepted"}}}) + "\n",
             encoding="utf-8",
         )
         self.write_dump(
@@ -82,11 +100,11 @@ class SonarIssueGateTests(unittest.TestCase):
                 {"rule": "python:S123", "component": "timer-warning:lib/a.py", "type": "BUG"},
             ]
         )
-        over = run_check(self.baseline, self.issues, "--strict", "--push", "abc")
-        self.assertEqual(over.returncode, 1, over.stderr)
-        self.assertIn("EXCEEDS", over.stderr)
-        added = run_check(self.baseline, self.issues, "--update", "--push", "abc")
-        self.assertEqual(added.returncode, 1)
+        code, _out, err = self.invoke(strict=True)
+        self.assertEqual(code, 1, err)
+        self.assertIn("EXCEEDS", err)
+        code, _out, err = self.invoke(update=True)
+        self.assertEqual(code, 1, err)
         kept = json.loads(self.baseline.read_text(encoding="utf-8"))
         self.assertEqual(kept["issues"]["python:S123|lib/a.py"]["count"], 1)
 
@@ -104,27 +122,57 @@ class SonarIssueGateTests(unittest.TestCase):
             + "\n",
             encoding="utf-8",
         )
-        self.write_dump(
-            [{"rule": "python:S1", "component": "timer-warning:lib/a.py", "type": "BUG"}]
-        )
-        result = run_check(self.baseline, self.issues, "--update", "--push", "abc")
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.write_dump([{"rule": "python:S1", "component": "timer-warning:lib/a.py", "type": "BUG"}])
+        code, _out, err = self.invoke(update=True)
+        self.assertEqual(code, 0, err)
         kept = json.loads(self.baseline.read_text(encoding="utf-8"))
         self.assertEqual(kept["issues"]["python:S1|lib/a.py"]["count"], 1)
         self.assertNotIn("python:S2|lib/b.py", kept["issues"])
+
+    def test_empty_dump_does_not_wipe_baseline(self) -> None:
+        self.baseline.write_text(
+            json.dumps({"schema": 1, "issues": {"python:S1|lib/a.py": {"count": 1, "note": "kept"}}}) + "\n",
+            encoding="utf-8",
+        )
+        self.write_dump([])
+        code, _out, err = self.invoke(update=True)
+        self.assertEqual(code, 1)
+        self.assertIn("not treated as clean", err)
+        kept = json.loads(self.baseline.read_text(encoding="utf-8"))
+        self.assertEqual(kept["issues"]["python:S1|lib/a.py"]["count"], 1)
 
     def test_other_commit_is_ignored(self) -> None:
         self.write_dump(
             [{"rule": "python:S123", "component": "timer-warning:lib/a.py", "type": "BUG"}],
             commit="old",
         )
-        result = run_check(self.baseline, self.issues, "--strict", "--push", "new")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("not this push", result.stdout)
+        code, out, err = self.invoke(strict=True, commits=["new"])
+        self.assertEqual(code, 0, err)
+        self.assertIn("not this push", out)
 
     def test_delete_only_push_passes(self) -> None:
-        result = run_check(self.baseline, self.issues, "--strict", "--push")
-        self.assertEqual(result.returncode, 0, result.stderr)
+        code, _out, err = self.invoke(strict=True, commits=[])
+        self.assertEqual(code, 0, err)
+
+    def test_non_object_issue_is_rejected(self) -> None:
+        self.issues.write_text(json.dumps({"commit": "abc", "issues": ["nope"]}) + "\n", encoding="utf-8")
+        with self.assertRaises(SystemExit):
+            self.invoke(strict=True)
+
+    def test_dump_without_commit_is_rejected(self) -> None:
+        self.issues.write_text(json.dumps({"issues": []}) + "\n", encoding="utf-8")
+        with self.assertRaises(SystemExit):
+            self.invoke(strict=True)
+
+
+class IssuePageTests(unittest.TestCase):
+    def test_empty_page_before_total_is_rejected(self) -> None:
+        with self.assertRaises(SystemExit):
+            COLLECT.take_page([], [], 3)
+
+    def test_full_page_finishes(self) -> None:
+        done = COLLECT.take_page([], [{"rule": "python:S1", "type": "BUG"}], 1)
+        self.assertTrue(done)
 
 
 if __name__ == "__main__":

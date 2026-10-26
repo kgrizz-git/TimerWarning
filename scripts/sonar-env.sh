@@ -21,10 +21,26 @@ sonar_env_unquote() {
     printf '%s' "${value}"
 }
 
+sonar_env_mode() {
+    # GNU stat uses -c. BSD stat uses -f. Try GNU first: on Linux, stat -f
+    # is a filesystem query and can succeed with output that is not a mode.
+    local env_file="$1" perm
+    if perm="$(stat -c '%a' "${env_file}" 2>/dev/null)"; then
+        printf '%s' "${perm}"
+        return 0
+    fi
+    if perm="$(stat -f '%OLp' "${env_file}" 2>/dev/null)"; then
+        printf '%s' "${perm}"
+        return 0
+    fi
+    return 1
+}
+
 sonar_env_warn_mode() {
     local env_file="$1" perm extra
-    perm="$(stat -f '%Lp' "${env_file}" 2>/dev/null || stat -c '%a' "${env_file}" 2>/dev/null || true)"
-    [[ -z "${perm}" ]] && return 0
+    perm="$(sonar_env_mode "${env_file}" || true)"
+    perm="${perm//[^0-7]/}"
+    [[ "${perm}" =~ ^[0-7]+$ ]] || return 0
     extra=$((8#${perm} & 077))
     if (( extra != 0 )); then
         echo "warning: ${env_file} is readable by group or other (mode ${perm}). Run: chmod 600 ${env_file}" >&2
@@ -65,6 +81,8 @@ sonar_env_load() {
                         SONAR_HOST_URL="${value}"
                         export SONAR_HOST_URL
                     fi
+                    ;;
+                *)
                     ;;
             esac
         done < "${env_file}"
