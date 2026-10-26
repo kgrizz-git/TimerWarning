@@ -629,8 +629,9 @@ while kill -0 "${writer_child}" 2>/dev/null; do
 done
 echo "PASS: a setsid writer stops at the help-file size cap (${elapsed}s)"
 
-# 512 blocks is 512 KiB. The writer stops after 1.5 MiB, above that limit and
-# below the 2 MiB probe cap, so raising the caller's soft limit fails this check.
+# 512 blocks is 512 KiB. The writer tries to emit 1.5 MiB. Count the bytes
+# through a pipe: a regular file would stop at the caller's own 512 KiB limit
+# even when the probe raised the limit inside its subshell.
 cat > "${WORK}/limited-writer.py" <<'EOF'
 import sys
 chunk = b"x" * 4096
@@ -644,22 +645,18 @@ while written < want:
         break
     written += len(chunk)
 EOF
-PATH="${MASK}:${PATH}" "${BASH:-bash}" -c '
+limited_chars="$(PATH="${MASK}:${PATH}" "${BASH:-bash}" -c '
     set -euo pipefail
     source "$1/popup-dialog-implementations.sh"
     ulimit -S -f 512
-    _popup_icon_help_probe "$2" "$3" > "$4"
-    now="$(ulimit -S -f)"
-    [[ "${now}" == "512" ]] || {
-        echo "soft file limit became ${now}" >&2
-        exit 1
-    }
-' _ "$INST" "${PYTHON3}" "${WORK}/limited-writer.py" "${WORK}/limited-help-out" \
+    out="$(_popup_icon_help_probe "$2" "$3")"
+    [[ "$(ulimit -S -f)" == "512" ]] || exit 1
+    printf "%s" "${#out}"
+' _ "$INST" "${PYTHON3}" "${WORK}/limited-writer.py")" \
     || fail "lower file-size limit probe failed"
-limited_size="$(wc -c < "${WORK}/limited-help-out" | tr -d " ")"
-[[ "${limited_size}" -le 524288 ]] \
-    || fail "lower file-size limit wrote ${limited_size} bytes"
-echo "PASS: help probe keeps a lower file-size limit (${limited_size} bytes)"
+[[ "${limited_chars}" -le 524288 ]] \
+    || fail "lower file-size limit wrote ${limited_chars} bytes"
+echo "PASS: help probe keeps a lower file-size limit (${limited_chars} bytes)"
 
 # The spawn path must pass the same flag the helper built.
 make_spawn_tool() {
