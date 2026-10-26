@@ -36,9 +36,12 @@ _popup_icon_path() {
 # stalled toolkit can never hold up a popup spawn.
 # Inputs: command and args. Stdin is /dev/null so the tool cannot read the
 # caller's input. Output: help text on stdout; stderr is discarded.
-# The bash fallback owns each sleep child. When the tool exits early (for
-# example because grep -q closed the pipe and the tool got SIGPIPE), this
-# function sends SIGTERM to the watcher, and the watcher's trap reaps that sleep.
+# The bash fallback runs the tool in its own process group. A wrapper that
+# exits, or that is killed, must not leave a child holding the help pipe: grep
+# would otherwise wait for that child. The watcher sends SIGTERM to the group
+# after 1s and SIGKILL 1s later. If the leader exits sooner, the group is
+# killed immediately. The watcher's own sleep is reaped when this function
+# signals it.
 _popup_icon_help_probe() {
     if command -v timeout >/dev/null 2>&1; then
         timeout --kill-after=1s 1s "$@" </dev/null 2>/dev/null || true
@@ -50,6 +53,11 @@ _popup_icon_help_probe() {
     fi
 
     local pid watcher
+    # Monitor mode gives the tool its own process group. This runs in the
+    # help pipeline's subshell, so the caller's job control is unchanged.
+    # Silence the "Done" notice job control would write to stderr.
+    set +b 2>/dev/null || true
+    set -m 2>/dev/null || true
     "$@" </dev/null 2>/dev/null &
     pid=$!
     (
@@ -63,17 +71,25 @@ _popup_icon_help_probe() {
             wait "${child}" 2>/dev/null || exit 0
             trap - TERM
         }
+        _kill_probe_group() {
+            local signal_name
+            signal_name="$1"
+            kill "-${signal_name}" -- "-${pid}" 2>/dev/null \
+                || kill "-${signal_name}" "${pid}" 2>/dev/null \
+                || true
+        }
         _probe_sleep 1 || exit 0
-        if kill -0 "${pid}" 2>/dev/null; then
-            kill -TERM "${pid}" 2>/dev/null || true
-            _probe_sleep 1 || exit 0
-            kill -KILL "${pid}" 2>/dev/null || true
-        fi
+        _kill_probe_group TERM
+        _probe_sleep 1 || exit 0
+        _kill_probe_group KILL
     ) >/dev/null 2>&1 &
     watcher=$!
     wait "${pid}" 2>/dev/null || true
+    # The leader can exit while a child still has the pipe open.
+    kill -KILL -- "-${pid}" 2>/dev/null || kill -KILL "${pid}" 2>/dev/null || true
     kill -TERM "${watcher}" 2>/dev/null || true
     wait "${watcher}" 2>/dev/null || true
+    set +m 2>/dev/null || true
     return 0
 }
 

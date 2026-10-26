@@ -21,6 +21,12 @@ cleanup() {
             kill -KILL "${sleep_pid}" 2>/dev/null || true
         done < "${WORK}/sleep-pids"
     fi
+    if [[ -f "${WORK:-}/hold-pids" ]]; then
+        local hold_pid
+        while read -r hold_pid; do
+            kill -KILL "${hold_pid}" 2>/dev/null || true
+        done < "${WORK}/hold-pids"
+    fi
     rm -rf "$WORK"
 }
 trap cleanup EXIT
@@ -235,6 +241,78 @@ while read -r sleep_pid; do
     fi
 done < "${WORK}/sleep-pids"
 echo "PASS: bash fallback reaps its sleep and ignores caller stdin"
+
+# A wrapper can exit after starting a child that inherits the help pipe.
+# Without a process-group kill, grep waits until that child exits.
+write_holder() {
+    local path="$1" print_help="$2"
+    cat > "$path" <<EOF
+#!/bin/sh
+if [ ${print_help} = yes ]; then
+    printf '%s\n' $(printf '%q' "${HELP_WINDOW_ICON}")
+fi
+$(printf '%q' "${REAL_SLEEP}") 30 &
+echo \$! >> $(printf '%q' "${WORK}/hold-pids")
+exit 0
+EOF
+    chmod +x "$path"
+}
+SILENT="${WORK}/bin-hold-silent"
+PRINT="${WORK}/bin-hold-print"
+mkdir -p "$SILENT" "$PRINT"
+write_holder "${SILENT}/yad" no
+write_holder "${PRINT}/yad" yes
+
+run_holder() {
+    local bin="$1" output_file="$2"
+    local inner guard
+    : > "${WORK}/hold-pids"
+    set -m
+    PATH="${bin}:${MASK}" "${BASH:-bash}" -c '
+        set -euo pipefail
+        source "$1/popup-dialog-implementations.sh"
+        _popup_icon_args yad
+        printf "%s\n" "${_dlg_icon[@]+"${_dlg_icon[@]}"}"
+    ' _ "$INST" > "${output_file}" &
+    inner=$!
+    set +m
+    (
+        sleep 6
+        kill -KILL "${inner}" 2>/dev/null || true
+    ) &
+    guard=$!
+    wait "${inner}" 2>/dev/null || true
+    kill -TERM "${guard}" 2>/dev/null || true
+    wait "${guard}" 2>/dev/null || true
+}
+
+start=$SECONDS
+run_holder "$SILENT" "${WORK}/hold-silent-out"
+elapsed=$((SECONDS - start))
+[[ "$elapsed" -le 3 ]] || fail "silent holder blocked the reader for ${elapsed}s"
+[[ -s "${WORK}/hold-pids" ]] || fail "silent holder did not start a child"
+while read -r hold_pid; do
+    if kill -0 "${hold_pid}" 2>/dev/null; then
+        kill -KILL "${hold_pid}" 2>/dev/null || true
+        fail "silent holder left child ${hold_pid} running"
+    fi
+done < "${WORK}/hold-pids"
+[[ -z "$(cat "${WORK}/hold-silent-out")" ]] || fail "silent holder produced a flag"
+echo "PASS: bash fallback does not wait on a child holding the help pipe (${elapsed}s)"
+
+start=$SECONDS
+run_holder "$PRINT" "${WORK}/hold-print-out"
+elapsed=$((SECONDS - start))
+[[ "$elapsed" -le 3 ]] || fail "printing holder blocked the reader for ${elapsed}s"
+[[ "$(cat "${WORK}/hold-print-out")" = "--window-icon=${INST}/timerwarning-icon.png" ]] \
+    || fail "printing holder flag: $(cat "${WORK}/hold-print-out")"
+while read -r hold_pid; do
+    if kill -0 "${hold_pid}" 2>/dev/null; then
+        kill -KILL "${hold_pid}" 2>/dev/null || true
+        fail "printing holder left child ${hold_pid} running"
+    fi
+done < "${WORK}/hold-pids"
+echo "PASS: bash fallback keeps the icon flag and reaps the holder child (${elapsed}s)"
 
 # A stand-in named timeout forces the timeout branch on machines without GNU timeout.
 # It drops the deadline arguments and runs the tool with the stdin it inherited.
