@@ -58,27 +58,27 @@ run_case() {
 }
 
 out="$(run_case "$INST" yad "  --window-icon=ICONPATH  Set the window icon")"
-[ "$out" = "--window-icon=${INST}/timerwarning-icon.png" ] || fail "yad: got '${out}'"
+[[ "$out" = "--window-icon=${INST}/timerwarning-icon.png" ]] || fail "yad: got '${out}'"
 out="$(run_case "$INST" zenity "  --window-icon=ICONPATH  Set the window icon")"
-[ "$out" = "--window-icon=${INST}/timerwarning-icon.png" ] || fail "zenity: got '${out}'"
+[[ "$out" = "--window-icon=${INST}/timerwarning-icon.png" ]] || fail "zenity: got '${out}'"
 out="$(run_case "$INST" kdialog "  --icon <icon>  Use 'icon' as the application icon.")"
-[ "$out" = "$(printf -- '--icon\n%s' "${INST}/timerwarning-icon.png")" ] || fail "kdialog: got '${out}'"
+[[ "$out" = "$(printf -- '--icon\n%s' "${INST}/timerwarning-icon.png")" ]] || fail "kdialog: got '${out}'"
 echo "PASS: supported tools get the icon flag"
 
 out="$(run_case "$INST" zenity "  --title=TITLE  Set the dialog title")"
-[ -z "$out" ] || fail "zenity without --window-icon in help got '${out}'"
+[[ -z "$out" ]] || fail "zenity without --window-icon in help got '${out}'"
 echo "PASS: tools that do not list the option get no flag"
 
 BARE="${WORK}/bare"
 mkdir -p "$BARE"
 cp "${ROOT}/lib/popup-dialog-implementations.sh" "$BARE/"
 out="$(run_case "$BARE" yad "  --window-icon=ICONPATH")"
-[ -z "$out" ] || fail "missing icon file still produced '${out}'"
+[[ -z "$out" ]] || fail "missing icon file still produced '${out}'"
 echo "PASS: missing icon file gives no flag"
 
 # Repo layout: lib/ module falls back to assets/icon-256.png.
 out="$(run_case "${ROOT}/lib" yad "  --window-icon=ICONPATH")"
-[ "$out" = "--window-icon=${ROOT}/lib/../assets/icon-256.png" ] || fail "repo fallback: got '${out}'"
+[[ "$out" = "--window-icon=${ROOT}/lib/../assets/icon-256.png" ]] || fail "repo fallback: got '${out}'"
 echo "PASS: repo checkout uses assets/icon-256.png"
 
 # A stalled toolkit must not hold up the spawn: the help probe has a deadline.
@@ -93,8 +93,8 @@ out="$(PATH="${HANG}:${PATH}" "${BASH:-bash}" -c '
     printf "%s\n" "${_dlg_icon[@]+"${_dlg_icon[@]}"}"
 ' _ "$INST")"
 elapsed=$((SECONDS - start))
-[ -z "$out" ] || fail "hung yad still produced '${out}'"
-[ "$elapsed" -le 5 ] || fail "hung help probe took ${elapsed}s"
+[[ -z "$out" ]] || fail "hung yad still produced '${out}'"
+[[ "$elapsed" -le 5 ]] || fail "hung help probe took ${elapsed}s"
 echo "PASS: hung help probe is cut off (${elapsed}s)"
 
 # Countdown respawns reuse the cached probe result.
@@ -105,7 +105,7 @@ chmod +x "${COUNT}/yad"
 PATH="${COUNT}:${PATH}" "${BASH:-bash}" -c '
     source "$1/popup-dialog-implementations.sh"
     _popup_icon_args yad; _popup_icon_args yad; _popup_icon_args yad
-    [ "${#_dlg_icon[@]}" -eq 1 ]
+    [[ "${#_dlg_icon[@]}" -eq 1 ]]
 ' _ "$INST" || fail "cached call lost the icon flag"
-[ "$(wc -l < "${WORK}/probe-count" | tr -d ' ')" = "1" ] || fail "help probe ran more than once"
+[[ "$(wc -l < "${WORK}/probe-count" | tr -d ' ')" = "1" ]] || fail "help probe ran more than once"
 echo "PASS: help probe runs once per process"

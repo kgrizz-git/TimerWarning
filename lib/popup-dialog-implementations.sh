@@ -25,9 +25,9 @@
 _popup_icon_path() {
     local here
     here="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || return 0
-    if [ -f "${here}/timerwarning-icon.png" ]; then
+    if [[ -f "${here}/timerwarning-icon.png" ]]; then
         printf '%s' "${here}/timerwarning-icon.png"
-    elif [ -f "${here}/../assets/icon-256.png" ]; then
+    elif [[ -f "${here}/../assets/icon-256.png" ]]; then
         printf '%s' "${here}/../assets/icon-256.png"
     fi
 }
@@ -76,28 +76,30 @@ _popup_icon_args() {
     _dlg_icon=()
     local icon
     icon="$(_popup_icon_path)"
-    [ -n "${icon}" ] || return 0
+    [[ -n "${icon}" ]] || return 0
     case "$1" in
         yad)
-            if [ -z "${_POPUP_ICON_SUPPORT_yad}" ]; then
+            if [[ -z "${_POPUP_ICON_SUPPORT_yad}" ]]; then
                 _POPUP_ICON_SUPPORT_yad=no
                 _popup_icon_help_probe yad --help-all | grep -q -- '--window-icon' && _POPUP_ICON_SUPPORT_yad=yes
             fi
-            [ "${_POPUP_ICON_SUPPORT_yad}" = "yes" ] && _dlg_icon=(--window-icon="${icon}")
+            [[ "${_POPUP_ICON_SUPPORT_yad}" = "yes" ]] && _dlg_icon=(--window-icon="${icon}")
             ;;
         zenity)
-            if [ -z "${_POPUP_ICON_SUPPORT_zenity}" ]; then
+            if [[ -z "${_POPUP_ICON_SUPPORT_zenity}" ]]; then
                 _POPUP_ICON_SUPPORT_zenity=no
                 _popup_icon_help_probe zenity --help-general | grep -q -- '--window-icon' && _POPUP_ICON_SUPPORT_zenity=yes
             fi
-            [ "${_POPUP_ICON_SUPPORT_zenity}" = "yes" ] && _dlg_icon=(--window-icon="${icon}")
+            [[ "${_POPUP_ICON_SUPPORT_zenity}" = "yes" ]] && _dlg_icon=(--window-icon="${icon}")
             ;;
         kdialog)
-            if [ -z "${_POPUP_ICON_SUPPORT_kdialog}" ]; then
+            if [[ -z "${_POPUP_ICON_SUPPORT_kdialog}" ]]; then
                 _POPUP_ICON_SUPPORT_kdialog=no
                 _popup_icon_help_probe kdialog --help-all | grep -q -- '--icon' && _POPUP_ICON_SUPPORT_kdialog=yes
             fi
-            [ "${_POPUP_ICON_SUPPORT_kdialog}" = "yes" ] && _dlg_icon=(--icon "${icon}")
+            [[ "${_POPUP_ICON_SUPPORT_kdialog}" = "yes" ]] && _dlg_icon=(--icon "${icon}")
+            ;;
+        *)
             ;;
     esac
     return 0

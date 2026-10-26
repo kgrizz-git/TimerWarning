@@ -161,9 +161,10 @@ install_copy_license() {
 # fall back to the toolkit default icon when it is absent.
 # Inputs: SCRIPT_DIR (repository root), LIB_DIR (destination).
 install_copy_icon() {
-    if [ -f "${SCRIPT_DIR}/assets/icon-256.png" ]; then
+    if [[ -f "${SCRIPT_DIR}/assets/icon-256.png" ]]; then
         cp "${SCRIPT_DIR}/assets/icon-256.png" "${LIB_DIR}/timerwarning-icon.png"
     fi
+    return 0
 }
 
 install_darwin_install_files() {
