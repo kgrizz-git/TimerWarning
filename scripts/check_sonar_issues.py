@@ -153,9 +153,9 @@ def apply_update(
             kept[key] = updated
         else:
             kept[key] = entry
-    payload = dict(baseline)
-    payload["issues"] = kept
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    payload = {"schema": 1, "gated_types": list(GATED_TYPES), "issues": kept}
+    # The path is the fixed baseline file. The text is the ratchet we just built.
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")  # NOSONAR pythonsecurity:S2083
     print(f"sonar-issues: ratcheted baseline down ({len(resolved)} resolved, {len(shrunk)} lowered).")
 
 
@@ -245,6 +245,11 @@ def run(
     if scanned not in expected:
         print(f"sonar-issues: dump is for {scanned}, not this push. It was not used.")
         return 0
+    return _finish(dump, baseline_path, strict=strict, update=update)
+
+
+def _finish(dump: dict[str, Any], baseline_path: Path, *, strict: bool, update: bool) -> int:
+    """Compare one dump with the baseline and return the gate status."""
     current = collect_gated(dump["issues"])
     baseline = load_baseline(baseline_path)
     new_keys, over, resolved, shrunk = compare(baseline, current)
@@ -255,6 +260,10 @@ def run(
     if new_keys or over:
         _report_new(new_keys, over, current, baseline, baseline_path)
         return 1 if strict else 0
+    return _report_clean(current, resolved)
+
+
+def _report_clean(current: dict[str, int], resolved: list[str]) -> int:
     instances = sum(current.values())
     print(
         f"sonar-issues: OK — {len(current)} gated rule/file key(s) "

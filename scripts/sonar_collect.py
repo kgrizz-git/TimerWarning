@@ -140,9 +140,13 @@ ISSUES_PATH = REPO_ROOT / "tmp" / "sonar-latest-issues.json"
 
 
 def _write(path: Path, payload: dict[str, Any]) -> None:
+    """Write one JSON file under the repo tmp directory.
+
+    path is one of the two fixed locations. The payload is the scan result.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")  # NOSONAR pythonsecurity:S8707
     os.replace(temporary, path)
 
 
