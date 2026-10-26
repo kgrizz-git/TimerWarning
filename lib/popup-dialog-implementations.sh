@@ -55,8 +55,9 @@ _popup_icon_help_probe() {
     (
         # Reap this subshell's sleep when the parent signals the watcher.
         _probe_sleep() {
-            local child
-            sleep "$1" &
+            local child seconds
+            seconds="$1"
+            sleep "${seconds}" &
             child=$!
             trap 'kill -TERM "${child}" 2>/dev/null || true; exit 0' TERM
             wait "${child}" 2>/dev/null || exit 0

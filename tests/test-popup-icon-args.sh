@@ -9,6 +9,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Help text repeated by the fake dialog tools. Sonar treats each copy as a duplicate literal.
+HELP_WINDOW_ICON="  --window-icon=ICONPATH"
+HELP_WINDOW_ICON_DETAIL="${HELP_WINDOW_ICON}  Set the window icon"
 mkdir -p "${ROOT}/tmp"
 WORK="$(mktemp -d "${ROOT}/tmp/popup-icon.XXXXXX")"
 cleanup() {
@@ -97,9 +100,9 @@ run_case() {
     ' _ "$module_dir" "$tool"
 }
 
-out="$(run_case "$INST" yad "  --window-icon=ICONPATH  Set the window icon")"
+out="$(run_case "$INST" yad "${HELP_WINDOW_ICON_DETAIL}")"
 [[ "$out" = "--window-icon=${INST}/timerwarning-icon.png" ]] || fail "yad: got '${out}'"
-out="$(run_case "$INST" zenity "  --window-icon=ICONPATH  Set the window icon")"
+out="$(run_case "$INST" zenity "${HELP_WINDOW_ICON_DETAIL}")"
 [[ "$out" = "--window-icon=${INST}/timerwarning-icon.png" ]] || fail "zenity: got '${out}'"
 out="$(run_case "$INST" kdialog "  --icon <icon>  Use 'icon' as the application icon.")"
 [[ "$out" = "$(printf -- '--icon\n%s' "${INST}/timerwarning-icon.png")" ]] || fail "kdialog: got '${out}'"
@@ -112,12 +115,12 @@ echo "PASS: tools that do not list the option get no flag"
 BARE="${WORK}/bare"
 mkdir -p "$BARE"
 cp "${ROOT}/lib/popup-dialog-implementations.sh" "$BARE/"
-out="$(run_case "$BARE" yad "  --window-icon=ICONPATH")"
+out="$(run_case "$BARE" yad "${HELP_WINDOW_ICON}")"
 [[ -z "$out" ]] || fail "missing icon file still produced '${out}'"
 echo "PASS: missing icon file gives no flag"
 
 # Repo layout: lib/ module falls back to assets/icon-256.png.
-out="$(run_case "${ROOT}/lib" yad "  --window-icon=ICONPATH")"
+out="$(run_case "${ROOT}/lib" yad "${HELP_WINDOW_ICON}")"
 [[ "$out" = "--window-icon=${ROOT}/lib/../assets/icon-256.png" ]] || fail "repo fallback: got '${out}'"
 echo "PASS: repo checkout uses assets/icon-256.png"
 
@@ -140,7 +143,7 @@ echo "PASS: hung help probe is cut off (${elapsed}s)"
 # Countdown respawns reuse the cached probe result.
 COUNT="${WORK}/bin-count"
 mkdir -p "$COUNT"
-printf '#!/bin/sh\necho x >> "%s"\necho "  --window-icon=ICONPATH"\n' "${WORK}/probe-count" > "${COUNT}/yad"
+printf '#!/bin/sh\necho x >> "%s"\necho "%s"\n' "${WORK}/probe-count" "${HELP_WINDOW_ICON}" > "${COUNT}/yad"
 chmod +x "${COUNT}/yad"
 PATH="${COUNT}:${PATH}" "${BASH:-bash}" -c '
     source "$1/popup-dialog-implementations.sh"
@@ -171,7 +174,7 @@ SPACE_MOD="${WORK}/module dir"
 mkdir -p "$SPACE_MOD"
 cp "${ROOT}/lib/popup-dialog-implementations.sh" "$SPACE_MOD/"
 cp "${ROOT}/assets/icon-256.png" "${SPACE_MOD}/timerwarning-icon.png"
-out="$(run_case "$SPACE_MOD" yad "  --window-icon=ICONPATH")"
+out="$(run_case "$SPACE_MOD" yad "${HELP_WINDOW_ICON}")"
 [[ "$out" = "--window-icon=${SPACE_MOD}/timerwarning-icon.png" ]] || fail "spaced yad path: got '${out}'"
 out="$(run_case "$SPACE_MOD" kdialog "  --icon <icon>")"
 [[ "$out" = "$(printf -- '--icon\n%s' "${SPACE_MOD}/timerwarning-icon.png")" ]] || fail "spaced kdialog path: got '${out}'"
@@ -213,7 +216,7 @@ mkdir -p "$FAST"
 cat > "${FAST}/yad" <<EOF
 #!/bin/sh
 dd if=/dev/stdin of=$(printf '%q' "${WORK}/probe-stdin") bs=64 count=1 2>/dev/null || true
-printf '%s\n' '  --window-icon=ICONPATH'
+printf '%s\n' "${HELP_WINDOW_ICON}"
 exec $(printf '%q' "${REAL_SLEEP}") 0.3
 EOF
 chmod +x "${FAST}/yad"
@@ -302,14 +305,14 @@ spawn_case() {
     ' _ "$SPACE_MOD" "$tool" || fail "${tool} spawn helper failed"
 }
 
-spawn_case yad "  --window-icon=ICONPATH" "${WORK}/spawn-yad"
+spawn_case yad "${HELP_WINDOW_ICON}" "${WORK}/spawn-yad"
 grep -qxF -- "--window-icon=${SPACE_MOD}/timerwarning-icon.png" "${WORK}/spawn-yad" \
     || fail "yad spawn args: $(cat "${WORK}/spawn-yad")"
 spawn_case kdialog "  --icon <icon>" "${WORK}/spawn-kdialog"
 [[ "$(sed -n '1p' "${WORK}/spawn-kdialog")" = "--icon" ]] || fail "kdialog spawn missing --icon"
 [[ "$(sed -n '2p' "${WORK}/spawn-kdialog")" = "${SPACE_MOD}/timerwarning-icon.png" ]] \
     || fail "kdialog spawn path: $(sed -n '2p' "${WORK}/spawn-kdialog")"
-spawn_case zenity "  --window-icon=ICONPATH" "${WORK}/spawn-zenity"
+spawn_case zenity "${HELP_WINDOW_ICON}" "${WORK}/spawn-zenity"
 grep -qxF -- "--window-icon=${SPACE_MOD}/timerwarning-icon.png" "${WORK}/spawn-zenity" \
     || fail "zenity spawn args: $(cat "${WORK}/spawn-zenity")"
 echo "PASS: warning spawn passes the icon flag"
