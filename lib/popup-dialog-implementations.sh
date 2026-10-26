@@ -47,7 +47,7 @@ _popup_icon_path() {
 # leader exits sooner, the group is killed immediately. The watcher's own sleep
 # is reaped when this function signals it.
 _popup_icon_help_probe() {
-    local pid watcher help_file
+    local pid watcher help_file probe_name="$1"
     help_file="$(mktemp "${TMPDIR:-/tmp}/sw-icon-help.XXXXXX" 2>/dev/null)" || true
     if [[ -z "${help_file}" || ! -f "${help_file}" ]]; then
         return 0
@@ -80,7 +80,7 @@ _popup_icon_help_probe() {
             # Commands replace this subshell so the tool itself is the process
             # we wait on. A shell function has to run inside the subshell:
             # exec cannot invoke one.
-            if [[ "$(type -t -- "$1" 2>/dev/null || true)" == "function" ]]; then
+            if [[ "$(type -t -- "${probe_name}" 2>/dev/null || true)" == "function" ]]; then
                 "$@"
             else
                 exec "$@"

@@ -11,6 +11,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Help text repeated by the fake dialog tools. Sonar treats each copy as a duplicate literal.
 HELP_WINDOW_ICON="  --window-icon=ICONPATH"
+# Stdin marker fed to the help probe. One definition so the same bytes are not repeated.
+STDIN_MARKER='SECRET-MARKER'
 HELP_WINDOW_ICON_DETAIL="${HELP_WINDOW_ICON}  Set the window icon"
 mkdir -p "${ROOT}/tmp"
 WORK="$(mktemp -d "${ROOT}/tmp/popup-icon.XXXXXX")"
@@ -229,14 +231,14 @@ chmod +x "${FAST}/yad"
 : > "${WORK}/probe-stdin"
 # The fixture must record inherited stdin. Otherwise an empty probe-stdin file
 # would pass even when the probe forgot to redirect stdin.
-printf 'SECRET-MARKER\n' | PATH="${FAST}:${MASK}" "${FAST}/yad" >/dev/null || true
-grep -q 'SECRET-MARKER' "${WORK}/probe-stdin" \
+printf '%s\n' "${STDIN_MARKER}" | PATH="${FAST}:${MASK}" "${FAST}/yad" >/dev/null || true
+grep -q "${STDIN_MARKER}" "${WORK}/probe-stdin" \
     || fail "stdin fixture did not record inherited stdin: $(cat "${WORK}/probe-stdin" 2>/dev/null || true)"
 : > "${WORK}/probe-stdin"
 # Call the probe directly. Inside a pipeline, Bash already points a background
 # command's stdin at /dev/null, so the _popup_icon_args checks below cannot
 # tell whether this redirect is present.
-printf 'SECRET-MARKER\n' | PATH="${FAST}:${MASK}" "${BASH:-bash}" -c '
+printf '%s\n' "${STDIN_MARKER}" | PATH="${FAST}:${MASK}" "${BASH:-bash}" -c '
     set -euo pipefail
     source "$1/popup-dialog-implementations.sh"
     _popup_icon_help_probe yad --help-all
@@ -264,7 +266,7 @@ PATH="${MASK}:${PATH}" "${BASH:-bash}" -c '
 [[ "$(cat "${WORK}/fd8-marker")" == "fd8-ok" ]] \
     || fail "help probe closed caller fd 8: $(cat "${WORK}/fd8-marker" 2>/dev/null || true)"
 echo "PASS: help probe leaves caller fd 8 open"
-printf 'SECRET-MARKER\n' | PATH="${FAST}:${MASK}" "${BASH:-bash}" -c '
+printf '%s\n' "${STDIN_MARKER}" | PATH="${FAST}:${MASK}" "${BASH:-bash}" -c '
     set -euo pipefail
     source "$1/popup-dialog-implementations.sh"
     _popup_icon_args yad
@@ -401,7 +403,7 @@ echo "PASS: help probe keeps the icon flag when timeout is installed (${elapsed}
 
 # The same stand-in sits on PATH for a fast tool. Stdin stays /dev/null.
 : > "${WORK}/probe-stdin"
-printf 'SECRET-MARKER\n' | PATH="${FAST}:${LEAKY}:${MASK}" "${BASH:-bash}" -c '
+printf '%s\n' "${STDIN_MARKER}" | PATH="${FAST}:${LEAKY}:${MASK}" "${BASH:-bash}" -c '
     set -euo pipefail
     source "$1/popup-dialog-implementations.sh"
     _popup_icon_args yad
