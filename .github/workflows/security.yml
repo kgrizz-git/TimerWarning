@@ -37,6 +37,12 @@ jobs:
       - name: ShellCheck, Gitleaks, Semgrep
         run: ./scripts/run-security-scan.sh --ci
 
+      - name: Python line coverage
+        run: |
+          sudo apt-get install -y -qq python3-tk xvfb
+          python3 -m pip install --user coverage
+          xvfb-run -a ./scripts/check-python-coverage.sh
+
       - name: Doc drift (warn-only)
         run: ./scripts/check-doc-drift.sh
 

@@ -2,7 +2,7 @@
 
 **Created:** 2026-10-26
 
-**Status:** Draft, revised after review on 2026-10-26. Not started. This document is the work. Do not add the tools, configs, or hook changes until this plan is accepted.
+**Status:** Draft, revised after review on 2026-10-26. The lint, type, complexity, and file-size gates below are not started. Python line coverage is the exception: it is implemented on this branch as of 2026-10-26. Do not add the other tools, configs, or hook changes until this plan is accepted.
 
 **Branch:** `chore/quality-gates`, from `main` at `f7a22a9`. It is not stacked on `chore/public-polish`.
 
@@ -17,12 +17,21 @@
 | Semgrep project rules (`eval`, `curl \| bash`) | — | — | Same script |
 | Tier-A tests | — | Opt-in file `.githooks/enable-pre-push` | Ubuntu and macOS |
 | `lib/*.sh` line cap, 900 | — | — | — |
+| Python line coverage of `lib/*.py` | — | `scripts/check-python-coverage.sh` | Ubuntu static-analysis job, under xvfb |
 
 `./scripts/check-file-sizes.sh` is manual. Without `--strict` it warns and exits 0. `lib/configure-dialogs-darwin.sh` is the only allowlisted file. Two other shell files are already over the cap and are not allowlisted: `lib/config.sh` (908) and `lib/window-management.sh` (933), counted on 2026-10-26. Turning on `--strict` as it exists today would fail before any new code is written.
 
 There is no type checker, no Python linter, and no complexity limit in the hooks or in CI. SonarCloud comments on pull requests come from the GitHub app. This plan does not replace that app and does not add a Sonar quality gate.
 
 Python on `main` at `f7a22a9` is the macOS UI and one test: 10 files under `lib/` (the configure-dialog modules and `lib/popup-blocker-darwin.py`) and `tests/test-darwin-modal-dialog.py`. The largest is `lib/popup-blocker-darwin.py` at 430 lines. None exceed 500. `tests/test-popup-icon-tk.py` is on `chore/public-polish` and is not on this branch.
+
+## Python line coverage (implemented)
+
+Measured on 2026-10-26 with `tests/test-darwin-modal-dialog.py` and tkinter available: **31 of 793 statements (3.9%)** on this branch. The same run on `chore/public-polish` was **33 of 826 (4.0%)**. The other Python files are read as text or not imported, so they stay at 0%. Shell has no line-coverage number; Tier-A does not produce one.
+
+[`scripts/check-python-coverage.sh`](../../scripts/check-python-coverage.sh) runs `tests/test-*.py` under `coverage.py` and fails when `covered/statements` drops below `31/793` in [`scripts/python-coverage-baseline.json`](../../scripts/python-coverage-baseline.json). Pre-push runs it on every push. The Ubuntu `Static analysis` job installs `python3-tk` and runs it under `xvfb`, because the covered lines are inside the tkinter helpers and disappear when those tests skip. `SKIP_PYTHON_COVERAGE=1` skips locally. CI does not honor that.
+
+The GitHub ruleset `Mainrules1` rejects a code-coverage drop, and `minimum_coverage` is unset. Nothing in this repo uploads a coverage report to GitHub, so that ruleset rule still has no artifact to compare. The floor above is what pre-push and CI enforce.
 
 ## Decisions
 

@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "scope": "lib/*.py",
+  "covered_statements": 31,
+  "statements": 793,
+  "note": "Measured 2026-10-26 on chore/quality-gates with tests/test-darwin-modal-dialog.py and tkinter available. 31/793 is about 3.9%. The gate fails when covered/statements falls below that ratio. Shell scripts are not included. The same measurement on chore/public-polish was 33/826 (4.0%), which is above this floor."
+}

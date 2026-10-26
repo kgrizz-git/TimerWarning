@@ -12,8 +12,11 @@ ENV/
 # Local SonarQube scanner output. The scan state under tmp/ is already ignored.
 .scannerwork/
 
-# Python cache
+# Python cache and coverage data
 __pycache__/
+.coverage
+.coverage.*
+htmlcov/
 *.py[cod]
 *$py.class
 *.so

@@ -2,6 +2,18 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-26 — Python line coverage on pre-push and CI
+
+- `scripts/check-python-coverage.sh` fails when `lib/*.py` line coverage drops below 31/793 (about 3.9%), the ratio measured on this branch with tkinter available. Shell is outside the gate.
+- Pre-push runs that script. The Ubuntu static-analysis job installs `python3-tk` and runs it under `xvfb`. `SKIP_PYTHON_COVERAGE=1` skips locally; CI does not.
+
+## 2026-10-26 — Local Sonar issue ratchet
+
+- `scripts/sonar_scan.sh` refuses a dirty tree, waits for the Compute Engine task without putting the token on a command line, and writes `tmp/sonar-latest-issues.json` with counts by type and by rule.
+- Pre-push checks each pushed commit against that scan and the recorded host. A ref delete is not checked. `scripts/check_sonar_issues.py` fails when a `BUG` or `VULNERABILITY` count rises for the same rule and file. Code smells and severity are not gated. The baseline starts empty.
+- `.env` should be mode `0600`. The loader accepts a leading `export` and a trailing comment, and warns when group or other can read the file.
+- The local Community Build analyzes Python only. This ratchet does not see the shell rules SonarCloud reports on pull requests.
+
 ## 2026-10-26 — Local SonarQube before push
 
 - `.env` is gitignored. Copy `.env.example` and set `SONAR_TOKEN` there. `SONAR_HOST_URL` is optional and defaults to `http://localhost:9000`. The token is not stored in the repo.
