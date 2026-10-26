@@ -2,6 +2,11 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-26 — SonarCloud security rating on the local scan writers
+
+- The issue ratchet and the scan collector write only their own fixed files. SonarCloud still treats that write as path traversal, which failed the new-code security rating. Those two writes are marked `NOSONAR` for `pythonsecurity:S2083` and `pythonsecurity:S8707`.
+- `run()` in the issue gate is split so its cognitive complexity stays within the limit of 15.
+
 ## 2026-10-26 — Sonar gate fails closed
 
 - The `.env` mode check uses GNU `stat -c` before BSD `stat -f`, so Ubuntu Tier-A no longer dies on `8#`.
