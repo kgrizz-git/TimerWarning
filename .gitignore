@@ -4,6 +4,11 @@ env/
 ENV/
 .venv/
 
+# Local secrets. SonarQube URL and token live in .env; never commit them.
+.env
+.env.*
+!.env.example
+
 # Python cache
 __pycache__/
 *.py[cod]

@@ -2,6 +2,11 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-26 — Local SonarQube before push
+
+- `.env` is gitignored. Copy `.env.example` and set `SONAR_HOST_URL` and `SONAR_TOKEN` there. The token is not stored in the repo.
+- Installed pre-push hooks run `scripts/run-local-sonar.sh` when those keys are set. `SKIP_LOCAL_SONAR=1` skips it. Tier-A remains opt-in. This does not replace the SonarCloud GitHub app.
+
 ## 2026-10-25 — Publication Phase 3: stubs removed, completed plans archived
 
 - Removed all `Moved` redirect stubs under `docs/` and `dev-docs/CONFIGURE_GUI_FLOW.md`. Live docs already pointed at `dev-docs/`; `docs/index.md`, `canonical-vs-archive.md`, and `scripts/check-doc-drift.sh` updated together.
