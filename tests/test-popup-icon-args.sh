@@ -277,7 +277,11 @@ run_holder() {
     inner=$!
     set +m
     (
-        sleep 6
+        # Own the deadline sleep so SIGTERM from the parent reaps it.
+        sleep 6 &
+        guard_sleep=$!
+        trap 'kill -TERM "${guard_sleep}" 2>/dev/null || true; exit 0' TERM
+        wait "${guard_sleep}" 2>/dev/null || true
         kill -KILL "${inner}" 2>/dev/null || true
     ) &
     guard=$!

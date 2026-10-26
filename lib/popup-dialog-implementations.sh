@@ -55,8 +55,8 @@ _popup_icon_help_probe() {
     local pid watcher
     # Monitor mode gives the tool its own process group. This runs in the
     # help pipeline's subshell, so the caller's job control is unchanged.
-    # Silence the "Done" notice job control would write to stderr.
-    set +b 2>/dev/null || true
+    # set +m before return drops monitor mode. That is what avoids leaving a
+    # job-control "Done" notice pending; set +b would only defer the notice.
     set -m 2>/dev/null || true
     "$@" </dev/null 2>/dev/null &
     pid=$!
