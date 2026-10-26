@@ -252,6 +252,18 @@ PATH="${MASK}" "${BASH:-bash}" -c '
 [[ "$(cat "${WORK}/probe-function-out")" == "window-icon-from-function" ]] \
     || fail "shell-function tool produced: $(cat "${WORK}/probe-function-out")"
 echo "PASS: help probe can run a shell function"
+# Closing fd 8 was the old way of hiding the setpgid notice. A caller that
+# owns fd 8 must still be able to write to it after the probe returns.
+PATH="${MASK}:${PATH}" "${BASH:-bash}" -c '
+    set -euo pipefail
+    source "$1/popup-dialog-implementations.sh"
+    exec 8>"$2"
+    _popup_icon_help_probe true
+    printf "fd8-ok\n" >&8
+' _ "$INST" "${WORK}/fd8-marker" || fail "fd 8 probe failed"
+[[ "$(cat "${WORK}/fd8-marker")" == "fd8-ok" ]] \
+    || fail "help probe closed caller fd 8: $(cat "${WORK}/fd8-marker" 2>/dev/null || true)"
+echo "PASS: help probe leaves caller fd 8 open"
 printf 'SECRET-MARKER\n' | PATH="${FAST}:${MASK}" "${BASH:-bash}" -c '
     set -euo pipefail
     source "$1/popup-dialog-implementations.sh"
@@ -616,6 +628,38 @@ while kill -0 "${writer_child}" 2>/dev/null; do
     slept=$((slept + 1))
 done
 echo "PASS: a setsid writer stops at the help-file size cap (${elapsed}s)"
+
+# 512 blocks is 512 KiB. The writer stops after 1.5 MiB, above that limit and
+# below the 2 MiB probe cap, so raising the caller's soft limit fails this check.
+cat > "${WORK}/limited-writer.py" <<'EOF'
+import sys
+chunk = b"x" * 4096
+want = 1536 * 1024
+written = 0
+while written < want:
+    try:
+        sys.stdout.buffer.write(chunk)
+        sys.stdout.buffer.flush()
+    except OSError:
+        break
+    written += len(chunk)
+EOF
+PATH="${MASK}:${PATH}" "${BASH:-bash}" -c '
+    set -euo pipefail
+    source "$1/popup-dialog-implementations.sh"
+    ulimit -S -f 512
+    _popup_icon_help_probe "$2" "$3" > "$4"
+    now="$(ulimit -S -f)"
+    [[ "${now}" == "512" ]] || {
+        echo "soft file limit became ${now}" >&2
+        exit 1
+    }
+' _ "$INST" "${PYTHON3}" "${WORK}/limited-writer.py" "${WORK}/limited-help-out" \
+    || fail "lower file-size limit probe failed"
+limited_size="$(wc -c < "${WORK}/limited-help-out" | tr -d " ")"
+[[ "${limited_size}" -le 524288 ]] \
+    || fail "lower file-size limit wrote ${limited_size} bytes"
+echo "PASS: help probe keeps a lower file-size limit (${limited_size} bytes)"
 
 # The spawn path must pass the same flag the helper built.
 make_spawn_tool() {
