@@ -43,6 +43,7 @@ tier_a:
     - test-config-lock-wizard-write-failure.sh
     - test-darwin-uninstall-failures.sh
     - test-darwin-persistent-disable.sh
+    - test-sonar-local.sh
     - test-prune-backups.sh
     - test-prune-dev-docs-archive.sh
     - test-prune-completed-plans.sh
