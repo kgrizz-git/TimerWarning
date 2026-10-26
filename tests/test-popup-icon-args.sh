@@ -233,6 +233,16 @@ printf 'SECRET-MARKER\n' | PATH="${FAST}:${MASK}" "${FAST}/yad" >/dev/null || tr
 grep -q 'SECRET-MARKER' "${WORK}/probe-stdin" \
     || fail "stdin fixture did not record inherited stdin: $(cat "${WORK}/probe-stdin" 2>/dev/null || true)"
 : > "${WORK}/probe-stdin"
+# Call the probe directly. Inside a pipeline, Bash already points a background
+# command's stdin at /dev/null, so the _popup_icon_args checks below cannot
+# tell whether this redirect is present.
+printf 'SECRET-MARKER\n' | PATH="${FAST}:${MASK}" "${BASH:-bash}" -c '
+    set -euo pipefail
+    source "$1/popup-dialog-implementations.sh"
+    _popup_icon_help_probe yad --help-all
+' _ "$INST" > "${WORK}/probe-direct-out"
+[[ ! -s "${WORK}/probe-stdin" ]] || fail "direct help probe read caller stdin: $(cat "${WORK}/probe-stdin")"
+echo "PASS: direct help probe ignores caller stdin"
 printf 'SECRET-MARKER\n' | PATH="${FAST}:${MASK}" "${BASH:-bash}" -c '
     set -euo pipefail
     source "$1/popup-dialog-implementations.sh"
@@ -379,25 +389,34 @@ printf 'SECRET-MARKER\n' | PATH="${FAST}:${LEAKY}:${MASK}" "${BASH:-bash}" -c '
 echo "PASS: help probe ignores caller stdin when timeout is installed"
 
 # A leader that ignores SIGTERM must still die on the follow-up SIGKILL (~2s).
+# A shell wrapper runs Python. A shebang of the pyenv shim is a script whose
+# interpreter is another script, which macOS refuses to execute.
 PYTHON3="$(command -v python3)" || fail "missing python3"
+python3_q="$(printf '%q' "${PYTHON3}")"
 IGNORE="${WORK}/bin-ignore-term"
 mkdir -p "$IGNORE"
-ignore_pid_py="$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "${WORK}/ignore-pid")"
-cat > "${IGNORE}/yad" <<EOF
-#!${PYTHON3}
-import os, signal, time
+cat > "${WORK}/ignore-term.py" <<'EOF'
+import os, signal, sys, time
 signal.signal(signal.SIGTERM, signal.SIG_IGN)
-open(${ignore_pid_py}, "w").write(str(os.getpid()))
+open(sys.argv[1], "w").write(str(os.getpid()))
 time.sleep(30)
 EOF
+ignore_py="$(printf '%q' "${WORK}/ignore-term.py")"
+ignore_pid_q="$(printf '%q' "${WORK}/ignore-pid")"
+cat > "${IGNORE}/yad" <<EOF
+#!/bin/sh
+exec ${python3_q} ${ignore_py} ${ignore_pid_q}
+EOF
 chmod +x "${IGNORE}/yad"
-start="$(python3 -c 'import time; print(f"{time.monotonic():.6f}")')"
+# time.time() is wall time. time.monotonic() is not comparable across
+# processes on some macOS Python builds.
+start="$(python3 -c 'import time; print(f"{time.time():.6f}")')"
 PATH="${IGNORE}:${PATH}" "${BASH:-bash}" -c '
     set -euo pipefail
     source "$1/popup-dialog-implementations.sh"
     _popup_icon_args yad
 ' _ "$INST" || fail "TERM-ignoring probe failed"
-elapsed="$(python3 -c 'import sys,time; print(f"{time.monotonic()-float(sys.argv[1]):.3f}")' "$start")"
+elapsed="$(python3 -c 'import sys,time; print(f"{time.time()-float(sys.argv[1]):.3f}")' "$start")"
 python3 -c 'import sys; t=float(sys.argv[1]); sys.exit(0 if 1.5 <= t <= 5 else 1)' "$elapsed" \
     || fail "TERM-ignoring leader finished in ${elapsed}s"
 [[ -s "${WORK}/ignore-pid" ]] || fail "TERM-ignoring leader did not record its pid"
@@ -425,7 +444,6 @@ stubborn_py="$(printf '%q' "${WORK}/stubborn-child.py")"
 stubborn_pid="$(printf '%q' "${WORK}/stubborn-pid")"
 stubborn_mark="$(printf '%q' "${WORK}/stubborn-mark")"
 hold_pids_q="$(printf '%q' "${WORK}/hold-pids")"
-python3_q="$(printf '%q' "${PYTHON3}")"
 cat > "${STUBBORN}/yad" <<EOF
 #!/bin/sh
 ${python3_q} ${stubborn_py} ${stubborn_pid} ${stubborn_mark} &
@@ -515,6 +533,75 @@ if kill -0 "${setsid_child}" 2>/dev/null; then
     kill -KILL "${setsid_child}" 2>/dev/null || true
 fi
 echo "PASS: a setsid grandchild cannot hold the help reader (${elapsed}s)"
+
+# The same escaping grandchild inherits the 2 MiB file-size cap. A writer that
+# ignores the process-group kill must die with SIGXFSZ instead of filling the
+# unlinked help file.
+cat > "${WORK}/setsid-writer.py" <<'EOF'
+import os, sys, time
+pidfile = sys.argv[1]
+chunk = b"x" * 4096
+pid = os.fork()
+if pid == 0:
+    os.setsid()
+    open(pidfile, "w").write(str(os.getpid()))
+    while True:
+        try:
+            os.write(1, chunk)
+        except OSError:
+            os._exit(0)
+    os._exit(0)
+for _ in range(100):
+    if os.path.isfile(pidfile) and os.path.getsize(pidfile) > 0:
+        os._exit(0)
+    time.sleep(0.01)
+os._exit(1)
+EOF
+writer_py="$(printf '%q' "${WORK}/setsid-writer.py")"
+writer_pid="$(printf '%q' "${WORK}/setsid-writer-pid")"
+WRITER="${WORK}/bin-setsid-writer"
+mkdir -p "$WRITER"
+cat > "${WRITER}/yad" <<EOF
+#!/bin/sh
+exec ${python3_q} ${writer_py} ${writer_pid}
+EOF
+chmod +x "${WRITER}/yad"
+rm -f "${WORK}/setsid-writer-pid"
+start=$SECONDS
+(
+    PATH="${WRITER}:${MASK}" "${BASH:-bash}" -c '
+        set -euo pipefail
+        source "$1/popup-dialog-implementations.sh"
+        _popup_icon_help_probe yad --help-all
+    ' _ "$INST"
+) >/dev/null &
+writer_inner=$!
+(
+    sleep 6 &
+    guard_sleep=$!
+    trap 'kill -TERM "${guard_sleep}" 2>/dev/null || true; exit 0' TERM
+    wait "${guard_sleep}" 2>/dev/null || true
+    kill -KILL "${writer_inner}" 2>/dev/null || true
+) &
+writer_guard=$!
+wait "${writer_inner}" 2>/dev/null || true
+kill -TERM "${writer_guard}" 2>/dev/null || true
+wait "${writer_guard}" 2>/dev/null || true
+elapsed=$((SECONDS - start))
+[[ "$elapsed" -le 3 ]] || fail "setsid writer blocked the reader for ${elapsed}s"
+[[ -s "${WORK}/setsid-writer-pid" ]] || fail "setsid writer did not start"
+writer_child="$(cat "${WORK}/setsid-writer-pid")"
+echo "${writer_child}" >> "${WORK}/hold-pids"
+slept=0
+while kill -0 "${writer_child}" 2>/dev/null; do
+    if [[ "${slept}" -ge 10 ]]; then
+        kill -KILL "${writer_child}" 2>/dev/null || true
+        fail "setsid writer ${writer_child} kept writing past the file-size cap"
+    fi
+    sleep 0.2
+    slept=$((slept + 1))
+done
+echo "PASS: a setsid writer stops at the help-file size cap (${elapsed}s)"
 
 # The spawn path must pass the same flag the helper built.
 make_spawn_tool() {

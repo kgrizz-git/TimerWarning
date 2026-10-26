@@ -57,8 +57,21 @@ _popup_icon_help_probe() {
     # set +m before return drops monitor mode. That is what avoids leaving a
     # job-control "Done" notice pending; set +b would only defer the notice.
     set -m 2>/dev/null || true
-    "$@" </dev/null >"${help_file}" 2>/dev/null &
+    # Bash can print "child setpgid: Operation not permitted" when this
+    # pipeline subshell is not allowed to create a process group. That notice
+    # is the shell's own stderr, so hide stderr only while the tool starts.
+    exec 8>&2
+    exec 2>/dev/null
+    # Cap the help file at 2 MiB (4096 * 512-byte blocks). A descendant that
+    # leaves the process group is not killed; the limit stops it from filling
+    # the disk by writing this file, including after it is unlinked.
+    (
+        ulimit -f 4096 || true
+        exec "$@"
+    ) </dev/null >"${help_file}" 2>/dev/null &
     pid=$!
+    exec 2>&8
+    exec 8>&-
     (
         # Reap this subshell's sleep when the parent signals the watcher.
         # The trap is installed before sleep starts so a fast SIGTERM cannot
