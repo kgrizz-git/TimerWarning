@@ -721,3 +721,62 @@ spawn_case zenity "${HELP_WINDOW_ICON}" "${WORK}/spawn-zenity"
 grep -qxF -- "--window-icon=${SPACE_MOD}/timerwarning-icon.png" "${WORK}/spawn-zenity" \
     || fail "zenity spawn args: $(cat "${WORK}/spawn-zenity")"
 echo "PASS: warning spawn passes the icon flag"
+
+# The pause confirmation uses the same helper. A fast stub exits after recording
+# args so the notice watchdog is not what this check measures.
+make_notice_tool() {
+    local bin="$1" name="$2" help="$3" record="$4"
+    local help_q record_q
+    mkdir -p "$bin"
+    help_q="$(printf '%q' "$help")"
+    record_q="$(printf '%q' "$record")"
+    cat > "${bin}/${name}" <<EOF
+#!/bin/sh
+for arg in "\$@"; do
+    case "\$arg" in
+        --help*)
+            printf '%s\\n' ${help_q}
+            exit 0
+            ;;
+    esac
+done
+printf '%s\\n' "\$@" > ${record_q}
+exit 0
+EOF
+    chmod +x "${bin}/${name}"
+}
+
+notice_case() {
+    local tool="$1" help="$2" record="$3" mode="${4:-x11}"
+    case_idx=$((case_idx + 1))
+    local bin="${WORK}/bin-notice-${tool}-${case_idx}"
+    make_notice_tool "$bin" "$tool" "$help" "$record"
+    PATH="${bin}:${PATH}" "${BASH:-bash}" -c '
+        set -euo pipefail
+        source "$1/popup-dialog-implementations.sh"
+        dialog_tool=$2
+        env_type=$3
+        window_tool=
+        _pause_info_timeout=1
+        _dlg_prefix=()
+        _popup_show_pause_activated_notice "01:00"
+    ' _ "$SPACE_MOD" "$tool" "$mode" || fail "${tool} pause notice failed (${mode})"
+}
+
+notice_case yad "${HELP_WINDOW_ICON}" "${WORK}/notice-yad"
+grep -qxF -- "--window-icon=${SPACE_MOD}/timerwarning-icon.png" "${WORK}/notice-yad" \
+    || fail "yad pause notice args: $(cat "${WORK}/notice-yad")"
+notice_case zenity "${HELP_WINDOW_ICON}" "${WORK}/notice-zenity"
+grep -qxF -- "--window-icon=${SPACE_MOD}/timerwarning-icon.png" "${WORK}/notice-zenity" \
+    || fail "zenity pause notice args: $(cat "${WORK}/notice-zenity")"
+notice_case kdialog "  --icon <icon>" "${WORK}/notice-kdialog"
+[[ "$(sed -n '1p' "${WORK}/notice-kdialog")" = "--icon" ]] || fail "kdialog pause notice missing --icon"
+[[ "$(sed -n '2p' "${WORK}/notice-kdialog")" = "${SPACE_MOD}/timerwarning-icon.png" ]] \
+    || fail "kdialog pause notice path: $(sed -n '2p' "${WORK}/notice-kdialog")"
+grep -qxF -- "--passivepopup" "${WORK}/notice-kdialog" \
+    || fail "desktop kdialog pause notice args: $(cat "${WORK}/notice-kdialog")"
+notice_case kdialog "  --icon <icon>" "${WORK}/notice-kdialog-gs" gamescope
+[[ "$(sed -n '1p' "${WORK}/notice-kdialog-gs")" = "--icon" ]] || fail "gamescope kdialog pause notice missing --icon"
+grep -qxF -- "--msgbox" "${WORK}/notice-kdialog-gs" \
+    || fail "gamescope kdialog pause notice args: $(cat "${WORK}/notice-kdialog-gs")"
+echo "PASS: pause notice passes the icon flag"

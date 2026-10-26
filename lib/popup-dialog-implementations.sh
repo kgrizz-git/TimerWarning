@@ -431,6 +431,8 @@ _popup_notice_atoms_worker() {
 # On gamescope, spawn a real X11 window in the background, tag it by that PID,
 # then wait. Desktop kdialog keeps a passive notification (no X window to tag).
 # Uses caller locals _dlg_prefix, _pause_info_timeout, dialog_tool, env_type, window_tool.
+# The notice gets the same icon flags as the warning. The help probe is cached
+# per tool, so a warning that already ran in this process does not probe again.
 # Parameters: $1 pause end time (HH:MM or "unknown")
 _popup_show_pause_activated_notice() {
     local pause_end_time="$1"
@@ -461,9 +463,13 @@ _popup_show_pause_activated_notice() {
             log_to_file "WARNING" "gamescope pause notice: root size unavailable; keeping ${pause_w}x${pause_h}"
         fi
     fi
+    # Same flags as the warning. Empty when the icon file is missing or the
+    # tool's help does not list the option.
+    local -a _dlg_icon=()
+    _popup_icon_args "${dialog_tool}"
     case "${dialog_tool}" in
         zenity)
-            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity --info \
+            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity ${_dlg_icon[@]+"${_dlg_icon[@]}"} --info \
                 --title="${title}" \
                 --text="${text}" \
                 --width="${pause_w}" \
@@ -481,7 +487,7 @@ _popup_show_pause_activated_notice() {
                 _pause_y=$(echo "${_pause_coords}" | cut -d' ' -f2)
                 _pause_yad_pos=(--posx="${_pause_x}" --posy="${_pause_y}")
             fi
-            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --info \
+            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad ${_dlg_icon[@]+"${_dlg_icon[@]}"} --info \
                 --title="${title}" \
                 --text="${text}" \
                 --width="${pause_w}" \
@@ -496,9 +502,9 @@ _popup_show_pause_activated_notice() {
         kdialog)
             # kdialog msgbox has no reliable width flag on SteamOS; atoms still applied.
             if [ "${env_type:-}" = "gamescope" ]; then
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${title}" --msgbox "${text}" 2>/dev/null &
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog ${_dlg_icon[@]+"${_dlg_icon[@]}"} --title "${title}" --msgbox "${text}" 2>/dev/null &
             else
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --passivepopup \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog ${_dlg_icon[@]+"${_dlg_icon[@]}"} --passivepopup \
                     "${text}" "${_pause_info_timeout}" 2>/dev/null &
             fi
             info_pid=$!
