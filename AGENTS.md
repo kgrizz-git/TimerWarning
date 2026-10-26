@@ -105,7 +105,7 @@ After clone, enable repo hooks once:
 # Optional: INSTALL_PRE_PUSH=1 ./scripts/install-git-hooks.sh
 ```
 
-**pre-commit** runs [scripts/pre-commit-checks.sh](scripts/pre-commit-checks.sh): prune tracked `backups/` older than **5** commits, report-only dev-docs archive retention check, ShellCheck on staged `*.sh`, and `gitleaks protect --staged` when those tools are installed. **pre-push** (opt-in) runs Tier-A via [scripts/pre-push-checks.sh](scripts/pre-push-checks.sh). Doc retention: [dev-docs/development/doc-retention.md](dev-docs/development/doc-retention.md).
+**pre-commit** runs [scripts/pre-commit-checks.sh](scripts/pre-commit-checks.sh): prune tracked `backups/` older than **5** commits, report-only dev-docs archive retention check, ShellCheck on staged `*.sh`, and `gitleaks protect --staged` when those tools are installed. **pre-push** checks local SonarQube freshness when `SONAR_TOKEN` is set and fails if a `BUG` or `VULNERABILITY` count rises; it does not run the scanner ([scripts/check-sonar-freshness.sh](scripts/check-sonar-freshness.sh), [scripts/check_sonar_issues.py](scripts/check_sonar_issues.py), [scripts/sonar_scan.sh](scripts/sonar_scan.sh)). Tier-A stays opt-in via [scripts/pre-push-checks.sh](scripts/pre-push-checks.sh). Doc retention: [dev-docs/development/doc-retention.md](dev-docs/development/doc-retention.md).
 
 Contributor guide: [dev-docs/CONTRIBUTING.md](dev-docs/CONTRIBUTING.md). Full scan: [scripts/run-security-scan.sh](scripts/run-security-scan.sh). Details: [dev-docs/development/security-scanning.md](dev-docs/development/security-scanning.md).
 

@@ -60,7 +60,7 @@ pip install semgrep
 
 Retention policy: [doc-retention.md](doc-retention.md). Skip archive report: `SKIP_ARCHIVE_REPORT=1`.
 
-**pre-push** (opt-in): `INSTALL_PRE_PUSH=1 ./scripts/install-git-hooks.sh` enables Tier-A before push via [scripts/pre-push-checks.sh](../../scripts/pre-push-checks.sh). Disable: `rm .githooks/enable-pre-push`.
+**pre-push** runs [scripts/check-sonar-freshness.sh](../../scripts/check-sonar-freshness.sh) and [scripts/check_sonar_issues.py](../../scripts/check_sonar_issues.py). Neither starts `sonar-scanner`. When `SONAR_TOKEN` is set, the recorded scan in `tmp/sonar-state.json` must match each commit being pushed and the same host; otherwise run [scripts/sonar_scan.sh](../../scripts/sonar_scan.sh) and push again. The issue check fails when a `BUG` or `VULNERABILITY` count rises for the same rule and file. Copy [.env.example](../../.env.example) and `chmod 600 .env`. The token stays in `.env`, which is gitignored. `SKIP_LOCAL_SONAR=1` skips both checks. Details: [sonarqube.md](sonarqube.md). Tier-A stays opt-in: `INSTALL_PRE_PUSH=1 ./scripts/install-git-hooks.sh` enables it via [scripts/pre-push-checks.sh](../../scripts/pre-push-checks.sh). Disable Tier-A: `rm .githooks/enable-pre-push`. The local server is separate from the SonarCloud GitHub app. The local Community Build analyzes Python only.
 
 Contributor onboarding: [CONTRIBUTING.md](../../CONTRIBUTING.md).
 

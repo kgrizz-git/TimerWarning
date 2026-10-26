@@ -16,6 +16,7 @@ import tkinter as tk
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import configure_dialogs_darwin_text_ui as text_ui  # noqa: E402
+import configure_dialogs_darwin_window as _cd_window  # noqa: E402
 
 
 def _fail(message: str, code: int = 1) -> None:
@@ -30,6 +31,7 @@ def main() -> None:
         _fail(f"Invalid JSON input: {exc}")
 
     root = tk.Tk()
+    _cd_window.apply_app_icon(root)
     try:
         ok, label, code = text_ui.show_text_dialog(root, payload)
     finally:

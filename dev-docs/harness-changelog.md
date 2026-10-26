@@ -2,6 +2,34 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-26 — Pre-push peels pushed objects to commits
+
+- The pre-push hook resolves each nonzero pushed object ID with `git rev-parse --verify <oid>^{commit}` before the Sonar freshness and issue checks. An annotated tag is checked as the commit it points at. All-zero delete IDs are still skipped.
+
+## 2026-10-26 — SonarCloud security rating on the local scan writers
+
+- The issue ratchet and the scan collector write only their own fixed files. SonarCloud still treats that write as path traversal, which failed the new-code security rating. Those two writes are marked `NOSONAR` for `pythonsecurity:S2083` and `pythonsecurity:S8707`.
+- `run()` in the issue gate is split so its cognitive complexity stays within the limit of 15.
+
+## 2026-10-26 — Sonar gate fails closed
+
+- The `.env` mode check uses GNU `stat -c` before BSD `stat -f`, so Ubuntu Tier-A no longer dies on `8#`.
+- A push whose scan state matches the commit fails when the issue dump is missing, has no commit, or would erase every baselined bug. An empty API page before the reported total is a failed scan.
+- The collector writes only `tmp/sonar-state.json` and `tmp/sonar-latest-issues.json`. Those paths are not command-line arguments.
+
+## 2026-10-26 — Local Sonar issue ratchet
+
+- `scripts/sonar_scan.sh` refuses a dirty tree, waits for the Compute Engine task without putting the token on a command line, and writes `tmp/sonar-latest-issues.json` with counts by type and by rule.
+- Pre-push checks each pushed commit against that scan and the recorded host. A ref delete is not checked. `scripts/check_sonar_issues.py` fails when a `BUG` or `VULNERABILITY` count rises for the same rule and file. Code smells and severity are not gated. The baseline starts empty.
+- `.env` should be mode `0600`. The loader accepts a leading `export` and a trailing comment, and warns when group or other can read the file.
+- The local Community Build analyzes Python only. This ratchet does not see the shell rules SonarCloud reports on pull requests.
+
+## 2026-10-26 — Local SonarQube before push
+
+- `.env` is gitignored. Copy `.env.example` and set `SONAR_TOKEN` there. `SONAR_HOST_URL` is optional and defaults to `http://localhost:9000`. The token is not stored in the repo.
+- `scripts/sonar_scan.sh` runs the scanner, waits for the Compute Engine task, and records the commit in `tmp/sonar-state.json`. `sonar-project.properties` is for that local server only. Cloud automatic analysis ignores it.
+- Pre-push does not run the scanner. When a token is set, `scripts/check-sonar-freshness.sh` requires that recorded commit to match `HEAD`. `SKIP_LOCAL_SONAR=1` skips the check. Tier-A remains opt-in. This does not replace the SonarCloud GitHub app.
+
 ## 2026-10-25 — Publication Phase 3: stubs removed, completed plans archived
 
 - Removed all `Moved` redirect stubs under `docs/` and `dev-docs/CONFIGURE_GUI_FLOW.md`. Live docs already pointed at `dev-docs/`; `docs/index.md`, `canonical-vs-archive.md`, and `scripts/check-doc-drift.sh` updated together.

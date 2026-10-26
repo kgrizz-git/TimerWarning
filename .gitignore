@@ -4,8 +4,19 @@ env/
 ENV/
 .venv/
 
-# Python cache
+# Local secrets. SonarQube URL and token live in .env; never commit them.
+.env
+.env.*
+!.env.example
+
+# Local SonarQube scanner output. The scan state under tmp/ is already ignored.
+.scannerwork/
+
+# Python cache and coverage data
 __pycache__/
+.coverage
+.coverage.*
+htmlcov/
 *.py[cod]
 *$py.class
 *.so

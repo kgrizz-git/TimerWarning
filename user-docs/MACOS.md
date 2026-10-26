@@ -2,7 +2,7 @@
 
 > **Safety:** Read [**docs/SAFETY.md**](../docs/SAFETY.md) before install or development. If popups will not dismiss: `launchctl bootout gui/$(id -u)/com.sleep-warning` (details in [Troubleshooting](#troubleshooting-playbook) below).
 
-TimerWarning (Sleep Warning System for Linux & macOS) also runs on **macOS 13 (Ventura)** and later using a per-user **LaunchAgent** and **osascript** dialogs.
+TimerWarning (Sleep Warning System for Linux & macOS) also runs on **macOS 13 (Ventura)** and later using a per-user **LaunchAgent**. Warning popups use a fullscreen tkinter blocker when Python 3 and tkinter are available, and an **osascript** alert otherwise. The blocker and the tkinter configure dialogs use the TimerWarning icon as the Dock icon. The osascript fallback keeps the system icon.
 
 ## Installation
 
@@ -150,7 +150,7 @@ Use `--text` if you prefer the terminal menu.
 ## Differences from Linux
 
 - No SteamOS gaming mode, systemd drop-ins, `yad`/`zenity`, `wmctrl`, or `journalctl`.
-- Dialog tool is always **osascript** (`DIALOG_TOOL` setting ignored).
+- Warning popups try the fullscreen tkinter blocker first and fall back to **osascript**. `DIALOG_TOOL` is ignored. The blocker and the tkinter configure dialogs set the TimerWarning Dock icon; the osascript alert keeps the system icon.
 - Stay-on-top / immovable window options are not applied on macOS (Phase 3 may add limited support with Accessibility permission).
 
 ## Support

@@ -392,6 +392,16 @@ install_copy_license() {
     print_success "License notice installed"
 }
 
+# Copy the app icon used for popup window and Dock/taskbar icons. Optional: popups
+# fall back to the toolkit default icon when it is absent.
+# Inputs: SCRIPT_DIR (repository root), LIB_DIR (destination).
+install_copy_icon() {
+    if [[ -f "$SCRIPT_DIR/assets/icon-256.png" ]]; then
+        cp "$SCRIPT_DIR/assets/icon-256.png" "$LIB_DIR/timerwarning-icon.png"
+    fi
+    return 0
+}
+
 # Function to install files
 install_files() {
     print_info "Installing files..."
@@ -420,6 +430,7 @@ install_files() {
         fi
         print_success "Library modules installed (${module_count} modules)"
         install_copy_license
+        install_copy_icon
     else
         print_error "Library directory not found"
         exit 1

@@ -1,12 +1,42 @@
 #!/bin/sh
 #
-# Optional pre-push: Tier-A tests (opt-in via install-git-hooks.sh INSTALL_PRE_PUSH=1)
-# Disable: rm .githooks/enable-pre-push
+# Local SonarQube freshness and BUG/VULNERABILITY ratchet when SONAR_TOKEN is set.
+# This hook does not run sonar-scanner; run bash scripts/sonar_scan.sh first.
+# Tier-A stays opt-in (INSTALL_PRE_PUSH=1). Disable Tier-A: rm .githooks/enable-pre-push
+# Skip the Sonar checks: SKIP_LOCAL_SONAR=1 git push
 #
 
 set -e
 
 ROOT="$(git rev-parse --show-toplevel)"
+
+oids=""
+if [ -t 0 ]; then
+    "${ROOT}/scripts/check-sonar-freshness.sh"
+    "${ROOT}/scripts/check_sonar_issues.py" --strict
+else
+    while read -r _local_ref local_sha _remote_ref _remote_sha; do
+        case "${local_sha}" in
+            ""|*[!0-9a-fA-F]*)
+                continue
+                ;;
+        esac
+        case "${local_sha}" in
+            *[!0]*)
+                # A branch tip is already a commit. An annotated tag object is not.
+                commit_sha="$(git rev-parse --verify "${local_sha}^{commit}")" || {
+                    echo "pre-push: ${local_sha} does not resolve to a commit." >&2
+                    exit 1
+                }
+                oids="${oids} ${commit_sha}"
+                ;;
+        esac
+    done
+    # shellcheck disable=SC2086
+    "${ROOT}/scripts/check-sonar-freshness.sh" --push ${oids}
+    # shellcheck disable=SC2086
+    "${ROOT}/scripts/check_sonar_issues.py" --strict --push ${oids}
+fi
 
 if [ ! -f "${ROOT}/.githooks/enable-pre-push" ]; then
     exit 0

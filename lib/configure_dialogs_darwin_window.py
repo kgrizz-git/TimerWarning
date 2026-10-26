@@ -8,6 +8,7 @@ the user focuses another window (does not stay above other apps after that).
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import tkinter as tk
@@ -123,6 +124,25 @@ def cleanup_modal_window(window: tk.Misc) -> None:
             window.protocol("WM_DELETE_WINDOW", "")
         except tk.TclError:
             pass
+
+
+def apply_app_icon(root: tk.Tk) -> None:
+    """
+    Set the TimerWarning icon for every window of *root* (Dock icon on macOS).
+
+    Uses the installed ``timerwarning-icon.png`` beside this module, else the repo
+    asset. Missing files or Tk errors leave the default icon in place.
+    """
+    here = Path(__file__).resolve().parent
+    for candidate in (here / "timerwarning-icon.png", here.parent / "assets" / "icon-256.png"):
+        if candidate.is_file():
+            try:
+                image = tk.PhotoImage(master=root, file=str(candidate))
+                root.iconphoto(True, image)
+                setattr(root, "_sw_app_icon", image)  # keep a reference alive
+            except tk.TclError:
+                pass
+            return
 
 
 def apply_initial_frontmost(root: tk.Tk) -> None:
