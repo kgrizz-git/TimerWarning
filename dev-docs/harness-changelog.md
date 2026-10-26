@@ -2,6 +2,13 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-26 — Sonar gate fails closed
+
+- The `.env` mode check uses GNU `stat -c` before BSD `stat -f`, so Ubuntu Tier-A no longer dies on `8#`.
+- A push whose scan state matches the commit fails when the issue dump is missing, has no commit, or would erase every baselined bug. An empty API page before the reported total is a failed scan.
+- The collector writes only `tmp/sonar-state.json` and `tmp/sonar-latest-issues.json`. Those paths are not command-line arguments.
+- The Ubuntu coverage install pins `coverage==7.15.0` and binary wheels only.
+
 ## 2026-10-26 — Python line coverage on pre-push and CI
 
 - `scripts/check-python-coverage.sh` fails when `lib/*.py` line coverage drops below 31/793 (about 3.9%), the ratio measured on this branch with tkinter available. Shell is outside the gate.

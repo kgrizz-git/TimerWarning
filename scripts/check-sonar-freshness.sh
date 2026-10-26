@@ -55,6 +55,11 @@ if [[ -f "${state}" ]]; then
     scanned_host="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("host",""))' "${state}" 2>/dev/null || true)"
 fi
 
+if [[ -f "${state}" && -z "${scanned_host}" ]]; then
+    echo "pre-push: local SonarQube scan record has no host." >&2
+    echo "pre-push: run bash scripts/sonar_scan.sh, then push again." >&2
+    exit 1
+fi
 expected_host="$(sonar_normalize_url "${SONAR_HOST_URL}")"
 recorded_host="$(sonar_normalize_url "${scanned_host}")"
 if [[ -n "${scanned_host}" && "${recorded_host}" != "${expected_host}" ]]; then
