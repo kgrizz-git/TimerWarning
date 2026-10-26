@@ -77,6 +77,7 @@ _popup_icon_help_probe() {
             kill "-${signal_name}" -- "-${pid}" 2>/dev/null \
                 || kill "-${signal_name}" "${pid}" 2>/dev/null \
                 || true
+            return 0
         }
         _probe_sleep 1 || exit 0
         _kill_probe_group TERM
