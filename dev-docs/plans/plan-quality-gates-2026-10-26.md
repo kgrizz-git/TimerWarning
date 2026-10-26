@@ -2,7 +2,7 @@
 
 **Created:** 2026-10-26
 
-**Status:** Draft. Not started. This document is the work. Do not add the tools, configs, or hook changes until this plan is accepted.
+**Status:** Draft, revised after review on 2026-10-26. Not started. This document is the work. Do not add the tools, configs, or hook changes until this plan is accepted.
 
 **Branch:** `chore/quality-gates`, from `main` at `f7a22a9`. It is not stacked on `chore/public-polish`.
 
@@ -22,18 +22,18 @@
 
 There is no type checker, no Python linter, and no complexity limit in the hooks or in CI. SonarCloud comments on pull requests come from the GitHub app. This plan does not replace that app and does not add a Sonar quality gate.
 
-Python on `main` at `f7a22a9` is the macOS UI and one test: 9 files under `lib/` and `tests/test-darwin-modal-dialog.py`. The largest is `lib/popup-blocker-darwin.py` at 430 lines. None exceed 500. `tests/test-popup-icon-tk.py` is on `chore/public-polish` and is not on this branch.
+Python on `main` at `f7a22a9` is the macOS UI and one test: 10 files under `lib/` (the configure-dialog modules and `lib/popup-blocker-darwin.py`) and `tests/test-darwin-modal-dialog.py`. The largest is `lib/popup-blocker-darwin.py` at 430 lines. None exceed 500. `tests/test-popup-icon-tk.py` is on `chore/public-polish` and is not on this branch.
 
 ## Decisions
 
-1. **CI is the enforcement.** A laptop can skip a hook. The GitHub Actions job cannot. Every new check runs in CI on pull requests and on pushes to `main`.
-2. **Pre-commit stays fast and staged.** It looks at the files in the commit. Complexity is part of that: Ruff McCabe on staged Python, and the shell function-length script on staged production shell. It does not type-check the tree and it does not run Tier-A. CI runs the same complexity checks on the whole tree, so a skipped hook still fails the pull request.
+1. **CI is the backstop.** Every new check runs in the Security workflow on pull requests and on pushes to `main`. It does not block a merge or a direct push today. Hooks run only after `./scripts/install-git-hooks.sh`, and `git commit --no-verify` or `SKIP_*` skips them. A commit message with `[skip ci]` skips the workflow. `main` has no branch protection: [plan-public-repo-prep-2026-10-16.md](plan-public-repo-prep-2026-10-16.md) records that the protection API returns 404, and its Phase 5 still includes setting protection. When that work lands, the required check names are `Static analysis (Ubuntu)` (the job that will contain the new quality step), `Tier-A (ubuntu-latest)`, and `Tier-A (macos-latest)`. This plan does not add the protection. After those checks are required, a skipped workflow leaves them missing, which blocks a protected pull request.
+2. **Pre-commit stays fast and staged.** It looks at the files in the commit. Complexity is part of that: Ruff McCabe on staged Python, and the shell function-length script on staged production shell. It does not type-check the tree and it does not run Tier-A. CI runs the same complexity checks on the whole tree.
 3. **Pre-push takes the slower whole-tree checks.** Tier-A stays behind `INSTALL_PRE_PUSH=1`. The new pre-push checks run whenever the hooks are installed, including when that opt-in file is absent. Today `.githooks/pre-push` exits 0 immediately without that file. The change is to run the quality script first, then Tier-A only when the opt-in file exists.
 4. **Missing local tools warn and skip, matching ShellCheck.** CI installs the tools and fails if they are missing. `SKIP_*` remains a local emergency valve. CI does not honor it.
-5. **Do not boil the ocean.** Existing violations are baselined or allowlisted. The gate fails on new violations and on growth past a recorded size. It does not require a drive-by cleanup of `config.sh` or `window-management.sh`.
+5. **Do not boil the ocean.** Existing violations are baselined or allowlisted. Ruff `E` and `F` are not assumed clean: the implementation records the current diagnostics before the hook or CI can fail on them. The gate fails on new violations and on growth past a recorded size. It does not require a drive-by cleanup of `config.sh` or `window-management.sh`.
 6. **Bash has no complexity tool worth adopting.** ShellCheck stays the shell linter. Shell complexity in this plan means a small repo script for function length and brace nesting, not a third-party cyclomatic scanner. Python complexity is Ruff's McCabe check (`C901`).
-7. **basedpyright, not stock pyright.** It has a committed baseline, so the first run does not have to make the tkinter code fully typed. Pin the version in `pyproject.toml`. In CI, basedpyright locks the baseline by default when it detects CI. Pre-push must not rewrite `.basedpyright/baseline.json`. Use `--baselinemode=lock` there. That flag is documented as experimental ([command-line reference](https://docs.basedpyright.com/latest/configuration/command-line/)). On implementation day, confirm the flag still exists and use the documented replacement if it does not. Do not set `CI=true` locally as a substitute.
-8. **Ruff v1 is a narrow rule set:** Pyflakes (`F`), pycodestyle errors (`E`), and McCabe (`C901`). Do not enable the full Ruff catalog. The McCabe ceiling is chosen in the baseline step below, not in this draft.
+7. **basedpyright, not stock pyright.** It has a committed baseline, so the first run does not have to make the tkinter code fully typed. Pin the basedpyright version in `pyproject.toml`, and set `pythonVersion` to the Python that the Ubuntu static-analysis job uses to run it. Generate `.basedpyright/baseline.json` with that pinned tool in that same environment (the job, or a container of the same image), then commit it. In CI, basedpyright locks the baseline by default when it detects CI. Pre-push must not rewrite the baseline. Use `--baselinemode=lock` there. That flag is documented as experimental ([command-line reference](https://docs.basedpyright.com/latest/configuration/command-line/)). On implementation day, confirm the flag still exists and use the documented replacement if it does not. Do not set `CI=true` locally as a substitute. Lock mode fails when the diagnostic set differs in either direction, so a cleanup that removes a baselined diagnostic must rerun `basedpyright --writebaseline` in that same environment and commit the new file. Document that workflow in the security-scanning doc.
+8. **The first Ruff rule set is narrow:** Pyflakes (`F`), pycodestyle errors (`E`), and McCabe (`C901`). Pin a current Ruff release. Do not enable the full Ruff catalog, and do not treat the name "Ruff v1" as a version pin. `E` includes E501. Ruff's default line length is 88. At `f7a22a9`, 14 Python lines exceed 88, none exceed 120, and the longest is 103 characters in `lib/configure_dialogs_darwin_list_ui.py`. Set `line-length` explicitly during implementation and remeasure; either keep 88 and record the current E501 diagnostics, or choose another length and ignore E501. Record every other current `E` and `F` diagnostic the same way (`ruff check --add-noqa` or `per-file-ignores`). `ruff check` must exit 0 on `main` before pre-commit or CI calls it. The McCabe ceiling is chosen in the baseline step below, not in this draft.
 
 ## Where each check runs
 
@@ -49,16 +49,17 @@ Python on `main` at `f7a22a9` is the macOS UI and one test: 9 files under `lib/`
 | File-size ratchet | Staged `lib/*.sh` and `lib/*.py` | Whole `lib/` | Whole `lib/` |
 | Tier-A | — | Unchanged opt-in | Unchanged |
 
-Pre-commit file size, Ruff, and shell complexity apply only to files in the index. A commit that does not touch Python does not run Ruff. A commit that does not touch shell does not run the shell complexity script. A commit that does not touch `lib/` does not run the size ratchet. CI always runs McCabe and the shell complexity script on the whole tree.
+Pre-commit file size, Ruff, and shell complexity apply only to the index blob, not the working tree. `scripts/pre-commit-checks.sh` today takes staged names from `git diff --cached --name-only` and then runs ShellCheck on those paths as they exist on disk. The new checks must not copy that. For each staged path, read `git show ":$path"`: Ruff with `ruff check --stdin-filename "$path" -`, the size ratchet with the line count of that blob, and the shell-complexity script with that blob's contents. A partially staged file is judged by the staged text. A commit that does not touch Python does not run Ruff. A commit that does not touch shell does not run the shell complexity script. A commit that does not touch `lib/` does not run the size ratchet. CI and pre-push read the committed tree. CI always runs McCabe and the shell complexity script on the whole tree.
 
 ## Caps to implement
 
-**File size.** Keep the shell cap at 900 lines for `lib/*.sh`. Add a 500-line cap for `lib/*.py`. Tests stay uncapped. `lib/configure-dialogs-darwin.sh` stays allowlisted.
+**File size.** Keep the shell cap at 900 lines for `lib/*.sh`. Add a 500-line cap for `lib/*.py`. Tests stay uncapped. `lib/configure-dialogs-darwin.sh` stays exempt from the 900 cap. It does not stay exempt from a growth limit.
 
-The ratchet, for every non-allowlisted file:
+The ratchet:
 
-- Under the cap: fail if the file would exceed the cap.
-- Already over the cap (`config.sh`, `window-management.sh`): record the current line count in the script and fail if the file grows. Shrinking is allowed. Do not fail the branch merely because those two files are already over 900.
+- Under the cap: fail if the file would exceed the cap. No recorded ceiling.
+- Already over the cap: record a ceiling in the script and fail if the file is above it. The ceilings at `f7a22a9` are `lib/config.sh` 908, `lib/window-management.sh` 933, and `lib/configure-dialogs-darwin.sh` 939. Do not fail the branch merely because those files are already over 900.
+- When an over-cap file shrinks, the same commit lowers its recorded ceiling to the new line count. The check fails while the file is under its recorded ceiling, so a shrink that leaves the old number in place does not pass. Once the file is at or under 900, remove its ceiling and apply the normal cap.
 
 **Shell functions.** During implementation, measure function length and maximum brace depth under `lib/*.sh` and the root entry scripts. Set the ceilings at the measured maximum, and list every function that sits on that ceiling in the script's header. New functions, and any edit that pushes an existing function past the ceiling, fail. The script is `scripts/check-shell-complexity.sh`. It does not claim to compute cyclomatic complexity.
 
@@ -69,7 +70,7 @@ The ratchet, for every non-allowlisted file:
 Add:
 
 - `pyproject.toml` with the Ruff and basedpyright settings, including `baselineFile`.
-- `.basedpyright/baseline.json`, produced by `basedpyright --writebaseline` after the config exists.
+- `.basedpyright/baseline.json`, produced by `basedpyright --writebaseline` with the pinned tool and the Ubuntu job's Python, after `pythonVersion` is set.
 - `scripts/check-shell-complexity.sh`.
 - A dev extra or `[project.optional-dependencies] dev` pin for `ruff` and `basedpyright`. There is no project venv today. CI installs that extra. Document `pip install -e '.[dev]'` or `pip install` of those two pins. Do not commit a virtualenv.
 
@@ -83,15 +84,15 @@ Edit:
 - `dev-docs/CONTRIBUTING.md` and `dev-docs/development/security-scanning.md`.
 - `dev-docs/harness-changelog.md`. No product changelog entry and no version bump: installed popup behavior does not change.
 
-Do not edit popup, scheduler, or config code to satisfy a new lint in the same change as the gate, except a baseline ignore that records current diagnostics. If the baseline is empty because the chosen Ruff rules are already clean, do not add ignore comments.
+Do not edit popup, scheduler, or config code to satisfy a new lint in the same change as the gate, except a baseline ignore that records current diagnostics. E501 is already present, so that baseline will not be empty. If some other selected rule is clean, do not add ignores for it.
 
 ## Implementation order
 
-- [ ] Measure shell function length, brace depth, and Python McCabe. Write the ceilings into the config and the script header.
-- [ ] Add `pyproject.toml`, the dependency pin, and the basedpyright baseline. Confirm `--baselinemode=lock` against the pinned version's docs.
-- [ ] Teach `check-file-sizes.sh` the Python cap and the ratchet. `./scripts/check-file-sizes.sh --strict` exits 0 on current `main` after the ratchet records `config.sh` and `window-management.sh`.
-- [ ] Add `scripts/check-shell-complexity.sh`. It exits 0 on current `main`.
-- [ ] Wire pre-commit (staged Ruff `E`/`F` and `C901`, staged shell complexity, staged size ratchet).
+- [ ] Measure shell function length, brace depth, Python McCabe, and `ruff check --select E,F`. Write the ceilings into the config and the script header. Set `line-length` and record current `E`/`F` diagnostics so `ruff check` exits 0 on `main`.
+- [ ] Add `pyproject.toml` and the dependency pins. Set basedpyright `pythonVersion` to the Ubuntu static-analysis job's Python. Generate the baseline in that environment and confirm `--baselinemode=lock` against the pinned version's docs. `basedpyright --baselinemode=lock` exits 0 on that baseline.
+- [ ] Teach `check-file-sizes.sh` the Python cap and the ratchet, including a ceiling for `configure-dialogs-darwin.sh`. A shrink that leaves the old ceiling in place fails. `./scripts/check-file-sizes.sh --strict` exits 0 on current `main` after the three ceilings match the current line counts.
+- [ ] Add `scripts/check-shell-complexity.sh`. It exits 0 on current `main`. It can read a path or a blob from stdin so pre-commit can pass the index text.
+- [ ] Wire pre-commit (staged Ruff `E`/`F` and `C901`, staged shell complexity, staged size ratchet), each reading `git show ":$path"` rather than the working tree.
 - [ ] Wire pre-push (basedpyright lock, full size ratchet). Leave Tier-A opt-in. Complexity is not repeated here; pre-commit and CI own it.
 - [ ] Wire CI to Ruff (`E`, `F`, `C901`), shell complexity, basedpyright, and the size ratchet, with tools installed in the job and no `SKIP_*` bypass.
 - [ ] Update the contributor and security-scanning docs, and `dev-docs/harness-changelog.md`.
@@ -104,4 +105,4 @@ Do not edit popup, scheduler, or config code to satisfy a new lint in the same c
 - Typing the macOS UI beyond what the baseline already allows. New Python fails the baseline; old diagnostics stay ignored until a later cleanup.
 - MyPy, Pyright upstream, Pylint, or a second Python linter.
 - Changing SonarCloud, Semgrep, ShellCheck severity, or Tier-A.
-- Branch protection on `main`. That remains in the public-repo plan.
+- Adding branch protection on `main`. Decision 1 names the three check names that protection must require. The work stays in the public-repo plan.
