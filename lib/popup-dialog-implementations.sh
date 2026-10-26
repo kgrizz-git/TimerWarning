@@ -33,32 +33,43 @@ _popup_icon_path() {
 }
 
 # Print a dialog tool's help text with a 1s deadline and 1s KILL grace, so a
-# stalled toolkit can never hold up a popup spawn.
+# stalled toolkit cannot hold up a popup spawn.
 # Inputs: command and args. Stdin is /dev/null so the tool cannot read the
 # caller's input. Output: help text on stdout; stderr is discarded.
-# The tool runs in its own process group. GNU timeout is not used: it signals
-# the group only when the deadline fires, and returns as soon as the direct
-# child exits, so a descendant that inherited the pipe would keep grep waiting.
+# Help is written to a temporary file and copied to stdout only after the
+# deadline handling finishes. Reading that copy cannot block on a writer, so a
+# descendant that left the process group still cannot hold the popup. If the
+# temporary file cannot be created, the probe prints nothing and the popup
+# keeps the toolkit's default icon.
+# The tool runs in its own process group when monitor mode is available.
+# GNU timeout is not used: it returns as soon as the direct child exits.
 # The watcher sends SIGTERM to the group after 1s and SIGKILL 1s later. If the
 # leader exits sooner, the group is killed immediately. The watcher's own sleep
 # is reaped when this function signals it.
 _popup_icon_help_probe() {
-    local pid watcher
+    local pid watcher help_file
+    help_file="$(mktemp "${TMPDIR:-/tmp}/sw-icon-help.XXXXXX" 2>/dev/null)" || true
+    if [[ -z "${help_file}" || ! -f "${help_file}" ]]; then
+        return 0
+    fi
     # Monitor mode gives the tool its own process group. This runs in the
     # help pipeline's subshell, so the caller's job control is unchanged.
     # set +m before return drops monitor mode. That is what avoids leaving a
     # job-control "Done" notice pending; set +b would only defer the notice.
     set -m 2>/dev/null || true
-    "$@" </dev/null 2>/dev/null &
+    "$@" </dev/null >"${help_file}" 2>/dev/null &
     pid=$!
     (
         # Reap this subshell's sleep when the parent signals the watcher.
+        # The trap is installed before sleep starts so a fast SIGTERM cannot
+        # leave that sleep behind.
         _probe_sleep() {
             local child seconds
             seconds="$1"
+            child=""
+            trap 'if [[ -n "${child}" ]]; then kill -TERM "${child}" 2>/dev/null || true; fi; exit 0' TERM
             sleep "${seconds}" &
             child=$!
-            trap 'kill -TERM "${child}" 2>/dev/null || true; exit 0' TERM
             wait "${child}" 2>/dev/null || exit 0
             trap - TERM
         }
@@ -77,11 +88,13 @@ _popup_icon_help_probe() {
     ) >/dev/null 2>&1 &
     watcher=$!
     wait "${pid}" 2>/dev/null || true
-    # The leader can exit while a child still has the pipe open.
+    # The leader can exit while a same-group child is still running.
     kill -KILL -- "-${pid}" 2>/dev/null || kill -KILL "${pid}" 2>/dev/null || true
     kill -TERM "${watcher}" 2>/dev/null || true
     wait "${watcher}" 2>/dev/null || true
     set +m 2>/dev/null || true
+    cat "${help_file}" 2>/dev/null || true
+    rm -f "${help_file}"
     return 0
 }
 

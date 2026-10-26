@@ -189,7 +189,7 @@ echo "PASS: icon paths with spaces stay one argument"
 # Hide GNU timeout so the bash sleep watchdog is what enforces the deadline.
 MASK="${WORK}/bin-mask"
 mkdir -p "$MASK"
-for cmd in sleep grep dirname; do
+for cmd in sleep grep dirname dd mktemp cat rm; do
     target="$(command -v "$cmd")" || fail "missing ${cmd}"
     ln -s "$target" "${MASK}/${cmd}"
 done
@@ -226,6 +226,12 @@ printf '%s\n' "${HELP_WINDOW_ICON}"
 exec $(printf '%q' "${REAL_SLEEP}") 0.3
 EOF
 chmod +x "${FAST}/yad"
+: > "${WORK}/probe-stdin"
+# The fixture must record inherited stdin. Otherwise an empty probe-stdin file
+# would pass even when the probe forgot to redirect stdin.
+printf 'SECRET-MARKER\n' | PATH="${FAST}:${MASK}" "${FAST}/yad" >/dev/null || true
+grep -q 'SECRET-MARKER' "${WORK}/probe-stdin" \
+    || fail "stdin fixture did not record inherited stdin: $(cat "${WORK}/probe-stdin" 2>/dev/null || true)"
 : > "${WORK}/probe-stdin"
 printf 'SECRET-MARKER\n' | PATH="${FAST}:${MASK}" "${BASH:-bash}" -c '
     set -euo pipefail
@@ -371,6 +377,144 @@ printf 'SECRET-MARKER\n' | PATH="${FAST}:${LEAKY}:${MASK}" "${BASH:-bash}" -c '
 ' _ "$INST" || fail "timeout-on-PATH probe failed"
 [[ ! -s "${WORK}/probe-stdin" ]] || fail "probe read caller stdin with timeout on PATH: $(cat "${WORK}/probe-stdin")"
 echo "PASS: help probe ignores caller stdin when timeout is installed"
+
+# A leader that ignores SIGTERM must still die on the follow-up SIGKILL (~2s).
+PYTHON3="$(command -v python3)" || fail "missing python3"
+IGNORE="${WORK}/bin-ignore-term"
+mkdir -p "$IGNORE"
+ignore_pid_py="$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "${WORK}/ignore-pid")"
+cat > "${IGNORE}/yad" <<EOF
+#!${PYTHON3}
+import os, signal, time
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+open(${ignore_pid_py}, "w").write(str(os.getpid()))
+time.sleep(30)
+EOF
+chmod +x "${IGNORE}/yad"
+start="$(python3 -c 'import time; print(f"{time.monotonic():.6f}")')"
+PATH="${IGNORE}:${PATH}" "${BASH:-bash}" -c '
+    set -euo pipefail
+    source "$1/popup-dialog-implementations.sh"
+    _popup_icon_args yad
+' _ "$INST" || fail "TERM-ignoring probe failed"
+elapsed="$(python3 -c 'import sys,time; print(f"{time.monotonic()-float(sys.argv[1]):.3f}")' "$start")"
+python3 -c 'import sys; t=float(sys.argv[1]); sys.exit(0 if 1.5 <= t <= 5 else 1)' "$elapsed" \
+    || fail "TERM-ignoring leader finished in ${elapsed}s"
+[[ -s "${WORK}/ignore-pid" ]] || fail "TERM-ignoring leader did not record its pid"
+ignore_pid="$(cat "${WORK}/ignore-pid")"
+if kill -0 "${ignore_pid}" 2>/dev/null; then
+    kill -KILL "${ignore_pid}" 2>/dev/null || true
+    fail "TERM-ignoring leader ${ignore_pid} survived the probe"
+fi
+echo "PASS: TERM-ignoring help probe is killed after the grace period (${elapsed}s)"
+
+# The child ignores SIGTERM and writes a marker only if it lives 0.4s.
+# The leader exits immediately, so only the immediate group SIGKILL keeps the
+# marker from appearing.
+STUBBORN="${WORK}/bin-stubborn"
+mkdir -p "$STUBBORN"
+cat > "${WORK}/stubborn-child.py" <<'EOF'
+import os, signal, sys, time
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+open(sys.argv[1], "w").write(str(os.getpid()))
+time.sleep(0.4)
+open(sys.argv[2], "w").write("survived\n")
+time.sleep(30)
+EOF
+stubborn_py="$(printf '%q' "${WORK}/stubborn-child.py")"
+stubborn_pid="$(printf '%q' "${WORK}/stubborn-pid")"
+stubborn_mark="$(printf '%q' "${WORK}/stubborn-mark")"
+hold_pids_q="$(printf '%q' "${WORK}/hold-pids")"
+python3_q="$(printf '%q' "${PYTHON3}")"
+cat > "${STUBBORN}/yad" <<EOF
+#!/bin/sh
+${python3_q} ${stubborn_py} ${stubborn_pid} ${stubborn_mark} &
+echo \$! >> ${hold_pids_q}
+i=0
+while [ ! -s ${stubborn_pid} ]; do
+    i=\$((i + 1))
+    [ "\$i" -gt 50 ] && exit 1
+    sleep 0.01
+done
+exit 0
+EOF
+chmod +x "${STUBBORN}/yad"
+rm -f "${WORK}/stubborn-pid" "${WORK}/stubborn-mark"
+start=$SECONDS
+run_holder "$STUBBORN" "${WORK}/hold-stubborn-out"
+elapsed=$((SECONDS - start))
+[[ "$elapsed" -le 3 ]] || fail "TERM-ignoring holder blocked the reader for ${elapsed}s"
+[[ -s "${WORK}/stubborn-pid" ]] || fail "TERM-ignoring holder child did not start"
+# Give a surviving child time to write the marker. Immediate SIGKILL prevents it.
+sleep 0.6
+[[ ! -e "${WORK}/stubborn-mark" ]] || fail "TERM-ignoring holder child survived long enough to write a marker"
+while read -r hold_pid; do
+    if kill -0 "${hold_pid}" 2>/dev/null; then
+        kill -KILL "${hold_pid}" 2>/dev/null || true
+        fail "TERM-ignoring holder left child ${hold_pid} running"
+    fi
+done < "${WORK}/hold-pids"
+echo "PASS: immediate group kill stops a TERM-ignoring holder child (${elapsed}s)"
+
+# A grandchild that calls setsid leaves the process group. The help text is
+# read from a file, so that grandchild cannot keep the popup waiting.
+SETSID="${WORK}/bin-setsid"
+mkdir -p "$SETSID"
+cat > "${WORK}/setsid-child.py" <<'EOF'
+import os, sys, time
+pidfile = sys.argv[1]
+pid = os.fork()
+if pid == 0:
+    os.setsid()
+    open(pidfile, "w").write(str(os.getpid()))
+    time.sleep(30)
+    os._exit(0)
+for _ in range(100):
+    if os.path.isfile(pidfile) and os.path.getsize(pidfile) > 0:
+        os._exit(0)
+    time.sleep(0.01)
+os._exit(1)
+EOF
+setsid_py="$(printf '%q' "${WORK}/setsid-child.py")"
+setsid_pid="$(printf '%q' "${WORK}/setsid-pid")"
+cat > "${SETSID}/yad" <<EOF
+#!/bin/sh
+exec ${python3_q} ${setsid_py} ${setsid_pid}
+EOF
+chmod +x "${SETSID}/yad"
+rm -f "${WORK}/setsid-pid"
+: > "${WORK}/hold-pids"
+start=$SECONDS
+(
+    PATH="${SETSID}:${MASK}" "${BASH:-bash}" -c '
+        set -euo pipefail
+        source "$1/popup-dialog-implementations.sh"
+        _popup_icon_args yad
+    ' _ "$INST"
+) &
+setsid_inner=$!
+(
+    sleep 6 &
+    guard_sleep=$!
+    trap 'kill -TERM "${guard_sleep}" 2>/dev/null || true; exit 0' TERM
+    wait "${guard_sleep}" 2>/dev/null || true
+    kill -KILL "${setsid_inner}" 2>/dev/null || true
+) &
+setsid_guard=$!
+wait "${setsid_inner}" 2>/dev/null || true
+kill -TERM "${setsid_guard}" 2>/dev/null || true
+wait "${setsid_guard}" 2>/dev/null || true
+if [[ -s "${WORK}/setsid-pid" ]]; then
+    cat "${WORK}/setsid-pid" >> "${WORK}/hold-pids"
+fi
+elapsed=$((SECONDS - start))
+[[ "$elapsed" -le 3 ]] || fail "setsid grandchild blocked the reader for ${elapsed}s"
+[[ -s "${WORK}/setsid-pid" ]] || fail "setsid grandchild did not start"
+setsid_child="$(cat "${WORK}/setsid-pid")"
+if kill -0 "${setsid_child}" 2>/dev/null; then
+    kill -KILL "${setsid_child}" 2>/dev/null || true
+fi
+echo "PASS: a setsid grandchild cannot hold the help reader (${elapsed}s)"
 
 # The spawn path must pass the same flag the helper built.
 make_spawn_tool() {
