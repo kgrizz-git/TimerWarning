@@ -67,7 +67,7 @@ CI=true ./scripts/run-security-scan.sh --ci --with-tests
 | Hook | Default | What it does |
 |------|---------|----------------|
 | **pre-commit** | On after `install-git-hooks.sh` | Prune old `backups/` (5 commits), archive retention report (dry-run), ShellCheck staged `*.sh`, gitleaks staged |
-| **pre-push** | Sonar when `.env` is set; Tier-A opt-in (`INSTALL_PRE_PUSH=1`) | Local SonarQube via `scripts/run-local-sonar.sh`; Tier-A is `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a` (10 min timeout) |
+| **pre-push** | Sonar freshness when `SONAR_TOKEN` is set; Tier-A opt-in (`INSTALL_PRE_PUSH=1`) | Requires a current `bash scripts/sonar_scan.sh` result. Does not run the scanner. Tier-A is `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a` (10 min timeout) |
 
 Skip emergencies only:
 

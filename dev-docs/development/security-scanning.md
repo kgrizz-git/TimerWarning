@@ -60,7 +60,7 @@ pip install semgrep
 
 Retention policy: [doc-retention.md](doc-retention.md). Skip archive report: `SKIP_ARCHIVE_REPORT=1`.
 
-**pre-push** runs [scripts/run-local-sonar.sh](../../scripts/run-local-sonar.sh) when `.env` contains `SONAR_HOST_URL` and `SONAR_TOKEN`. Copy [.env.example](../../.env.example). The token stays in `.env`, which is gitignored. `SKIP_LOCAL_SONAR=1` skips that scan. Tier-A stays opt-in: `INSTALL_PRE_PUSH=1 ./scripts/install-git-hooks.sh` enables it via [scripts/pre-push-checks.sh](../../scripts/pre-push-checks.sh). Disable Tier-A: `rm .githooks/enable-pre-push`. This local server is separate from the SonarCloud GitHub app.
+**pre-push** runs [scripts/check-sonar-freshness.sh](../../scripts/check-sonar-freshness.sh). That check does not start `sonar-scanner`. When `SONAR_TOKEN` is set, the recorded scan in `tmp/sonar-state.json` must match `HEAD`; otherwise run [scripts/sonar_scan.sh](../../scripts/sonar_scan.sh) and push again. Copy [.env.example](../../.env.example). The token stays in `.env`, which is gitignored. `SKIP_LOCAL_SONAR=1` skips the check. Details: [sonarqube.md](sonarqube.md). Tier-A stays opt-in: `INSTALL_PRE_PUSH=1 ./scripts/install-git-hooks.sh` enables it via [scripts/pre-push-checks.sh](../../scripts/pre-push-checks.sh). Disable Tier-A: `rm .githooks/enable-pre-push`. The local server is separate from the SonarCloud GitHub app.
 
 Contributor onboarding: [CONTRIBUTING.md](../../CONTRIBUTING.md).
 

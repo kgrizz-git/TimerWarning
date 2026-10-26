@@ -4,8 +4,9 @@ Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANG
 
 ## 2026-10-26 — Local SonarQube before push
 
-- `.env` is gitignored. Copy `.env.example` and set `SONAR_HOST_URL` and `SONAR_TOKEN` there. The token is not stored in the repo.
-- Installed pre-push hooks run `scripts/run-local-sonar.sh` when those keys are set. `SKIP_LOCAL_SONAR=1` skips it. Tier-A remains opt-in. This does not replace the SonarCloud GitHub app.
+- `.env` is gitignored. Copy `.env.example` and set `SONAR_TOKEN` there. `SONAR_HOST_URL` is optional and defaults to `http://localhost:9000`. The token is not stored in the repo.
+- `scripts/sonar_scan.sh` runs the scanner, waits for the Compute Engine task, and records the commit in `tmp/sonar-state.json`. `sonar-project.properties` is for that local server only. Cloud automatic analysis ignores it.
+- Pre-push does not run the scanner. When a token is set, `scripts/check-sonar-freshness.sh` requires that recorded commit to match `HEAD`. `SKIP_LOCAL_SONAR=1` skips the check. Tier-A remains opt-in. This does not replace the SonarCloud GitHub app.
 
 ## 2026-10-25 — Publication Phase 3: stubs removed, completed plans archived
 
