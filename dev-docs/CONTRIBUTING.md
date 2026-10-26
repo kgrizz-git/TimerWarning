@@ -67,12 +67,13 @@ CI=true ./scripts/run-security-scan.sh --ci --with-tests
 | Hook | Default | What it does |
 |------|---------|----------------|
 | **pre-commit** | On after `install-git-hooks.sh` | Prune old `backups/` (5 commits), archive retention report (dry-run), ShellCheck staged `*.sh`, gitleaks staged |
-| **pre-push** | Opt-in (`INSTALL_PRE_PUSH=1`) | `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a` (10 min timeout) |
+| **pre-push** | Sonar when `.env` is set; Tier-A opt-in (`INSTALL_PRE_PUSH=1`) | Local SonarQube via `scripts/run-local-sonar.sh`; Tier-A is `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a` (10 min timeout) |
 
 Skip emergencies only:
 
 ```bash
 SKIP_SHELLCHECK=1 SKIP_GITLEAKS=1 SKIP_ARCHIVE_REPORT=1 git commit -m "..."
+SKIP_LOCAL_SONAR=1 git push
 ```
 
 Doc retention: [development/doc-retention.md](development/doc-retention.md).
