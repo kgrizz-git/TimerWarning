@@ -57,21 +57,37 @@ _popup_icon_help_probe() {
     # set +m before return drops monitor mode. That is what avoids leaving a
     # job-control "Done" notice pending; set +b would only defer the notice.
     set -m 2>/dev/null || true
-    # Bash can print "child setpgid: Operation not permitted" when this
-    # pipeline subshell is not allowed to create a process group. That notice
-    # is the shell's own stderr, so hide stderr only while the tool starts.
-    exec 8>&2
-    exec 2>/dev/null
-    # Cap the help file at 2 MiB (4096 * 512-byte blocks). A descendant that
-    # leaves the process group is not killed; the limit stops it from filling
-    # the disk by writing this file, including after it is unlinked.
-    (
-        ulimit -f 4096 || true
-        exec "$@"
-    ) </dev/null >"${help_file}" 2>/dev/null &
-    pid=$!
-    exec 2>&8
-    exec 8>&-
+    # Hide the shell's own "child setpgid" notice while the tool starts.
+    # The redirection lasts only for this group, so the caller's descriptors
+    # stay as they were. A command replaces the subshell, so the tool is the
+    # process-group leader that the deadline waits on. A shell function runs
+    # inside the subshell, because exec cannot call a function.
+    # Bash counts ulimit -f in 1024-byte blocks, so 2048 is 2 MiB. Apply that
+    # only when it lowers the soft limit. A descendant that leaves the group
+    # is not killed; the limit stops it filling the disk, including after the
+    # help file is unlinked.
+    {
+        (
+            current="$(ulimit -f 2>/dev/null || true)"
+            case "${current}" in
+                unlimited|"") ulimit -f 2048 || true ;;
+                *)
+                    if [[ "${current}" -gt 2048 ]]; then
+                        ulimit -f 2048 || true
+                    fi
+                    ;;
+            esac
+            # Commands replace this subshell so the tool itself is the process
+            # we wait on. A shell function has to run inside the subshell:
+            # exec cannot invoke one.
+            if [[ "$(type -t -- "$1" 2>/dev/null || true)" == "function" ]]; then
+                "$@"
+            else
+                exec "$@"
+            fi
+        ) </dev/null >"${help_file}" 2>/dev/null &
+        pid=$!
+    } 2>/dev/null
     (
         # Reap this subshell's sleep when the parent signals the watcher.
         # The trap is installed before sleep starts so a fast SIGTERM cannot

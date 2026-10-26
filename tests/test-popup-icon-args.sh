@@ -243,6 +243,15 @@ printf 'SECRET-MARKER\n' | PATH="${FAST}:${MASK}" "${BASH:-bash}" -c '
 ' _ "$INST" > "${WORK}/probe-direct-out"
 [[ ! -s "${WORK}/probe-stdin" ]] || fail "direct help probe read caller stdin: $(cat "${WORK}/probe-stdin")"
 echo "PASS: direct help probe ignores caller stdin"
+PATH="${MASK}" "${BASH:-bash}" -c '
+    set -euo pipefail
+    source "$1/popup-dialog-implementations.sh"
+    yad() { printf "%s\n" "window-icon-from-function"; }
+    _popup_icon_help_probe yad --help-all
+' _ "$INST" > "${WORK}/probe-function-out"
+[[ "$(cat "${WORK}/probe-function-out")" == "window-icon-from-function" ]] \
+    || fail "shell-function tool produced: $(cat "${WORK}/probe-function-out")"
+echo "PASS: help probe can run a shell function"
 printf 'SECRET-MARKER\n' | PATH="${FAST}:${MASK}" "${BASH:-bash}" -c '
     set -euo pipefail
     source "$1/popup-dialog-implementations.sh"
@@ -389,9 +398,10 @@ printf 'SECRET-MARKER\n' | PATH="${FAST}:${LEAKY}:${MASK}" "${BASH:-bash}" -c '
 echo "PASS: help probe ignores caller stdin when timeout is installed"
 
 # A leader that ignores SIGTERM must still die on the follow-up SIGKILL (~2s).
-# A shell wrapper runs Python. A shebang of the pyenv shim is a script whose
-# interpreter is another script, which macOS refuses to execute.
-PYTHON3="$(command -v python3)" || fail "missing python3"
+# A shell wrapper runs the real Python binary. command -v python3 is often a
+# pyenv shim, which is a shell script, and the masked PATH below has no bash.
+PYTHON3="$(python3 -c 'import sys; print(sys.executable)')" || fail "missing python3"
+[[ -n "${PYTHON3}" && -x "${PYTHON3}" ]] || fail "python executable is not runnable: ${PYTHON3}"
 python3_q="$(printf '%q' "${PYTHON3}")"
 IGNORE="${WORK}/bin-ignore-term"
 mkdir -p "$IGNORE"
@@ -541,15 +551,19 @@ cat > "${WORK}/setsid-writer.py" <<'EOF'
 import os, sys, time
 pidfile = sys.argv[1]
 chunk = b"x" * 4096
+limit = 32 * 1024 * 1024
 pid = os.fork()
 if pid == 0:
     os.setsid()
     open(pidfile, "w").write(str(os.getpid()))
-    while True:
+    written = 0
+    while written < limit:
         try:
             os.write(1, chunk)
         except OSError:
             os._exit(0)
+        written += len(chunk)
+    time.sleep(30)
     os._exit(0)
 for _ in range(100):
     if os.path.isfile(pidfile) and os.path.getsize(pidfile) > 0:
