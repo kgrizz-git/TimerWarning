@@ -3,7 +3,7 @@ description: Bash project conventions — facades, tests, configure.sh safety, b
 alwaysApply: true
 ---
 
-# Project conventions (LinuxTimerWarning)
+# Project conventions (TimerWarning)
 
 Universal copy: [dev-docs/development/agent-setup.md](../../dev-docs/development/agent-setup.md). This rule is **Cursor-only**; other agents use `AGENTS.md` + `dev-docs/`.
 

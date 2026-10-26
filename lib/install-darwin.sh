@@ -157,10 +157,21 @@ install_copy_license() {
     print_success "License notice installed"
 }
 
+# Copy the app icon used for popup window and Dock/taskbar icons. Optional: popups
+# fall back to the toolkit default icon when it is absent.
+# Inputs: SCRIPT_DIR (repository root), LIB_DIR (destination).
+install_copy_icon() {
+    if [[ -f "${SCRIPT_DIR}/assets/icon-256.png" ]]; then
+        cp "${SCRIPT_DIR}/assets/icon-256.png" "${LIB_DIR}/timerwarning-icon.png"
+    fi
+    return 0
+}
+
 install_darwin_install_files() {
     print_info "Installing files..."
     mkdir -p "${LIB_DIR}"
     install_copy_license
+    install_copy_icon
     if [ -d "${SCRIPT_DIR}/lib" ]; then
         cp "${SCRIPT_DIR}/lib"/*.sh "${LIB_DIR}/"
         chmod +x "${LIB_DIR}"/*.sh

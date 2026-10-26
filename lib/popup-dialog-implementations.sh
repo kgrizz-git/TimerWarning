@@ -20,6 +20,156 @@
 #   - pid management: cleanup_popup_pid (from popup-pid-management.sh)
 ###############################################################################
 
+# Resolve the app icon: installed copy beside this module, else the repo asset.
+# Outputs: icon path on stdout, or nothing when no icon file exists.
+_popup_icon_path() {
+    local here
+    here="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || return 0
+    if [[ -f "${here}/timerwarning-icon.png" ]]; then
+        printf '%s' "${here}/timerwarning-icon.png"
+    elif [[ -f "${here}/../assets/icon-256.png" ]]; then
+        printf '%s' "${here}/../assets/icon-256.png"
+    fi
+}
+
+# Print a dialog tool's help text with a 1s deadline and 1s KILL grace, so a
+# stalled toolkit cannot hold up a popup spawn.
+# Inputs: command and args. Stdin is /dev/null so the tool cannot read the
+# caller's input. Output: help text on stdout; stderr is discarded.
+# Help is written to a temporary file and copied to stdout only after the
+# deadline handling finishes. Reading that copy cannot block on a writer, so a
+# descendant that left the process group still cannot hold the popup. If the
+# temporary file cannot be created, the probe prints nothing and the popup
+# keeps the toolkit's default icon.
+# The tool runs in its own process group when monitor mode is available.
+# GNU timeout is not used: it returns as soon as the direct child exits.
+# The watcher sends SIGTERM to the group after 1s and SIGKILL 1s later. If the
+# leader exits sooner, the group is killed immediately. The watcher's own sleep
+# is reaped when this function signals it.
+_popup_icon_help_probe() {
+    local pid watcher help_file probe_name="$1"
+    help_file="$(mktemp "${TMPDIR:-/tmp}/sw-icon-help.XXXXXX" 2>/dev/null)" || true
+    if [[ -z "${help_file}" || ! -f "${help_file}" ]]; then
+        return 0
+    fi
+    # Monitor mode gives the tool its own process group. This runs in the
+    # help pipeline's subshell, so the caller's job control is unchanged.
+    # set +m before return drops monitor mode. That is what avoids leaving a
+    # job-control "Done" notice pending; set +b would only defer the notice.
+    set -m 2>/dev/null || true
+    # Hide the shell's own "child setpgid" notice while the tool starts.
+    # The redirection lasts only for this group, so the caller's descriptors
+    # stay as they were. A command replaces the subshell, so the tool is the
+    # process-group leader that the deadline waits on. A shell function runs
+    # inside the subshell, because exec cannot call a function.
+    # Bash counts ulimit -f in 1024-byte blocks, so 2048 is 2 MiB. Apply that
+    # only when it lowers the soft limit. A descendant that leaves the group
+    # is not killed; the limit stops it filling the disk, including after the
+    # help file is unlinked.
+    {
+        (
+            current="$(ulimit -f 2>/dev/null || true)"
+            case "${current}" in
+                unlimited|"") ulimit -f 2048 || true ;;
+                *)
+                    if [[ "${current}" -gt 2048 ]]; then
+                        ulimit -f 2048 || true
+                    fi
+                    ;;
+            esac
+            # Commands replace this subshell so the tool itself is the process
+            # we wait on. A shell function has to run inside the subshell:
+            # exec cannot invoke one.
+            if [[ "$(type -t -- "${probe_name}" 2>/dev/null || true)" == "function" ]]; then
+                "$@"
+            else
+                exec "$@"
+            fi
+        ) </dev/null >"${help_file}" 2>/dev/null &
+        pid=$!
+    } 2>/dev/null
+    (
+        # Reap this subshell's sleep when the parent signals the watcher.
+        # The trap is installed before sleep starts so a fast SIGTERM cannot
+        # leave that sleep behind.
+        _probe_sleep() {
+            local child seconds
+            seconds="$1"
+            child=""
+            trap 'if [[ -n "${child}" ]]; then kill -TERM "${child}" 2>/dev/null || true; fi; exit 0' TERM
+            sleep "${seconds}" &
+            child=$!
+            wait "${child}" 2>/dev/null || exit 0
+            trap - TERM
+        }
+        _kill_probe_group() {
+            local signal_name
+            signal_name="$1"
+            kill "-${signal_name}" -- "-${pid}" 2>/dev/null \
+                || kill "-${signal_name}" "${pid}" 2>/dev/null \
+                || true
+            return 0
+        }
+        _probe_sleep 1 || exit 0
+        _kill_probe_group TERM
+        _probe_sleep 1 || exit 0
+        _kill_probe_group KILL
+    ) >/dev/null 2>&1 &
+    watcher=$!
+    wait "${pid}" 2>/dev/null || true
+    # The leader can exit while a same-group child is still running.
+    kill -KILL -- "-${pid}" 2>/dev/null || kill -KILL "${pid}" 2>/dev/null || true
+    kill -TERM "${watcher}" 2>/dev/null || true
+    wait "${watcher}" 2>/dev/null || true
+    set +m 2>/dev/null || true
+    cat "${help_file}" 2>/dev/null || true
+    rm -f "${help_file}"
+    return 0
+}
+
+# Build window-icon arguments for a dialog tool.
+# Only adds the flag when the icon exists and the tool's help lists the option,
+# so an older or newer toolkit never fails to start over an unknown flag.
+# The help probe is bounded and runs once per tool per process; countdown
+# respawns reuse the cached answer.
+# Parameters: $1 dialog tool (yad | zenity | kdialog).
+# Outputs: sets `_dlg_icon` array in the caller's scope (may be empty).
+_POPUP_ICON_SUPPORT_yad=""
+_POPUP_ICON_SUPPORT_zenity=""
+_POPUP_ICON_SUPPORT_kdialog=""
+_popup_icon_args() {
+    _dlg_icon=()
+    local icon
+    icon="$(_popup_icon_path)"
+    [[ -n "${icon}" ]] || return 0
+    case "$1" in
+        yad)
+            if [[ -z "${_POPUP_ICON_SUPPORT_yad}" ]]; then
+                _POPUP_ICON_SUPPORT_yad=no
+                _popup_icon_help_probe yad --help-all | grep -q -- '--window-icon' && _POPUP_ICON_SUPPORT_yad=yes
+            fi
+            [[ "${_POPUP_ICON_SUPPORT_yad}" = "yes" ]] && _dlg_icon=(--window-icon="${icon}")
+            ;;
+        zenity)
+            if [[ -z "${_POPUP_ICON_SUPPORT_zenity}" ]]; then
+                _POPUP_ICON_SUPPORT_zenity=no
+                _popup_icon_help_probe zenity --help-general | grep -q -- '--window-icon' && _POPUP_ICON_SUPPORT_zenity=yes
+            fi
+            [[ "${_POPUP_ICON_SUPPORT_zenity}" = "yes" ]] && _dlg_icon=(--window-icon="${icon}")
+            ;;
+        kdialog)
+            if [[ -z "${_POPUP_ICON_SUPPORT_kdialog}" ]]; then
+                _POPUP_ICON_SUPPORT_kdialog=no
+                _popup_icon_help_probe kdialog --help-all | grep -q -- '--icon' && _POPUP_ICON_SUPPORT_kdialog=yes
+            fi
+            [[ "${_POPUP_ICON_SUPPORT_kdialog}" = "yes" ]] && _dlg_icon=(--icon "${icon}")
+            ;;
+        *)
+            ;;
+    esac
+    return 0
+}
+
 # Spawn a warning dialog using the currently selected dialog tool.
 #
 # Parameters:
@@ -42,6 +192,9 @@ _popup_spawn_warning_dialog() {
         _dlg_prefix=(env -u WAYLAND_DISPLAY -u GDK_SCALE -u GDK_DPI_SCALE -u QT_SCALE_FACTOR GDK_BACKEND=x11 QT_QPA_PLATFORM=xcb)
     fi
 
+    local -a _dlg_icon=()
+    _popup_icon_args "${dialog_tool}"
+
     case "${dialog_tool}" in
         zenity)
             # zenity doesn't support position natively, only size
@@ -54,7 +207,7 @@ _popup_spawn_warning_dialog() {
             if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                 # Add pause button based on configured duration
                 local pause_button_label="Pause ${pause_duration} min"
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity --warning \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity ${_dlg_icon[@]+"${_dlg_icon[@]}"} --warning \
                     --title="${window_title}" \
                     --text="${popup_text}" \
                     --modal \
@@ -65,7 +218,7 @@ _popup_spawn_warning_dialog() {
                 popup_pid=$!
             else
                 # No pause button
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity --warning \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity ${_dlg_icon[@]+"${_dlg_icon[@]}"} --warning \
                     --title="${window_title}" \
                     --text="${popup_text}" \
                     --modal \
@@ -91,7 +244,7 @@ _popup_spawn_warning_dialog() {
                 # Use --center flag for proper centering
                 if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                     # Add pause button based on configured duration
-                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --warning \
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad ${_dlg_icon[@]+"${_dlg_icon[@]}"} --warning \
                         --title="${window_title}" \
                         --text="${popup_text}" \
                         --modal \
@@ -106,7 +259,7 @@ _popup_spawn_warning_dialog() {
                     popup_pid=$!
                 else
                     # No pause button
-                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --warning \
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad ${_dlg_icon[@]+"${_dlg_icon[@]}"} --warning \
                         --title="${window_title}" \
                         --text="${popup_text}" \
                         --modal \
@@ -128,7 +281,7 @@ _popup_spawn_warning_dialog() {
 
                 if [ "${pause_available}" = "true" ] && [ -n "${pause_duration}" ]; then
                     # Add pause button based on configured duration
-                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --warning \
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad ${_dlg_icon[@]+"${_dlg_icon[@]}"} --warning \
                         --title="${window_title}" \
                         --text="${popup_text}" \
                         --modal \
@@ -144,7 +297,7 @@ _popup_spawn_warning_dialog() {
                     popup_pid=$!
                 else
                     # No pause button
-                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --warning \
+                    ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad ${_dlg_icon[@]+"${_dlg_icon[@]}"} --warning \
                         --title="${window_title}" \
                         --text="${popup_text}" \
                         --modal \
@@ -173,13 +326,13 @@ _popup_spawn_warning_dialog() {
                 local _kd_pause_label="Pause ${pause_duration} min"
                 # --warningyesno: Yes button = left, No button = right
                 # kdialog returns 0 for Yes (Pause), 1 for No (Dismiss)
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${window_title}" \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog ${_dlg_icon[@]+"${_dlg_icon[@]}"} --title "${window_title}" \
                     --warningyesno "${popup_text}" \
                     --yes-label "${_kd_pause_label}" \
                     --no-label "Dismiss" \
                     2>/dev/null &
             else
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${window_title}" \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog ${_dlg_icon[@]+"${_dlg_icon[@]}"} --title "${window_title}" \
                     --sorry "${popup_text}" \
                     2>/dev/null &
             fi
@@ -278,6 +431,8 @@ _popup_notice_atoms_worker() {
 # On gamescope, spawn a real X11 window in the background, tag it by that PID,
 # then wait. Desktop kdialog keeps a passive notification (no X window to tag).
 # Uses caller locals _dlg_prefix, _pause_info_timeout, dialog_tool, env_type, window_tool.
+# The notice gets the same icon flags as the warning. The help probe is cached
+# per tool, so a warning that already ran in this process does not probe again.
 # Parameters: $1 pause end time (HH:MM or "unknown")
 _popup_show_pause_activated_notice() {
     local pause_end_time="$1"
@@ -308,9 +463,13 @@ _popup_show_pause_activated_notice() {
             log_to_file "WARNING" "gamescope pause notice: root size unavailable; keeping ${pause_w}x${pause_h}"
         fi
     fi
+    # Same flags as the warning. Empty when the icon file is missing or the
+    # tool's help does not list the option.
+    local -a _dlg_icon=()
+    _popup_icon_args "${dialog_tool}"
     case "${dialog_tool}" in
         zenity)
-            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity --info \
+            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} zenity ${_dlg_icon[@]+"${_dlg_icon[@]}"} --info \
                 --title="${title}" \
                 --text="${text}" \
                 --width="${pause_w}" \
@@ -328,7 +487,7 @@ _popup_show_pause_activated_notice() {
                 _pause_y=$(echo "${_pause_coords}" | cut -d' ' -f2)
                 _pause_yad_pos=(--posx="${_pause_x}" --posy="${_pause_y}")
             fi
-            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad --info \
+            ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} yad ${_dlg_icon[@]+"${_dlg_icon[@]}"} --info \
                 --title="${title}" \
                 --text="${text}" \
                 --width="${pause_w}" \
@@ -343,9 +502,9 @@ _popup_show_pause_activated_notice() {
         kdialog)
             # kdialog msgbox has no reliable width flag on SteamOS; atoms still applied.
             if [ "${env_type:-}" = "gamescope" ]; then
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --title "${title}" --msgbox "${text}" 2>/dev/null &
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog ${_dlg_icon[@]+"${_dlg_icon[@]}"} --title "${title}" --msgbox "${text}" 2>/dev/null &
             else
-                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog --passivepopup \
+                ${_dlg_prefix[@]+"${_dlg_prefix[@]}"} kdialog ${_dlg_icon[@]+"${_dlg_icon[@]}"} --passivepopup \
                     "${text}" "${_pause_info_timeout}" 2>/dev/null &
             fi
             info_pid=$!

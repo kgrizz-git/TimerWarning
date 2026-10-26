@@ -26,7 +26,13 @@ with tempfile.TemporaryDirectory(prefix='popup-notice-deadlines-') as tmp:
     for tool in ('zenity', 'yad', 'kdialog'):
         stub = bindir / tool
         # Ignore TERM and native timeout arguments: only an external KILL works.
-        stub.write_text('#!/usr/bin/env bash\necho $$ > "$TEST_DIALOG_PID"\n'
+        # Help exits before the TERM-ignoring sleep. The pause notice probes
+        # --help for the icon, and that probe is not the deadline under test.
+        stub.write_text('#!/usr/bin/env bash\n'
+                        'for arg in "$@"; do\n'
+                        '  case "$arg" in --help*) exit 0 ;; esac\n'
+                        'done\n'
+                        'echo $$ > "$TEST_DIALOG_PID"\n'
                         'if [ "${TEST_EARLY_CLOSE:-}" = 1 ]; then\n'
                         '  "$TEST_REAL_SLEEP" 0.2; exit 7\nfi\n'
                         'trap "" TERM\nexec "$TEST_REAL_SLEEP" 60\n')
