@@ -4,11 +4,11 @@
 
 **Revised:** 2026-10-25
 
-**Status:** Phases 1–4 applied. This repository is the sanitized private staging copy. It is not public yet. On 2026-10-25 the private destination's CI was green, the full-history Gitleaks scan was clean, and the tracked file list matched the source. Branch protection needs the repository to be public on the current plan. The public-visibility decision remains open.
+**Status:** Phases 1–4 applied. `kgrizz-git/TimerWarning` is public. On 2026-10-25 its CI was green, the full-history Gitleaks scan was clean, and the tracked file list matched the source. `main` still has no branch protection (the protection API returns 404). Phase 5 still includes setting that protection and archiving this plan.
 
-**Working branch:** `chore/public-repo-prep-phase-1`, based on `main` at `86cfc7a`.
+**Working branch:** `chore/public-repo-prep-phase-1` for phases 1–4, based on `main` at `86cfc7a`. That name is historical; it is not the branch for later icon work.
 
-**Destination:** `kgrizz-git/TimerWarning`, private staging repository first.
+**Destination:** `kgrizz-git/TimerWarning`. Created private, now public.
 
 **Safety reference:** [docs/SAFETY.md](../../docs/SAFETY.md).
 
@@ -105,13 +105,10 @@ repository remain in Phase 5. Per-file copyright headers were not added.
   post-install donation message from `lib/install-linux.sh`. **Deferred by the
   owner on 2026-10-24.** Leave the existing PayPal links in place for now. Do not
   add donation verification or GitHub Sponsors as part of this preparation.
-- [x] Use `TimerWarning (Sleep Warning System for Linux & macOS)` and the planned
-  `kgrizz-git/TimerWarning` clone URL/directory in installation examples. **Deferred
-  by the owner on 2026-10-24 to the first commit on the new private repository,
-  before that repository is made public.** Leave names, clone URLs, and installed
-  identifiers unchanged in this development repository. Do not rename installed
-  `sleep-warning*` executables, config paths, or services in either place.
-  Done in `f7a22a9`, the first commit on the new private repository.
+- [x] Use `TimerWarning (Sleep Warning System for Linux & macOS)` and the
+  `kgrizz-git/TimerWarning` clone URL/directory in installation examples.
+  Done in `f7a22a9`, the first commit on this repository. Installed
+  `sleep-warning*` executables, config paths, and services keep those names.
 - [x] State **Desktop Mode supported; Gaming Mode experimental, opt-in**. Cite
   the Oct 19–20 Deck results accurately. Remove both the old “does not work” claim
   and unqualified claims that no hardware test has happened. Keep remaining
@@ -130,11 +127,10 @@ repository remain in Phase 5. Per-file copyright headers were not added.
   immediate stop plus `disable` for persistence, with explicit re-enable steps.
   Updated in GETTING_STARTED, the user guide, and CONFIGURATION. `user-docs/MACOS.md`
   already had both macOS steps.
-- [ ] Check install/status/help output for the deferred public name, and for private
-  material other than the PayPal link the owner is keeping. Branding text changes
-  with the first commit on the new repository. The 2026-10-24 scan of install,
-  status, and help strings found the PayPal business id and no personal email or
-  home-directory path.
+- [ ] Check install/status/help output for the public name, and for private
+  material other than the PayPal link the owner is keeping. The name itself
+  landed in `f7a22a9`. The 2026-10-24 scan of install, status, and help strings
+  found the PayPal business id and no personal email or home-directory path.
 
 **Acceptance:** PayPal links remain until the owner reopens that item. Branding
 and platform claims are consistent, recovery instructions are current, and

@@ -29,6 +29,7 @@ tier_a:
       platform: linux
     - test-configure-partial-lock.sh
     - test-popup-icon-args.sh
+    - test-popup-icon-tk.sh
     - test-gamescope-overlay.sh
     - test-popup-notice-deadlines.sh
     - test-non-utf-dialog-safety.sh

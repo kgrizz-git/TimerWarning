@@ -33,31 +33,45 @@ _popup_icon_path() {
 }
 
 # Print a dialog tool's help text with a 1s deadline and 1s KILL grace, so a
-# stalled toolkit can never hold up a popup spawn. Parameters: command and args.
+# stalled toolkit can never hold up a popup spawn.
+# Inputs: command and args. Stdin is /dev/null so the tool cannot read the
+# caller's input. Output: help text on stdout; stderr is discarded.
+# The bash fallback owns each sleep child. When the tool exits early (for
+# example because grep -q closed the pipe and the tool got SIGPIPE), this
+# function sends SIGTERM to the watcher, and the watcher's trap reaps that sleep.
 _popup_icon_help_probe() {
     if command -v timeout >/dev/null 2>&1; then
-        timeout --kill-after=1s 1s "$@" 2>/dev/null || true
+        timeout --kill-after=1s 1s "$@" </dev/null 2>/dev/null || true
         return 0
     fi
     if command -v gtimeout >/dev/null 2>&1; then
-        gtimeout --kill-after=1s 1s "$@" 2>/dev/null || true
+        gtimeout --kill-after=1s 1s "$@" </dev/null 2>/dev/null || true
         return 0
     fi
 
     local pid watcher
-    "$@" 2>/dev/null &
+    "$@" </dev/null 2>/dev/null &
     pid=$!
     (
-        sleep 1 || exit 0
+        # Reap this subshell's sleep when the parent signals the watcher.
+        _probe_sleep() {
+            local child
+            sleep "$1" &
+            child=$!
+            trap 'kill -TERM "${child}" 2>/dev/null || true; exit 0' TERM
+            wait "${child}" 2>/dev/null || exit 0
+            trap - TERM
+        }
+        _probe_sleep 1 || exit 0
         if kill -0 "${pid}" 2>/dev/null; then
             kill -TERM "${pid}" 2>/dev/null || true
-            sleep 1
+            _probe_sleep 1 || exit 0
             kill -KILL "${pid}" 2>/dev/null || true
         fi
     ) >/dev/null 2>&1 &
     watcher=$!
     wait "${pid}" 2>/dev/null || true
-    kill "${watcher}" 2>/dev/null || true
+    kill -TERM "${watcher}" 2>/dev/null || true
     wait "${watcher}" 2>/dev/null || true
     return 0
 }
