@@ -30,7 +30,8 @@ chmod +x "${ROOT}/scripts/prune-completed-plans.sh"
 chmod +x "${ROOT}/scripts/check-stale-plans.sh"
 chmod +x "${ROOT}/scripts/pre-commit-checks.sh"
 chmod +x "${ROOT}/scripts/pre-push-checks.sh"
-chmod +x "${ROOT}/scripts/run-local-sonar.sh"
+chmod +x "${ROOT}/scripts/sonar_scan.sh"
+chmod +x "${ROOT}/scripts/check-sonar-freshness.sh"
 chmod +x "${ROOT}/scripts/run-security-scan.sh"
 chmod +x "${ROOT}/scripts/run-tests.sh"
 
@@ -42,7 +43,7 @@ echo "    - prune tracked backups/ older than 5 commits"
 echo "    - report dev-docs archive files eligible for pruning (dry-run)"
 echo "    - ShellCheck on staged *.sh (if shellcheck installed)"
 echo "    - gitleaks protect --staged (if gitleaks installed)"
-echo "  pre-push -> scripts/run-local-sonar.sh (when .env has SONAR_HOST_URL and SONAR_TOKEN)"
+echo "  pre-push -> scripts/check-sonar-freshness.sh (when SONAR_TOKEN is set; run scripts/sonar_scan.sh yourself)"
 
 if [ "${INSTALL_PRE_PUSH:-0}" = "1" ]; then
     touch "${ROOT}/.githooks/enable-pre-push"

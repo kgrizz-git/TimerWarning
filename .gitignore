@@ -9,6 +9,9 @@ ENV/
 .env.*
 !.env.example
 
+# Local SonarQube scanner output. The scan state under tmp/ is already ignored.
+.scannerwork/
+
 # Python cache
 __pycache__/
 *.py[cod]
