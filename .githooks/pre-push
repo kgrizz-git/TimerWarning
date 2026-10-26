@@ -23,7 +23,12 @@ else
         esac
         case "${local_sha}" in
             *[!0]*)
-                oids="${oids} ${local_sha}"
+                # A branch tip is already a commit. An annotated tag object is not.
+                commit_sha="$(git rev-parse --verify "${local_sha}^{commit}")" || {
+                    echo "pre-push: ${local_sha} does not resolve to a commit." >&2
+                    exit 1
+                }
+                oids="${oids} ${commit_sha}"
                 ;;
         esac
     done

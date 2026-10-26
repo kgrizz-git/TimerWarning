@@ -2,6 +2,10 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-26 — Pre-push peels pushed objects to commits
+
+- The pre-push hook resolves each nonzero pushed object ID with `git rev-parse --verify <oid>^{commit}` before the Sonar freshness and issue checks. An annotated tag is checked as the commit it points at. All-zero delete IDs are still skipped.
+
 ## 2026-10-26 — SonarCloud security rating on the local scan writers
 
 - The issue ratchet and the scan collector write only their own fixed files. SonarCloud still treats that write as path traversal, which failed the new-code security rating. Those two writes are marked `NOSONAR` for `pythonsecurity:S2083` and `pythonsecurity:S8707`.
