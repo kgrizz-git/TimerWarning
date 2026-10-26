@@ -2,6 +2,11 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-26 — Headless coverage floor and loopback Sonar host
+
+- Python coverage keeps a display floor of 33/826 and a headless floor of 11/826, measured after merging `main`. A machine without a tkinter display is checked against the headless floor. `SKIP_PYTHON_COVERAGE=1` stays an emergency skip.
+- The Sonar freshness check treats `localhost` and `[::1]` as `127.0.0.1` when the scheme and port match. A different host or port still fails.
+
 ## 2026-10-26 — Pre-push peels pushed objects to commits
 
 - The pre-push hook resolves each nonzero pushed object ID with `git rev-parse --verify <oid>^{commit}` before the Sonar freshness and issue checks. An annotated tag is checked as the commit it points at. All-zero delete IDs are still skipped.
@@ -36,7 +41,7 @@ Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANG
 
 - `.env` is gitignored. Copy `.env.example` and set `SONAR_TOKEN` there. `SONAR_HOST_URL` is optional and defaults to `http://localhost:9000`. The token is not stored in the repo.
 - `scripts/sonar_scan.sh` runs the scanner, waits for the Compute Engine task, and records the commit in `tmp/sonar-state.json`. `sonar-project.properties` is for that local server only. Cloud automatic analysis ignores it.
-- Pre-push does not run the scanner. When a token is set, `scripts/check-sonar-freshness.sh` requires that recorded commit to match `HEAD`. `SKIP_LOCAL_SONAR=1` skips the check. Tier-A remains opt-in. This does not replace the SonarCloud GitHub app.
+- Pre-push does not run the scanner. When a token is set, `scripts/check-sonar-freshness.sh` requires that recorded commit to match each pushed commit, or `HEAD` when the script is run directly. `SKIP_LOCAL_SONAR=1` skips the check. Tier-A remains opt-in. This does not replace the SonarCloud GitHub app.
 
 ## 2026-10-25 — Publication Phase 3: stubs removed, completed plans archived
 

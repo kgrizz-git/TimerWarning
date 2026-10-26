@@ -67,7 +67,7 @@ CI=true ./scripts/run-security-scan.sh --ci --with-tests
 | Hook | Default | What it does |
 |------|---------|----------------|
 | **pre-commit** | On after `install-git-hooks.sh` | Prune old `backups/` (5 commits), archive retention report (dry-run), ShellCheck staged `*.sh`, gitleaks staged |
-| **pre-push** | Sonar freshness, BUG/VULNERABILITY ratchet, and Python line coverage; Tier-A opt-in (`INSTALL_PRE_PUSH=1`) | Requires a current `bash scripts/sonar_scan.sh` result for each pushed commit when `SONAR_TOKEN` is set. Does not run the scanner. The ratchet ignores code smells. Coverage fails if `lib/*.py` drops below the committed ratio. Tier-A is `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a` (10 min timeout) |
+| **pre-push** | Sonar freshness, BUG/VULNERABILITY ratchet, and Python line coverage; Tier-A opt-in (`INSTALL_PRE_PUSH=1`) | Requires a current `bash scripts/sonar_scan.sh` result for each pushed commit when `SONAR_TOKEN` is set. Does not run the scanner. The ratchet ignores code smells. Coverage fails if `lib/*.py` drops below the display ratio, or the headless ratio when tkinter has no display. Tier-A is `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a` (10 min timeout) |
 
 Skip emergencies only:
 

@@ -20,8 +20,8 @@ chmod 600 .env
 
 `SONAR_TOKEN` is required. `SONAR_HOST_URL` defaults to `http://localhost:9000`.
 The server bound to `127.0.0.1:9000` is that same service. The freshness check
-compares the URL string, so `localhost` and `127.0.0.1` do not count as the
-same recorded host. An exported value wins over `.env`. `scripts/sonar-env.sh`
+treats `localhost` and `[::1]` as `127.0.0.1` for the same scheme and port.
+A different host or port still fails. An exported value wins over `.env`. `scripts/sonar-env.sh`
 parses `.env` and does not source it, and nothing prints the token.
 
 Install the scanner with `brew install sonar-scanner` if it is missing.

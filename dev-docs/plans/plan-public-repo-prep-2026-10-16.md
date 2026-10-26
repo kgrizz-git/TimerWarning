@@ -251,9 +251,15 @@ changes or forbidden reachable material, reproducible private audit record.
    and no installed-config or live-service changes for automation.
 5. [x] `kgrizz-git/TimerWarning` is public. The visibility change and the owner
    approval for it are done. `main` is protected by the ruleset `Mainrules1`.
-6. Verify public clone/access and public metadata. Archive this plan under
-   `dev-docs/completed-plans/` after final status and any residual work are recorded.
-   Keep source `LinuxTimerWarning` private unless separately directed.
+6. [x] Public clone and metadata checked on 2026-10-26. `gh repo view
+   kgrizz-git/TimerWarning` reports visibility PUBLIC, description
+   "TimerWarning (Sleep Warning System for Linux & macOS)", and license "Other"
+   (GitHub has no SPDX id for Apache 2.0 plus the Commons Clause; that text is
+   in `LICENSE`). `git ls-remote https://github.com/kgrizz-git/TimerWarning.git HEAD`
+   returned `a664b8e4a372f23489da24172616c55772691cff`.
+7. Archive this plan under `dev-docs/completed-plans/` after final status and
+   any residual work are recorded. Keep source `LinuxTimerWarning` private
+   unless separately directed.
 
 ## Verification and delivery gates
 
@@ -263,7 +269,7 @@ changes or forbidden reachable material, reproducible private audit record.
 | Phases 1–3 | `./scripts/check-doc-drift.sh --strict`; `./scripts/check-stale-plans.sh --strict`; license/link/donation/branding checks |
 | Shell or entrypoint changes | Targeted regressions, temp-HOME `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a`, and `./scripts/run-security-scan.sh --ci`; normal hooks intact |
 | Sanitized export | All preceding checks plus reachable-history privacy scan, `git fsck`, source/export comparison |
-| Public release | Destination is public. `Mainrules1` protects `main`. Remaining: require the Security workflow checks, then archive this plan |
+| Public release | Destination is public. `Mainrules1` protects `main`. Public clone of `a664b8e` succeeded and the GitHub description is set. Remaining: require the Security workflow checks, then archive this plan |
 
 Follow the operational rules in AGENTS: never unbounded configure menus; timeout,
 controlled stdin, and bounded output are all required if a menu test is necessary.
@@ -272,7 +278,8 @@ Never run mode-detection tests against real HOME or edit the installed config.
 For each slice, report implemented, reviewed, committed, pushed, PR-submitted,
 CI-green, and merged states separately. Branch cleanup is not release completion.
 
-**Next action:** `kgrizz-git/TimerWarning` is already public. Remaining Phase 5
-work is to require the Security workflow checks on `main`, then archive this
-plan. PayPal removal stays deferred. Do not rewrite this history again, and do
-not change the private source repository's history.
+**Next action:** `kgrizz-git/TimerWarning` is already public, and the public
+clone and metadata check in Phase 5 step 6 is done. Remaining Phase 5 work is
+to require the Security workflow checks on `main`, then archive this plan.
+PayPal removal stays deferred. Do not rewrite this history again, and do not
+change the private source repository's history.

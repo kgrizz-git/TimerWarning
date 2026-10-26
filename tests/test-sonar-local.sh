@@ -38,5 +38,11 @@ got="$(env -u SONAR_HOST_URL SONAR_TOKEN="from-env" \
     bash "${ROOT}/scripts/sonar-env.sh" "${tmp}")"
 [[ "${got}" == "from-env" ]] || fail "exported token did not win"
 
+# shellcheck source=scripts/check-sonar-freshness.sh
+source "${ROOT}/scripts/check-sonar-freshness.sh"
+[[ "$(sonar_normalize_url 'http://localhost:9000/')" == "http://127.0.0.1:9000" ]] || fail "localhost was not folded to 127.0.0.1"
+[[ "$(sonar_normalize_url 'http://[::1]:9000')" == "http://127.0.0.1:9000" ]] || fail "::1 was not folded to 127.0.0.1"
+[[ "$(sonar_normalize_url 'http://example.test:9000')" == "http://example.test:9000" ]] || fail "a non-loopback host was rewritten"
+
 python3 "${ROOT}/tests/test-sonar-issues.py"
 echo "PASS: local sonar env parser and issue ratchet"
