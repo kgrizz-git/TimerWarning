@@ -27,7 +27,7 @@ Python on `main` at `f7a22a9` is the macOS UI and one test: 9 files under `lib/`
 ## Decisions
 
 1. **CI is the enforcement.** A laptop can skip a hook. The GitHub Actions job cannot. Every new check runs in CI on pull requests and on pushes to `main`.
-2. **Pre-commit stays fast and staged.** It looks at the files in the commit. It does not type-check the tree and it does not run Tier-A.
+2. **Pre-commit stays fast and staged.** It looks at the files in the commit. Complexity is part of that: Ruff McCabe on staged Python, and the shell function-length script on staged production shell. It does not type-check the tree and it does not run Tier-A. CI runs the same complexity checks on the whole tree, so a skipped hook still fails the pull request.
 3. **Pre-push takes the slower whole-tree checks.** Tier-A stays behind `INSTALL_PRE_PUSH=1`. The new pre-push checks run whenever the hooks are installed, including when that opt-in file is absent. Today `.githooks/pre-push` exits 0 immediately without that file. The change is to run the quality script first, then Tier-A only when the opt-in file exists.
 4. **Missing local tools warn and skip, matching ShellCheck.** CI installs the tools and fails if they are missing. `SKIP_*` remains a local emergency valve. CI does not honor it.
 5. **Do not boil the ocean.** Existing violations are baselined or allowlisted. The gate fails on new violations and on growth past a recorded size. It does not require a drive-by cleanup of `config.sh` or `window-management.sh`.
@@ -43,13 +43,13 @@ Python on `main` at `f7a22a9` is the macOS UI and one test: 9 files under `lib/`
 | Gitleaks | Staged (already) | — | Already |
 | Semgrep project rules | — | — | Already |
 | Ruff `E` and `F` | Staged `*.py` | — | Whole tree |
-| Ruff McCabe `C901` | — | Whole tree | Whole tree |
+| Ruff McCabe `C901` | Staged `*.py` | — | Whole tree |
+| Shell function length and nesting | Staged production `*.sh` (skips `tests/` and `backups/`) | — | `lib/*.sh` and entry scripts |
 | basedpyright, baseline locked | — | Whole tree, `--baselinemode=lock` | Whole tree, CI lock |
 | File-size ratchet | Staged `lib/*.sh` and `lib/*.py` | Whole `lib/` | Whole `lib/` |
-| Shell function length and nesting | — | `lib/*.sh` and entry scripts | Same |
 | Tier-A | — | Unchanged opt-in | Unchanged |
 
-Pre-commit file size and Ruff apply only to files in the index. A commit that does not touch Python does not run Ruff. A commit that does not touch `lib/` does not run the size ratchet.
+Pre-commit file size, Ruff, and shell complexity apply only to files in the index. A commit that does not touch Python does not run Ruff. A commit that does not touch shell does not run the shell complexity script. A commit that does not touch `lib/` does not run the size ratchet. CI always runs McCabe and the shell complexity script on the whole tree.
 
 ## Caps to implement
 
@@ -91,9 +91,9 @@ Do not edit popup, scheduler, or config code to satisfy a new lint in the same c
 - [ ] Add `pyproject.toml`, the dependency pin, and the basedpyright baseline. Confirm `--baselinemode=lock` against the pinned version's docs.
 - [ ] Teach `check-file-sizes.sh` the Python cap and the ratchet. `./scripts/check-file-sizes.sh --strict` exits 0 on current `main` after the ratchet records `config.sh` and `window-management.sh`.
 - [ ] Add `scripts/check-shell-complexity.sh`. It exits 0 on current `main`.
-- [ ] Wire pre-commit (staged Ruff `E`/`F`, staged size ratchet).
-- [ ] Wire pre-push (McCabe, basedpyright lock, full size ratchet, shell complexity). Leave Tier-A opt-in.
-- [ ] Wire CI to the same commands, with tools installed in the job, and with no `SKIP_*` bypass.
+- [ ] Wire pre-commit (staged Ruff `E`/`F` and `C901`, staged shell complexity, staged size ratchet).
+- [ ] Wire pre-push (basedpyright lock, full size ratchet). Leave Tier-A opt-in. Complexity is not repeated here; pre-commit and CI own it.
+- [ ] Wire CI to Ruff (`E`, `F`, `C901`), shell complexity, basedpyright, and the size ratchet, with tools installed in the job and no `SKIP_*` bypass.
 - [ ] Update the contributor and security-scanning docs, and `dev-docs/harness-changelog.md`.
 - [ ] Run the new CI script locally, then `./scripts/run-security-scan.sh --ci`. Do not run `configure.sh`.
 
