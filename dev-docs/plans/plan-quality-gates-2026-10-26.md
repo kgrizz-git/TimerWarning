@@ -29,9 +29,9 @@ Python on `main` at `f7a22a9` was the macOS UI and one test: 10 files under `lib
 
 ## Python line coverage (implemented)
 
-Measured on 2026-10-26 after merging `main`: **33 of 826 statements (4.0%)** when tkinter can open a window, and **11 of 826 (1.3%)** when that probe fails. The other Python files are read as text or not imported, so they stay at 0%. Shell has no line-coverage number; Tier-A does not produce one.
+Measured on 2026-10-26 after `tests/test-popup-blocker-darwin.py`: **260 of 826 statements (31.5%)** when tkinter can open a window, and **238 of 826 (28.8%)** when that probe fails. The popup-blocker tests mock tkinter, so they count in both. The configure-dialog UI modules are still unread as code. Shell has no line-coverage number in this check.
 
-[`scripts/check-python-coverage.sh`](../../scripts/check-python-coverage.sh) runs `tests/test-*.py` under `coverage.py`. A display run must stay at or above `33/826`. A headless run must stay at or above `11/826`. Both ratios are in [`scripts/python-coverage-baseline.json`](../../scripts/python-coverage-baseline.json). Pre-push runs it on every push and picks the floor from the same tkinter probe the tests use. The Ubuntu `Static analysis` job installs `python3-tk` and runs it under `xvfb`, so CI uses the display floor. `SKIP_PYTHON_COVERAGE=1` skips locally and is for emergencies. A machine without a display does not need that skip. CI does not honor it.
+[`scripts/check-python-coverage.sh`](../../scripts/check-python-coverage.sh) runs `tests/test-*.py` under `coverage.py`. A display run must stay at or above `260/826`. A headless run must stay at or above `238/826`. Both ratios are in [`scripts/python-coverage-baseline.json`](../../scripts/python-coverage-baseline.json). Pre-push runs it on every push and picks the floor from the same tkinter probe the tests use. The Ubuntu `Static analysis` job installs `python3-tk` and runs it under `xvfb`, so CI uses the display floor. `SKIP_PYTHON_COVERAGE=1` skips locally and is for emergencies. A machine without a display does not need that skip. CI does not honor it.
 
 The GitHub ruleset `Mainrules1` rejects a code-coverage drop, and `minimum_coverage` is unset. Nothing in this repo uploads a coverage report to GitHub, so that ruleset rule still has no artifact to compare. The floor above is what pre-push and CI enforce.
 

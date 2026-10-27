@@ -2,6 +2,10 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-26 — Popup-blocker unit tests raise the Python floor
+
+- `tests/test-popup-blocker-darwin.py` executes `lib/popup-blocker-darwin.py` with tkinter and pyobjc mocked, so no window opens. The coverage floors are now 260/826 with a display and 238/826 without one.
+
 ## 2026-10-26 — Public clone evidence and host-normalizer tests
 
 - Phase 5 step 6 records `git clone --depth 1` of the public URL, which checked out `a664b8e`. The earlier note had cited `git ls-remote` and called that a clone.

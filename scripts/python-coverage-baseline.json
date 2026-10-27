@@ -2,12 +2,12 @@
   "schema": 2,
   "scope": "lib/*.py",
   "display": {
-    "covered_statements": 33,
+    "covered_statements": 260,
     "statements": 826
   },
   "headless": {
-    "covered_statements": 11,
+    "covered_statements": 238,
     "statements": 826
   },
-  "note": "Measured 2026-10-26 after merging main. A display run, including the tkinter runtime tests, covers 33/826 (4.0%). The same tests with the tkinter probe skipped cover 11/826 (1.3%). Each run is compared with its own ratio. Shell scripts are not included."
+  "note": "Measured 2026-10-26 after tests/test-popup-blocker-darwin.py. A display run covers 260/826 (31.5%). The same suite with the tkinter probe skipped covers 238/826 (28.8%). The popup-blocker tests mock tkinter, so they count in both. Each run is compared with its own ratio."
 }
