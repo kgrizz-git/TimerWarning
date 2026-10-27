@@ -22,6 +22,7 @@ tier_a:
     - test-invariant-messages.sh
     - test-time-picker-minutes.sh
     - test-time-validation.sh
+    - test-quality-gates.sh
     - name: test-popup-safety-darwin.sh
       platform: darwin
     - name: test-popup-safety-linux.sh

@@ -2,6 +2,13 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-27 — Lint, complexity, file-size, and type gates
+
+- Ruff (`E`, `F`, `C901`, line length 120, McCabe ceiling 19) runs on staged blobs in pre-commit and on the tree in CI. Existing diagnostics are recorded in `pyproject.toml`.
+- `scripts/check-shell-complexity.sh` caps shell function length (535) and control nesting (7) at the measured maximum. `scripts/check-file-sizes.sh` now caps `lib/*.py` at 500 and ratchets the three files already over their cap.
+- basedpyright runs against `.basedpyright/baseline.json` through `scripts/check-python-types.sh`, which restores and fails on a baseline rewrite. `--baselinemode=lock` does not exist in 1.29.4.
+- Pre-push runs types and the size ratchet. CI runs `scripts/check-quality.sh` in the Ubuntu static-analysis job. `tests/test-quality-gates.sh` is in Tier-A.
+
 ## 2026-10-26 — Shell line coverage and time-validation tests
 
 - `scripts/check-shell-coverage.sh` traces Tier-A with bash xtrace and fails when `lib/*.sh` line hits fall below `scripts/shell-coverage-baseline.json`. The 2026-10-27 floors are per OS: darwin 2922/18047 and linux 3054/18047 (from the Ubuntu CI run), each with 30 lines of slack for timing noise in the trace. The opt-in pre-push Tier-A hook and CI (Ubuntu and macOS) run it. `SKIP_SHELL_COVERAGE=1` or `SKIP_PRE_PUSH_TESTS=1` skips locally. The deadline test is not traced, and the trace goes to a pipe so a lowered file-size limit does not kill the probe.

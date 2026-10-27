@@ -50,7 +50,7 @@ Submitting a contribution means you agree the project may include it under those
 CI_HEADLESS=1 ./scripts/run-tests.sh --tier a
 ./scripts/run-security-scan.sh --ci          # static analysis (Ubuntu CI job)
 ./scripts/check-doc-drift.sh               # warn-only doc consistency
-./scripts/check-file-sizes.sh              # warn on lib/*.sh > 900 lines
+./scripts/check-file-sizes.sh              # warn: lib/*.sh > 900, lib/*.py > 500, with a ratchet
 ```
 
 For `lib/` or entrypoint changes, also run:
@@ -66,8 +66,8 @@ CI=true ./scripts/run-security-scan.sh --ci --with-tests
 
 | Hook | Default | What it does |
 |------|---------|----------------|
-| **pre-commit** | On after `install-git-hooks.sh` | Prune old `backups/` (5 commits), archive retention report (dry-run), ShellCheck staged `*.sh`, gitleaks staged |
-| **pre-push** | Sonar freshness, BUG/VULNERABILITY ratchet, Python line coverage, and shell line coverage; Tier-A opt-in (`INSTALL_PRE_PUSH=1`) | Requires a current `bash scripts/sonar_scan.sh` result for each pushed commit when `SONAR_TOKEN` is set. Does not run the scanner. The ratchet ignores code smells. Python coverage fails if `lib/*.py` drops below the display ratio, or the headless ratio when tkinter has no display. Shell coverage runs only when the opt-in hook is enabled and fails if traced `lib/*.sh` lines drop below the ratio in `scripts/shell-coverage-baseline.json`. It runs Tier-A a second time under bash xtrace, so an opt-in push runs the suite twice: once traced, once plain. `SKIP_SHELL_COVERAGE=1` and `SKIP_PRE_PUSH_TESTS=1` skip locally; CI honors neither. |
+| **pre-commit** | On after `install-git-hooks.sh` | Prune old `backups/` (5 commits), archive retention report (dry-run), ShellCheck staged `*.sh`, gitleaks staged, and on the staged blobs: Ruff (`E`, `F`, `C901`) on `*.py`, shell function length and nesting on production `*.sh`, and the file-size ratchet on `lib/` |
+| **pre-push** | Sonar freshness, BUG/VULNERABILITY ratchet, Python line coverage, basedpyright against its baseline, the file-size ratchet, and shell line coverage; Tier-A opt-in (`INSTALL_PRE_PUSH=1`) | Requires a current `bash scripts/sonar_scan.sh` result for each pushed commit when `SONAR_TOKEN` is set. Does not run the scanner. The ratchet ignores code smells. Python coverage fails if `lib/*.py` drops below the display ratio, or the headless ratio when tkinter has no display. Shell coverage runs only when the opt-in hook is enabled and fails if traced `lib/*.sh` lines drop below the ratio in `scripts/shell-coverage-baseline.json`. It runs Tier-A a second time under bash xtrace, so an opt-in push runs the suite twice: once traced, once plain. `SKIP_SHELL_COVERAGE=1` and `SKIP_PRE_PUSH_TESTS=1` skip locally; CI honors neither. |
 
 Skip emergencies only:
 
@@ -75,6 +75,8 @@ Skip emergencies only:
 SKIP_SHELLCHECK=1 SKIP_GITLEAKS=1 SKIP_ARCHIVE_REPORT=1 git commit -m "..."
 SKIP_LOCAL_SONAR=1 git push
 SKIP_PYTHON_COVERAGE=1 git push
+SKIP_PYTHON_TYPES=1 git push
+SKIP_QUALITY_CHECKS=1 git commit -m "..."
 SKIP_SHELL_COVERAGE=1 git push
 SKIP_PRE_PUSH_TESTS=1 git push
 ```
@@ -92,6 +94,7 @@ GitHub loads [`.github/pull_request_template.md`](../.github/pull_request_templa
 Keep `lib/*.sh` facades under **900 lines** (June 2026 refactor target). Exception: `lib/configure-dialogs-darwin.sh` (tkinter daemon; allowlisted).
 
 ```bash
+./scripts/check-quality.sh              # Ruff, shell complexity, file sizes, basedpyright (CI parity)
 ./scripts/check-file-sizes.sh          # warn-only
 ./scripts/check-file-sizes.sh --strict # fail on violations
 ```

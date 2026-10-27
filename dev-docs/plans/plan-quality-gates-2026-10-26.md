@@ -2,7 +2,7 @@
 
 **Created:** 2026-10-26
 
-**Status:** Draft, revised after review on 2026-10-26. The lint, type, complexity, and file-size gates below are not started. Two gates are already implemented on this branch: Python line coverage, and the local SonarQube freshness check plus BUG/VULNERABILITY ratchet. Do not add the other tools, configs, or hook changes until this plan is accepted.
+**Status:** Implemented on this branch (2026-10-27): Python and shell line coverage, the local Sonar checks, Ruff, shell complexity, the file-size ratchet, and basedpyright. Deviations from the draft: C901 is exempt in `tests/` and the ceiling (19) is the measured maximum for `lib/` and `scripts/`; shell nesting counts if/for/while/until/case, not braces; `--baselinemode=lock` does not exist in basedpyright 1.29.4, so `scripts/check-python-types.sh` restores the baseline and fails if a run rewrites it.
 
 **Branch:** `chore/quality-gates`, from `main` at `f7a22a9`. It is not stacked on `chore/public-polish`.
 
@@ -101,15 +101,15 @@ Do not edit popup, scheduler, or config code to satisfy a new lint in the same c
 
 ## Implementation order
 
-- [ ] Measure shell function length, brace depth, Python McCabe, and `ruff check --select E,F`. Write the ceilings into the config and the script header. Set `line-length` and record current `E`/`F` diagnostics so `ruff check` exits 0 on `main`.
-- [ ] Add `pyproject.toml` and the dependency pins. Set basedpyright `pythonVersion` to the Ubuntu static-analysis job's Python. Generate the baseline in that environment and confirm `--baselinemode=lock` against the pinned version's docs. `basedpyright --baselinemode=lock` exits 0 on that baseline.
-- [ ] Teach `check-file-sizes.sh` the Python cap and the ratchet, including a ceiling for `configure-dialogs-darwin.sh`. A shrink that leaves the old ceiling in place fails. `./scripts/check-file-sizes.sh --strict` exits 0 on current `main` after the three ceilings match the current line counts.
-- [ ] Add `scripts/check-shell-complexity.sh`. It exits 0 on current `main`. It can read a path or a blob from stdin so pre-commit can pass the index text.
-- [ ] Wire pre-commit (staged Ruff `E`/`F` and `C901`, staged shell complexity, staged size ratchet), each reading `git show ":$path"` rather than the working tree.
-- [ ] Wire pre-push (basedpyright lock, full size ratchet). Leave Tier-A opt-in. Complexity is not repeated here; pre-commit and CI own it.
-- [ ] Wire CI to Ruff (`E`, `F`, `C901`), shell complexity, basedpyright, and the size ratchet, with tools installed in the job and no `SKIP_*` bypass.
-- [ ] Update the contributor and security-scanning docs, and `dev-docs/harness-changelog.md`.
-- [ ] Run the new CI script locally, then `./scripts/run-security-scan.sh --ci`. Do not run `configure.sh`.
+- [x] Measure shell function length, brace depth, Python McCabe, and `ruff check --select E,F`. Write the ceilings into the config and the script header. Set `line-length` and record current `E`/`F` diagnostics so `ruff check` exits 0 on `main`.
+- [x] Add `pyproject.toml` and the dependency pins. Set basedpyright `pythonVersion` to the Ubuntu static-analysis job's Python. Generate the baseline in that environment and confirm `--baselinemode=lock` against the pinned version's docs. `basedpyright --baselinemode=lock` exits 0 on that baseline.
+- [x] Teach `check-file-sizes.sh` the Python cap and the ratchet, including a ceiling for `configure-dialogs-darwin.sh`. A shrink that leaves the old ceiling in place fails. `./scripts/check-file-sizes.sh --strict` exits 0 on current `main` after the three ceilings match the current line counts.
+- [x] Add `scripts/check-shell-complexity.sh`. It exits 0 on current `main`. It can read a path or a blob from stdin so pre-commit can pass the index text.
+- [x] Wire pre-commit (staged Ruff `E`/`F` and `C901`, staged shell complexity, staged size ratchet), each reading `git show ":$path"` rather than the working tree.
+- [x] Wire pre-push (basedpyright lock, full size ratchet). Leave Tier-A opt-in. Complexity is not repeated here; pre-commit and CI own it.
+- [x] Wire CI to Ruff (`E`, `F`, `C901`), shell complexity, basedpyright, and the size ratchet, with tools installed in the job and no `SKIP_*` bypass.
+- [x] Update the contributor and security-scanning docs, and `dev-docs/harness-changelog.md`.
+- [x] Run the new CI script locally, then `./scripts/run-security-scan.sh --ci`. Do not run `configure.sh`.
 
 ## Out of scope
 

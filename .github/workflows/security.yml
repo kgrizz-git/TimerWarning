@@ -45,6 +45,11 @@ jobs:
           python3 -m pip install --user --only-binary :all: 'coverage==7.15.0'
           xvfb-run -a ./scripts/check-python-coverage.sh
 
+      - name: Ruff, shell complexity, file sizes, basedpyright
+        run: |
+          python3 -m pip install --user --only-binary :all: -r requirements-dev.txt
+          ./scripts/check-quality.sh
+
       - name: Shell line coverage
         run: ./scripts/check-shell-coverage.sh
 

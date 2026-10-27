@@ -5,6 +5,7 @@
 # Tier-A stays opt-in (INSTALL_PRE_PUSH=1). Disable Tier-A: rm .githooks/enable-pre-push
 # Skip the Sonar checks: SKIP_LOCAL_SONAR=1 git push
 # Skip Python coverage: SKIP_PYTHON_COVERAGE=1 git push (CI does not honor that)
+# Skip types and file sizes: SKIP_QUALITY_CHECKS=1 / SKIP_PYTHON_TYPES=1 (CI honors neither)
 # Shell coverage runs with the opt-in Tier-A hook below, and always in CI.
 #
 
@@ -41,6 +42,8 @@ else
 fi
 
 "${ROOT}/scripts/check-python-coverage.sh"
+"${ROOT}/scripts/check-python-types.sh"
+"${ROOT}/scripts/check-file-sizes.sh" --strict
 
 if [ ! -f "${ROOT}/.githooks/enable-pre-push" ]; then
     exit 0

@@ -1,0 +1,33 @@
+# Tooling config only. This repository is not a Python package.
+# Install the pinned checkers with: pip install -r requirements-dev.txt
+# See dev-docs/development/security-scanning.md and
+# dev-docs/plans/plan-quality-gates-2026-10-26.md.
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+extend-exclude = ["backups", "tmp"]
+
+[tool.ruff.lint]
+# Pyflakes, pycodestyle errors, McCabe. Not the full catalog.
+select = ["E", "F", "C901"]
+
+[tool.ruff.lint.mccabe]
+# Measured maximum in lib/ and scripts/ on 2026-10-27: 19 (lib/popup-blocker-darwin.py run_blocker).
+max-complexity = 19
+
+[tool.ruff.lint.per-file-ignores]
+# Recorded diagnostics that existed when the gate was added. Do not add to this list.
+"lib/popup-blocker-darwin.py" = ["F401"]       # import probes for optional objc and tkinter
+"scripts/check_sonar_issues.py" = ["E501"]
+"tests/test-sonar-issues.py" = ["E501"]
+"tests/test-popup-blocker-darwin.py" = ["E402"]  # imports after sys.path setup
+# McCabe applies to production Python. Test fakes are allowed to branch (measured max 35).
+"tests/*" = ["C901"]
+
+[tool.basedpyright]
+include = ["lib", "scripts", "tests"]
+exclude = ["**/__pycache__", "tmp", "backups"]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+baselineFile = ".basedpyright/baseline.json"
