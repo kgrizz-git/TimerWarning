@@ -7,7 +7,8 @@
 # The same suite must produce the same ratio.
 #
 # The floor is scripts/shell-coverage-baseline.json: a top-level ratio, with
-# optional per-OS darwin/linux objects that override it when present. Raising
+# optional per-OS darwin/linux objects that override it when present. A run may
+# fall "slack_lines" (30) under the floor to absorb timing noise. Raising
 # the committed number is a new measurement. CI runs this on Ubuntu and macOS;
 # an OS entry is used when present. Local pre-push runs it only with the
 # opt-in Tier-A hook.

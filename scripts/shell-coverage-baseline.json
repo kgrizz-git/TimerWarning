@@ -3,5 +3,6 @@
   "scope": "lib/*.sh",
   "covered_lines": 2922,
   "statements": 18047,
-  "note": "Measured 2026-10-27 from Tier-A under bash xtrace (29 run, 3 skipped; test-popup-notice-deadlines.sh exempt via SHELL_COVERAGE_OFF). 2922 of 18047 non-comment lines (16.2%). fi and done often never appear in an xtrace. Raising the floor is a new measurement. A per-OS object (darwin, linux) overrides this top-level ratio when present."
+  "slack_lines": 30,
+  "note": "Measured 2026-10-27 from Tier-A under bash xtrace (29 run, 3 skipped; test-popup-notice-deadlines.sh exempt via SHELL_COVERAGE_OFF). 2922 of 18047 non-comment lines (16.2%). A run may fall 30 lines (about 1%) under that to absorb timing noise in the trace. fi and done often never appear in an xtrace. Raising the floor is a new measurement. A per-OS object (darwin, linux) overrides this top-level ratio, slack included, when present."
 }

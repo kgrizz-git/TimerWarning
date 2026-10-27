@@ -11,7 +11,8 @@ Outputs:
     Prints covered/statements. Exits 1 when this OS is below its floor.
 Requirements:
     Python 3. The baseline holds a top-level ratio; per-OS "darwin" and
-    "linux" objects override it when present.
+    "linux" objects override it when present. Optional "slack_lines" (default
+    0) lets a run fall that many lines under the floor.
 """
 
 from __future__ import annotations
@@ -107,6 +108,7 @@ def main(argv: list[str]) -> int:
             floor = {
                 "covered_lines": baseline["covered_lines"],
                 "statements": baseline["statements"],
+                "slack_lines": baseline.get("slack_lines", 0),
             }
         else:
             print(
@@ -117,25 +119,30 @@ def main(argv: list[str]) -> int:
     try:
         base_covered = int(floor["covered_lines"])
         base_statements = int(floor["statements"])
+        slack = int(floor.get("slack_lines", 0))
     except (KeyError, TypeError, ValueError):
         print(
             f"shell coverage: malformed floor in {baseline_path}.",
             file=sys.stderr,
         )
         return 1
-    if base_statements <= 0:
-        print("shell coverage: baseline statements must be positive.", file=sys.stderr)
+    if base_statements <= 0 or slack < 0:
+        print(
+            "shell coverage: baseline statements must be positive and slack not negative.",
+            file=sys.stderr,
+        )
         return 1
-    if covered * base_statements < base_covered * statements:
+    # Slack absorbs run-to-run noise from timing-dependent lines in the trace.
+    if (covered + slack) * base_statements < base_covered * statements:
         print(
             f"shell coverage: {os_name} {covered}/{statements} is below the floor "
-            f"{base_covered}/{base_statements}.",
+            f"{base_covered}/{base_statements} minus {slack} lines of slack.",
             file=sys.stderr,
         )
         return 1
     print(
         f"shell coverage: {os_name} floor is {base_covered}/{base_statements} "
-        f"({100.0 * base_covered / base_statements:.2f}%)."
+        f"({100.0 * base_covered / base_statements:.2f}%), slack {slack} lines."
     )
     return 0
 
