@@ -12,9 +12,9 @@
 
 A monitoring system that displays interactive warning popups when your computer is used during configurable restricted hours (e.g., late night/early morning). It works on Steam Deck. **Linux and SteamOS:** systemd timer. **macOS:** LaunchAgent — see [user-docs/MACOS.md](user-docs/MACOS.md).
 
-## 🛡️ Safety first (read before install or development)
+## 🛡️ Safety first
 
-**This software can block normal use if misconfigured or broken.** We treat safety as the top priority—especially during development and AI-assisted changes.
+Safety is the top priority. A popup that can interrupt your computer use has to be easy to stop, so unless the code is modified, the safeguards are built in and cannot be configured away. No category of restriction can cover more than 16 hours of any day, every popup has a finite lifetime, and there is always a documented way to turn the whole system off.
 
 | Audience | Start here |
 |----------|------------|
@@ -22,7 +22,7 @@ A monitoring system that displays interactive warning popups when your computer 
 | **Developers / agents** | [AGENTS.md](AGENTS.md) → [dev-docs/CONTRIBUTING.md](dev-docs/CONTRIBUTING.md) |
 | **macOS users** | [user-docs/MACOS.md](user-docs/MACOS.md) (troubleshooting + `launchctl bootout` / `killall osascript`) |
 
-Do not save schedules that cover the entire week. If a popup will not dismiss, use the emergency steps in **docs/SAFETY.md** before changing code.
+If you have not modified the code, you do not need to do anything special: the configure wizard enforces these limits for you. If a popup ever will not dismiss, the emergency steps in **docs/SAFETY.md** turn the system off. If you change the code, read that file first.
 
 ## ⚠️ Disclaimer
 
