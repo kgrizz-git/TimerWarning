@@ -796,8 +796,9 @@ class RunBlockerTest(TempHomeTest):
         fake_appkit.NSMakeRect = mock.MagicMock(name="NSMakeRect")
         fake_appkit.NSScreenSaverWindowLevel = 1237
         self.payload["auto_close_seconds"] = 0
+        # create=True: where pyobjc is absent (Linux CI) the module has no AppKit.
         with mock.patch.object(mod, "_HAS_PYOBJC", True), mock.patch.object(
-            mod, "AppKit", fake_appkit
+            mod, "AppKit", fake_appkit, create=True
         ), mock.patch.object(mod, "_nswindow_fill_screen") as fill, mock.patch.object(
             mod, "_boost_window_level"
         ) as boost:
