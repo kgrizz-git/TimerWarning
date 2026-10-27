@@ -23,7 +23,10 @@ import argparse
 import re
 import sys
 
-DECL_RE = re.compile(r"^(\s*)(?:function\s+([A-Za-z_][\w:.-]*)(?:\s*\(\s*\))?|([A-Za-z_][\w:.-]*)\s*\(\s*\))\s*\{?$")
+NAME = r"[A-Za-z_][\w:.-]*"
+# `function name {` or `function name() {`, and `name() {`. Two small patterns.
+KEYWORD_DECL_RE = re.compile(rf"^(\s*)function\s+({NAME})(?:\s*\(\s*\))?\s*\{{?$")
+PAREN_DECL_RE = re.compile(rf"^(\s*)({NAME})\s*\(\s*\)\s*\{{?$")
 OPENERS = {"if", "for", "while", "until", "case", "select"}
 CLOSERS = {"fi", "done", "esac"}
 SEGMENT_RE = re.compile(r"&&|\|\||[;|&(){}\n]")
@@ -99,6 +102,12 @@ def deepest(body: list[str]) -> int:
     return best
 
 
+def declaration(line: str) -> tuple[str, str] | None:
+    """Return (indent, name) when the sanitized line declares a function."""
+    match = KEYWORD_DECL_RE.match(line) or PAREN_DECL_RE.match(line)
+    return (match.group(1), match.group(2)) if match else None
+
+
 def closing_line(clean: list[str], start: int, indent: str) -> int | None:
     """Index of the sanitized line that closes the function declared at `start`."""
     for j in range(start + 1, len(clean)):
@@ -113,12 +122,12 @@ def functions(lines: list[str]) -> list[tuple[str, int, int, int]]:
     found = []
     i = 0
     while i < len(lines):
-        match = DECL_RE.match(clean[i].rstrip())
-        end = closing_line(clean, i, match.group(1)) if match else None
-        if match is None or end is None:
+        decl = declaration(clean[i].rstrip())
+        end = closing_line(clean, i, decl[0]) if decl else None
+        if decl is None or end is None:
             i += 1
             continue
-        name = match.group(2) or match.group(3)
+        name = decl[1]
         found.append((name, i + 1, end - i + 1, deepest(clean[i + 1 : end])))
         i = end + 1
     return found
