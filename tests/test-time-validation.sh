@@ -16,6 +16,7 @@ source "${SCRIPT_DIR}/lib/time-validation.sh" || {
     exit 1
 }
 
+WORK_HOURS="09:00-17:00"
 _PASS=0
 _FAIL=0
 
@@ -49,19 +50,19 @@ assert_ok validate_single_time_value "9am"
 assert_fail validate_single_time_value "13pm"
 assert_fail validate_single_time_value "09:60"
 
-assert_ok is_time_in_single_range "1000" "09:00-17:00"
-assert_fail is_time_in_single_range "0800" "09:00-17:00"
+assert_ok is_time_in_single_range "1000" "${WORK_HOURS}"
+assert_fail is_time_in_single_range "0800" "${WORK_HOURS}"
 assert_ok is_time_in_single_range "2300" "23:00-05:00" "self"
 assert_fail is_time_in_single_range "0400" "23:00-05:00" "self"
 assert_ok is_time_in_single_range "0400" "23:00-05:00" "both"
 
-assert_ok is_restricted_time "1000" "09:00-17:00"
-assert_fail is_restricted_time "0800" "09:00-17:00"
+assert_ok is_restricted_time "1000" "${WORK_HOURS}"
+assert_fail is_restricted_time "0800" "${WORK_HOURS}"
 assert_fail is_restricted_time "1000" ""
 
 echo ""
 echo "Results: ${_PASS} passed, ${_FAIL} failed"
-if [ "${_FAIL}" -gt 0 ]; then
+if [[ "${_FAIL}" -gt 0 ]]; then
     exit 1
 fi
 exit 0

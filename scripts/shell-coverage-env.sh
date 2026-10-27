@@ -24,8 +24,9 @@ coproc _SHELL_COV_READER {
     echo "${BASHPID}" >> "${SHELL_COVERAGE_DIR}/readers.pids"
     exec /bin/cat >> "${_cov_log}"
 } || return 0
-exec {_SHELL_COV_FD}>&"${_SHELL_COV_READER[1]}"
-eval "exec ${_SHELL_COV_READER[1]}>&-"
+_cov_write_fd="${_SHELL_COV_READER[1]}"
+exec {_SHELL_COV_FD}>&"${_cov_write_fd}"
+exec {_cov_write_fd}>&-
 # Close the trace fd in child processes so the reader sees EOF when this shell exits.
 # No per-process CLOEXEC helper, deliberately. fcntl(F_SETFD) in a child can
 # only change that child's copy of a descriptor, never the parent shell's, so

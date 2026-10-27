@@ -6,7 +6,8 @@ like "+/path/file.sh:12:" or "++/path/file.sh:12:" when the line ran inside
 a command substitution. The path is everything after the leading plus signs.
 
 Inputs:
-    repo root, log directory, baseline JSON, "1" to print without comparing.
+    repo root, log directory, "1" to print without comparing. The floor is
+    scripts/shell-coverage-baseline.json.
 Outputs:
     Prints covered/statements. Exits 1 when this OS is below its floor.
 Requirements:
@@ -24,7 +25,10 @@ import sys
 from pathlib import Path
 
 # One or more plus signs, then path, line number, and the traced text.
-LINE_RE = re.compile(r"^(\++)([^:\n]+):(\d+):")
+LINE_RE = re.compile(r"^\++([^:\n+][^:\n]*):(\d+):")
+
+# The floor lives beside this script. It is not a command-line argument.
+BASELINE = Path(__file__).resolve().parent / "shell-coverage-baseline.json"
 
 
 def countable_lines(lib: Path) -> dict[str, set[int]]:
@@ -57,7 +61,7 @@ def count_hits(root: Path, log_dir: Path) -> tuple[int, int, int]:
                     if raw.startswith("+"):
                         unparsed += 1
                     continue
-                raw_source = match.group(2)
+                raw_source = match.group(1)
                 source = resolved_cache.get(raw_source)
                 if source is None:
                     source = Path(raw_source)
@@ -71,61 +75,38 @@ def count_hits(root: Path, log_dir: Path) -> tuple[int, int, int]:
                     continue
                 if source.suffix != ".sh":
                     continue
-                number = int(match.group(3))
+                number = int(match.group(2))
                 if number in counted.get(str(source), ()):
                     hits.add((str(source), number))
     return len(hits), statements, unparsed
 
 
-def main(argv: list[str]) -> int:
-    """Print the ratio and, unless measuring, compare this OS to its floor."""
-    root = Path(argv[1]).resolve()
-    log_dir = Path(argv[2])
-    baseline_path = Path(argv[3])
-    measure_only = argv[4] == "1"
-    covered, statements, unparsed = count_hits(root, log_dir)
-    if statements <= 0:
-        print("shell coverage: lib/*.sh has no countable lines.", file=sys.stderr)
-        return 1
-    print(f"shell coverage: {covered}/{statements} lines.")
-    if unparsed:
-        print(
-            f"shell coverage: {unparsed} xtrace lines did not match file:line.",
-            file=sys.stderr,
-        )
-    if measure_only:
-        return 0
+def select_floor(baseline: dict, os_name: str) -> tuple[int, int, int] | None:
+    """Return (covered, statements, slack) for this OS, or None if malformed.
 
-    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
-    os_name = platform.system().lower()
-    floor = baseline.get(os_name)
-    if not isinstance(floor, dict):
-        # Flat fallback: a top-level ratio applies to every OS until that OS
-        # gets its own entry. An OS entry, when present, overrides the flat one.
-        if isinstance(baseline.get("covered_lines"), int) and isinstance(
-            baseline.get("statements"), int
-        ):
-            floor = {
-                "covered_lines": baseline["covered_lines"],
-                "statements": baseline["statements"],
-                "slack_lines": baseline.get("slack_lines", 0),
-            }
-        else:
-            print(
-                f"shell coverage: no {os_name} floor in {baseline_path}.",
-                file=sys.stderr,
-            )
-            return 1
+    A per-OS object wins and carries its own slack. Otherwise the top-level
+    ratio applies to every OS.
+    """
+    entry = baseline.get(os_name)
+    if not isinstance(entry, dict):
+        entry = baseline
     try:
-        base_covered = int(floor["covered_lines"])
-        base_statements = int(floor["statements"])
-        slack = int(floor.get("slack_lines", 0))
-    except (KeyError, TypeError, ValueError):
-        print(
-            f"shell coverage: malformed floor in {baseline_path}.",
-            file=sys.stderr,
+        return (
+            int(entry["covered_lines"]),
+            int(entry["statements"]),
+            int(entry.get("slack_lines", 0)),
         )
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def check_floor(baseline: dict, os_name: str, covered: int, statements: int) -> int:
+    """Compare a measured ratio with the floor. Return 0 when it passes."""
+    floor = select_floor(baseline, os_name)
+    if floor is None:
+        print(f"shell coverage: no usable {os_name} floor in the baseline.", file=sys.stderr)
         return 1
+    base_covered, base_statements, slack = floor
     if base_statements <= 0 or slack < 0:
         print(
             "shell coverage: baseline statements must be positive and slack not negative.",
@@ -145,6 +126,27 @@ def main(argv: list[str]) -> int:
         f"({100.0 * base_covered / base_statements:.2f}%), slack {slack} lines."
     )
     return 0
+
+
+def main(argv: list[str]) -> int:
+    """Print the ratio and, unless measuring, compare this OS to its floor."""
+    root = Path(argv[1]).resolve()
+    log_dir = Path(argv[2])
+    measure_only = argv[3] == "1"
+    covered, statements, unparsed = count_hits(root, log_dir)
+    if statements <= 0:
+        print("shell coverage: lib/*.sh has no countable lines.", file=sys.stderr)
+        return 1
+    print(f"shell coverage: {covered}/{statements} lines.")
+    if unparsed:
+        print(
+            f"shell coverage: {unparsed} xtrace lines did not match file:line.",
+            file=sys.stderr,
+        )
+    if measure_only:
+        return 0
+    baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
+    return check_floor(baseline, platform.system().lower(), covered, statements)
 
 
 if __name__ == "__main__":

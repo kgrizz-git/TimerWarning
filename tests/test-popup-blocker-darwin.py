@@ -711,7 +711,7 @@ class RunBlockerTest(TempHomeTest):
             code, root = self._run()
             tick = self._tick(root)
             tick()
-        self.assertEqual(root.quitted and root.destroyed, True)
+        self.assertTrue(root.quitted and root.destroyed)
         self.assertEqual(self.result_file.read_text(encoding="utf-8"), "OK\n")
 
     def test_finish_is_idempotent(self):

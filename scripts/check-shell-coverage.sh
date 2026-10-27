@@ -85,6 +85,6 @@ if [[ "${suite_rc}" -ne 0 ]]; then
 fi
 
 python3 "${ROOT}/scripts/shell_coverage_report.py" \
-    "${ROOT}" "${log_dir}" "${ROOT}/scripts/shell-coverage-baseline.json" \
+    "${ROOT}" "${log_dir}" \
     "${SHELL_COVERAGE_MEASURE:-0}"
 keep_logs=0

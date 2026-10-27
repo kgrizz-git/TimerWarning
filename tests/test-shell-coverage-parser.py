@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import contextlib
 import io
-import json
 import sys
 import tempfile
 import unittest
@@ -45,36 +44,35 @@ class ParserTests(unittest.TestCase):
 
 
 class SlackTests(unittest.TestCase):
-    def _run(self, baseline, hits):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            (root / "lib").mkdir()
-            source = (root / "lib" / "sample.sh").resolve()
-            source.write_text("".join(f"echo {n}\n" for n in range(10)), encoding="utf-8")
-            logs = root / "logs"
-            logs.mkdir()
-            (logs / "1.log").write_text(
-                "".join(f"+{source}:{n}:echo\n" for n in range(1, hits + 1)),
-                encoding="utf-8",
-            )
-            base = root / "base.json"
-            base.write_text(json.dumps(baseline), encoding="utf-8")
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(
-                io.StringIO()
-            ):
-                return report.main(["x", str(root), str(logs), str(base), "0"])
+    def _check(self, baseline, covered):
+        with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(
+            io.StringIO()
+        ):
+            return report.check_floor(baseline, "darwin", covered, 10)
 
     def test_slack_allows_a_small_drop(self):
         floor = {"covered_lines": 8, "statements": 10, "slack_lines": 1}
-        self.assertEqual(self._run(floor, 7), 0)
+        self.assertEqual(self._check(floor, 7), 0)
 
     def test_drop_past_slack_fails(self):
         floor = {"covered_lines": 8, "statements": 10, "slack_lines": 1}
-        self.assertEqual(self._run(floor, 6), 1)
+        self.assertEqual(self._check(floor, 6), 1)
 
     def test_slack_defaults_to_zero(self):
         floor = {"covered_lines": 8, "statements": 10}
-        self.assertEqual(self._run(floor, 7), 1)
+        self.assertEqual(self._check(floor, 7), 1)
+
+    def test_os_object_overrides_the_flat_floor(self):
+        floor = {
+            "covered_lines": 8,
+            "statements": 10,
+            "slack_lines": 5,
+            "darwin": {"covered_lines": 9, "statements": 10},
+        }
+        self.assertEqual(self._check(floor, 8), 1)
+
+    def test_malformed_floor_fails(self):
+        self.assertEqual(self._check({"darwin": {"covered_lines": 1}}, 10), 1)
 
 
 if __name__ == "__main__":
