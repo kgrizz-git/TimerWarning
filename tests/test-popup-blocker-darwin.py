@@ -41,6 +41,30 @@ _spec.loader.exec_module(mod)
 FAKE_TITLE = "ALERT: Restricted time window"
 
 
+def tkinter_module():
+    """Return tkinter, or a stub when the module is not installed.
+
+    Production code catches tk.TclError after `import tkinter`. The stub's
+    TclError is the class those handlers see, so the tests do not need a
+    display or a system tkinter package.
+    """
+    try:
+        import tkinter
+    except ImportError:
+        existing = sys.modules.get("tkinter")
+        if isinstance(existing, types.ModuleType):
+            return existing
+        tkinter = types.ModuleType("tkinter")
+
+        class TclError(Exception):
+            pass
+
+        tkinter.TclError = TclError
+        tkinter.PhotoImage = mock.MagicMock(name="PhotoImage")
+        sys.modules["tkinter"] = tkinter
+    return tkinter
+
+
 # ── fakes ─────────────────────────────────────────────────────────────────────
 
 def build_fake_tk():
@@ -263,6 +287,10 @@ class TestWriteResult(TempHomeTest):
 # ── _screen_pixels ───────────────────────────────────────────────────────────
 
 class TestScreenPixels(TempHomeTest):
+    def setUp(self):
+        super().setUp()
+        tkinter_module()
+
     def test_pyobjc_nsscreen_preferred(self):
         fake_appkit = mock.MagicMock(name="AppKit")
         screen = mock.MagicMock()
@@ -424,6 +452,7 @@ class TestBoostWindowLevel(TempHomeTest):
 class TestApplyFullscreen(TempHomeTest):
     def setUp(self):
         super().setUp()
+        tkinter_module()
         mod._HAS_PYOBJC = False
 
     def test_native_fullscreen_when_big_enough(self):
@@ -457,7 +486,7 @@ class TestApplyFullscreen(TempHomeTest):
         fill.assert_called_once_with(FAKE_TITLE, 1440, 900)
 
     def test_tcl_errors_on_attributes_are_survived(self):
-        import tkinter as real_tk
+        real_tk = tkinter_module()
 
         root = mock.MagicMock()
         root.attributes.side_effect = real_tk.TclError("headless")
@@ -475,6 +504,7 @@ class TestApplyFullscreen(TempHomeTest):
 class TestApplyAppIcon(TempHomeTest):
     def setUp(self):
         super().setUp()
+        tkinter_module()
         # Spec-limited mock: unlike a plain MagicMock, unset attributes raise
         # AttributeError, so getattr(root, "_sw_app_icon", None) is truthful.
         self.root = mock.Mock(spec=["iconphoto"])
@@ -502,7 +532,7 @@ class TestApplyAppIcon(TempHomeTest):
         self.assertIs(self.root._sw_app_icon, sentinel)
 
     def test_photoimage_tcl_error_is_survived(self):
-        import tkinter as real_tk
+        real_tk = tkinter_module()
 
         here = self.tmp / "here2"
         here.mkdir()
@@ -586,6 +616,13 @@ class RunBlockerTest(TempHomeTest):
         for _, handler in root.bindings:
             handler(None)  # guard: only OK fires once; later calls are no-ops
         self.assertEqual(self.result_file.read_text(encoding="utf-8"), "OK\n")
+
+    def test_keyboard_shortcuts_do_not_dismiss_while_ok_locked(self):
+        self.payload["min_display_seconds"] = 30
+        _code, root = self._run()
+        for _sequence, handler in root.bindings:
+            handler(None)
+        self.assertFalse(self.result_file.exists())
 
     def test_pause_button_writes_pause_result(self):
         self.payload["pause_available"] = True

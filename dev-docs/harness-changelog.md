@@ -2,6 +2,11 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-26 — Shell line coverage and time-validation tests
+
+- `scripts/check-shell-coverage.sh` traces Tier-A with bash xtrace and fails when `lib/*.sh` line hits fall below `scripts/shell-coverage-baseline.json`. The 2026-10-27 measurement is 2922/18047. The opt-in pre-push Tier-A hook and CI (Ubuntu and macOS) run it. `SKIP_SHELL_COVERAGE=1` skips locally. The deadline test is not traced, and the trace goes to a pipe so a lowered file-size limit does not kill the probe.
+- `tests/test-time-validation.sh` exercises the pure range and time checks in `lib/time-validation.sh` and is part of Tier-A.
+
 ## 2026-10-26 — Popup-blocker unit tests raise the Python floor
 
 - `tests/test-popup-blocker-darwin.py` executes `lib/popup-blocker-darwin.py` with tkinter and pyobjc mocked, so no window opens. The coverage floors are now 260/826 with a display and 238/826 without one.
@@ -36,7 +41,7 @@ Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANG
 ## 2026-10-26 — Python line coverage on pre-push and CI
 
 - That day's floor was 31/793 (about 3.9%), the ratio measured on this branch with tkinter available. A later commit replaced it with separate display and headless floors. Shell is outside the gate.
-- Pre-push runs that script. The Ubuntu static-analysis job installs `python3-tk` and runs it under `xvfb`. `SKIP_PYTHON_COVERAGE=1` skips locally; CI does not.
+- Pre-push runs that script. The Ubuntu static-analysis job installs `python3-tk` and runs it under `xvfb`. `SKIP_PYTHON_COVERAGE=1` skips locally; CI does not. A missing `coverage` package skips locally with a warning and fails in CI.
 
 
 ## 2026-10-26 — Local Sonar issue ratchet

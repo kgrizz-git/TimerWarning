@@ -2,15 +2,15 @@
   <img src="assets/icon.svg" alt="TimerWarning icon: a crescent moon with a clock" width="128" height="128">
 </p>
 
-# TimerWarning (Sleep Warning System for Linux & macOS)
+# TimerWarning (Sleep Warning System for SteamOS, Linux & macOS)
 
 [![Security](https://github.com/kgrizz-git/TimerWarning/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/kgrizz-git/TimerWarning/actions/workflows/security.yml)
 [![License: Apache 2.0 + Commons Clause](https://img.shields.io/badge/license-Apache%202.0%20%2B%20Commons%20Clause-blue)](LICENSE)
-[![Platforms: Linux | macOS](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS-lightgrey)](user-docs/MACOS.md)
+[![Platforms: SteamOS | Linux | macOS](https://img.shields.io/badge/platforms-SteamOS%20%7C%20Linux%20%7C%20macOS-lightgrey)](user-docs/MACOS.md)
 [![Shell: Bash 4+](https://img.shields.io/badge/shell-bash%204%2B-4EAA25?logo=gnubash&logoColor=white)](dev-docs/development/testing.md)
 [![ShellCheck](https://img.shields.io/badge/lint-ShellCheck-informational)](dev-docs/development/security-scanning.md)
 
-A monitoring system that displays interactive warning popups when your computer is used during configurable restricted hours (e.g., late night/early morning). **Linux:** systemd timer. **macOS:** LaunchAgent — see [user-docs/MACOS.md](user-docs/MACOS.md).
+A monitoring system that displays interactive warning popups when your computer is used during configurable restricted hours (e.g., late night/early morning). It works on Steam Deck. **Linux and SteamOS:** systemd timer. **macOS:** LaunchAgent — see [user-docs/MACOS.md](user-docs/MACOS.md).
 
 ## 🛡️ Safety first (read before install or development)
 

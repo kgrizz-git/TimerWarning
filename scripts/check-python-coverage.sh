@@ -2,14 +2,18 @@
 # Fail when lib/*.py line coverage drops below the committed ratio.
 #
 # Runs every tests/test-*.py under coverage.py with --source=lib. Shell
-# scripts are outside this gate. The tkinter tests need a display; CI invokes
-# this script under xvfb after installing python3-tk.
+# scripts are outside this gate. CI's static-analysis job installs python3-tk
+# and runs this script under xvfb, so that job uses the display floor.
+# A machine where Tk() cannot open a window uses the headless floor. Tests
+# that only need TclError install a stub when the tkinter module is absent,
+# so they run without a display or a system tkinter package.
 #
 # The floor is scripts/python-coverage-baseline.json. A display run uses the
 # display ratio. A run whose tkinter probe fails uses the headless ratio.
 # COVERAGE_FLOOR=display or COVERAGE_FLOOR=headless overrides the probe.
 # Raising either floor is a new measurement. Lowering one is a deliberate edit.
 #
+# A missing coverage package skips locally with a warning and fails in CI.
 # SKIP_PYTHON_COVERAGE=1 skips. CI must not set that. A headless machine does
 # not need the skip: it is checked against the headless floor.
 # Requirements: python3 and the coverage package (pip install coverage).
@@ -25,8 +29,12 @@ if [[ "${SKIP_PYTHON_COVERAGE:-0}" == "1" && "${CI:-}" != "true" ]]; then
 fi
 
 if ! python3 -c 'import coverage' >/dev/null 2>&1; then
-    echo "python coverage: the coverage package is not installed (python3 -m pip install coverage)." >&2
-    exit 1
+    if [[ "${CI:-}" == "true" ]]; then
+        echo "python coverage: the coverage package is not installed (python3 -m pip install coverage)." >&2
+        exit 1
+    fi
+    echo "python coverage: the coverage package is not installed — skipping (python3 -m pip install coverage)." >&2
+    exit 0
 fi
 
 floor_mode="${COVERAGE_FLOOR:-}"
