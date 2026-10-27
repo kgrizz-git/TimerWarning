@@ -4,7 +4,7 @@ Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANG
 
 ## 2026-10-26 — Shell line coverage and time-validation tests
 
-- `scripts/check-shell-coverage.sh` traces Tier-A with bash xtrace and fails when `lib/*.sh` line hits fall below `scripts/shell-coverage-baseline.json`. The 2026-10-27 floors are per OS: darwin 2922/18047 and linux 3054/18047 (from the Ubuntu CI run), each with 30 lines of slack for timing noise in the trace. The opt-in pre-push Tier-A hook and CI (Ubuntu and macOS) run it. `SKIP_SHELL_COVERAGE=1` skips locally. The deadline test is not traced, and the trace goes to a pipe so a lowered file-size limit does not kill the probe.
+- `scripts/check-shell-coverage.sh` traces Tier-A with bash xtrace and fails when `lib/*.sh` line hits fall below `scripts/shell-coverage-baseline.json`. The 2026-10-27 floors are per OS: darwin 2922/18047 and linux 3054/18047 (from the Ubuntu CI run), each with 30 lines of slack for timing noise in the trace. The opt-in pre-push Tier-A hook and CI (Ubuntu and macOS) run it. `SKIP_SHELL_COVERAGE=1` or `SKIP_PRE_PUSH_TESTS=1` skips locally. The deadline test is not traced, and the trace goes to a pipe so a lowered file-size limit does not kill the probe.
 - `tests/test-time-validation.sh` exercises the pure range and time checks in `lib/time-validation.sh` and is part of Tier-A.
 
 ## 2026-10-26 — Popup-blocker unit tests raise the Python floor

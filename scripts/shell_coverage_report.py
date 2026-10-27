@@ -11,7 +11,7 @@ Inputs:
 Outputs:
     Prints covered/statements. Exits 1 when this OS is below its floor.
 Requirements:
-    Python 3. The baseline holds "darwin" and "linux" objects, each with
+    Python 3.9+. The baseline holds "darwin" and "linux" objects, each with
     covered_lines, statements and optional slack_lines (default 0), which lets
     a run fall that many lines under its floor. A top-level ratio is still
     accepted as a fallback for an OS with no object of its own.
