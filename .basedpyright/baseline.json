@@ -818,16 +818,6 @@
                 }
             }
         ],
-        "./tests/test-darwin-modal-dialog.py": [
-            {
-                "code": "reportMissingImports",
-                "range": {
-                    "startColumn": 7,
-                    "endColumn": 38,
-                    "lineCount": 1
-                }
-            }
-        ],
         "./tests/test-popup-blocker-darwin.py": [
             {
                 "code": "reportArgumentType",
@@ -1268,16 +1258,6 @@
                 "range": {
                     "startColumn": 19,
                     "endColumn": 21,
-                    "lineCount": 1
-                }
-            }
-        ],
-        "./tests/test-shell-coverage-parser.py": [
-            {
-                "code": "reportMissingImports",
-                "range": {
-                    "startColumn": 7,
-                    "endColumn": 28,
                     "lineCount": 1
                 }
             }

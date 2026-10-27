@@ -84,8 +84,8 @@ SKIP_SHELLCHECK=1 git commit -m "wip"
 
 | Job | Command |
 |-----|---------|
-| **static-analysis** (Ubuntu) | `./scripts/run-security-scan.sh --ci` + `./scripts/check-doc-drift.sh` (warn-only) |
-| **tier-a-tests** (Ubuntu + macOS matrix) | `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a` |
+| **static-analysis** (Ubuntu) | `./scripts/run-security-scan.sh --ci`, `./scripts/check-python-coverage.sh` (under xvfb, `COVERAGE_FLOOR=display`), `./scripts/check-quality.sh` (Ruff, shell complexity, file sizes, basedpyright), `./scripts/check-shell-coverage.sh`, then `./scripts/check-doc-drift.sh` (warn-only) |
+| **tier-a-tests** (Ubuntu + macOS matrix) | `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a`, then `./scripts/check-shell-coverage.sh` on macOS |
 
 ### Doc drift
 

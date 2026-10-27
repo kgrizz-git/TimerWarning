@@ -66,6 +66,8 @@ expect_rc "nesting 8 fails" 1 bash -c "$(declare -f nested); nested 8 | '${COMPL
 expect_rc "535-line function passes" 0 bash -c "(echo 'g() {'; yes ':' | head -n 533; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "536-line function fails" 1 bash -c "(echo 'g() {'; yes ':' | head -n 534; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "keywords in strings and heredocs do not count" 0 bash -c "printf '%s\n' 'h() {' \"  echo 'if if if if if if if if if'\" '  cat <<TXT' 'if' 'if' 'if' 'if' 'if' 'if' 'if' 'if' 'TXT' '}' | '${COMPLEXITY}' --stdin lib/x.sh"
+expect_rc "function name() { form is measured" 1 bash -c "(echo 'function k() {'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
+expect_rc "a closing brace inside a heredoc does not end the function" 1 bash -c "(echo 'm() {'; echo '  cat <<TXT'; echo '}'; echo 'TXT'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "current tree passes complexity" 0 "${COMPLEXITY}"
 
 echo ""

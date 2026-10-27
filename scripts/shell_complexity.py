@@ -23,7 +23,7 @@ import argparse
 import re
 import sys
 
-DECL_RE = re.compile(r"^(\s*)(?:function\s+([A-Za-z_][\w:.-]*)|([A-Za-z_][\w:.-]*)\s*\(\s*\))\s*\{?$")
+DECL_RE = re.compile(r"^(\s*)(?:function\s+([A-Za-z_][\w:.-]*)(?:\s*\(\s*\))?|([A-Za-z_][\w:.-]*)\s*\(\s*\))\s*\{?$")
 OPENERS = {"if", "for", "while", "until", "case", "select"}
 CLOSERS = {"fi", "done", "esac"}
 SEGMENT_RE = re.compile(r"&&|\|\||[;|&(){}\n]")
@@ -99,10 +99,10 @@ def deepest(body: list[str]) -> int:
     return best
 
 
-def closing_line(lines: list[str], start: int, indent: str) -> int | None:
-    """Index of the line that closes the function declared at `start`."""
-    for j in range(start + 1, len(lines)):
-        if lines[j].rstrip() == indent + "}":
+def closing_line(clean: list[str], start: int, indent: str) -> int | None:
+    """Index of the sanitized line that closes the function declared at `start`."""
+    for j in range(start + 1, len(clean)):
+        if clean[j].rstrip() == indent + "}":
             return j
     return None
 
@@ -114,7 +114,7 @@ def functions(lines: list[str]) -> list[tuple[str, int, int, int]]:
     i = 0
     while i < len(lines):
         match = DECL_RE.match(clean[i].rstrip())
-        end = closing_line(lines, i, match.group(1)) if match else None
+        end = closing_line(clean, i, match.group(1)) if match else None
         if match is None or end is None:
             i += 1
             continue

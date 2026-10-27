@@ -43,7 +43,9 @@ fi
 
 "${ROOT}/scripts/check-python-coverage.sh"
 "${ROOT}/scripts/check-python-types.sh"
-"${ROOT}/scripts/check-file-sizes.sh" --strict
+if [ "${SKIP_QUALITY_CHECKS:-0}" != "1" ] || [ "${CI:-}" = "true" ]; then
+    "${ROOT}/scripts/check-file-sizes.sh" --strict
+fi
 
 if [ ! -f "${ROOT}/.githooks/enable-pre-push" ]; then
     exit 0

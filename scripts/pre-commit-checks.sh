@@ -27,10 +27,10 @@ fi
 
 # --- ShellCheck on staged shell scripts only ---
 if [ "${SKIP_SHELLCHECK:-0}" != "1" ] && command -v shellcheck >/dev/null 2>&1; then
-    mapfile -t _staged_sh < <(
-        git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
-            | grep -E '\.(sh|bash)$' || true
-    )
+    _staged_sh=()
+    while IFS= read -r _line; do
+        _staged_sh+=("${_line}")
+    done < <(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep -E '\.(sh|bash)$' || true)
     if [ "${#_staged_sh[@]}" -gt 0 ]; then
         _sc_targets=()
         for _f in "${_staged_sh[@]}"; do
@@ -55,13 +55,16 @@ fi
 # Each check reads `git show ":path"`, not the working tree, so a partially
 # staged file is judged by what will be committed.
 if [[ "${SKIP_QUALITY_CHECKS:-0}" != "1" ]]; then
-    mapfile -t _staged_all < <(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
+    _staged_all=()
+    while IFS= read -r _line; do
+        _staged_all+=("${_line}")
+    done < <(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
     _ruff_ok=1
     if ! command -v ruff >/dev/null 2>&1; then
         _ruff_ok=0
     fi
     _ruff_warned=0
-    for _f in "${_staged_all[@]}"; do
+    for _f in ${_staged_all[@]+"${_staged_all[@]}"}; do
         case "${_f}" in
             backups/*|tmp/*)
                 continue
@@ -89,15 +92,10 @@ if [[ "${SKIP_QUALITY_CHECKS:-0}" != "1" ]]; then
             *)
                 ;;
         esac
-        case "${_f}" in
-            tests/*)
-                ;;
-            *.sh)
-                git show ":${_f}" | "${ROOT}/scripts/check-shell-complexity.sh" --stdin "${_f}"
-                ;;
-            *)
-                ;;
-        esac
+        # Same scope as the whole-tree gate: lib/*.sh and root-level *.sh.
+        if [[ "${_f}" == lib/*.sh || ( "${_f}" == *.sh && "${_f}" != */* ) ]]; then
+            git show ":${_f}" | "${ROOT}/scripts/check-shell-complexity.sh" --stdin "${_f}"
+        fi
     done
 fi
 

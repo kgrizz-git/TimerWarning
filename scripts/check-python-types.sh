@@ -8,15 +8,16 @@
 # new file. Settings are in pyproject.toml; pins are in requirements-dev.txt.
 #
 # A missing basedpyright warns and skips locally, and fails when CI=true.
-# SKIP_PYTHON_TYPES=1 skips locally. CI must not set that.
+# SKIP_PYTHON_TYPES=1 or SKIP_QUALITY_CHECKS=1 skips locally. CI must not set either.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
 
-if [[ "${SKIP_PYTHON_TYPES:-0}" == "1" && "${CI:-}" != "true" ]]; then
-    echo "python types: SKIP_PYTHON_TYPES=1 — skipping" >&2
+if [[ "${CI:-}" != "true" ]] &&
+    [[ "${SKIP_PYTHON_TYPES:-0}" == "1" || "${SKIP_QUALITY_CHECKS:-0}" == "1" ]]; then
+    echo "python types: SKIP_PYTHON_TYPES=1 or SKIP_QUALITY_CHECKS=1 — skipping" >&2
     exit 0
 fi
 

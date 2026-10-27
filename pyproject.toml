@@ -32,4 +32,5 @@ pythonVersion = "3.12"
 pythonPlatform = "Linux"
 typeCheckingMode = "standard"
 useLibraryCodeForTypes = false
+extraPaths = ["lib", "scripts"]
 baselineFile = ".basedpyright/baseline.json"
