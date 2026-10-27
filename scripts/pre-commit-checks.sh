@@ -56,9 +56,10 @@ fi
 # staged file is judged by what will be committed.
 if [[ "${SKIP_QUALITY_CHECKS:-0}" != "1" ]]; then
     _staged_all=()
-    while IFS= read -r _line; do
+    # NUL-delimited so non-ASCII paths are not quoted by git. R includes renames.
+    while IFS= read -r -d '' _line; do
         _staged_all+=("${_line}")
-    done < <(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
+    done < <(git diff --cached -z --name-only --diff-filter=ACMR 2>/dev/null || true)
     _ruff_ok=1
     if ! command -v ruff >/dev/null 2>&1; then
         _ruff_ok=0

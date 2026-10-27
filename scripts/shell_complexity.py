@@ -30,7 +30,8 @@ PAREN_DECL_RE = re.compile(rf"^(\s*)({NAME})\s*\(\s*\)\s*\{{?$")
 OPENERS = {"if", "for", "while", "until", "case", "select"}
 CLOSERS = {"fi", "done", "esac"}
 SEGMENT_RE = re.compile(r"&&|\|\||[;|&(){}\n]")
-HEREDOC_START = re.compile(r"(?<!<)<<-?\s*['\"]?([A-Za-z_]\w*)")
+# The delimiter starts with a letter or underscore and runs to whitespace, a quote, or an operator.
+HEREDOC_START = re.compile(r"(?<!<)<<-?\s*['\"]?([A-Za-z_][^\s'\"<>|&;()]*)")
 
 
 def skip_in_string(raw: str, k: int, quote: str) -> tuple[int, str | None]:
