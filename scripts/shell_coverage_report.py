@@ -11,9 +11,10 @@ Inputs:
 Outputs:
     Prints covered/statements. Exits 1 when this OS is below its floor.
 Requirements:
-    Python 3. The baseline holds a top-level ratio; per-OS "darwin" and
-    "linux" objects override it when present. Optional "slack_lines" (default
-    0) lets a run fall that many lines under the floor.
+    Python 3. The baseline holds "darwin" and "linux" objects, each with
+    covered_lines, statements and optional slack_lines (default 0), which lets
+    a run fall that many lines under its floor. A top-level ratio is still
+    accepted as a fallback for an OS with no object of its own.
 """
 
 from __future__ import annotations

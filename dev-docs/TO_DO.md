@@ -37,7 +37,7 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 
 ## Testing (high impact)
 
-- [ ] **Raise line coverage** — Add tests that execute untested `lib/*.py` and `lib/*.sh`, then raise the floors from a new measurement. Current floors: Python 260/826 with a display and 238/826 headless ([python-coverage-baseline.json](../scripts/python-coverage-baseline.json)); shell 2922/18047 ([shell-coverage-baseline.json](../scripts/shell-coverage-baseline.json)). The configure-dialog UI modules are still unread as code. Do not lower a floor to make a run pass.
+- [ ] **Raise line coverage** — Add tests that execute untested `lib/*.py` and `lib/*.sh`, then raise the floors from a new measurement. Current floors: Python 260/826 with a display and 238/826 headless ([python-coverage-baseline.json](../scripts/python-coverage-baseline.json)); shell darwin 2922/18047 and linux 3054/18047 ([shell-coverage-baseline.json](../scripts/shell-coverage-baseline.json)). The configure-dialog UI modules are still unread as code. Do not lower a floor to make a run pass.
 - [ ] **SteamOS Gaming Mode** — Full validation with full-screen games → [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md), [phase 4 plan](plans/phases/plan-phase-4-testing.md)
   - [x] **2026-10-19 on-device:** popup **displays and stays up** in Gaming Mode (experimental overlay on)
   - [x] **Click-through + magnification (Phase 1 code):** full `:0` root-width gamescope dialogs + atom/geometry logging → [plan](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md)

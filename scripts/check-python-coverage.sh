@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Fail when lib/*.py line coverage drops below the committed ratio.
 #
-# Runs every tests/test-*.py under coverage.py with --source=lib. Shell
+# Runs every tests/test-*.py under coverage.py with source=lib
+# (scripts/coveragerc, shared by run and json so unimported lib files count). Shell
 # scripts are outside this gate. CI's static-analysis job installs python3-tk
 # and runs this script under xvfb, so that job uses the display floor.
 # A machine where Tk() cannot open a window uses the headless floor. Tests
@@ -57,6 +58,7 @@ echo "python coverage: using the ${floor_mode} floor."
 mkdir -p "${ROOT}/tmp"
 data="${ROOT}/tmp/.coverage"
 report="${ROOT}/tmp/python-coverage.json"
+rcfile="${ROOT}/scripts/coveragerc"
 rm -f "${data}" "${report}"
 
 found=0
@@ -66,10 +68,10 @@ for test in "${ROOT}"/tests/test-*.py; do
     found=1
     echo "python coverage: ${test#"${ROOT}/"}"
     if [[ "${first}" -eq 1 ]]; then
-        COVERAGE_FILE="${data}" python3 -m coverage run --source=lib "${test}"
+        COVERAGE_FILE="${data}" python3 -m coverage run --rcfile="${rcfile}" "${test}"
         first=0
     else
-        COVERAGE_FILE="${data}" python3 -m coverage run --append --source=lib "${test}"
+        COVERAGE_FILE="${data}" python3 -m coverage run --rcfile="${rcfile}" --append "${test}"
     fi
 done
 if [[ "${found}" -eq 0 ]]; then
@@ -77,7 +79,7 @@ if [[ "${found}" -eq 0 ]]; then
     exit 1
 fi
 
-COVERAGE_FILE="${data}" python3 -m coverage json -o "${report}" --quiet
+COVERAGE_FILE="${data}" python3 -m coverage json --rcfile="${rcfile}" -o "${report}" --quiet
 python3 - "${report}" "${ROOT}/scripts/python-coverage-baseline.json" "${floor_mode}" <<'PY'
 import json
 import sys

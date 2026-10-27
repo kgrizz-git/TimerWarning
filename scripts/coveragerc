@@ -1,0 +1,4 @@
+# Shared by `coverage run` and `coverage json` in scripts/check-python-coverage.sh.
+# A source list at report time is what adds lib/*.py files no test imported.
+[run]
+source = lib

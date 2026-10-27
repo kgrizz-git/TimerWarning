@@ -6,12 +6,11 @@
 # and done often never appear in an xtrace, so the percentage stays modest.
 # The same suite must produce the same ratio.
 #
-# The floor is scripts/shell-coverage-baseline.json: a top-level ratio, with
-# optional per-OS darwin/linux objects that override it when present. A run may
-# fall "slack_lines" (30) under the floor to absorb timing noise. Raising
-# the committed number is a new measurement. CI runs this on Ubuntu and macOS;
-# an OS entry is used when present. Local pre-push runs it only with the
-# opt-in Tier-A hook.
+# The floor is scripts/shell-coverage-baseline.json: one object per OS (darwin
+# and linux), each checked on its own. A run may fall that object's
+# "slack_lines" (30) under its floor to absorb timing noise. Raising
+# the committed number is a new measurement. CI runs this on Ubuntu and macOS.
+# Local pre-push runs it only with the opt-in Tier-A hook.
 #
 # SKIP_SHELL_COVERAGE=1 and SKIP_PRE_PUSH_TESTS=1 skip locally. CI honors neither.
 # SHELL_COVERAGE_MEASURE=1 prints the ratio and exits 0 without comparing.
