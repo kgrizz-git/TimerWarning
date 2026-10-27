@@ -40,12 +40,13 @@ got="$(env -u SONAR_HOST_URL SONAR_TOKEN="from-env" \
 
 # shellcheck source=scripts/check-sonar-freshness.sh
 source "${ROOT}/scripts/check-sonar-freshness.sh"
-[[ "$(sonar_normalize_url 'http://localhost:9000/')" == "http://127.0.0.1:9000" ]] || fail "localhost was not folded to 127.0.0.1"
-[[ "$(sonar_normalize_url 'http://[::1]:9000')" == "http://127.0.0.1:9000" ]] || fail "::1 was not folded to 127.0.0.1"
+LOOPBACK_URL="http://127.0.0.1:9000"
+[[ "$(sonar_normalize_url 'http://localhost:9000/')" == "${LOOPBACK_URL}" ]] || fail "localhost was not folded to 127.0.0.1"
+[[ "$(sonar_normalize_url 'http://[::1]:9000')" == "${LOOPBACK_URL}" ]] || fail "::1 was not folded to 127.0.0.1"
 [[ "$(sonar_normalize_url 'http://localhost:9001')" == "http://127.0.0.1:9001" ]] || fail "localhost port was rewritten"
-[[ "$(sonar_normalize_url 'http://127.0.0.1:9000')" != "$(sonar_normalize_url 'http://127.0.0.1:9001')" ]] || fail "different ports compared equal"
+[[ "$(sonar_normalize_url "${LOOPBACK_URL}")" != "$(sonar_normalize_url 'http://127.0.0.1:9001')" ]] || fail "different ports compared equal"
 [[ "$(sonar_normalize_url 'https://localhost:9000')" == "https://127.0.0.1:9000" ]] || fail "https localhost was not folded"
-[[ "$(sonar_normalize_url 'https://127.0.0.1:9000')" != "$(sonar_normalize_url 'http://127.0.0.1:9000')" ]] || fail "schemes compared equal"
+[[ "$(sonar_normalize_url 'https://127.0.0.1:9000')" != "$(sonar_normalize_url "${LOOPBACK_URL}")" ]] || fail "schemes compared equal"
 [[ "$(sonar_normalize_url 'http://example.test:9000')" == "http://example.test:9000" ]] || fail "a non-loopback host was rewritten"
 
 python3 "${ROOT}/tests/test-sonar-issues.py"

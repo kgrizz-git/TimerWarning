@@ -45,39 +45,54 @@ def countable_lines(lib: Path) -> dict[str, set[int]]:
     return counted
 
 
+def resolve_source(raw: str, root: Path, cache: dict[str, Path]) -> Path:
+    """Resolve a traced path once; relative paths are taken from the repo root."""
+    source = cache.get(raw)
+    if source is None:
+        source = Path(raw)
+        if not source.is_absolute():
+            source = root / source
+        source = source.resolve()
+        cache[raw] = source
+    return source
+
+
+def scan_log(
+    log: Path,
+    root: Path,
+    lib: Path,
+    counted: dict[str, set[int]],
+    cache: dict[str, Path],
+    hits: set[tuple[str, int]],
+) -> int:
+    """Add this log's lib/*.sh hits to `hits`. Return its unparsed plus-lines."""
+    unparsed = 0
+    with log.open("r", encoding="utf-8", errors="replace") as handle:
+        for raw in handle:
+            match = LINE_RE.match(raw)
+            if match is None:
+                unparsed += raw.startswith("+")
+                continue
+            source = resolve_source(match.group(1), root, cache)
+            if not source.is_relative_to(lib) or source.suffix != ".sh":
+                continue
+            number = int(match.group(2))
+            if number in counted.get(str(source), ()):
+                hits.add((str(source), number))
+    return unparsed
+
+
 def count_hits(root: Path, log_dir: Path) -> tuple[int, int, int]:
     """Return covered lines, countable lines, and unparsed plus-lines."""
     lib = (root / "lib").resolve()
     counted = countable_lines(lib)
     statements = sum(len(lines) for lines in counted.values())
     hits: set[tuple[str, int]] = set()
-    unparsed = 0
-    resolved_cache: dict[str, Path] = {}
-    for log in sorted(log_dir.glob("*.log")):
-        with log.open("r", encoding="utf-8", errors="replace") as handle:
-            for raw in handle:
-                match = LINE_RE.match(raw)
-                if match is None:
-                    if raw.startswith("+"):
-                        unparsed += 1
-                    continue
-                raw_source = match.group(1)
-                source = resolved_cache.get(raw_source)
-                if source is None:
-                    source = Path(raw_source)
-                    if not source.is_absolute():
-                        source = root / source
-                    source = source.resolve()
-                    resolved_cache[raw_source] = source
-                try:
-                    source.relative_to(lib)
-                except ValueError:
-                    continue
-                if source.suffix != ".sh":
-                    continue
-                number = int(match.group(2))
-                if number in counted.get(str(source), ()):
-                    hits.add((str(source), number))
+    cache: dict[str, Path] = {}
+    unparsed = sum(
+        scan_log(log, root, lib, counted, cache, hits)
+        for log in sorted(log_dir.glob("*.log"))
+    )
     return len(hits), statements, unparsed
 
 

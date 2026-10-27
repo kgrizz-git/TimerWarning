@@ -34,6 +34,8 @@ sonar_normalize_url() {
             rest="${url#https://\[::1\]:}"
             url="https://127.0.0.1:${rest}"
             ;;
+        *)
+            ;;
     esac
     printf '%s' "${url}"
 }
