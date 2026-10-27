@@ -2,6 +2,11 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-26 — Public clone evidence and host-normalizer tests
+
+- Phase 5 step 6 records `git clone --depth 1` of the public URL, which checked out `a664b8e`. The earlier note had cited `git ls-remote` and called that a clone.
+- The freshness test now rejects a folded URL whose port or scheme differs.
+
 ## 2026-10-26 — Headless coverage floor and loopback Sonar host
 
 - Python coverage keeps a display floor of 33/826 and a headless floor of 11/826, measured after merging `main`. A machine without a tkinter display is checked against the headless floor. `SKIP_PYTHON_COVERAGE=1` stays an emergency skip.
@@ -26,7 +31,7 @@ Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANG
 
 ## 2026-10-26 — Python line coverage on pre-push and CI
 
-- `scripts/check-python-coverage.sh` fails when `lib/*.py` line coverage drops below 31/793 (about 3.9%), the ratio measured on this branch with tkinter available. Shell is outside the gate.
+- That day's floor was 31/793 (about 3.9%), the ratio measured on this branch with tkinter available. A later commit replaced it with separate display and headless floors. Shell is outside the gate.
 - Pre-push runs that script. The Ubuntu static-analysis job installs `python3-tk` and runs it under `xvfb`. `SKIP_PYTHON_COVERAGE=1` skips locally; CI does not.
 
 

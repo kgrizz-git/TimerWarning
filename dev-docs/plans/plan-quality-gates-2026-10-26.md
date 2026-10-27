@@ -25,7 +25,7 @@
 
 There is no type checker, no Python linter, and no complexity limit in the hooks or in CI. SonarCloud comments on pull requests come from the GitHub app. This plan does not replace that app and does not add a SonarCloud quality gate. The local freshness check and BUG/VULNERABILITY ratchet on this branch are separate: they do not run in CI, and the Community Build does not see the Shell or `pythonsecurity` rules SonarCloud reports.
 
-Python on `main` at `f7a22a9` is the macOS UI and one test: 10 files under `lib/` (the configure-dialog modules and `lib/popup-blocker-darwin.py`) and `tests/test-darwin-modal-dialog.py`. The largest is `lib/popup-blocker-darwin.py` at 430 lines. None exceed 500. `tests/test-popup-icon-tk.py` is on `chore/public-polish` and is not on this branch.
+Python on `main` at `f7a22a9` was the macOS UI and one test: 10 files under `lib/` (the configure-dialog modules and `lib/popup-blocker-darwin.py`) and `tests/test-darwin-modal-dialog.py`. The largest was `lib/popup-blocker-darwin.py` at 430 lines. None exceeded 500. Merging `main` later brought `tests/test-popup-icon-tk.py` onto this branch.
 
 ## Python line coverage (implemented)
 
