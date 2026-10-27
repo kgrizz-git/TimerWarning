@@ -29,5 +29,7 @@ max-complexity = 19
 include = ["lib", "scripts", "tests"]
 exclude = ["**/__pycache__", "tmp", "backups"]
 pythonVersion = "3.12"
+pythonPlatform = "Linux"
 typeCheckingMode = "standard"
+useLibraryCodeForTypes = false
 baselineFile = ".basedpyright/baseline.json"
