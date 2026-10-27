@@ -54,7 +54,7 @@ fi
 # --- Ruff, shell complexity, file-size ratchet on the staged blobs ---
 # Each check reads `git show ":path"`, not the working tree, so a partially
 # staged file is judged by what will be committed.
-if [ "${SKIP_QUALITY_CHECKS:-0}" != "1" ]; then
+if [[ "${SKIP_QUALITY_CHECKS:-0}" != "1" ]]; then
     mapfile -t _staged_all < <(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
     _ruff_ok=1
     if ! command -v ruff >/dev/null 2>&1; then
@@ -66,21 +66,27 @@ if [ "${SKIP_QUALITY_CHECKS:-0}" != "1" ]; then
             backups/*|tmp/*)
                 continue
                 ;;
+            *)
+                ;;
         esac
         case "${_f}" in
             *.py)
-                if [ "${_ruff_ok}" -eq 1 ]; then
+                if [[ "${_ruff_ok}" -eq 1 ]]; then
                     echo "pre-commit: ruff on staged ${_f}..."
                     git show ":${_f}" | ruff check --quiet --stdin-filename "${_f}" -
-                elif [ "${_ruff_warned}" -eq 0 ]; then
+                elif [[ "${_ruff_warned}" -eq 0 ]]; then
                     echo "pre-commit: ruff not installed; skip (pip install -r requirements-dev.txt)" >&2
                     _ruff_warned=1
                 fi
+                ;;
+            *)
                 ;;
         esac
         case "${_f}" in
             lib/*.sh|lib/*.py)
                 git show ":${_f}" | "${ROOT}/scripts/check-file-sizes.sh" --strict --stdin "${_f}"
+                ;;
+            *)
                 ;;
         esac
         case "${_f}" in
@@ -88,6 +94,8 @@ if [ "${SKIP_QUALITY_CHECKS:-0}" != "1" ]; then
                 ;;
             *.sh)
                 git show ":${_f}" | "${ROOT}/scripts/check-shell-complexity.sh" --stdin "${_f}"
+                ;;
+            *)
                 ;;
         esac
     done

@@ -20,7 +20,10 @@ _pass() { _PASS=$((_PASS + 1)); echo "  PASS  $*"; }
 _fail() { _FAIL=$((_FAIL + 1)); echo "  FAIL  $*"; }
 
 # lines COUNT: print COUNT lines
-lines() { yes x | head -n "$1"; }
+lines() {
+    local count="$1"
+    yes x | head -n "${count}"
+}
 
 # nested DEPTH: a function with DEPTH nested ifs
 nested() {

@@ -35,10 +35,22 @@ if ! command -v python3 >/dev/null 2>&1; then
     exit 1
 fi
 
-if [ "$#" -eq 0 ]; then
-    set -- lib/*.sh ./*.sh
-fi
+check_blob() {
+    local name="$1"
+    python3 "${ROOT}/scripts/shell_complexity.py" \
+        --max-length "${MAX_LENGTH}" --max-depth "${MAX_DEPTH}" "${name}"
+}
 
-python3 "${ROOT}/scripts/shell_complexity.py" \
-    --max-length "${MAX_LENGTH}" --max-depth "${MAX_DEPTH}" "$@"
+if [[ "$#" -ge 2 && "$1" == "--stdin" ]]; then
+    check_blob "$2"
+else
+    if [[ "$#" -eq 0 ]]; then
+        set -- lib/*.sh ./*.sh
+    fi
+    failed=0
+    for f in "$@"; do
+        check_blob "${f}" < "${f}" || failed=1
+    done
+    [[ "${failed}" -eq 0 ]] || exit 1
+fi
 echo "check-shell-complexity: OK (length <= ${MAX_LENGTH}, nesting <= ${MAX_DEPTH})" >&2

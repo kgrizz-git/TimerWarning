@@ -49,13 +49,13 @@ Usage: check-file-sizes.sh [--strict] [--stdin PATH]
 EOF2
 }
 
-while [ $# -gt 0 ]; do
+while [[ $# -gt 0 ]]; do
     case "$1" in
         --strict) STRICT=true ;;
         --stdin)
             shift
             STDIN_PATH="${1:-}"
-            [ -n "${STDIN_PATH}" ] || { usage >&2; exit 2; }
+            [[ -n "${STDIN_PATH}" ]] || { usage >&2; exit 2; }
             ;;
         -h|--help)
             usage
@@ -86,40 +86,40 @@ cap_for() {
 check_one() {
     local rel="$1" lines="$2" cap ceiling
     cap="$(cap_for "${rel}")"
-    [ -n "${cap}" ] || return 0
+    [[ -n "${cap}" ]] || return 0
     ceiling="$(ceiling_for "${rel}")"
-    if [ -z "${ceiling}" ]; then
-        if [ "${lines}" -gt "${cap}" ]; then
+    if [[ -z "${ceiling}" ]]; then
+        if [[ "${lines}" -gt "${cap}" ]]; then
             note "${rel}: ${lines} lines > ${cap}. Split it. Do not add a ceiling to hide growth."
         fi
         return 0
     fi
-    if [ "${lines}" -le "${cap}" ]; then
+    if [[ "${lines}" -le "${cap}" ]]; then
         note "${rel}: ${lines} lines is back under the ${cap} cap. Remove its ceiling (${ceiling}) in scripts/check-file-sizes.sh."
-    elif [ "${lines}" -gt "${ceiling}" ]; then
+    elif [[ "${lines}" -gt "${ceiling}" ]]; then
         note "${rel}: ${lines} lines > recorded ceiling ${ceiling}. Shrink it; the file may not grow."
-    elif [ "${lines}" -lt "${ceiling}" ]; then
+    elif [[ "${lines}" -lt "${ceiling}" ]]; then
         note "${rel}: ${lines} lines < recorded ceiling ${ceiling}. Lower the ceiling to ${lines} in scripts/check-file-sizes.sh."
     fi
 }
 
-if [ -n "${STDIN_PATH}" ]; then
+if [[ -n "${STDIN_PATH}" ]]; then
     check_one "${STDIN_PATH}" "$(wc -l | tr -d ' ')"
 else
     echo "=== line caps: lib/*.sh ${SH_CAP}, lib/*.py ${PY_CAP}, with a ratchet ===" >&2
     for f in lib/*.sh lib/*.py; do
-        [ -f "${f}" ] || continue
+        [[ -f "${f}" ]] || continue
         check_one "${f}" "$(wc -l < "${f}" | tr -d ' ')"
     done
 fi
 
-if [ "${FINDINGS}" -eq 0 ]; then
+if [[ "${FINDINGS}" -eq 0 ]]; then
     echo "check-file-sizes: OK" >&2
     exit 0
 fi
 
 echo "check-file-sizes: ${FINDINGS} problem(s)" >&2
-if [ "${STRICT}" = true ]; then
+if [[ "${STRICT}" = true ]]; then
     exit 1
 fi
 exit 0

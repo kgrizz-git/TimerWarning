@@ -47,7 +47,8 @@ jobs:
 
       - name: Ruff, shell complexity, file sizes, basedpyright
         run: |
-          python3 -m pip install --user --only-binary :all: -r requirements-dev.txt
+          # Keep these pins equal to requirements-dev.txt.
+          python3 -m pip install --user --only-binary :all: 'ruff==0.16.8' 'basedpyright==1.29.4'
           ./scripts/check-quality.sh
 
       - name: Shell line coverage
