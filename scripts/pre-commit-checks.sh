@@ -28,9 +28,15 @@ fi
 # --- ShellCheck on staged shell scripts only ---
 if [ "${SKIP_SHELLCHECK:-0}" != "1" ] && command -v shellcheck >/dev/null 2>&1; then
     _staged_sh=()
-    while IFS= read -r _line; do
-        _staged_sh+=("${_line}")
-    done < <(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep -E '\.(sh|bash)$' || true)
+    while IFS= read -r -d '' _line; do
+        case "${_line}" in
+            *.sh|*.bash)
+                _staged_sh+=("${_line}")
+                ;;
+            *)
+                ;;
+        esac
+    done < <(git diff --cached -z --name-only --diff-filter=ACM 2>/dev/null || true)
     if [ "${#_staged_sh[@]}" -gt 0 ]; then
         _sc_targets=()
         for _f in "${_staged_sh[@]}"; do

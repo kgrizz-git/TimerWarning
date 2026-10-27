@@ -30,8 +30,9 @@ PAREN_DECL_RE = re.compile(rf"^(\s*)({NAME})\s*\(\s*\)\s*\{{?$")
 OPENERS = {"if", "for", "while", "until", "case", "select"}
 CLOSERS = {"fi", "done", "esac"}
 SEGMENT_RE = re.compile(r"&&|\|\||[;|&(){}\n]")
-# The delimiter starts with a letter or underscore and runs to whitespace, a quote, or an operator.
-HEREDOC_START = re.compile(r"(?<!<)<<-?\s*['\"]?([A-Za-z_][^\s'\"<>|&;()]*)")
+# `<<` or `<<-` (not `<<<`), then a delimiter that starts with a letter or underscore and runs to
+# whitespace, a quote, or an operator.
+HEREDOC_AT = re.compile(r"(?<!<)<<(?!<)-?\s*['\"]?([A-Za-z_][^\s'\"<>|&;()]*)")
 
 
 def skip_in_string(raw: str, k: int, quote: str) -> tuple[int, str | None]:
@@ -43,9 +44,13 @@ def skip_in_string(raw: str, k: int, quote: str) -> tuple[int, str | None]:
     return k + 1, quote
 
 
-def blank_line(raw: str, quote: str | None) -> tuple[str, str | None]:
-    """Drop quoted text and a trailing comment. Return (line, quote still open)."""
+def blank_line(raw: str, quote: str | None) -> tuple[str, str | None, list[str]]:
+    """Drop quoted text and a trailing comment.
+
+    Return (line, quote still open, heredoc delimiters opened outside quotes).
+    """
     kept: list[str] = []
+    delimiters: list[str] = []
     prev = " "
     k = 0
     while k < len(raw):
@@ -59,30 +64,31 @@ def blank_line(raw: str, quote: str | None) -> tuple[str, str | None]:
             continue
         if ch == "#" and prev in " \t;|&(":
             break
+        if ch == "<" and (marker := HEREDOC_AT.match(raw, k)):
+            delimiters.append(marker.group(1))
         if ch in "'\"":
             quote = ch
         else:
             kept.append(ch)
         prev = ch
         k += 1
-    return "".join(kept), quote
+    return "".join(kept), quote, delimiters
 
 
 def sanitize(lines: list[str]) -> list[str]:
     """Blank quoted strings, comments and heredoc bodies; keep the line count."""
     out: list[str] = []
     quote: str | None = None
-    heredoc_end: str | None = None
+    pending: list[str] = []  # heredoc delimiters whose bodies are still to come, in order
     for raw in lines:
-        if heredoc_end is not None:
-            if raw.strip() == heredoc_end:
-                heredoc_end = None
+        if pending:
+            if raw.strip() == pending[0]:
+                pending.pop(0)
             out.append("")
             continue
-        line, quote = blank_line(raw, quote)
-        marker = HEREDOC_START.search(raw) if quote is None else None
-        if marker and "<<" in line:
-            heredoc_end = marker.group(1)
+        line, quote, delimiters = blank_line(raw, quote)
+        if quote is None:
+            pending.extend(delimiters)
         out.append(line)
     return out
 

@@ -3,7 +3,7 @@
 # ratchet, and basedpyright against its committed baseline.
 #
 # Pre-commit judges staged blobs (scripts/pre-commit-checks.sh). This script
-# reads the working tree; CI and pre-push call it. A missing Ruff warns and
+# reads the working tree; CI calls it. Pre-push calls the type and size checks directly. A missing Ruff warns and
 # skips locally and fails when CI=true. SKIP_QUALITY_CHECKS=1 skips locally;
 # CI must not set that.
 

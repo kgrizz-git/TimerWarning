@@ -69,6 +69,8 @@ expect_rc "keywords in strings and heredocs do not count" 0 bash -c "printf '%s\
 expect_rc "function name() { form is measured" 1 bash -c "(echo 'function k() {'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "a closing brace inside a heredoc does not end the function" 1 bash -c "(echo 'm() {'; echo '  cat <<TXT'; echo '}'; echo 'TXT'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "a heredoc delimiter with a hyphen is matched in full" 1 bash -c "(echo 'n() {'; echo '  cat <<END-OF-TEXT'; echo '}'; echo 'END-OF-TEXT'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
+expect_rc "a quoted << before a real heredoc on one line still measures the function" 1 bash -c "(echo 'p() {'; echo '  echo \"x <<B\"; cat <<EOF'; echo '}'; echo 'EOF'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
+expect_rc "two heredocs on one line are both skipped" 1 bash -c "(echo 'q() {'; echo '  cat <<A <<B'; echo '}'; echo 'A'; echo '}'; echo 'B'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "current tree passes complexity" 0 "${COMPLEXITY}"
 
 echo ""

@@ -41,7 +41,8 @@ basedpyright || rc=$?
 if ! cmp -s "${baseline}" "${snapshot}"; then
     cp "${snapshot}" "${baseline}"
     echo "python types: the baseline is out of date (a baselined diagnostic is gone)." >&2
-    echo "python types: run 'basedpyright --writebaseline' and commit ${baseline}." >&2
+    echo "python types: run 'basedpyright --writebaseline', then review 'git diff ${baseline}'." >&2
+    echo "python types: commit it only if the diff just removes entries; if it adds one, fix that code first." >&2
     exit 1
 fi
 exit "${rc}"
