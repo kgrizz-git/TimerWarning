@@ -16,14 +16,21 @@ if [[ -z "${BASH_VERSINFO:-}" || "${BASH_VERSINFO[0]}" -lt 4 || ( "${BASH_VERSIN
 fi
 _SHELL_COV_ON=$$
 # Absolute paths: tests mask PATH to a stub directory before starting bash.
-/bin/mkdir -p "${SHELL_COVERAGE_DIR}" || return 0
+if ! /bin/mkdir -p "${SHELL_COVERAGE_DIR}"; then
+    echo "shell-coverage-env: cannot create ${SHELL_COVERAGE_DIR}" >&2
+    exit 70
+fi
 # Write the trace to a pipe. A direct log file shares the shell's ulimit -f,
 # and tests that lower that limit (the icon help probe) then die on the trace.
 _cov_log="${SHELL_COVERAGE_DIR}/$$.log"
 coproc _SHELL_COV_READER {
     echo "${BASHPID}" >> "${SHELL_COVERAGE_DIR}/readers.pids"
     exec /bin/cat >> "${_cov_log}"
-} || return 0
+}
+if [[ -z "${_SHELL_COV_READER[1]:-}" ]]; then
+    echo "shell-coverage-env: could not start the trace reader" >&2
+    exit 70
+fi
 _cov_write_fd="${_SHELL_COV_READER[1]}"
 exec {_SHELL_COV_FD}>&"${_cov_write_fd}"
 exec {_cov_write_fd}>&-

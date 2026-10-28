@@ -161,10 +161,21 @@ def declaration(line: str) -> tuple[str, str] | None:
     return (match.group(1), match.group(2)) if match else None
 
 
+def brace_delta(line: str) -> int:
+    """Standalone `{` words open a group, standalone `}` words close one. `${x}` is not either."""
+    words = re.split(r"[\s;]+", line)
+    return words.count("{") - words.count("}")
+
+
 def closing_line(clean: list[str], start: int, indent: str) -> int | None:
-    """Index of the sanitized line that closes the function declared at `start`."""
+    """Index of the sanitized line that closes the function declared at `start`.
+
+    It is the line-only `}` at the declaration's indent that brings the brace depth back to zero.
+    """
+    depth = brace_delta(clean[start]) or 1  # the opening brace may sit on the next line
     for j in range(start + 1, len(clean)):
-        if clean[j].rstrip() == indent + "}":
+        depth += brace_delta(clean[j])
+        if depth <= 0 and clean[j].rstrip() == indent + "}":
             return j
     return None
 

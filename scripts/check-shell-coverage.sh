@@ -71,6 +71,9 @@ if [[ -f "${log_dir}/readers.pids" ]]; then
         while kill -0 "${reader_pid}" 2>/dev/null; do
             waited=$((waited + 1))
             if [[ "${waited}" -gt 50 ]]; then
+                # A reader that outlives its shell is still draining its pipe. Late lines
+                # can only lower the count, so the floor check below still fails closed.
+                echo "shell coverage: trace reader ${reader_pid} still running after 2.5 s; its log may be incomplete." >&2
                 break
             fi
             sleep 0.05
