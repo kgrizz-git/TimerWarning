@@ -598,8 +598,9 @@ class TableDialogTests(unittest.TestCase):
 
     def test_print_column_out_of_range_is_an_error(self):
         for bad in (0, 3, -1):
+            payload = self.payload(print_column=bad)
             with self.subTest(print_column=bad), self.assertRaises(ValueError):
-                self._show(self.payload(print_column=bad), lambda h, w, t: None)
+                self._show(payload, lambda h, w, t: None)
 
     def test_headings_columns_and_rows_are_built(self):
         _r, _h, _w, tree = self._show(self.payload(), lambda h, w, t: h.button("Cancel").command())
@@ -788,7 +789,7 @@ class DaemonTests(unittest.TestCase):
 
     def test_tcl_errors_during_cleanup_are_ignored(self):
         self.dialog.winfo_exists.side_effect = tk.TclError("gone")
-        self.assertEqual(self.run_op("time")["ok"], True)
+        self.assertTrue(self.run_op("time")["ok"])
 
     def test_ui_modules_are_imported_lazily(self):
         for name in self.fake_ui:
