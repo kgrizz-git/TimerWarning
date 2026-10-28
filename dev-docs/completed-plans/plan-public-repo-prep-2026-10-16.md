@@ -4,7 +4,7 @@
 
 **Revised:** 2026-10-26
 
-**Status:** Complete; archived 2026-10-28. Two Phase 2 items stay open (donation removal, deferred by the owner; a final install/status/help string check) and are tracked in `dev-docs/TO_DO.md`. Phases 1–4 applied. `kgrizz-git/TimerWarning` is public. On 2026-10-25 its CI was green, the full-history Gitleaks scan was clean, and the tracked file list matched the source. `main` is protected by the active ruleset `Mainrules1`. The classic protection API returns 404 because that protection is a ruleset. The ruleset does not require the Security workflow checks. Phase 5 still includes those required checks and archiving this plan.
+**Status:** Complete; archived 2026-10-28. Three items stay open (donation removal, deferred by the owner; a final install/status/help string check; required status checks in the ruleset) and are tracked in `dev-docs/TO_DO.md`. Phases 1–4 applied. `kgrizz-git/TimerWarning` is public. On 2026-10-25 its CI was green, the full-history Gitleaks scan was clean, and the tracked file list matched the source. `main` is protected by the active ruleset `Mainrules1`. The classic protection API returns 404 because that protection is a ruleset. As of 2026-10-28 the ruleset still requires no status checks, including the Security workflow checks. Adding them is open and tracked in `dev-docs/TO_DO.md`.
 
 **Working branch:** `chore/public-repo-prep-phase-1` for phases 1–4, based on `main` at `86cfc7a`. That name is historical; it is not the branch for later icon work.
 

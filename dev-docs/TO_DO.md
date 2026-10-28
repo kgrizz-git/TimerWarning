@@ -49,7 +49,7 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 
 ## Documentation and release
 
-- [x] **Public repository preparation** — `kgrizz-git/TimerWarning` is public (2026-10-26); plan archived 2026-10-28 → [plan](completed-plans/plan-public-repo-prep-2026-10-16.md). Open residue: the install/status/help string check for the public name (donation removal is the deferred item below).
+- [x] **Public repository preparation** — `kgrizz-git/TimerWarning` is public (2026-10-26); plan archived 2026-10-28 → [plan](completed-plans/plan-public-repo-prep-2026-10-16.md). Open residue: the install/status/help string check for the public name, and adding the CI and Security workflow checks as required status checks in the `Mainrules1` ruleset (it requires none today). Donation removal is the deferred item below.
 - [ ] **Donation cleanup — deferred 2026-10-24** — Leave existing PayPal links in place until the owner reopens this. Do not add donation integrations as part of publication preparation. Spec: [#27](enhancements/enhancement-27-paypal-donation-links.md).
 - [ ] **SteamOS locale docs** — User guide section (Nix + manual paths); do not automate `locale-gen` in install.sh → [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#documentation-work)
 
