@@ -22,6 +22,7 @@ Fast, headless, no live installed config. Default timeout 300s per script.
 | `test-popup-size-config.sh` | Popup size getters, fixed and display-based dimensions, 95% clamp |
 | `test-config-safety.sh` | Default hours, runtime cap inputs, runtime cap gate, wizard default fill |
 | `test-time-calculations.sh` | Range durations, weekly intervals, next unrestricted time, restriction end time |
+| `test-sonar-shell-newcode.sh` | The SonarCloud `[` vs `[[` check on new code, in a throwaway git repo |
 | `test-config-locked-message.sh` | Text of the configure lock error: active range, end time, end day |
 | `test-scheduler-platform.sh` | systemd and launchd helpers with a stubbed `systemctl` |
 | `test-resolution-detection-stubbed.sh` | xrandr, Wayland and gamescope resolution detection with stub tools |

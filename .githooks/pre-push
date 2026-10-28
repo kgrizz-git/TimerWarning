@@ -3,7 +3,7 @@
 # Local SonarQube freshness and BUG/VULNERABILITY ratchet when SONAR_TOKEN is set.
 # This hook does not run sonar-scanner; run bash scripts/sonar_scan.sh first.
 # Tier-A stays opt-in (INSTALL_PRE_PUSH=1). Disable Tier-A: rm .githooks/enable-pre-push
-# Skip the Sonar checks: SKIP_LOCAL_SONAR=1 git push
+# Skip the Sonar checks (and the shell warning): SKIP_LOCAL_SONAR=1 git push
 # Skip Python coverage: SKIP_PYTHON_COVERAGE=1 git push (CI does not honor that)
 # Skip types and file sizes: SKIP_QUALITY_CHECKS=1 / SKIP_PYTHON_TYPES=1 (CI honors neither)
 # Shell coverage runs with the opt-in Tier-A hook below, and always in CI.
@@ -45,6 +45,16 @@ fi
 "${ROOT}/scripts/check-python-types.sh"
 if [ "${SKIP_QUALITY_CHECKS:-0}" != "1" ] || [ "${CI:-}" = "true" ]; then
     "${ROOT}/scripts/check-file-sizes.sh" --strict
+fi
+
+# SonarCloud analyzes shell and the local Community Build does not. This warns about
+# new "[" tests (S7688), the rule SonarCloud reports most. It never blocks a push.
+if [ "${SKIP_LOCAL_SONAR:-0}" != "1" ]; then
+    shell_rc=0
+    "${ROOT}/scripts/check-sonar-shell-newcode.sh" || shell_rc=$?
+    if [ "${shell_rc}" -eq 1 ]; then
+        echo "pre-push: SonarCloud will likely flag the '[' tests above. The push is not blocked." >&2
+    fi
 fi
 
 if [ ! -f "${ROOT}/.githooks/enable-pre-push" ]; then

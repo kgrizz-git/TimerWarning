@@ -16,7 +16,9 @@
 # and records the commit in tmp/sonar-state.json. It does not run from the hook.
 # Scope lives in sonar-project.properties, which Cloud automatic analysis ignores.
 # This Community Build analyzes Python. It has no Shell language, so a local
-# issue count does not cover the Bash sources.
+# issue count does not cover the Bash sources. SonarCloud does analyze them: see
+# scripts/check-sonar-shell-newcode.sh (before a push) and
+# scripts/sonarcloud_pr_issues.py (after a push).
 
 set -euo pipefail
 
