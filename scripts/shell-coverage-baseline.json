@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "scope": "lib/*.sh",
+  "darwin": {
+    "covered_lines": 2922,
+    "statements": 18047,
+    "slack_lines": 30
+  },
+  "linux": {
+    "covered_lines": 3054,
+    "statements": 18047,
+    "slack_lines": 30
+  },
+  "note": "Measured 2026-10-27 from Tier-A under bash xtrace. darwin 2922/18047 (16.2%) on a local macOS run (29 run, 3 skipped); linux 3054/18047 (16.9%) from the Ubuntu CI run. test-popup-notice-deadlines.sh is exempt via SHELL_COVERAGE_OFF. Each OS is checked against its own floor and may fall its slack_lines (30, about 1%) under it to absorb timing noise in the trace. fi and done often never appear in an xtrace. Raising a floor is a new measurement on that OS."
+}

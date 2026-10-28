@@ -2,9 +2,36 @@
 
 Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANGELOG.md](../CHANGELOG.md).
 
+## 2026-10-27 — Lint, complexity, file-size, and type gates
+
+- Ruff (`E`, `F`, `C901`, line length 120, McCabe ceiling 19) runs on staged blobs in pre-commit and on the tree in CI. Existing diagnostics are recorded in `pyproject.toml`.
+- `scripts/check-shell-complexity.sh` caps shell function length (535) and control nesting (7) at the measured maximum. `scripts/check-file-sizes.sh` now caps `lib/*.py` at 500 and ratchets the three files already over their cap.
+- basedpyright runs against `.basedpyright/baseline.json` through `scripts/check-python-types.sh`, which restores and fails on a baseline rewrite. `--baselinemode=lock` does not exist in 1.29.4.
+- Pre-push runs types and the size ratchet. CI runs `scripts/check-quality.sh` in the Ubuntu static-analysis job. `tests/test-quality-gates.sh` is in Tier-A.
+
+## 2026-10-26 — Shell line coverage and time-validation tests
+
+- `scripts/check-shell-coverage.sh` traces Tier-A with bash xtrace and fails when `lib/*.sh` line hits fall below `scripts/shell-coverage-baseline.json`. The 2026-10-27 floors are per OS: darwin 2922/18047 and linux 3054/18047 (from the Ubuntu CI run), each with 30 lines of slack for timing noise in the trace. The opt-in pre-push Tier-A hook and CI (Ubuntu and macOS) run it. `SKIP_SHELL_COVERAGE=1` or `SKIP_PRE_PUSH_TESTS=1` skips locally. The deadline test is not traced, and the trace goes to a pipe so a lowered file-size limit does not kill the probe.
+- `tests/test-time-validation.sh` exercises the pure range and time checks in `lib/time-validation.sh` and is part of Tier-A.
+
+## 2026-10-26 — Popup-blocker unit tests raise the Python floor
+
+- `tests/test-popup-blocker-darwin.py` executes `lib/popup-blocker-darwin.py` with tkinter and pyobjc mocked, so no window opens. The coverage floors are now 260/826 with a display and 238/826 without one.
+
+## 2026-10-26 — Public clone evidence and host-normalizer tests
+
+- Phase 5 step 6 records `git clone --depth 1` of the public URL, which checked out `a664b8e`. The earlier note had cited `git ls-remote` and called that a clone.
+- The freshness test now rejects a folded URL whose port or scheme differs.
+
+## 2026-10-26 — Headless coverage floor and loopback Sonar host
+
+- Python coverage keeps a display floor of 33/826 and a headless floor of 11/826, measured after merging `main`. A machine without a tkinter display is checked against the headless floor. `SKIP_PYTHON_COVERAGE=1` stays an emergency skip.
+- The Sonar freshness check treats `localhost` and `[::1]` as `127.0.0.1` when the scheme and port match. A different host or port still fails.
+
 ## 2026-10-26 — Pre-push peels pushed objects to commits
 
 - The pre-push hook resolves each nonzero pushed object ID with `git rev-parse --verify <oid>^{commit}` before the Sonar freshness and issue checks. An annotated tag is checked as the commit it points at. All-zero delete IDs are still skipped.
+
 
 ## 2026-10-26 — SonarCloud security rating on the local scan writers
 
@@ -16,6 +43,13 @@ Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANG
 - The `.env` mode check uses GNU `stat -c` before BSD `stat -f`, so Ubuntu Tier-A no longer dies on `8#`.
 - A push whose scan state matches the commit fails when the issue dump is missing, has no commit, or would erase every baselined bug. An empty API page before the reported total is a failed scan.
 - The collector writes only `tmp/sonar-state.json` and `tmp/sonar-latest-issues.json`. Those paths are not command-line arguments.
+- The Ubuntu coverage install pins `coverage==7.15.0` and binary wheels only.
+
+## 2026-10-26 — Python line coverage on pre-push and CI
+
+- That day's floor was 31/793 (about 3.9%), the ratio measured on this branch with tkinter available. A later commit replaced it with separate display and headless floors. Shell is outside the gate.
+- Pre-push runs that script. The Ubuntu static-analysis job installs `python3-tk` and runs it under `xvfb`. `SKIP_PYTHON_COVERAGE=1` skips locally; CI does not. A missing `coverage` package skips locally with a warning and fails in CI.
+
 
 ## 2026-10-26 — Local Sonar issue ratchet
 
@@ -28,7 +62,7 @@ Dated **harness** changes (docs, tests, CI, agent workflow)—not product [CHANG
 
 - `.env` is gitignored. Copy `.env.example` and set `SONAR_TOKEN` there. `SONAR_HOST_URL` is optional and defaults to `http://localhost:9000`. The token is not stored in the repo.
 - `scripts/sonar_scan.sh` runs the scanner, waits for the Compute Engine task, and records the commit in `tmp/sonar-state.json`. `sonar-project.properties` is for that local server only. Cloud automatic analysis ignores it.
-- Pre-push does not run the scanner. When a token is set, `scripts/check-sonar-freshness.sh` requires that recorded commit to match `HEAD`. `SKIP_LOCAL_SONAR=1` skips the check. Tier-A remains opt-in. This does not replace the SonarCloud GitHub app.
+- Pre-push does not run the scanner. When a token is set, `scripts/check-sonar-freshness.sh` requires that recorded commit to match each pushed commit, or `HEAD` when the script is run directly. `SKIP_LOCAL_SONAR=1` skips the check. Tier-A remains opt-in. This does not replace the SonarCloud GitHub app.
 
 ## 2026-10-25 — Publication Phase 3: stubs removed, completed plans archived
 

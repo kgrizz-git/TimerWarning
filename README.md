@@ -2,19 +2,19 @@
   <img src="assets/icon.svg" alt="TimerWarning icon: a crescent moon with a clock" width="128" height="128">
 </p>
 
-# TimerWarning (Sleep Warning System for Linux & macOS)
+# TimerWarning (Sleep Warning System for SteamOS, Linux & macOS)
 
 [![Security](https://github.com/kgrizz-git/TimerWarning/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/kgrizz-git/TimerWarning/actions/workflows/security.yml)
 [![License: Apache 2.0 + Commons Clause](https://img.shields.io/badge/license-Apache%202.0%20%2B%20Commons%20Clause-blue)](LICENSE)
-[![Platforms: Linux | macOS](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS-lightgrey)](user-docs/MACOS.md)
+[![Platforms: SteamOS | Linux | macOS](https://img.shields.io/badge/platforms-SteamOS%20%7C%20Linux%20%7C%20macOS-lightgrey)](user-docs/USER_GUIDE.md)
 [![Shell: Bash 4+](https://img.shields.io/badge/shell-bash%204%2B-4EAA25?logo=gnubash&logoColor=white)](dev-docs/development/testing.md)
 [![ShellCheck](https://img.shields.io/badge/lint-ShellCheck-informational)](dev-docs/development/security-scanning.md)
 
-A monitoring system that displays interactive warning popups when your computer is used during configurable restricted hours (e.g., late night/early morning). **Linux:** systemd timer. **macOS:** LaunchAgent — see [user-docs/MACOS.md](user-docs/MACOS.md).
+A monitoring system that displays interactive warning popups when your computer is used during configurable restricted hours (e.g., late night/early morning). It is supported on SteamOS Desktop Mode; Gaming Mode overlay support is experimental and off by default (see [Supported Systems](#supported-systems)). **Linux and SteamOS:** systemd timer. **macOS:** LaunchAgent — see [user-docs/MACOS.md](user-docs/MACOS.md).
 
-## 🛡️ Safety first (read before install or development)
+## 🛡️ Safety first
 
-**This software can block normal use if misconfigured or broken.** We treat safety as the top priority—especially during development and AI-assisted changes.
+Safety is the top priority. A popup that can interrupt your computer use has to be easy to stop, so unless the code is modified, the safeguards are built in and cannot be configured away. No category of restriction can cover more than 16 hours of any day, every popup has a finite lifetime, and there is always a documented way to turn the whole system off.
 
 | Audience | Start here |
 |----------|------------|
@@ -22,7 +22,7 @@ A monitoring system that displays interactive warning popups when your computer 
 | **Developers / agents** | [AGENTS.md](AGENTS.md) → [dev-docs/CONTRIBUTING.md](dev-docs/CONTRIBUTING.md) |
 | **macOS users** | [user-docs/MACOS.md](user-docs/MACOS.md) (troubleshooting + `launchctl bootout` / `killall osascript`) |
 
-Do not save schedules that cover the entire week. If a popup will not dismiss, use the emergency steps in **docs/SAFETY.md** before changing code.
+If you have not modified the code, you do not need to do anything special: the configure wizard enforces these limits for you. If a popup ever will not dismiss, the emergency steps in **docs/SAFETY.md** turn the system off. If you change the code, read that file first.
 
 ## ⚠️ Disclaimer
 

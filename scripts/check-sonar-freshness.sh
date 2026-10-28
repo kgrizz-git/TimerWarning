@@ -15,8 +15,28 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT}/scripts/sonar-env.sh"
 
 sonar_normalize_url() {
-    local url="$1"
+    local url="$1" rest
     url="${url%/}"
+    case "${url}" in
+        http://localhost:*)
+            rest="${url#http://localhost:}"
+            url="http://127.0.0.1:${rest}"
+            ;;
+        https://localhost:*)
+            rest="${url#https://localhost:}"
+            url="https://127.0.0.1:${rest}"
+            ;;
+        'http://[::1]:'*)
+            rest="${url#http://\[::1\]:}"
+            url="http://127.0.0.1:${rest}"
+            ;;
+        'https://[::1]:'*)
+            rest="${url#https://\[::1\]:}"
+            url="https://127.0.0.1:${rest}"
+            ;;
+        *)
+            ;;
+    esac
     printf '%s' "${url}"
 }
 

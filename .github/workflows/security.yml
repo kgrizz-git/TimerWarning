@@ -37,6 +37,23 @@ jobs:
       - name: ShellCheck, Gitleaks, Semgrep
         run: ./scripts/run-security-scan.sh --ci
 
+      - name: Python line coverage
+        env:
+          COVERAGE_FLOOR: display
+        run: |
+          sudo apt-get install -y -qq python3-tk xvfb
+          python3 -m pip install --user --only-binary :all: 'coverage==7.15.0'
+          xvfb-run -a ./scripts/check-python-coverage.sh
+
+      - name: Ruff, shell complexity, file sizes, basedpyright
+        run: |
+          # Keep these pins equal to requirements-dev.txt.
+          python3 -m pip install --user --only-binary :all: 'ruff==0.16.8' 'basedpyright==1.29.4'
+          ./scripts/check-quality.sh
+
+      - name: Shell line coverage
+        run: ./scripts/check-shell-coverage.sh
+
       - name: Doc drift (warn-only)
         run: ./scripts/check-doc-drift.sh
 
@@ -60,3 +77,7 @@ jobs:
           CI: true
           CI_HEADLESS: 1
         run: ./scripts/run-tests.sh --tier a
+
+      - name: Shell line coverage (macOS floor)
+        if: runner.os == 'macOS'
+        run: ./scripts/check-shell-coverage.sh

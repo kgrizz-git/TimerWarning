@@ -6,16 +6,20 @@ Agent-agnostic PR checks in [`.github/workflows/security.yml`](../../.github/wor
 
 | Job | Runner | Command | Purpose |
 |-----|--------|---------|---------|
-| **static-analysis** | `ubuntu-latest` | `./scripts/run-security-scan.sh --ci` + `./scripts/check-doc-drift.sh` (warn-only) | ShellCheck, Gitleaks, Semgrep; doc drift checks |
-| **tier-a-tests** | `ubuntu-latest`, `macos-latest` | `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a` | Fast safety/unit gate; Linux runs `test-popup-safety-linux.sh`, macOS runs `test-popup-safety-darwin.sh` |
+| **static-analysis** | `ubuntu-latest` | `./scripts/run-security-scan.sh --ci`, `check-python-coverage.sh`, `check-quality.sh`, `check-shell-coverage.sh`, `check-doc-drift.sh` (warn-only) | ShellCheck, Gitleaks, Semgrep; Python and shell line coverage; Ruff, shell complexity, file sizes, basedpyright; doc drift checks |
+| **tier-a-tests** | `ubuntu-latest`, `macos-latest` | `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a`, then `check-shell-coverage.sh` on macOS | Fast safety/unit gate; Linux runs `test-popup-safety-linux.sh`, macOS runs `test-popup-safety-darwin.sh` |
 
 Triggers: push and pull_request to `main` / `master`.
 
 ## Local parity
 
 ```bash
-# Match static-analysis job
+# Match static-analysis job (CI=true makes missing tools fail, as in CI)
 ./scripts/run-security-scan.sh --ci
+pip install -r requirements-dev.txt coverage==7.15.0   # plus python3-tk and xvfb on Linux
+COVERAGE_FLOOR=display xvfb-run -a ./scripts/check-python-coverage.sh   # Linux; on macOS drop xvfb-run
+CI=true ./scripts/check-quality.sh
+./scripts/check-shell-coverage.sh   # runs Tier-A under xtrace; resource-heavy
 ./scripts/check-doc-drift.sh
 
 # Match tier-a-tests job (both platforms use headless skip for GUI scripts)

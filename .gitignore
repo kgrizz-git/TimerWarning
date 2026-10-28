@@ -52,3 +52,6 @@ tmp/
 # .cursor/plans/ stay in history until they are archived and removed from the index.
 *.bundle
 .cursor/plans/
+
+# Qoder agent local state
+.qoder/

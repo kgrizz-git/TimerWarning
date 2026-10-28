@@ -286,6 +286,14 @@ main() {
         fi
 
         echo "--- ${script} ---"
+        # test-popup-notice-deadlines.sh stays untraced: bash xtrace
+        # perturbs its process deadlines. SHELL_COVERAGE_OFF is honored
+        # by scripts/shell-coverage-env.sh and inherited by children.
+        if [[ "${script}" == "test-popup-notice-deadlines.sh" ]]; then
+            export SHELL_COVERAGE_OFF=1
+        else
+            unset SHELL_COVERAGE_OFF
+        fi
         if ! _run_with_timeout 300 "${BASH}" "${path}"; then
             echo "FAIL: ${script}" >&2
             failed=1

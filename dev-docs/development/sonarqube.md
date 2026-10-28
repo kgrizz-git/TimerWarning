@@ -20,12 +20,13 @@ chmod 600 .env
 
 `SONAR_TOKEN` is required. `SONAR_HOST_URL` defaults to `http://localhost:9000`.
 The server bound to `127.0.0.1:9000` is that same service. The freshness check
-compares the URL string, so `localhost` and `127.0.0.1` do not count as the
-same recorded host. An exported value wins over `.env`. `scripts/sonar-env.sh`
+treats `localhost` and `[::1]` as `127.0.0.1` for the same scheme and port.
+A different host or port still fails. An exported value wins over `.env`. `scripts/sonar-env.sh`
 parses `.env` and does not source it, and nothing prints the token.
 
 Install the scanner with `brew install sonar-scanner` if it is missing.
 Homebrew's scanner 8.1 bundles a JRE. `python3` is required for the API poll.
+`python3 -m pip install coverage` is required for the line-coverage check.
 
 Create the project in the UI once, or let the first analysis create it. The
 local project key is `timer-warning`, from
@@ -44,6 +45,7 @@ The working tree must be clean. The script uploads the analysis, waits up to
 `tmp/sonar-latest-issues.json` plus `tmp/sonar-state.json` for that commit.
 The token is not passed on a command line. Results are at
 <http://localhost:9000>. Community Build does not decorate pull requests.
+This scan does not produce a coverage report.
 
 This server analyzes Python. Its language list has no Shell, so the local
 issue count does not include the Bash sources SonarCloud reviews on pull
@@ -51,6 +53,10 @@ requests. ShellCheck remains the local shell check.
 
 The scan prints unresolved issues by type (`BUG`, `VULNERABILITY`,
 `CODE_SMELL`) and by rule and severity. That print is not a gate.
+
+Python line coverage of `lib/*.py` is a separate check,
+[`scripts/check-python-coverage.sh`](../../scripts/check-python-coverage.sh).
+Pre-push and the Ubuntu security job run it. It is not part of this scan.
 
 ## Before push
 
