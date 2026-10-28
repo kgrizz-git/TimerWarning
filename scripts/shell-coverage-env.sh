@@ -23,9 +23,15 @@ fi
 # Write the trace to a pipe. A direct log file shares the shell's ulimit -f,
 # and tests that lower that limit (the icon help probe) then die on the trace.
 _cov_log="${SHELL_COVERAGE_DIR}/$$.log"
+# Create the log before tracing starts, so an unwritable log fails here and not silently later.
+if ! : >> "${_cov_log}"; then
+    echo "shell-coverage-env: cannot open ${_cov_log}" >&2
+    exit 70
+fi
 coproc _SHELL_COV_READER {
     echo "${BASHPID}" >> "${SHELL_COVERAGE_DIR}/readers.pids"
-    exec /bin/cat >> "${_cov_log}"
+    # A reader that fails (disk full, I/O error) leaves a marker; check-shell-coverage.sh fails on it.
+    /bin/cat >> "${_cov_log}" || echo "${BASHPID}" >> "${SHELL_COVERAGE_DIR}/reader-failures"
 }
 if [[ -z "${_SHELL_COV_READER[1]:-}" ]]; then
     echo "shell-coverage-env: could not start the trace reader" >&2

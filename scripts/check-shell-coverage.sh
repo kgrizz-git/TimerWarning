@@ -81,6 +81,11 @@ if [[ -f "${log_dir}/readers.pids" ]]; then
     done < "${log_dir}/readers.pids"
 fi
 
+if [[ -s "${log_dir}/reader-failures" ]]; then
+    echo "shell coverage: a trace reader failed to write its log, so the trace is incomplete." >&2
+    exit 1
+fi
+
 if [[ "${suite_rc}" -ne 0 ]]; then
     echo "shell coverage: Tier-A failed (exit ${suite_rc})." >&2
     exit "${suite_rc}"

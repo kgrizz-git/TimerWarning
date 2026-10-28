@@ -161,18 +161,33 @@ def declaration(line: str) -> tuple[str, str] | None:
     return (match.group(1), match.group(2)) if match else None
 
 
+# `function f`, `function f()` or `f()` ahead of a brace.
+DECL_PREFIX_RE = re.compile(rf"^\s*(?:function\s+{NAME}(?:\s*\(\s*\))?|{NAME}\s*\(\s*\))\s*")
+COMMAND_SPLIT_RE = re.compile(r"&&|\|\||[;|&]")
+PRE_COMMAND_WORDS = {"then", "do", "else", "elif", "!", "time"}
+
+
 def brace_delta(line: str) -> int:
-    """Standalone `{` words open a group, standalone `}` words close one. `${x}` is not either."""
-    words = re.split(r"[\s;]+", line)
-    return words.count("{") - words.count("}")
+    """Count `{` and `}` used as commands. `${x}` and `printf %s {` are not braces."""
+    delta = 0
+    for segment in COMMAND_SPLIT_RE.split(DECL_PREFIX_RE.sub("", line)):
+        words = segment.split()
+        while words and words[0] in PRE_COMMAND_WORDS:
+            words.pop(0)
+        if words and words[0] == "{":
+            delta += 1
+        elif words and words[0] == "}":
+            delta -= 1
+    return delta
 
 
 def closing_line(clean: list[str], start: int, indent: str) -> int | None:
     """Index of the sanitized line that closes the function declared at `start`.
 
     It is the line-only `}` at the declaration's indent that brings the brace depth back to zero.
+    The opening brace may sit on the next line, where the scan counts it once.
     """
-    depth = brace_delta(clean[start]) or 1  # the opening brace may sit on the next line
+    depth = brace_delta(clean[start])
     for j in range(start + 1, len(clean)):
         depth += brace_delta(clean[j])
         if depth <= 0 and clean[j].rstrip() == indent + "}":
