@@ -2,12 +2,12 @@
   "schema": 2,
   "scope": "lib/*.py",
   "display": {
-    "covered_statements": 260,
+    "covered_statements": 819,
     "statements": 826
   },
   "headless": {
-    "covered_statements": 238,
+    "covered_statements": 819,
     "statements": 826
   },
-  "note": "Measured 2026-10-26 after tests/test-popup-blocker-darwin.py. A display run covers 260/826 (31.5%). The same suite with the tkinter probe skipped covers 238/826 (28.8%). The popup-blocker tests mock tkinter, so they count in both. Each run is compared with its own ratio."
+  "note": "Measured 2026-10-28 after tests/test-configure-dialogs-darwin-ui.py, which fakes the tkinter widgets and needs no display. A display run covers 819/826 (99.2%). A run with Tk() unavailable covers the same 819/826, because the new tests do not open a window. The 7 missed statements are the four `if __name__ == \"__main__\"` calls in the configure-dialog scripts and 3 popup-blocker lines. Python 3.11 and 3.12 count the same statements. Each run is compared with its own ratio."
 }

@@ -21,6 +21,10 @@ Fast, headless, no live installed config. Default timeout 300s per script.
 | `test-configure-partial-lock.sh` | Tighten-only configure wizard |
 | `test-popup-size-config.sh` | Popup size getters, fixed and display-based dimensions, 95% clamp |
 | `test-config-safety.sh` | Default hours, runtime cap inputs, runtime cap gate, wizard default fill |
+| `test-time-calculations.sh` | Range durations, weekly intervals, next unrestricted time, restriction end time |
+| `test-scheduler-platform.sh` | systemd and launchd helpers with a stubbed `systemctl` |
+| `test-resolution-detection-stubbed.sh` | xrandr, Wayland and gamescope resolution detection with stub tools |
+| `test-configure-dialogs-darwin-ui.py` | macOS configure dialogs with fake tkinter widgets (run by the Python coverage gate, not `run-tests.sh`) |
 | `test-platform-darwin.sh` | Platform detection, plist math — **macOS only** |
 | `test-darwin-configure-gui.sh` | **macOS only**; **requires GUI** — skipped when `CI_HEADLESS=1` |
 
@@ -39,7 +43,7 @@ Temp-`HOME` and module smokes. Run in batches with `timeout`; see [platform-test
 ./scripts/run-tests.sh --tier b
 ```
 
-Includes configure text-mode, modular refactor checks, lock-hour phases, Darwin grid cache, pause/popup interval tests.
+Includes the configure text-mode, modular, blocking, and GUI-split scripts. They call `configure.sh`, so they stay out of Tier-A. The lock-hour phases, Darwin grid cache, and pause and popup interval scripts that used to be here moved to Tier-A on 2026-10-28, because the shell coverage floor only counts Tier-A.
 
 ## Tier C — Manual / multi-host
 

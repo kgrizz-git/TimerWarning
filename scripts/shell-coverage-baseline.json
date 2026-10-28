@@ -2,14 +2,14 @@
   "schema": 1,
   "scope": "lib/*.sh",
   "darwin": {
-    "covered_lines": 3188,
+    "covered_lines": 4703,
     "statements": 18047,
     "slack_lines": 30
   },
   "linux": {
-    "covered_lines": 3054,
+    "covered_lines": 4800,
     "statements": 18047,
     "slack_lines": 30
   },
-  "note": "Measured from Tier-A under bash xtrace. darwin 3188/18047 (17.7%) on a local macOS run on 2026-10-28 (32 run, 3 skipped), after test-popup-size-config.sh and test-config-safety.sh; linux 3054/18047 (16.9%) from the Ubuntu CI run on 2026-10-27, not yet re-measured. test-popup-notice-deadlines.sh is exempt via SHELL_COVERAGE_OFF. Each OS is checked against its own floor and may fall its slack_lines (30, about 1%) under it to absorb timing noise in the trace. fi and done often never appear in an xtrace. Raising a floor is a new measurement on that OS."
+  "note": "Measured 2026-10-28 from Tier-A under bash xtrace. darwin 4703/18047 (26.1%) on a local macOS run (54 run, 3 skipped). linux was 4818/18047 (26.7%) in an Ubuntu 24.04 container run as a non-root user (54 run, 3 skipped); the floor is set 18 lines under that until the Ubuntu CI run confirms the number. The jump from 2922 and 3054 comes from new tests for config-popup-size, config-safety, time-calculations, scheduler-platform and resolution-detection, and from moving 19 fast Tier-B scripts into Tier-A. test-popup-notice-deadlines.sh is exempt via SHELL_COVERAGE_OFF. Each OS is checked against its own floor and may fall its slack_lines (30, about 0.2%) under it to absorb timing noise in the trace. fi and done often never appear in an xtrace. Raising a floor is a new measurement on that OS."
 }
