@@ -3,6 +3,10 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
+# Temp HOME: the config and log directories below must not be created in the real one.
+TMP_HOME="$(mktemp -d)"
+trap 'rm -rf "${TMP_HOME}"' EXIT
+export HOME="${TMP_HOME}"
 export CONFIG_DIR="${HOME}/.config/sleep-warning"
 export CONFIG_FILE="${CONFIG_DIR}/config/sleep-warning.conf"
 mkdir -p "${CONFIG_DIR}/config" "${CONFIG_DIR}/logs"
