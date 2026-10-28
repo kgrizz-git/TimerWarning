@@ -102,6 +102,15 @@ sed -i.bak 's/^    \[ -e \/tmp \] \&\& echo two/        [ -e \/tmp ] \&\& echo t
 commit_all reindent
 check "re-indenting keeps the line old" "0|" "$(run_check main)"
 
+echo "=== one removed line excuses only one added copy ==="
+new_repo; write_base; commit_all base
+git_in_repo checkout -q -b feature
+# Replace the one old `[ -e /tmp ]` line with two re-indented copies of it (lines 8 and 9).
+printf '%s\n' '#!/bin/bash' 'old_one() {' '    if [ -n "$1" ]; then' '        echo one' '    fi' '}' \
+    'old_two() {' '        [ -e /tmp ] && echo two' '        [ -e /tmp ] && echo two' '}' > "${REPO}/a.sh"
+commit_all duplicate
+check "the extra copy is reported, the moved one is not" "1|a.sh:9" "$(run_check main)"
+
 echo "=== a deletion is clean ==="
 new_repo; write_base; commit_all base
 git_in_repo checkout -q -b feature

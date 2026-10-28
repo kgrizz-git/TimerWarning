@@ -15,7 +15,9 @@ Usage:
     python3 scripts/sonarcloud_pr_issues.py 3 --wait 180
 
 Exit status:
-    0  no new issues, and the analysis is for the local HEAD
+    0  no new issues. When git returns a local HEAD, the analysis must also be for
+       it. That comparison runs with or without --wait. Without a HEAD (and
+       without --wait) the commit is not compared.
     1  new issues, even when the analysis is for another commit
     2  no new issues but the analysis is for another commit, or the PR, the local
        HEAD (with --wait), or the API could not be read

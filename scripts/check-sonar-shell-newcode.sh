@@ -8,7 +8,8 @@
 #
 # Only lines added since the merge base are reported, which matches Sonar's
 # new-code view. A line that only moved, with the same text as a removed line, is
-# skipped. Untracked .sh files count in full. Existing `[ ]` tests stay alone:
+# skipped, once per removed line: if one line was removed and two identical lines
+# were added, the second is still reported. Untracked .sh files count in full. Existing `[ ]` tests stay alone:
 # the codebase uses them everywhere.
 #
 # Checked against SonarCloud on PR #3: it found every S7688 finding Sonar
@@ -91,13 +92,21 @@ while IFS= read -r file; do
         | awk -F: -v added="${work}/added" -v removed="${work}/removed" -v src="${file}" '
             BEGIN {
                 while ((getline line < added) > 0) want[line] = 1
-                while ((getline line < removed) > 0) gone[line] = 1
+                while ((getline line < removed) > 0) gone[line]++
                 while ((getline line < src) > 0) {
                     sub(/^[[:space:]]+/, "", line)
                     text[++total] = line
                 }
             }
-            /\[SC2292\]/ && ($2 in want) && !(text[$2] in gone) { print }' > "${work}/hits" || true
+            # A removed line excuses at most one added line with the same text. All
+            # findings on that one line share the decision; the next added line with
+            # the same text is reported.
+            /\[SC2292\]/ && ($2 in want) {
+                if (!($2 in moved)) {
+                    if (gone[text[$2]] > 0) { gone[text[$2]]--; moved[$2] = 1 } else { moved[$2] = 0 }
+                }
+                if (!moved[$2]) print
+            }' > "${work}/hits" || true
     if [[ -s "${work}/hits" ]]; then
         findings=$((findings + $(wc -l < "${work}/hits")))
         sed 's/: note: Prefer \[\[ \]\] over \[ \] for tests in Bash\/Ksh\/Busybox\. \[SC2292\]/: use [[ ]] instead of [ ]/' "${work}/hits"
