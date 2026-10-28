@@ -164,13 +164,16 @@ def declaration(line: str) -> tuple[str, str] | None:
 # `function f`, `function f()` or `f()` ahead of a brace.
 DECL_PREFIX_RE = re.compile(rf"^\s*(?:function\s+{NAME}(?:\s*\(\s*\))?|{NAME}\s*\(\s*\))\s*")
 COMMAND_SPLIT_RE = re.compile(r"&&|\|\||[;|&]")
-PRE_COMMAND_WORDS = {"then", "do", "else", "elif", "!", "time"}
+# `a) {` (a case pattern) and `coproc NAME {` also put a command right after them.
+LEAD_IN_RE = re.compile(rf"^\s*(?:[^\s()]+\)|coproc(?:\s+{NAME})?)\s*")
+PRE_COMMAND_WORDS = {"then", "do", "else", "elif", "if", "while", "until", "!", "time"}
 
 
 def brace_delta(line: str) -> int:
     """Count `{` and `}` used as commands. `${x}` and `printf %s {` are not braces."""
     delta = 0
-    for segment in COMMAND_SPLIT_RE.split(DECL_PREFIX_RE.sub("", line)):
+    line = LEAD_IN_RE.sub("", DECL_PREFIX_RE.sub("", line))
+    for segment in COMMAND_SPLIT_RE.split(line):
         words = segment.split()
         while words and words[0] in PRE_COMMAND_WORDS:
             words.pop(0)

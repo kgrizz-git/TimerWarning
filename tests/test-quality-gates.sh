@@ -76,7 +76,9 @@ expect_rc "plain << does not end on an indented delimiter" 0 bash -c "(echo 's()
 expect_rc "<< inside (( )) is arithmetic, not a heredoc" 1 bash -c "(echo 't() {'; echo '  (( a = b << c ))'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "a same-indent nested brace group does not end the function" 1 bash -c "(echo 'u() {'; echo '{'; echo '  :'; echo '}'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "a brace argument is not a group, so the function ends at its first closing brace" 0 bash -c "(echo 'v() {'; echo '  printf %s {'; echo '}'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
-expect_rc "a closing brace before || is counted, so the function ends at its own brace" 0 bash -c "(echo 'w() {'; echo '  {'; echo '    :'; echo '  } || true'; echo '}'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
+expect_rc "a closing brace before || is counted, so the function runs to its own brace" 1 bash -c "(echo 'w() {'; echo '  {'; echo '    :'; echo '  } || true'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
+expect_rc "a brace after a case pattern is a group" 1 bash -c "(echo 'y() {'; echo '  case x in'; echo '  a) {'; echo '    :'; echo '}'; echo '  esac'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
+expect_rc "a brace after coproc NAME is a group" 1 bash -c "(echo 'z() {'; echo '  coproc R {'; echo '    :'; echo '}'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "brace on the next line after the declaration" 1 bash -c "(echo 'x()'; echo '{'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "current tree passes complexity" 0 "${COMPLEXITY}"
 
