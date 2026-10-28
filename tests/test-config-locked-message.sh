@@ -112,4 +112,4 @@ check_line "lock ends today" "Lock ends: 4:00 AM today" "${out}"
 
 echo ""
 echo "Results: ${_PASS} passed, ${_FAIL} failed"
-[ "${_FAIL}" -eq 0 ] || exit 1
+[[ "${_FAIL}" -eq 0 ]] || exit 1

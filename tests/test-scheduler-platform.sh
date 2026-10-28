@@ -21,7 +21,7 @@ _FAIL=0
 
 check() {
     local desc="$1" expected="$2" actual="$3"
-    if [ "${actual}" = "${expected}" ]; then
+    if [[ "${actual}" == "${expected}" ]]; then
         _PASS=$(( _PASS + 1 )); echo "  PASS  ${desc} (${actual})"
     else
         _FAIL=$(( _FAIL + 1 )); echo "  FAIL  ${desc}: expected '${expected}', got '${actual}'"
@@ -36,18 +36,21 @@ SYSTEMCTL_FAIL=""
 SYSTEMCTL_ENABLED="enabled"
 SYSTEMCTL_ACTIVE="active"
 systemctl() {
-    echo "$*" >> "${SYSTEMCTL_LOG}"
-    case "$*" in
+    local all_args="$*"
+    local subcommand="${2:-}"   # called as: systemctl --user <subcommand> ...
+    echo "${all_args}" >> "${SYSTEMCTL_LOG}"
+    case "${all_args}" in
         *is-enabled*) echo "${SYSTEMCTL_ENABLED}" ;;
         *is-active*) echo "${SYSTEMCTL_ACTIVE}" ;;
         *list-timers*) echo "Wed 2026-10-28 13:00:00 EDT 5min left n/a n/a sleep-warning.timer" ;;
+        *) ;;
     esac
     case " ${SYSTEMCTL_FAIL} " in
-        *" $2 "*) return 1 ;;
+        *" ${subcommand} "*) return 1 ;;
+        *) return 0 ;;
     esac
-    return 0
 }
-calls() { [ -f "${SYSTEMCTL_LOG}" ] && paste -sd'|' "${SYSTEMCTL_LOG}"; }
+calls() { [[ -f "${SYSTEMCTL_LOG}" ]] && paste -sd'|' "${SYSTEMCTL_LOG}"; }
 reset_calls() { rm -f "${SYSTEMCTL_LOG}"; SYSTEMCTL_FAIL=""; }
 
 SYSTEMD_DIR="${HOME}/.config/systemd/user"
@@ -79,9 +82,9 @@ scheduler_stop_and_disable; check "a failed disable returns 1" "1" "$?"
 echo "=== scheduler_remove_files (Linux) ==="
 FAKE_OS="Linux"; make_installed
 scheduler_remove_files
-check "the service file is removed" "no" "$([ -e "${SYSTEMD_DIR}/sleep-warning.service" ] && echo yes || echo no)"
-check "the timer file is removed" "no" "$([ -e "${SYSTEMD_DIR}/sleep-warning.timer" ] && echo yes || echo no)"
-check "the installed script is left alone" "yes" "$([ -e "${BIN}" ] && echo yes || echo no)"
+check "the service file is removed" "no" "$([[ -e "${SYSTEMD_DIR}/sleep-warning.service" ]] && echo yes || echo no)"
+check "the timer file is removed" "no" "$([[ -e "${SYSTEMD_DIR}/sleep-warning.timer" ]] && echo yes || echo no)"
+check "the installed script is left alone" "yes" "$([[ -e "${BIN}" ]] && echo yes || echo no)"
 scheduler_remove_files; check "removing again is harmless" "0" "$?"
 
 echo "=== scheduler_reload ==="
@@ -132,4 +135,4 @@ scheduler_enable_start; check "the exit status is the start call's" "1" "$?"
 
 echo ""
 echo "Results: ${_PASS} passed, ${_FAIL} failed"
-[ "${_FAIL}" -eq 0 ] || exit 1
+[[ "${_FAIL}" -eq 0 ]] || exit 1

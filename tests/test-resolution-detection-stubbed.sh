@@ -29,7 +29,7 @@ _FAIL=0
 
 check() {
     local desc="$1" expected="$2" actual="$3"
-    if [ "${actual}" = "${expected}" ]; then
+    if [[ "${actual}" == "${expected}" ]]; then
         _PASS=$(( _PASS + 1 )); echo "  PASS  ${desc} (${actual:-<empty>})"
     else
         _FAIL=$(( _FAIL + 1 )); echo "  FAIL  ${desc}: expected '${expected}', got '${actual}'"
@@ -38,8 +38,10 @@ check() {
 
 # stub NAME OUTPUT: a tool that prints OUTPUT.
 stub() {
-    printf '#!/bin/bash\n/bin/cat <<'"'"'EOF'"'"'\n%s\nEOF\n' "$2" > "${BIN}/$1"
-    /bin/chmod +x "${BIN}/$1"
+    local name="$1"
+    local output="$2"
+    printf '#!/bin/bash\n/bin/cat <<'"'"'EOF'"'"'\n%s\nEOF\n' "${output}" > "${BIN}/${name}"
+    /bin/chmod +x "${BIN}/${name}"
 }
 unstub_all() {
     /bin/rm -f "${BIN}/xrandr" "${BIN}/wlr-randr" "${BIN}/swaymsg" "${BIN}/wayland-info" "${BIN}/pgrep"
@@ -117,4 +119,4 @@ detect >/dev/null; check "the environment size is ignored when gamescope is not 
 
 echo ""
 echo "Results: ${_PASS} passed, ${_FAIL} failed"
-[ "${_FAIL}" -eq 0 ] || exit 1
+[[ "${_FAIL}" -eq 0 ]] || exit 1

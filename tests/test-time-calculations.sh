@@ -33,7 +33,7 @@ _FAIL=0
 
 check() {
     local desc="$1" expected="$2" actual="$3"
-    if [ "${actual}" = "${expected}" ]; then
+    if [[ "${actual}" == "${expected}" ]]; then
         _PASS=$(( _PASS + 1 )); echo "  PASS  ${desc} (${actual})"
     else
         _FAIL=$(( _FAIL + 1 )); echo "  FAIL  ${desc}: expected '${expected}', got '${actual}'"
@@ -232,4 +232,4 @@ check "the tail wins over today's own ranges" "6:00 AM|Tuesday|true" "$(calculat
 
 echo ""
 echo "Results: ${_PASS} passed, ${_FAIL} failed"
-[ "${_FAIL}" -eq 0 ] || exit 1
+[[ "${_FAIL}" -eq 0 ]] || exit 1
