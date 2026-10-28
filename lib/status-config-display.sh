@@ -541,7 +541,7 @@ show_configuration() {
     if type check_minute_precision_compatibility >/dev/null 2>&1 && type get_timer_run_interval >/dev/null 2>&1; then
         local popup_freq_val run_interval
         popup_freq_val=$(_status_config_value POPUP_DISPLAY_FREQUENCY)
-        [ -z "${popup_freq_val}" ] && popup_freq_val=$(_status_config_value CHECK_INTERVAL)
+        [[ -z "${popup_freq_val}" ]] && popup_freq_val=$(_status_config_value CHECK_INTERVAL)
         if [ -n "${popup_freq_val}" ]; then
             run_interval=$(get_timer_run_interval "${popup_freq_val}")
             local config_lines=()
