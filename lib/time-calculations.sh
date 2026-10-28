@@ -276,6 +276,7 @@ calculate_total_day_duration() {
 
 # Convert one range endpoint (HH or HH:MM) to minutes from midnight (0-1439).
 # Prints minutes on stdout; returns 1 if invalid.
+# $2 is "start" (default) or "end". An end of 24 or 24:00 is 1440, the end of the day.
 _range_part_to_day_minutes() {
     if ! type range_endpoint_to_day_minutes >/dev/null 2>&1; then
         local _tc_dir
@@ -283,7 +284,7 @@ _range_part_to_day_minutes() {
         # shellcheck disable=SC1091
         [ -f "${_tc_dir}/time-parsing.sh" ] && source "${_tc_dir}/time-parsing.sh"
     fi
-    range_endpoint_to_day_minutes "$1"
+    range_endpoint_to_day_minutes "$1" "${2:-start}"
 }
 
 build_weekly_restricted_intervals() {
@@ -331,7 +332,7 @@ build_weekly_restricted_intervals() {
             local start_minute end_minute
 
             start_minute=$(_range_part_to_day_minutes "${start_part}") || continue
-            end_minute=$(_range_part_to_day_minutes "${end_part}") || continue
+            end_minute=$(_range_part_to_day_minutes "${end_part}" end) || continue
 
             if [ "${start_minute}" -gt "${end_minute}" ]; then
                 # Overnight range detected (e.g., "23-6" or "23:30-06:00")
@@ -588,7 +589,7 @@ get_next_unrestricted_time() {
         fi
         
         # Find the end of the current restricted interval to jump ahead
-        local interval_end="${minutes_per_week}"  # Default: end of week
+        local interval_end=-1  # Earliest end among the intervals holding search_minute
         while IFS= read -r interval; do
             [ -z "${interval}" ] && continue
             
@@ -599,17 +600,17 @@ get_next_unrestricted_time() {
             if [ "${search_minute}" -ge "${start}" ] && [ "${search_minute}" -lt "${end}" ]; then
                 # We're in this interval - the next unrestricted time is at 'end'
                 # Use the earliest end time (in case of overlapping intervals, though they should be merged)
-                if [ "${end}" -lt "${interval_end}" ]; then
+                if [ "${interval_end}" -lt 0 ] || [ "${end}" -lt "${interval_end}" ]; then
                     interval_end="${end}"
                 fi
             fi
         done <<< "${merged_intervals}"
         
-        # Jump to the end of the current restricted interval
-        if [ "${interval_end}" -lt "${minutes_per_week}" ]; then
-            # Normal case: end is in current week
+        # Jump to the end of the current restricted interval. An interval that
+        # ends at the week boundary (Saturday 24:00) jumps to minute 0 of Sunday.
+        if [ "${interval_end}" -gt "${search_minute}" ]; then
             local jump_distance=$((interval_end - search_minute))
-            search_minute="${interval_end}"
+            search_minute=$((interval_end % minutes_per_week))
             search_count=$((search_count + jump_distance))
         else
             # Shouldn't happen if we found an interval, but fallback: move to next minute
@@ -647,7 +648,7 @@ _time_calculations_ensure_time_parsing() {
 }
 
 _time_calculations_ensure_configure_core() {
-    if type format_hour_12h >/dev/null 2>&1 && [ -n "${DAY_NAMES[*]:-}" ]; then
+    if type format_endpoint_12h >/dev/null 2>&1 && [ -n "${DAY_NAMES[*]:-}" ]; then
         return 0
     fi
     local _tc_dir
@@ -666,6 +667,26 @@ _time_calculations_ensure_config() {
     [ -f "${_tc_dir}/config.sh" ] && source "${_tc_dir}/config.sh"
 }
 
+# Print "END_12H|DAY_NAME|IS_NEXT_DAY" for a range that is active now.
+# The end falls on the next day when the range crosses midnight or ends at 24:00.
+# The end may be "H" or "HH:MM", the forms parse_config and the lock-hour readers return.
+# Returns 1 when the end is not a valid time.
+_restriction_end_info() {
+    local range="$1"
+    local current_day="$2"
+    local start_part end_part end_12h end_minutes
+    start_part=$(echo "${range%%-*}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    end_part=$(echo "${range##*-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    end_12h=$(format_endpoint_12h "${end_part}") || return 1
+
+    if { end_minutes=$(range_endpoint_to_day_minutes "${end_part}" end) && [ "${end_minutes}" -eq 1440 ]; } \
+        || range_is_overnight "${start_part}" "${end_part}"; then
+        echo "${end_12h}|${DAY_NAMES[$(( (current_day + 1) % 7 ))]}|true"
+    else
+        echo "${end_12h}|${DAY_NAMES[${current_day}]}|false"
+    fi
+}
+
 # Calculate when the current restriction period ends
 # This function finds which restriction range the current hour falls into and calculates when it ends
 # Handles overnight ranges and multiple ranges per day
@@ -674,7 +695,7 @@ _time_calculations_ensure_config() {
 #   $2 - current_day (0-6, Sunday=0)
 #   $3 - restricted_range (optional, comma-separated ranges for current day)
 # Returns: "END_HOUR_12H|END_DAY_NAME|IS_OVERNIGHT" or empty string if not in restriction
-# Dependencies: configure-core.sh (for format_hour_12h, DAY_NAMES), time-validation.sh (for is_hour_in_single_range), config.sh (for parse_config)
+# Dependencies: configure-core.sh (for format_endpoint_12h, DAY_NAMES), time-validation.sh (for is_hour_in_single_range), config.sh (for parse_config)
 calculate_restriction_end_time() {
     local current_hour="$1"
     local current_day="$2"
@@ -708,9 +729,8 @@ calculate_restriction_end_time() {
 
             if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                 local end_12h
-                end_12h=$(format_hour_12h "${end_part}")
-                local current_day_name="${DAY_NAMES[${current_day}]}"
-                echo "${end_12h}|${current_day_name}|true"
+                end_12h=$(format_endpoint_12h "${end_part}") || return 1
+                echo "${end_12h}|${DAY_NAMES[${current_day}]}|true"
                 return 0
             fi
         done
@@ -728,79 +748,33 @@ calculate_restriction_end_time() {
         # Check if current hour is in this range
         if type is_time_in_single_range >/dev/null 2>&1; then
             if is_time_in_single_range "$(printf '%02d00' "${current_hour}")" "${range}" self; then
-                local start_part end_part end_12h
-                start_part="${range%%-*}"
-                end_part="${range##*-}"
-                start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-
-                end_12h=$(format_hour_12h "${end_part}")
-                local current_day_name="${DAY_NAMES[${current_day}]}"
-
-                if range_is_overnight "${start_part}" "${end_part}"; then
-                    local next_day_index=$(( (current_day + 1) % 7 ))
-                    local next_day_name="${DAY_NAMES[${next_day_index}]}"
-                    echo "${end_12h}|${next_day_name}|true"
-                else
-                    echo "${end_12h}|${current_day_name}|false"
-                fi
+                _restriction_end_info "${range}" "${current_day}" || return 1
+                return 0
+            fi
+        elif type is_restricted_time >/dev/null 2>&1; then
+            # Fallback: use minute-aware restricted check when available
+            if is_restricted_time "$(printf '%02d00' "${current_hour}")" "${range}" self; then
+                _restriction_end_info "${range}" "${current_day}" || return 1
                 return 0
             fi
         else
-            # Fallback: use minute-aware restricted check when available
-            if type is_restricted_time >/dev/null 2>&1; then
-                local current_time_hhmm
-                current_time_hhmm=$(printf "%02d00" "${current_hour}")
-                if is_restricted_time "${current_time_hhmm}" "${range}" self; then
-                    local start_part end_part end_12h
-                    start_part="${range%%-*}"
-                    end_part="${range##*-}"
-                    start_part=$(echo "${start_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                    end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                    end_12h=$(format_hour_12h "${end_part}")
-                    local current_day_name="${DAY_NAMES[${current_day}]}"
-                    if range_is_overnight "${start_part}" "${end_part}"; then
-                        local next_day_index=$(( (current_day + 1) % 7 ))
-                        local next_day_name="${DAY_NAMES[${next_day_index}]}"
-                        echo "${end_12h}|${next_day_name}|true"
-                    else
-                        echo "${end_12h}|${current_day_name}|false"
-                    fi
-                    return 0
-                fi
-            else
             # Legacy integer-hour fallback
-            local start_hour end_hour
+            local start_hour end_hour in_range=false
             start_hour=$(echo "${range}" | cut -d'-' -f1)
             end_hour=$(echo "${range}" | cut -d'-' -f2)
-            
-            local in_range=false
+
             if [ "${start_hour}" -gt "${end_hour}" ]; then
                 # Overnight range
                 if [ "${current_hour}" -ge "${start_hour}" ]; then
                     in_range=true
                 fi
-            else
-                # Normal range
-                if [ "${current_hour}" -ge "${start_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
-                    in_range=true
-                fi
+            elif [ "${current_hour}" -ge "${start_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+                in_range=true
             fi
-            
+
             if [ "${in_range}" = "true" ]; then
-                local end_12h
-                end_12h=$(format_hour_12h "${end_hour}")
-                local current_day_name="${DAY_NAMES[${current_day}]}"
-                
-                if [ "${start_hour}" -gt "${end_hour}" ]; then
-                    local next_day_index=$(( (current_day + 1) % 7 ))
-                    local next_day_name="${DAY_NAMES[${next_day_index}]}"
-                    echo "${end_12h}|${next_day_name}|true"
-                else
-                    echo "${end_12h}|${current_day_name}|false"
-                fi
+                _restriction_end_info "${range}" "${current_day}" || return 1
                 return 0
-            fi
             fi
         fi
     done

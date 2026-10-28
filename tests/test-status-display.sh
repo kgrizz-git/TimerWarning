@@ -89,6 +89,34 @@ else
     pass=$((pass + 1))
 fi
 
+assert_equals() {
+    local label="$1"
+    local expected="$2"
+    local actual="$3"
+    if [ "${actual}" = "${expected}" ]; then
+        echo "PASS: ${label}"
+        pass=$((pass + 1))
+    else
+        echo "FAIL: ${label} (expected '${expected}', got '${actual}')"
+        fail=$((fail + 1))
+    fi
+}
+
+# format_hour_12h in this module takes "HH[:MM]". 24:00 is midnight at the end
+# of the day, so it must read as AM, not noon.
+assert_equals "format_hour_12h midnight" "12:00 AM" "$(format_hour_12h 0)"
+assert_equals "format_hour_12h 5:30" "5:30 AM" "$(format_hour_12h 05:30)"
+assert_equals "format_hour_12h noon" "12:00 PM" "$(format_hour_12h 12)"
+assert_equals "format_hour_12h 4 PM" "4:00 PM" "$(format_hour_12h 16:00)"
+assert_equals "format_hour_12h 23:59" "11:59 PM" "$(format_hour_12h 23:59)"
+assert_equals "format_hour_12h 24:00 is midnight" "12:00 AM" "$(format_hour_12h 24:00)"
+assert_equals "format_hour_12h 24 is midnight" "12:00 AM" "$(format_hour_12h 24)"
+assert_equals "format_hour_12h leaves a non-numeric value alone" "soon" "$(format_hour_12h soon)"
+assert_equals "format_range_human range ending at 24:00 is not overnight" \
+    "4:00 PM → 12:00 AM" "$(format_range_human "16:00-24:00" Monday)"
+assert_equals "format_range_human overnight range" \
+    "10:00 PM → 6:00 AM (overnight)" "$(format_range_human "22:00-06:00" Monday)"
+
 echo ""
 echo "Results: ${pass} passed, ${fail} failed"
 [ "${fail}" -eq 0 ]

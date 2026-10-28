@@ -52,6 +52,7 @@ tier_a:
     - test-popup-size-config.sh
     - test-config-safety.sh
     - test-time-calculations.sh
+    - test-config-locked-message.sh
     - test-scheduler-platform.sh
     - test-resolution-detection-stubbed.sh
     - test-atomic-write.sh

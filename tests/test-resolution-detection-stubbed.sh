@@ -85,9 +85,11 @@ unstub_all
 export WAYLAND_DISPLAY="wayland-0"
 stub wlr-randr '[{"width": 1600, "height": 900}]'
 check "a Wayland session with WAYLAND_DISPLAY set" "1600 900" "$(detect)"
-# Known gap, tracked in dev-docs/TO_DO.md: with XDG_SESSION_TYPE unset,
-# WAYLAND_DISPLAY alone does not select Wayland detection, because
-# `A || B && C` evaluates as `(A || B) && C`. This file does not assert that.
+unset XDG_SESSION_TYPE
+check "WAYLAND_DISPLAY alone selects Wayland detection" "1600 900" "$(detect)"
+export XDG_SESSION_TYPE="tty"
+check "WAYLAND_DISPLAY wins over a tty session type" "1600 900" "$(detect)"
+unset XDG_SESSION_TYPE
 stub wlr-randr '[{"width": 100, "height": 100}]'
 detect >/dev/null; check "no Wayland tool gives a usable size" "1" "$?"
 unset WAYLAND_DISPLAY XDG_SESSION_TYPE

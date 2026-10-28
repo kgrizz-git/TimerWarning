@@ -28,7 +28,7 @@ _configure_ui_errors_ensure_deps() {
         # shellcheck disable=SC1091
         [ -f "${_dir}/time-parsing.sh" ] && source "${_dir}/time-parsing.sh"
     fi
-    if ! type format_hour_12h >/dev/null 2>&1 || ! type format_ranges_human >/dev/null 2>&1; then
+    if ! type format_hour_12h >/dev/null 2>&1 || ! type format_endpoint_12h >/dev/null 2>&1 || ! type format_ranges_human >/dev/null 2>&1; then
         local _dir
         _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
         # shellcheck disable=SC1091
@@ -439,7 +439,7 @@ show_config_locked_error() {
                 end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                 if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local end_12h
-                    end_12h=$(format_hour_12h "${end_part}")
+                    end_12h=$(format_endpoint_12h "${end_part}") || continue
                     lock_end="${end_12h}|${day_name}|true"
                     break
                 fi
@@ -526,7 +526,7 @@ show_config_locked_error() {
                 end_part=$(echo "${end_part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                 if range_overnight_tail_active_for_hour "${current_hour}" "${start_part}" "${end_part}"; then
                     local end_12h
-                    end_12h=$(format_hour_12h "${end_part}")
+                    end_12h=$(format_endpoint_12h "${end_part}") || continue
                     end_info="${end_12h}|${day_name}|true"
                     break
                 fi
