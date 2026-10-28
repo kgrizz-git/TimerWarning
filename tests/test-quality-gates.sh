@@ -71,6 +71,9 @@ expect_rc "a closing brace inside a heredoc does not end the function" 1 bash -c
 expect_rc "a heredoc delimiter with a hyphen is matched in full" 1 bash -c "(echo 'n() {'; echo '  cat <<END-OF-TEXT'; echo '}'; echo 'END-OF-TEXT'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "a quoted << before a real heredoc on one line still measures the function" 1 bash -c "(echo 'p() {'; echo '  echo \"x <<B\"; cat <<EOF'; echo '}'; echo 'EOF'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "two heredocs on one line are both skipped" 1 bash -c "(echo 'q() {'; echo '  cat <<A <<B'; echo '}'; echo 'A'; echo '}'; echo 'B'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
+expect_rc "<<- ends on a tab-indented delimiter" 1 bash -c "(echo 'r() {'; echo '  cat <<-EOF'; printf '\\tEOF\\n'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
+expect_rc "plain << does not end on an indented delimiter" 0 bash -c "(echo 's() {'; echo '  cat <<EOF'; echo '  EOF'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
+expect_rc "<< inside (( )) is arithmetic, not a heredoc" 1 bash -c "(echo 't() {'; echo '  (( a = b << c ))'; yes ':' | head -n 600; echo '}') | '${COMPLEXITY}' --stdin lib/x.sh"
 expect_rc "current tree passes complexity" 0 "${COMPLEXITY}"
 
 echo ""

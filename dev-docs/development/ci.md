@@ -17,7 +17,7 @@ Triggers: push and pull_request to `main` / `master`.
 # Match static-analysis job (CI=true makes missing tools fail, as in CI)
 ./scripts/run-security-scan.sh --ci
 pip install -r requirements-dev.txt coverage==7.15.0   # plus python3-tk and xvfb on Linux
-COVERAGE_FLOOR=display ./scripts/check-python-coverage.sh   # under xvfb-run on a headless machine
+COVERAGE_FLOOR=display xvfb-run -a ./scripts/check-python-coverage.sh   # Linux; on macOS drop xvfb-run
 CI=true ./scripts/check-quality.sh
 ./scripts/check-shell-coverage.sh   # runs Tier-A under xtrace; resource-heavy
 ./scripts/check-doc-drift.sh

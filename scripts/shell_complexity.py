@@ -32,7 +32,15 @@ CLOSERS = {"fi", "done", "esac"}
 SEGMENT_RE = re.compile(r"&&|\|\||[;|&(){}\n]")
 # `<<` or `<<-` (not `<<<`), then a delimiter that starts with a letter or underscore and runs to
 # whitespace, a quote, or an operator.
-HEREDOC_AT = re.compile(r"(?<!<)<<(?!<)-?\s*['\"]?([A-Za-z_][^\s'\"<>|&;()]*)")
+HEREDOC_AT = re.compile(r"(?<!<)<<(?!<)(-?)\s*['\"]?([A-Za-z_][^\s'\"<>|&;()]*)")
+
+
+class ScanState:
+    """What carries over between lines: an open quote and `(( ))` nesting."""
+
+    def __init__(self) -> None:
+        self.quote: str | None = None
+        self.arith = 0
 
 
 def skip_in_string(raw: str, k: int, quote: str) -> tuple[int, str | None]:
@@ -44,51 +52,81 @@ def skip_in_string(raw: str, k: int, quote: str) -> tuple[int, str | None]:
     return k + 1, quote
 
 
-def blank_line(raw: str, quote: str | None) -> tuple[str, str | None, list[str]]:
+def arith_width(raw: str, k: int, state: ScanState) -> int:
+    """Track `((` and `))`. Return how many characters the marker takes, or 0."""
+    if raw.startswith("((", k):
+        state.arith += 1
+        return 2
+    if state.arith and raw.startswith("))", k):
+        state.arith -= 1
+        return 2
+    return 0
+
+
+def heredoc_at(raw: str, k: int, state: ScanState) -> tuple[str, bool] | None:
+    """Return (delimiter, strip_tabs) for a heredoc operator at `k`, not inside `(( ))`."""
+    if raw[k] != "<" or state.arith:
+        return None
+    marker = HEREDOC_AT.match(raw, k)
+    return (marker.group(2), marker.group(1) == "-") if marker else None
+
+
+def blank_line(raw: str, state: ScanState) -> tuple[str, list[tuple[str, bool]]]:
     """Drop quoted text and a trailing comment.
 
-    Return (line, quote still open, heredoc delimiters opened outside quotes).
+    Return (line, heredoc delimiters opened on it outside quotes).
     """
     kept: list[str] = []
-    delimiters: list[str] = []
+    delimiters: list[tuple[str, bool]] = []
     prev = " "
     k = 0
     while k < len(raw):
-        if quote:
-            k, quote = skip_in_string(raw, k, quote)
+        if state.quote:
+            k, state.quote = skip_in_string(raw, k, state.quote)
             continue
         ch = raw[k]
-        if ch == "\\":
+        if ch == "\\" or (ch == "#" and prev in " \t;|&("):
+            if ch == "#":
+                break
             k += 2
             prev = "x"
             continue
-        if ch == "#" and prev in " \t;|&(":
-            break
-        if ch == "<" and (marker := HEREDOC_AT.match(raw, k)):
-            delimiters.append(marker.group(1))
+        width = arith_width(raw, k, state)
+        if width:
+            kept.append(raw[k : k + width])
+            k += width
+            prev = ")"
+            continue
+        found = heredoc_at(raw, k, state)
+        if found:
+            delimiters.append(found)
         if ch in "'\"":
-            quote = ch
+            state.quote = ch
         else:
             kept.append(ch)
         prev = ch
         k += 1
-    return "".join(kept), quote, delimiters
+    return "".join(kept), delimiters
+
+
+def ends_heredoc(raw: str, delimiter: str, strip_tabs: bool) -> bool:
+    """A plain `<<` ends on the exact delimiter line; `<<-` also ignores leading tabs."""
+    return (raw.lstrip("\t") if strip_tabs else raw) == delimiter
 
 
 def sanitize(lines: list[str]) -> list[str]:
     """Blank quoted strings, comments and heredoc bodies; keep the line count."""
     out: list[str] = []
-    quote: str | None = None
-    pending: list[str] = []  # heredoc delimiters whose bodies are still to come, in order
+    state = ScanState()
+    pending: list[tuple[str, bool]] = []  # heredoc bodies still to come, in order
     for raw in lines:
         if pending:
-            if raw.strip() == pending[0]:
+            if ends_heredoc(raw, *pending[0]):
                 pending.pop(0)
             out.append("")
             continue
-        line, quote, delimiters = blank_line(raw, quote)
-        if quote is None:
-            pending.extend(delimiters)
+        line, delimiters = blank_line(raw, state)
+        pending.extend(delimiters)
         out.append(line)
     return out
 
