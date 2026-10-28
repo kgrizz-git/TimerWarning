@@ -71,6 +71,17 @@ def heredoc_at(raw: str, k: int, state: ScanState) -> tuple[str, bool] | None:
     return (marker.group(2), marker.group(1) == "-") if marker else None
 
 
+def scan_operator(raw: str, k: int, state: ScanState, delimiters: list[tuple[str, bool]]) -> int:
+    """Handle `((`/`))` and heredoc operators at `k`. Return characters to consume as-is, or 0."""
+    width = arith_width(raw, k, state)
+    if width:
+        return width
+    found = heredoc_at(raw, k, state)
+    if found:
+        delimiters.append(found)
+    return 0
+
+
 def blank_line(raw: str, state: ScanState) -> tuple[str, list[tuple[str, bool]]]:
     """Drop quoted text and a trailing comment.
 
@@ -85,21 +96,18 @@ def blank_line(raw: str, state: ScanState) -> tuple[str, list[tuple[str, bool]]]
             k, state.quote = skip_in_string(raw, k, state.quote)
             continue
         ch = raw[k]
-        if ch == "\\" or (ch == "#" and prev in " \t;|&("):
-            if ch == "#":
-                break
+        if ch == "#" and prev in " \t;|&(":
+            break
+        if ch == "\\":
             k += 2
             prev = "x"
             continue
-        width = arith_width(raw, k, state)
+        width = scan_operator(raw, k, state, delimiters)
         if width:
             kept.append(raw[k : k + width])
             k += width
             prev = ")"
             continue
-        found = heredoc_at(raw, k, state)
-        if found:
-            delimiters.append(found)
         if ch in "'\"":
             state.quote = ch
         else:
