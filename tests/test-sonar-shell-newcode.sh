@@ -53,8 +53,9 @@ run_check() {
 }
 
 commit_all() {
+    local message="$1"
     git_in_repo add -A
-    git_in_repo commit -q -m "$1"
+    git_in_repo commit -q -m "${message}"
 }
 
 # The base file has two old `[ ]` tests that must never be reported.

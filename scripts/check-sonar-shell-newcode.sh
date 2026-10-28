@@ -52,7 +52,8 @@ trap 'rm -rf "${work}"' EXIT
 
 # Added line numbers of one file since the merge base, one per line.
 added_lines() {
-    git diff -U0 "${base_sha}" -- "$1" | awk '
+    local file="$1"
+    git diff -U0 "${base_sha}" -- "${file}" | awk '
         /^@@/ {
             split($3, range, ",")
             start = substr(range[1], 2) + 0
@@ -64,7 +65,8 @@ added_lines() {
 # Text of the lines the diff removed, without indentation. An added line with
 # the same text is a moved or re-indented line, which Sonar treats as old code.
 removed_text() {
-    git diff -U0 "${base_sha}" -- "$1" | grep -E '^-' | grep -vE '^--- ' | sed -E 's/^-[[:space:]]*//' || true
+    local file="$1"
+    git diff -U0 "${base_sha}" -- "${file}" | grep -E '^-' | grep -vE '^--- ' | sed -E 's/^-[[:space:]]*//' || true
 }
 
 # Changed or new shell files: tracked changes first, then untracked files.

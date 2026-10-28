@@ -25,7 +25,6 @@ import json
 import subprocess
 import sys
 import time
-import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any
@@ -120,7 +119,7 @@ def main(argv: list[str]) -> int:
             return 2
         analyzed = analyzed_commit(pr)
         issues = fetch_issues(pr)
-    except (urllib.error.URLError, OSError, ValueError) as exc:
+    except (OSError, ValueError) as exc:
         print(f"sonarcloud: could not read the API: {exc}", file=sys.stderr)
         return 2
 
