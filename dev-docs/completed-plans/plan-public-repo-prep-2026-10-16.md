@@ -258,9 +258,10 @@ changes or forbidden reachable material, reproducible private audit record.
    in `LICENSE`). `git clone --depth 1 https://github.com/kgrizz-git/TimerWarning.git`
    succeeded, and `git rev-parse HEAD` in that clone was
    `a664b8e4a372f23489da24172616c55772691cff`.
-7. Archive this plan under `dev-docs/completed-plans/` after final status and
-   any residual work are recorded. Keep source `LinuxTimerWarning` private
-   unless separately directed.
+7. [x] This plan was archived under `dev-docs/completed-plans/` on 2026-10-28.
+   The residual work is in `dev-docs/TO_DO.md`: require the Security workflow
+   checks on `main`, the install/status/help string check, and donation removal.
+   Keep source `LinuxTimerWarning` private unless separately directed.
 
 ## Verification and delivery gates
 
@@ -270,7 +271,7 @@ changes or forbidden reachable material, reproducible private audit record.
 | Phases 1–3 | `./scripts/check-doc-drift.sh --strict`; `./scripts/check-stale-plans.sh --strict`; license/link/donation/branding checks |
 | Shell or entrypoint changes | Targeted regressions, temp-HOME `CI_HEADLESS=1 ./scripts/run-tests.sh --tier a`, and `./scripts/run-security-scan.sh --ci`; normal hooks intact |
 | Sanitized export | All preceding checks plus reachable-history privacy scan, `git fsck`, source/export comparison |
-| Public release | Destination is public. `Mainrules1` protects `main`. `git clone --depth 1` of the public URL succeeded at `a664b8e`, and the GitHub description is set. Remaining: require the Security workflow checks, then archive this plan |
+| Public release | Destination is public. `Mainrules1` protects `main`. `git clone --depth 1` of the public URL succeeded at `a664b8e`, and the GitHub description is set. Remaining: require the Security workflow checks on `main` (open, tracked in `dev-docs/TO_DO.md`). This plan was archived 2026-10-28 |
 
 Follow the operational rules in AGENTS: never unbounded configure menus; timeout,
 controlled stdin, and bounded output are all required if a menu test is necessary.
@@ -281,7 +282,7 @@ CI-green, and merged states separately. Branch cleanup is not release completion
 
 **Next action:** `kgrizz-git/TimerWarning` is already public. Phase 5 step 6 is
 done: `git clone --depth 1` of the public URL succeeded at `a664b8e`, and the
-GitHub description is set. Remaining Phase 5 work is to require the Security
-workflow checks on `main`, then archive this plan. PayPal removal stays
-deferred. Do not rewrite this history again, and do not change the private
+GitHub description is set. This plan is archived. The one remaining Phase 5 item
+is to require the Security workflow checks on `main`, which `dev-docs/TO_DO.md`
+tracks. PayPal removal stays deferred. Do not rewrite this history again, and do not change the private
 source repository's history.

@@ -82,7 +82,8 @@ while IFS= read -r file; do
         added_lines "${file}" > "${work}/added"
         removed_text "${file}" > "${work}/removed"
     else
-        seq 1 "$(wc -l < "${file}")" > "${work}/added"
+        # NR counts records, so a last line with no trailing newline is included.
+        awk '{ print NR }' "${file}" > "${work}/added"
         : > "${work}/removed"
     fi
     [[ -s "${work}/added" ]] || continue

@@ -121,6 +121,14 @@ git_in_repo checkout -q -b feature
 printf '#!/bin/bash\nif [ -n "$1" ]; then echo x; fi\n' > "${REPO}/new.sh"
 check "an untracked file is reported" "1|new.sh:2" "$(run_check main)"
 
+echo "=== untracked file without a trailing newline ==="
+new_repo; write_base; commit_all base
+git_in_repo checkout -q -b feature
+printf '#!/bin/bash\nif [ -n "$1" ]; then echo x; fi' > "${REPO}/no-newline.sh"
+check "the last line is counted" "1|no-newline.sh:2" "$(run_check main)"
+printf '[ -n "$1" ] && echo x' > "${REPO}/one-line.sh"
+check "a single line with no newline is counted" "1|no-newline.sh:2 one-line.sh:1" "$(run_check main)"
+
 echo "=== other files are ignored ==="
 new_repo; write_base; commit_all base
 git_in_repo checkout -q -b feature

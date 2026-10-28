@@ -22,7 +22,7 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 - [x] **Linux popup watchdog (code, 2026-05-30)** — `lib/popup-display-linux.sh` uses `popup_compute_watchdog_seconds` + `popup_start_pid_file_watchdog`. Unit tests: `tests/test-popup-safety-linux.sh` (Tier-A on Linux CI, 2026-06-12 harness Phase 7).
 - [ ] **Linux popup watchdog (integration / display host)** — Optional follow-ups on a Linux machine with DISPLAY:
   - [x] Tier-A unit tests on `ubuntu-latest` CI (`test-popup-safety-linux.sh` via `./scripts/run-tests.sh --tier a`)
-  - [ ] `bash tests/test-config-locking.sh` and `bash tests/test-uninstall-lock-hours.sh` on GNU stat host (Tier-B; portable helpers exist)
+  - [x] `bash tests/test-config-locking.sh` and `bash tests/test-uninstall-lock-hours.sh` on a GNU stat host. Both are Tier-A now and pass on `ubuntu-latest` CI (2026-10-28). They need a non-root user, because they assert a locked directory is not writable.
   - [ ] `bash tests/test-popup.sh` with yad/zenity/kdialog available
   - [ ] Add `tests/test-popup-safety-linux-integration.sh` — wedge dialog, assert hard kill within cap (recommended)
   - [ ] Manual: `POPUP_AUTO_CLOSE=false` + stuck dialog → must terminate within `POPUP_ABSOLUTE_MAX_SECONDS`
@@ -90,4 +90,4 @@ Track detail in [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#mostly-imp
 
 **Plans index:** [Master plan](plans/master/linux-warning-system-plan.md) · [Active plans](plans/) · [Completed plans](completed-plans/)
 
-**Last updated:** 2026-10-25 (publication Phase 3 done: stubs removed, completed plans archived, smoke items collected; PayPal removal and public rename deferred)
+**Last updated:** 2026-10-28 (public repository plan archived; coverage tests added and 19 Tier-B scripts moved to Tier-A; PayPal removal deferred)

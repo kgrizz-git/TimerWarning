@@ -14,8 +14,11 @@ Usage:
     python3 scripts/sonarcloud_pr_issues.py            # PR of the current branch
     python3 scripts/sonarcloud_pr_issues.py 3 --wait 180
 
-Exit status: 0 no new issues, 1 new issues, 2 the analysis is for another commit
-or the PR/API could not be read.
+Exit status:
+    0  no new issues, and the analysis is for the local HEAD
+    1  new issues, even when the analysis is for another commit
+    2  no new issues but the analysis is for another commit, or the PR, the local
+       HEAD (with --wait), or the API could not be read
 """
 
 from __future__ import annotations
@@ -113,8 +116,12 @@ def main(argv: list[str]) -> int:
         return 2
     head = run_text(["git", "rev-parse", "HEAD"])
 
+    if args.wait > 0 and not head:
+        print("sonarcloud: --wait needs the local HEAD commit, but git did not return one.", file=sys.stderr)
+        return 2
+
     try:
-        if args.wait > 0 and head and not wait_for_commit(pr, head, args.wait):
+        if args.wait > 0 and not wait_for_commit(pr, head, args.wait):
             print(f"sonarcloud: PR #{pr} was not analyzed at {head[:7]} within {args.wait}s.", file=sys.stderr)
             return 2
         analyzed = analyzed_commit(pr)

@@ -112,6 +112,15 @@ assert_equals "format_hour_12h 23:59" "11:59 PM" "$(format_hour_12h 23:59)"
 assert_equals "format_hour_12h 24:00 is midnight" "12:00 AM" "$(format_hour_12h 24:00)"
 assert_equals "format_hour_12h 24 is midnight" "12:00 AM" "$(format_hour_12h 24)"
 assert_equals "format_hour_12h leaves a non-numeric value alone" "soon" "$(format_hour_12h soon)"
+
+# Zero-padded 08 and 09 are decimal, not invalid octal. stderr must stay empty.
+assert_equals "format_hour_12h 08:00" "8:00 AM" "$(format_hour_12h 08:00)"
+assert_equals "format_hour_12h 09" "9:00 AM" "$(format_hour_12h 09)"
+assert_equals "format_hour_12h minute 08" "7:08 AM" "$(format_hour_12h 07:08)"
+assert_equals "format_hour_12h minute 09 in the afternoon" "1:09 PM" "$(format_hour_12h 13:09)"
+assert_equals "format_hour_12h 08:00 writes nothing to stderr" "" "$(format_hour_12h 08:00 2>&1 >/dev/null)"
+assert_equals "format_hour_12h 09 writes nothing to stderr" "" "$(format_hour_12h 09 2>&1 >/dev/null)"
+assert_equals "format_hour_12h 07:08 writes nothing to stderr" "" "$(format_hour_12h 07:08 2>&1 >/dev/null)"
 assert_equals "format_range_human range ending at 24:00 is not overnight" \
     "4:00 PM → 12:00 AM" "$(format_range_human "16:00-24:00" Monday)"
 assert_equals "format_range_human overnight range" \

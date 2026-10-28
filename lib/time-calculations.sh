@@ -767,17 +767,18 @@ calculate_restriction_end_time() {
                 return 0
             fi
         else
-            # Legacy integer-hour fallback
-            local start_hour end_hour in_range=false
-            start_hour=$(echo "${range}" | cut -d'-' -f1)
-            end_hour=$(echo "${range}" | cut -d'-' -f2)
+            # Legacy integer-hour fallback. 10# keeps "08" and "09" out of octal.
+            local start_hour end_hour in_range=false now_hour
+            start_hour=$((10#$(echo "${range}" | cut -d'-' -f1)))
+            end_hour=$((10#$(echo "${range}" | cut -d'-' -f2)))
+            now_hour=$((10#${current_hour}))
 
-            if [ "${start_hour}" -gt "${end_hour}" ]; then
+            if [[ "${start_hour}" -gt "${end_hour}" ]]; then
                 # Overnight range
-                if [ "${current_hour}" -ge "${start_hour}" ]; then
+                if [[ "${now_hour}" -ge "${start_hour}" ]]; then
                     in_range=true
                 fi
-            elif [[ "${current_hour}" -ge "${start_hour}" && "${current_hour}" -lt "${end_hour}" ]]; then
+            elif [[ "${now_hour}" -ge "${start_hour}" && "${now_hour}" -lt "${end_hour}" ]]; then
                 in_range=true
             fi
 

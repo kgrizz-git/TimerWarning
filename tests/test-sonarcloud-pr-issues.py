@@ -176,6 +176,25 @@ class MainTests(unittest.TestCase):
         wait.assert_called_once_with("3", HEAD, 30)
         self.assertIn("not analyzed at e21e272", err.getvalue())
 
+    def test_wait_without_a_local_head_exits_two_and_never_polls(self):
+        err = io.StringIO()
+        with mock.patch.object(sc, "run_text", return_value=""), \
+                mock.patch.object(sc, "wait_for_commit") as wait, \
+                mock.patch.object(sc, "analyzed_commit") as analyzed, \
+                redirect_stdout(io.StringIO()), redirect_stderr(err):
+            code = sc.main(["3", "--wait", "30"])
+        self.assertEqual(code, 2)
+        wait.assert_not_called()
+        analyzed.assert_not_called()
+        self.assertIn("needs the local HEAD", err.getvalue())
+
+    def test_no_head_without_wait_still_reports(self):
+        with mock.patch.object(sc, "run_text", return_value=""), \
+                mock.patch.object(sc, "analyzed_commit", return_value=HEAD), \
+                mock.patch.object(sc, "fetch_issues", return_value=[]), \
+                redirect_stdout(io.StringIO()):
+            self.assertEqual(sc.main(["3"]), 0)
+
     def test_api_errors_exit_two(self):
         err = io.StringIO()
         with mock.patch.object(sc, "run_text", return_value=HEAD), \

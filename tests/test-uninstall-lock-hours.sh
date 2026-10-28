@@ -16,8 +16,9 @@
 #   ./tests/test-uninstall-lock-hours.sh
 #
 # Notes:
-#   These tests use the *current* system time (day/hour) and write a config that
-#   makes the lock active "right now", so no clock mocking is needed.
+#   The clock is frozen with a `date` stub (Wednesday 14:20), and the config makes
+#   the lock active at that moment. The library reads the day and hour in separate
+#   `date` calls, so a real clock could cross an hour or midnight between them.
 #   This test does NOT actually run uninstall.sh (which would affect systemd),
 #   but instead tests the restore_config_permissions() function logic.
 
@@ -117,7 +118,22 @@ source "${SCRIPT_DIR}/lib/config-locking.sh"
 # Create config directory structure
 mkdir -p "${CONFIG_DIR}/config"
 
-# Get current time
+# Frozen clock. The library calls `date +%w`, `date +%H`, and `date +%H%M`; every
+# other `date` call (timestamps) goes to the real command.
+FROZEN_DOW=3
+FROZEN_HOUR=14
+FROZEN_MIN=20
+date() {
+  case "$*" in
+    "+%w") echo "${FROZEN_DOW}" ;;
+    "+%H") printf '%02d\n' "${FROZEN_HOUR}" ;;
+    "+%M") printf '%02d\n' "${FROZEN_MIN}" ;;
+    "+%H%M") printf '%02d%02d\n' "${FROZEN_HOUR}" "${FROZEN_MIN}" ;;
+    *) command date "$@" ;;
+  esac
+}
+
+# Get current time (the frozen clock)
 current_day="$(date +%w)"
 current_hour="$(date +%H)"
 current_hour="$((10#${current_hour}))"

@@ -24,14 +24,18 @@ format_hour_12h() {
         return 0
     fi
 
+    # Zero-padded input ("08", "09") is not octal: convert once, then use the numbers.
+    hour=$((10#${hour}))
+    minute=$((10#${minute}))
+
     local ampm="AM"
     # 24:00 is midnight at the end of the day, so it stays AM.
     if [[ "${hour}" -ge 12 && "${hour}" -lt 24 ]]; then
         ampm="PM"
     fi
 
-    local display_hour=$((10#${hour} % 12))
-    if [ "${display_hour}" -eq 0 ]; then
+    local display_hour=$((hour % 12))
+    if [[ "${display_hour}" -eq 0 ]]; then
         display_hour=12
     fi
 

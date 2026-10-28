@@ -230,6 +230,25 @@ check "Sunday looks back at Saturday's tail, with minutes" "6:30 AM|Sunday|true"
 all_days_empty "MONDAY=22-6" "TUESDAY=0-3"
 check "the tail wins over today's own ranges" "6:00 AM|Tuesday|true" "$(calculate_restriction_end_time 1 2 "0-3")"
 
+echo "=== calculate_restriction_end_time: legacy integer-hour fallback ==="
+# With neither time-validation helper loaded the function falls back to plain
+# integer hours. Zero-padded hours ("08", "09") must stay decimal, not octal.
+legacy() {
+    (
+        unset -f is_time_in_single_range is_restricted_time
+        calculate_restriction_end_time "$@" 2>"${TMP_HOME}/legacy.err"
+    )
+}
+all_days_empty
+check "padded same-day range" "5:00 PM|Monday|false" "$(legacy 09 1 "08-17")"
+check "padded range, no stderr" "" "$(cat "${TMP_HOME}/legacy.err")"
+check "padded hour before the range" "" "$(legacy 07 1 "08-17")"
+check "padded overnight range" "6:00 AM|Tuesday|true" "$(legacy 23 1 "22-06")"
+check "padded start and end 09" "9:00 AM|Monday|false" "$(legacy 08 1 "07-09")"
+check "padded range, still no stderr" "" "$(cat "${TMP_HOME}/legacy.err")"
+legacy 12 1 "08-17" >/dev/null
+check "unpadded hour inside a padded range" "0" "$?"
+
 echo ""
 echo "Results: ${_PASS} passed, ${_FAIL} failed"
 [[ "${_FAIL}" -eq 0 ]] || exit 1

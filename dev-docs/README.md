@@ -65,4 +65,4 @@ See [canonical-vs-archive.md](canonical-vs-archive.md) for what is current vs hi
 - **Safety** overrides feature work — read [`docs/SAFETY.md`](../docs/SAFETY.md) before popup, scheduler, or config changes.
 - **Tests** during restricted hours: use a temp `HOME`; see [`.cursor/rules/config-file-edits.mdc`](../.cursor/rules/config-file-edits.mdc).
 
-**Last updated:** 2026-06-12 (Phase 8 contributor guide; harness Phases 1–7 complete)
+**Last updated:** 2026-10-28 (public repository plan archived; test coverage tiers and the SonarCloud shell checks documented)
