@@ -284,7 +284,9 @@ _range_part_to_day_minutes() {
         # shellcheck disable=SC1091
         [ -f "${_tc_dir}/time-parsing.sh" ] && source "${_tc_dir}/time-parsing.sh"
     fi
-    range_endpoint_to_day_minutes "$1" "${2:-start}"
+    local part="$1"
+    local role="${2:-start}"
+    range_endpoint_to_day_minutes "${part}" "${role}"
 }
 
 build_weekly_restricted_intervals() {
@@ -597,18 +599,17 @@ get_next_unrestricted_time() {
             local end="${interval##*:}"
             
             # Check if search_minute is in this interval
-            if [ "${search_minute}" -ge "${start}" ] && [ "${search_minute}" -lt "${end}" ]; then
-                # We're in this interval - the next unrestricted time is at 'end'
-                # Use the earliest end time (in case of overlapping intervals, though they should be merged)
-                if [ "${interval_end}" -lt 0 ] || [ "${end}" -lt "${interval_end}" ]; then
-                    interval_end="${end}"
-                fi
+            # We're in this interval - the next unrestricted time is at 'end'.
+            # Use the earliest end time (in case of overlapping intervals, though they should be merged).
+            if [[ "${search_minute}" -ge "${start}" && "${search_minute}" -lt "${end}" \
+                && ( "${interval_end}" -lt 0 || "${end}" -lt "${interval_end}" ) ]]; then
+                interval_end="${end}"
             fi
         done <<< "${merged_intervals}"
         
         # Jump to the end of the current restricted interval. An interval that
         # ends at the week boundary (Saturday 24:00) jumps to minute 0 of Sunday.
-        if [ "${interval_end}" -gt "${search_minute}" ]; then
+        if [[ "${interval_end}" -gt "${search_minute}" ]]; then
             local jump_distance=$((interval_end - search_minute))
             search_minute=$((interval_end % minutes_per_week))
             search_count=$((search_count + jump_distance))
@@ -648,7 +649,7 @@ _time_calculations_ensure_time_parsing() {
 }
 
 _time_calculations_ensure_configure_core() {
-    if type format_endpoint_12h >/dev/null 2>&1 && [ -n "${DAY_NAMES[*]:-}" ]; then
+    if type format_endpoint_12h >/dev/null 2>&1 && [[ -n "${DAY_NAMES[*]:-}" ]]; then
         return 0
     fi
     local _tc_dir
@@ -667,6 +668,14 @@ _time_calculations_ensure_config() {
     [ -f "${_tc_dir}/config.sh" ] && source "${_tc_dir}/config.sh"
 }
 
+# Print $1 without leading or trailing whitespace.
+_time_calculations_trim() {
+    local value="$1"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s' "${value}"
+}
+
 # Print "END_12H|DAY_NAME|IS_NEXT_DAY" for a range that is active now.
 # The end falls on the next day when the range crosses midnight or ends at 24:00.
 # The end may be "H" or "HH:MM", the forms parse_config and the lock-hour readers return.
@@ -675,11 +684,11 @@ _restriction_end_info() {
     local range="$1"
     local current_day="$2"
     local start_part end_part end_12h end_minutes
-    start_part=$(echo "${range%%-*}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-    end_part=$(echo "${range##*-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    start_part=$(_time_calculations_trim "${range%%-*}")
+    end_part=$(_time_calculations_trim "${range##*-}")
     end_12h=$(format_endpoint_12h "${end_part}") || return 1
 
-    if { end_minutes=$(range_endpoint_to_day_minutes "${end_part}" end) && [ "${end_minutes}" -eq 1440 ]; } \
+    if { end_minutes=$(range_endpoint_to_day_minutes "${end_part}" end) && [[ "${end_minutes}" -eq 1440 ]]; } \
         || range_is_overnight "${start_part}" "${end_part}"; then
         echo "${end_12h}|${DAY_NAMES[$(( (current_day + 1) % 7 ))]}|true"
     else
@@ -743,8 +752,8 @@ calculate_restriction_end_time() {
     
     local IFS=','
     for range in ${restricted_range}; do
-        range=$(echo "${range}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        
+        range=$(_time_calculations_trim "${range}")
+
         # Check if current hour is in this range
         if type is_time_in_single_range >/dev/null 2>&1; then
             if is_time_in_single_range "$(printf '%02d00' "${current_hour}")" "${range}" self; then
@@ -768,7 +777,7 @@ calculate_restriction_end_time() {
                 if [ "${current_hour}" -ge "${start_hour}" ]; then
                     in_range=true
                 fi
-            elif [ "${current_hour}" -ge "${start_hour}" ] && [ "${current_hour}" -lt "${end_hour}" ]; then
+            elif [[ "${current_hour}" -ge "${start_hour}" && "${current_hour}" -lt "${end_hour}" ]]; then
                 in_range=true
             fi
 

@@ -93,7 +93,7 @@ assert_equals() {
     local label="$1"
     local expected="$2"
     local actual="$3"
-    if [ "${actual}" = "${expected}" ]; then
+    if [[ "${actual}" == "${expected}" ]]; then
         echo "PASS: ${label}"
         pass=$((pass + 1))
     else

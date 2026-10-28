@@ -26,7 +26,7 @@ format_hour_12h() {
 
     local ampm="AM"
     # 24:00 is midnight at the end of the day, so it stays AM.
-    if [ "${hour}" -ge 12 ] && [ "${hour}" -lt 24 ]; then
+    if [[ "${hour}" -ge 12 && "${hour}" -lt 24 ]]; then
         ampm="PM"
     fi
 

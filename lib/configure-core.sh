@@ -370,15 +370,15 @@ format_endpoint_12h() {
     else
         return 1
     fi
-    if [ "${minute}" -gt 59 ] || [ "${hour}" -gt 24 ] || { [ "${hour}" -eq 24 ] && [ "${minute}" -ne 0 ]; }; then
+    if [[ "${minute}" -gt 59 || "${hour}" -gt 24 || ( "${hour}" -eq 24 && "${minute}" -ne 0 ) ]]; then
         return 1
     fi
     ampm="AM"
-    if [ "${hour}" -ge 12 ] && [ "${hour}" -lt 24 ]; then
+    if [[ "${hour}" -ge 12 && "${hour}" -lt 24 ]]; then
         ampm="PM"
     fi
     display=$((hour % 12))
-    if [ "${display}" -eq 0 ]; then
+    if [[ "${display}" -eq 0 ]]; then
         display=12
     fi
     printf '%d:%02d %s\n' "${display}" "${minute}" "${ampm}"

@@ -121,12 +121,12 @@ parse_single_time() {
     local minute="$2"
 
     local ampm="am"
-    if [ "${hour}" -ge 12 ] && [ "${hour}" -lt 24 ]; then
+    if [[ "${hour}" -ge 12 && "${hour}" -lt 24 ]]; then
         ampm="pm"
     fi
 
     local h12=$((hour % 12))
-    if [ "${h12}" -eq 0 ]; then
+    if [[ "${h12}" -eq 0 ]]; then
         h12=12
     fi
 
@@ -399,7 +399,7 @@ range_endpoint_to_day_minutes() {
         m=0
     fi
 
-    if [ "${role}" = "end" ] && [ "${h}" -eq 24 ] && [ "${m}" -eq 0 ]; then
+    if [[ "${role}" == "end" && "${h}" -eq 24 && "${m}" -eq 0 ]]; then
         echo $((24 * minutes_per_hour))
         return 0
     fi
