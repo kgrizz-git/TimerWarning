@@ -769,8 +769,14 @@ calculate_restriction_end_time() {
         else
             # Legacy integer-hour fallback. 10# keeps "08" and "09" out of octal.
             local start_hour end_hour in_range=false now_hour
-            start_hour=$((10#$(echo "${range}" | cut -d'-' -f1)))
-            end_hour=$((10#$(echo "${range}" | cut -d'-' -f2)))
+            start_hour=$(echo "${range}" | cut -d'-' -f1)
+            end_hour=$(echo "${range}" | cut -d'-' -f2)
+            # Plain integers only. A non-numeric value would abort the shell inside $(( )).
+            if ! [[ "${start_hour}" =~ ^[0-9]+$ && "${end_hour}" =~ ^[0-9]+$ && "${current_hour}" =~ ^[0-9]+$ ]]; then
+                continue
+            fi
+            start_hour=$((10#${start_hour}))
+            end_hour=$((10#${end_hour}))
             now_hour=$((10#${current_hour}))
 
             if [[ "${start_hour}" -gt "${end_hour}" ]]; then

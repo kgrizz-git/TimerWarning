@@ -248,6 +248,10 @@ check "padded start and end 09" "9:00 AM|Monday|false" "$(legacy 08 1 "07-09")"
 check "padded range, still no stderr" "" "$(cat "${TMP_HOME}/legacy.err")"
 legacy 12 1 "08-17" >/dev/null
 check "unpadded hour inside a padded range" "0" "$?"
+# A value that is not a plain integer is skipped. It must not abort the shell.
+out="$( (unset -f is_time_in_single_range is_restricted_time
+         calculate_restriction_end_time 9 1 "8am-17" 2>/dev/null; echo "rc=$?; reached the next line") )"
+check "a non-numeric legacy range returns 1 and the shell keeps going" "rc=1; reached the next line" "${out}"
 
 echo ""
 echo "Results: ${_PASS} passed, ${_FAIL} failed"

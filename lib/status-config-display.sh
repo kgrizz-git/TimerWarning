@@ -80,15 +80,10 @@ format_range_human() {
 
     if [[ "${shour}" =~ ^[0-9]+$ ]] && [[ "${smin}" =~ ^[0-9]+$ ]] && \
        [[ "${ehour}" =~ ^[0-9]+$ ]] && [[ "${emin}" =~ ^[0-9]+$ ]]; then
-        local shour_p ehour_p smin_p emin_p
-        printf -v shour_p "%02d" "${shour}"
-        printf -v ehour_p "%02d" "${ehour}"
-        printf -v smin_p  "%02d" "${smin}"
-        printf -v emin_p  "%02d" "${emin}"
-
+        # HHMM as a number. 10# keeps "08" and "09" out of octal (printf %02d fails on them).
         local start_total end_total
-        start_total=$((10#${shour_p}${smin_p}))
-        end_total=$((10#${ehour_p}${emin_p}))
+        start_total=$((10#${shour} * 100 + 10#${smin}))
+        end_total=$((10#${ehour} * 100 + 10#${emin}))
 
         if [ "${start_total}" -gt "${end_total}" ]; then
             overnight="true"

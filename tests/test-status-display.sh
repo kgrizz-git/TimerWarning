@@ -123,6 +123,13 @@ assert_equals "format_hour_12h 09 writes nothing to stderr" "" "$(format_hour_12
 assert_equals "format_hour_12h 07:08 writes nothing to stderr" "" "$(format_hour_12h 07:08 2>&1 >/dev/null)"
 assert_equals "format_range_human range ending at 24:00 is not overnight" \
     "4:00 PM → 12:00 AM" "$(format_range_human "16:00-24:00" Monday)"
+# The same zero-padded values reach format_range_human through the overnight check.
+assert_equals "format_range_human overnight range with 08:00" \
+    "8:00 AM → 6:00 AM (overnight)" "$(format_range_human "08:00-06:00" Monday)"
+assert_equals "format_range_human same-day range with minute 09" \
+    "7:09 AM → 10:00 PM" "$(format_range_human "07:09-22:00" Monday)"
+assert_equals "format_range_human 08:00-06:00 writes nothing to stderr" "" \
+    "$(format_range_human "08:00-06:00" Monday 2>&1 >/dev/null)"
 assert_equals "format_range_human overnight range" \
     "10:00 PM → 6:00 AM (overnight)" "$(format_range_human "22:00-06:00" Monday)"
 
