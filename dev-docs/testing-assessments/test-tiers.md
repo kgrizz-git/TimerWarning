@@ -19,6 +19,8 @@ Fast, headless, no live installed config. Default timeout 300s per script.
 | `test-popup-safety-darwin.sh` | Watchdog unit tests — **macOS CI only** |
 | `test-popup-safety-linux.sh` | Watchdog + PID-file kill — **Linux CI only** |
 | `test-configure-partial-lock.sh` | Tighten-only configure wizard |
+| `test-popup-size-config.sh` | Popup size getters, fixed and display-based dimensions, 95% clamp |
+| `test-config-safety.sh` | Default hours, runtime cap inputs, runtime cap gate, wizard default fill |
 | `test-platform-darwin.sh` | Platform detection, plist math — **macOS only** |
 | `test-darwin-configure-gui.sh` | **macOS only**; **requires GUI** — skipped when `CI_HEADLESS=1` |
 

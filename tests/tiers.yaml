@@ -49,6 +49,8 @@ tier_a:
     - test-prune-backups.sh
     - test-prune-dev-docs-archive.sh
     - test-prune-completed-plans.sh
+    - test-popup-size-config.sh
+    - test-config-safety.sh
     - name: test-platform-darwin.sh
       platform: darwin
     - name: test-darwin-configure-gui.sh
