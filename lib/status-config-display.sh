@@ -5,6 +5,33 @@
 # Sourced by status.sh (requires print_header, print_status, COLOR_*, CONFIG_FILE)
 ###############################################################################
 
+# Labels that several status lines repeat.
+_STATUS_DISABLED="Disabled"
+_STATUS_WARNING="warning"
+_STATUS_PAUSE_LABEL="Pause Status"
+
+# Value of KEY= in the config file: first match, whitespace removed. Empty when absent.
+_status_config_value() {
+    local key="$1"
+    grep -E "^[[:space:]]*${key}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]'
+}
+
+# Same, lowercased.
+_status_config_value_lower() {
+    local key="$1"
+    _status_config_value "${key}" | tr '[:upper:]' '[:lower:]'
+}
+
+# Format an epoch timestamp with the given date format. GNU date reads "@TS" with -d,
+# BSD date reads the epoch with -r. Prints "unknown" when neither works.
+_status_format_epoch() {
+    local timestamp="$1"
+    local format="$2"
+    date -d "@${timestamp}" +"${format}" 2>/dev/null \
+        || date -r "${timestamp}" +"${format}" 2>/dev/null \
+        || echo "unknown"
+}
+
 # Format a 24-hour time string "HH[:MM]" to 12-hour format with AM/PM
 format_hour_12h() {
     local time_str="$1"
@@ -24,17 +51,18 @@ format_hour_12h() {
         return 0
     fi
 
-    local display_hour="${hour}"
-    local ampm="AM"
+    # Zero-padded input ("08", "09") is not octal: convert once, then use the numbers.
+    hour=$((10#${hour}))
+    minute=$((10#${minute}))
 
-    if [ "${hour}" -ge 12 ]; then
+    local ampm="AM"
+    # 24:00 is midnight at the end of the day, so it stays AM.
+    if [[ "${hour}" -ge 12 && "${hour}" -lt 24 ]]; then
         ampm="PM"
-        if [ "${hour}" -gt 12 ]; then
-            display_hour=$((hour - 12))
-        fi
     fi
 
-    if [ "${display_hour}" -eq 0 ]; then
+    local display_hour=$((hour % 12))
+    if [[ "${display_hour}" -eq 0 ]]; then
         display_hour=12
     fi
 
@@ -44,8 +72,8 @@ format_hour_12h() {
 # Format a single range to human-readable format
 format_range_human() {
     local range="$1"
-    local day_name="$2"
-    
+    # $2 (the day name) is accepted for callers' sake and not used.
+
     local start_raw end_raw
     start_raw=$(echo "${range}" | cut -d'-' -f1)
     end_raw=$(echo "${range}" | cut -d'-' -f2)
@@ -79,15 +107,10 @@ format_range_human() {
 
     if [[ "${shour}" =~ ^[0-9]+$ ]] && [[ "${smin}" =~ ^[0-9]+$ ]] && \
        [[ "${ehour}" =~ ^[0-9]+$ ]] && [[ "${emin}" =~ ^[0-9]+$ ]]; then
-        local shour_p ehour_p smin_p emin_p
-        printf -v shour_p "%02d" "${shour}"
-        printf -v ehour_p "%02d" "${ehour}"
-        printf -v smin_p  "%02d" "${smin}"
-        printf -v emin_p  "%02d" "${emin}"
-
+        # HHMM as a number. 10# keeps "08" and "09" out of octal (printf %02d fails on them).
         local start_total end_total
-        start_total=$((10#${shour_p}${smin_p}))
-        end_total=$((10#${ehour_p}${emin_p}))
+        start_total=$((10#${shour} * 100 + 10#${smin}))
+        end_total=$((10#${ehour} * 100 + 10#${emin}))
 
         if [ "${start_total}" -gt "${end_total}" ]; then
             overnight="true"
@@ -140,9 +163,9 @@ show_configuration() {
     
     # Read popup display frequency (Enhancement #30); fallback CHECK_INTERVAL for migration
     local popup_freq
-    popup_freq=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    popup_freq=$(_status_config_value POPUP_DISPLAY_FREQUENCY)
     if [ -z "${popup_freq}" ]; then
-        popup_freq=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        popup_freq=$(_status_config_value CHECK_INTERVAL)
     fi
     if [ -z "${popup_freq}" ]; then
         popup_freq="10 (default)"
@@ -153,7 +176,7 @@ show_configuration() {
     
     # Read popup size
     local popup_size
-    popup_size=$(grep -E "^[[:space:]]*POPUP_SIZE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    popup_size=$(_status_config_value POPUP_SIZE)
     
     # Format with dimensions if get_popup_dimensions function is available
     local display_size
@@ -173,7 +196,7 @@ show_configuration() {
         # Check if it's a custom size - if so, read the custom size value
         if [ "${popup_size}" = "custom" ]; then
             local custom_size
-            custom_size=$(grep -E "^[[:space:]]*POPUP_SIZE_CUSTOM=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+            custom_size=$(_status_config_value POPUP_SIZE_CUSTOM)
             if [ -n "${custom_size}" ]; then
                 # Show custom size value (e.g., "95%x95%")
                 if type get_popup_dimensions >/dev/null 2>&1; then
@@ -220,7 +243,7 @@ show_configuration() {
     
     # Read popup position
     local popup_position
-    popup_position=$(grep -E "^[[:space:]]*POPUP_POSITION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    popup_position=$(_status_config_value POPUP_POSITION)
     if [ -z "${popup_position}" ]; then
         popup_position="center (default)"
     fi
@@ -228,11 +251,11 @@ show_configuration() {
     
     # Read minimum display time
     local min_display_time
-    min_display_time=$(grep -E "^[[:space:]]*POPUP_MIN_DISPLAY_TIME=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+    min_display_time=$(_status_config_value POPUP_MIN_DISPLAY_TIME)
     if [ -z "${min_display_time}" ]; then
         min_display_time="30 seconds (default)"
     elif [ "${min_display_time}" -eq 0 ]; then
-        min_display_time="Disabled"
+        min_display_time="${_STATUS_DISABLED}"
     else
         min_display_time="${min_display_time} seconds"
     fi
@@ -240,31 +263,31 @@ show_configuration() {
     
     # Read popup immovable setting
     local popup_immovable
-    popup_immovable=$(grep -E "^[[:space:]]*POPUP_IMMOVABLE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    popup_immovable=$(_status_config_value_lower POPUP_IMMOVABLE)
     if [ -z "${popup_immovable}" ]; then
         popup_immovable="true (default)"
     elif [ "${popup_immovable}" = "true" ] || [ "${popup_immovable}" = "1" ] || [ "${popup_immovable}" = "yes" ]; then
         popup_immovable="Enabled"
     else
-        popup_immovable="Disabled"
+        popup_immovable="${_STATUS_DISABLED}"
     fi
     print_status "Prevent Window Movement" "${popup_immovable}"
     
     # Read configure block enabled setting (Enhancement #19)
     local configure_block_enabled
-    configure_block_enabled=$(grep -E "^[[:space:]]*CONFIGURE_BLOCK_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    configure_block_enabled=$(_status_config_value_lower CONFIGURE_BLOCK_ENABLED)
     if [ -z "${configure_block_enabled}" ]; then
         configure_block_enabled="Disabled (default)"
     elif [ "${configure_block_enabled}" = "true" ] || [ "${configure_block_enabled}" = "1" ] || [ "${configure_block_enabled}" = "yes" ]; then
         configure_block_enabled="Enabled"
     else
-        configure_block_enabled="Disabled"
+        configure_block_enabled="${_STATUS_DISABLED}"
     fi
     print_status "Block Scripts During Restricted Hours" "${configure_block_enabled}"
     
     # Read uninstall protection mode setting (Enhancement #26)
     local uninstall_protection_mode
-    uninstall_protection_mode=$(grep -E "^[[:space:]]*UNINSTALL_PROTECTION_MODE=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    uninstall_protection_mode=$(_status_config_value_lower UNINSTALL_PROTECTION_MODE)
     if [ -z "${uninstall_protection_mode}" ]; then
         uninstall_protection_mode="Difficult Uninstall (default)"
     elif [ "${uninstall_protection_mode}" = "difficult" ]; then
@@ -281,14 +304,14 @@ show_configuration() {
         pause_duration=$(get_pause_duration)
         pause_cooldown_hours=$(get_pause_cooldown_hours)
     else
-        pause_enabled=$(grep -E "^[[:space:]]*PAUSE_ENABLED=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-        pause_duration=$(grep -E "^[[:space:]]*PAUSE_DURATION=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-        pause_cooldown_hours=$(grep -E "^[[:space:]]*PAUSE_COOLDOWN_HOURS=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        pause_enabled=$(_status_config_value_lower PAUSE_ENABLED)
+        pause_duration=$(_status_config_value PAUSE_DURATION)
+        pause_cooldown_hours=$(_status_config_value PAUSE_COOLDOWN_HOURS)
     fi
     if [ -z "${pause_enabled}" ] || [ "${pause_enabled}" = "true" ] || [ "${pause_enabled}" = "1" ] || [ "${pause_enabled}" = "yes" ]; then
         print_status "Pause Feature" "Enabled"
     else
-        print_status "Pause Feature" "Disabled"
+        print_status "Pause Feature" "${_STATUS_DISABLED}"
     fi
     if [ -z "${pause_duration}" ]; then
         pause_duration="5"
@@ -307,13 +330,13 @@ show_configuration() {
             pause_end_timestamp=$(get_pause_end_timestamp)
             if [ -n "${pause_end_timestamp}" ]; then
                 local pause_end_time
-                pause_end_time=$(date -d "@${pause_end_timestamp}" +"%H:%M" 2>/dev/null || date -r "${pause_end_timestamp}" +"%H:%M" 2>/dev/null || echo "unknown")
-                print_status "Pause Status" "Active until ${pause_end_time}" "good"
+                pause_end_time=$(_status_format_epoch "${pause_end_timestamp}" "%H:%M")
+                print_status "${_STATUS_PAUSE_LABEL}" "Active until ${pause_end_time}" "good"
             else
-                print_status "Pause Status" "Active (end time unknown)" "warning"
+                print_status "${_STATUS_PAUSE_LABEL}" "Active (end time unknown)" "${_STATUS_WARNING}"
             fi
         elif can_pause_now; then
-            print_status "Pause Status" "Available" "good"
+            print_status "${_STATUS_PAUSE_LABEL}" "Available" "good"
         elif [ "${pause_enabled}" = "true" ] || [ "${pause_enabled}" = "1" ] || [ "${pause_enabled}" = "yes" ] || [ -z "${pause_enabled}" ]; then
             local next_available_ts next_available_label
             next_available_ts=""
@@ -321,13 +344,13 @@ show_configuration() {
                 next_available_ts=$(get_next_pause_available_timestamp)
             fi
             if [ -n "${next_available_ts}" ]; then
-                next_available_label=$(date -d "@${next_available_ts}" +"%Y-%m-%d %H:%M" 2>/dev/null || date -r "${next_available_ts}" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "unknown")
-                print_status "Pause Status" "Cooldown until ${next_available_label}" "warning"
+                next_available_label=$(_status_format_epoch "${next_available_ts}" "%Y-%m-%d %H:%M")
+                print_status "${_STATUS_PAUSE_LABEL}" "Cooldown until ${next_available_label}" "${_STATUS_WARNING}"
             else
-                print_status "Pause Status" "Cooldown (not available yet)" "warning"
+                print_status "${_STATUS_PAUSE_LABEL}" "Cooldown (not available yet)" "${_STATUS_WARNING}"
             fi
         else
-            print_status "Pause Status" "Disabled" "warning"
+            print_status "${_STATUS_PAUSE_LABEL}" "${_STATUS_DISABLED}" "${_STATUS_WARNING}"
         fi
         
         local last_pause_date last_pause_timestamp
@@ -340,11 +363,11 @@ show_configuration() {
         fi
         if [ -n "${last_pause_timestamp}" ]; then
             local last_pause_time
-            last_pause_time=$(date -d "@${last_pause_timestamp}" +"%Y-%m-%d %H:%M" 2>/dev/null || date -r "${last_pause_timestamp}" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "unknown")
+            last_pause_time=$(_status_format_epoch "${last_pause_timestamp}" "%Y-%m-%d %H:%M")
             print_status "Last Pause Started" "${last_pause_time}"
         fi
     else
-        print_status "Pause Status" "Unable to check (pause-state.sh not available)" "warning"
+        print_status "${_STATUS_PAUSE_LABEL}" "Unable to check (pause-state.sh not available)" "${_STATUS_WARNING}"
     fi
     
     # Get dialog tool configuration (Enhancement #25)
@@ -353,7 +376,7 @@ show_configuration() {
         configured_dialog_tool=$(get_dialog_tool_config)
     else
         # Fallback to manual parsing if function not available
-        configured_dialog_tool=$(grep -E "^[[:space:]]*DIALOG_TOOL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+        configured_dialog_tool=$(_status_config_value_lower DIALOG_TOOL)
         if [ -z "${configured_dialog_tool}" ]; then
             configured_dialog_tool="auto"
         fi
@@ -373,7 +396,7 @@ show_configuration() {
         else
             # Selected tool not installed, will fall back to automatic
             dialog_tool_display="${configured_dialog_tool} (not installed, will use automatic)"
-            dialog_tool_status="warning"
+            dialog_tool_status="${_STATUS_WARNING}"
         fi
     else
         # Use automatic priority system (YAD → Zenity → KDialog)
@@ -470,7 +493,7 @@ show_configuration() {
         local day_name="${day_names[${i}]}"
         local day_var="${day_vars[${i}]}"
         local ranges
-        ranges=$(grep -E "^[[:space:]]*CONFIG_LOCK_HOURS_${day_var}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        ranges=$(_status_config_value CONFIG_LOCK_HOURS_${day_var})
         
         if [ -n "${ranges}" ]; then
             has_lock_hours=true
@@ -497,7 +520,7 @@ show_configuration() {
         local day_name="${day_names[${i}]}"
         local day_var="${day_vars[${i}]}"
         local ranges
-        ranges=$(grep -E "^[[:space:]]*UNINSTALL_LOCK_HOURS_${day_var}=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        ranges=$(_status_config_value UNINSTALL_LOCK_HOURS_${day_var})
         
         if [ -n "${ranges}" ]; then
             has_uninstall_lock_hours=true
@@ -517,8 +540,8 @@ show_configuration() {
     # Check minute precision compatibility (Enhancement 16b); use run interval (Enhancement #30)
     if type check_minute_precision_compatibility >/dev/null 2>&1 && type get_timer_run_interval >/dev/null 2>&1; then
         local popup_freq_val run_interval
-        popup_freq_val=$(grep -E "^[[:space:]]*POPUP_DISPLAY_FREQUENCY=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
-        [ -z "${popup_freq_val}" ] && popup_freq_val=$(grep -E "^[[:space:]]*CHECK_INTERVAL=" "${CONFIG_FILE}" 2>/dev/null | head -n1 | cut -d'=' -f2 | tr -d '[:space:]')
+        popup_freq_val=$(_status_config_value POPUP_DISPLAY_FREQUENCY)
+        [[ -z "${popup_freq_val}" ]] && popup_freq_val=$(_status_config_value CHECK_INTERVAL)
         if [ -n "${popup_freq_val}" ]; then
             run_interval=$(get_timer_run_interval "${popup_freq_val}")
             local config_lines=()

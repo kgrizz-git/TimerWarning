@@ -17,8 +17,10 @@
 #   ./tests/test-config-locking.sh
 #
 # Notes:
-#   These tests use the *current* system time (day/hour) and write a config that
-#   makes the lock active "right now", so no clock mocking is needed.
+#   The clock is frozen with a `date` stub (Wednesday 14:20), and the config makes
+#   the lock active at that moment. The library reads the day and hour in several
+#   separate `date` calls, so a real clock could cross an hour or midnight between
+#   them. The overnight checks move the frozen clock to 03:00 so they always run.
 
 set -euo pipefail
 
@@ -95,6 +97,21 @@ source "${SCRIPT_DIR}/lib/time-parsing.sh"
 source "${SCRIPT_DIR}/lib/time-validation.sh"
 source "${SCRIPT_DIR}/lib/config-locking.sh"
 
+# Frozen clock. The library calls `date +%w`, `date +%H`, and `date +%H%M`; every
+# other `date` call (timestamps) goes to the real command.
+FROZEN_DOW=3
+FROZEN_HOUR=14
+FROZEN_MIN=20
+date() {
+  case "$*" in
+    "+%w") echo "${FROZEN_DOW}" ;;
+    "+%H") printf '%02d\n' "${FROZEN_HOUR}" ;;
+    "+%M") printf '%02d\n' "${FROZEN_MIN}" ;;
+    "+%H%M") printf '%02d%02d\n' "${FROZEN_HOUR}" "${FROZEN_MIN}" ;;
+    *) command date "$@" ;;
+  esac
+}
+
 # config.sh defines CONFIG_DIR but does not create it. Create it here since we run under a temp HOME.
 mkdir -p "${CONFIG_DIR}"
 
@@ -142,7 +159,7 @@ if [ "$(get_config_lock_enabled)" != "false" ]; then
   fail "Expected get_config_lock_enabled to fall back to default on invalid value"
 fi
 
-# Make restrictions cover "right now"
+# Make restrictions cover "right now" (the frozen clock)
 current_day="$(date +%w)"
 current_hour="$(date +%H)"
 current_hour="$((10#${current_hour}))"
@@ -211,21 +228,24 @@ if is_config_lock_active; then
 fi
 
 echo "Checking is_config_lock_active() for overnight ranges..."
-# Test overnight range: previous day 23-6 (11pm to 6am next day)
-# If current hour is between 0-5, we should be in the overnight range from previous day
-if [ "${current_hour}" -ge 0 ] && [ "${current_hour}" -lt 6 ]; then
-  cat > "${config_file}" <<EOF
+# Test overnight range: previous day 23-6 (11pm to 6am next day).
+# At 03:00 the lock comes from the tail of yesterday's range; at 14:20 it does not.
+cat > "${config_file}" <<EOF
 # Test config for Enhancement #18
 CHECK_INTERVAL=10
 CONFIG_LOCK_ENABLED=true
 ${prev_day_name}=23-6
 ${day_name}=
 EOF
-  chmod 600 "${config_file}"
-  
-  if ! is_config_lock_active; then
-    fail "Expected is_config_lock_active to be active during overnight range from previous day"
-  fi
+chmod 600 "${config_file}"
+
+FROZEN_HOUR=3
+if ! is_config_lock_active; then
+  fail "Expected is_config_lock_active to be active during overnight range from previous day"
+fi
+FROZEN_HOUR=14
+if is_config_lock_active; then
+  fail "Expected is_config_lock_active to be inactive in the afternoon after an overnight range ended"
 fi
 
 echo "Checking is_config_lock_active() for multiple ranges per day..."
@@ -238,11 +258,14 @@ ${day_name}=0-5,22-23
 EOF
 chmod 600 "${config_file}"
 
-# Check if current hour is in either range
-if [ "${current_hour}" -ge 0 ] && [ "${current_hour}" -lt 6 ]; then
-  if ! is_config_lock_active; then
-    fail "Expected is_config_lock_active to be active during first range (0-5)"
-  fi
+# 03:00 is in the first range (0-5). 14:20 is between the two ranges.
+FROZEN_HOUR=3
+if ! is_config_lock_active; then
+  fail "Expected is_config_lock_active to be active during first range (0-5)"
+fi
+FROZEN_HOUR=14
+if is_config_lock_active; then
+  fail "Expected is_config_lock_active to be inactive between the two ranges"
 fi
 
 if ! is_restricted_time "2230" "0-5,22-23"; then

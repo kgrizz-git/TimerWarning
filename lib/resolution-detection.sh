@@ -45,7 +45,7 @@ get_display_resolution() {
     if [ -n "${DISPLAY}" ]; then
         # X11 session
         display_env="x11"
-    elif [ -n "${WAYLAND_DISPLAY}" ] || [ -n "${XDG_SESSION_TYPE}" ] && [ "${XDG_SESSION_TYPE}" = "wayland" ]; then
+    elif [[ -n "${WAYLAND_DISPLAY}" || "${XDG_SESSION_TYPE}" == "wayland" ]]; then
         # Wayland session
         display_env="wayland"
     elif pgrep -x gamescope >/dev/null 2>&1; then

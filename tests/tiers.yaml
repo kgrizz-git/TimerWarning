@@ -49,27 +49,20 @@ tier_a:
     - test-prune-backups.sh
     - test-prune-dev-docs-archive.sh
     - test-prune-completed-plans.sh
-    - name: test-platform-darwin.sh
-      platform: darwin
-    - name: test-darwin-configure-gui.sh
-      platform: darwin
-      requires_gui: true
-
-tier_b:
-  description: Temp-HOME / module smokes; optional PR, recommended pre-release
-  scripts:
+    - test-popup-size-config.sh
+    - test-config-safety.sh
+    - test-time-calculations.sh
+    - test-config-locked-message.sh
+    - test-sonar-shell-newcode.sh
+    - test-scheduler-platform.sh
+    - test-resolution-detection-stubbed.sh
     - test-atomic-write.sh
     - test-write-config-override-flags.sh
-    - test-config-locking.sh
     - test-popup-display-source.sh
     - test-status-display.sh
     - test-install-linux-source.sh
     - test-install-license-notice.sh
-    - test-configure-text-mode.sh
-    - test-configure-modular.sh
     - test-modular-refactor.sh
-    - test-configure-blocking.sh
-    - test-configure-gui-split.sh
     - test-lock-hours-phase2.sh
     - test-uninstall-lock-hours.sh
     - test-uninstall-lock-hours-phase2.sh
@@ -81,6 +74,20 @@ tier_b:
     - test-darwin-table-json.sh
     - test-popup-interval-message.sh
     - test-pause-feature.sh
+    - test-config-locking.sh
+    - name: test-platform-darwin.sh
+      platform: darwin
+    - name: test-darwin-configure-gui.sh
+      platform: darwin
+      requires_gui: true
+
+tier_b:
+  description: Temp-HOME / module smokes; optional PR, recommended pre-release
+  scripts:
+    - test-configure-text-mode.sh
+    - test-configure-modular.sh
+    - test-configure-blocking.sh
+    - test-configure-gui-split.sh
 
 tier_c:
   description: Manual, GUI-heavy, or multi-host; document only

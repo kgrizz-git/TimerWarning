@@ -22,7 +22,7 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 - [x] **Linux popup watchdog (code, 2026-05-30)** — `lib/popup-display-linux.sh` uses `popup_compute_watchdog_seconds` + `popup_start_pid_file_watchdog`. Unit tests: `tests/test-popup-safety-linux.sh` (Tier-A on Linux CI, 2026-06-12 harness Phase 7).
 - [ ] **Linux popup watchdog (integration / display host)** — Optional follow-ups on a Linux machine with DISPLAY:
   - [x] Tier-A unit tests on `ubuntu-latest` CI (`test-popup-safety-linux.sh` via `./scripts/run-tests.sh --tier a`)
-  - [ ] `bash tests/test-config-locking.sh` and `bash tests/test-uninstall-lock-hours.sh` on GNU stat host (Tier-B; portable helpers exist)
+  - [x] `bash tests/test-config-locking.sh` and `bash tests/test-uninstall-lock-hours.sh` on a GNU stat host. Both are Tier-A now and pass on `ubuntu-latest` CI (2026-10-28). They need a non-root user, because they assert a locked directory is not writable.
   - [ ] `bash tests/test-popup.sh` with yad/zenity/kdialog available
   - [ ] Add `tests/test-popup-safety-linux-integration.sh` — wedge dialog, assert hard kill within cap (recommended)
   - [ ] Manual: `POPUP_AUTO_CLOSE=false` + stuck dialog → must terminate within `POPUP_ABSOLUTE_MAX_SECONDS`
@@ -37,7 +37,7 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 
 ## Testing (high impact)
 
-- [ ] **Raise line coverage** — Add tests that execute untested `lib/*.py` and `lib/*.sh`, then raise the floors from a new measurement. Current floors: Python 260/826 with a display and 238/826 headless ([python-coverage-baseline.json](../scripts/python-coverage-baseline.json)); shell darwin 2922/18047 and linux 3054/18047 ([shell-coverage-baseline.json](../scripts/shell-coverage-baseline.json)). The configure-dialog UI modules are still unread as code. Do not lower a floor to make a run pass.
+- [ ] **Raise line coverage** — Add tests that execute untested `lib/*.py` and `lib/*.sh`, then raise the floors from a new measurement. Current floors: Python 819/826 with or without a display ([python-coverage-baseline.json](../scripts/python-coverage-baseline.json)); shell darwin 4703/18047 and linux 4800/18047 ([shell-coverage-baseline.json](../scripts/shell-coverage-baseline.json)). The interactive shell modules (`configure-ui*.sh`, `configure-input-*.sh`, `configure-dialogs*.sh`, `configure-display-*.sh`) still have little or no coverage. Do not lower a floor to make a run pass.
 - [ ] **SteamOS Gaming Mode** — Full validation with full-screen games → [STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md), [phase 4 plan](plans/phases/plan-phase-4-testing.md)
   - [x] **2026-10-19 on-device:** popup **displays and stays up** in Gaming Mode (experimental overlay on)
   - [x] **Click-through + magnification (Phase 1 code):** full `:0` root-width gamescope dialogs + atom/geometry logging → [plan](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md)
@@ -49,7 +49,7 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 
 ## Documentation and release
 
-- [ ] **Public repository preparation — next: private staging checks, then an explicit public-visibility decision** — [Publication plan](plans/plan-public-repo-prep-2026-10-16.md). History sanitization and the TimerWarning installation-name commit are in this repository. PayPal removal stays deferred. Do not make the repository public without a separate approval.
+- [x] **Public repository preparation** — `kgrizz-git/TimerWarning` is public (2026-10-26); plan archived 2026-10-28 → [plan](completed-plans/plan-public-repo-prep-2026-10-16.md). Open residue: the install/status/help string check for the public name, and requiring the `security.yml` checks (Static analysis, Tier-A on Ubuntu and macOS) as status checks in the `Mainrules1` ruleset (it requires none today). Donation removal is the deferred item below.
 - [ ] **Donation cleanup — deferred 2026-10-24** — Leave existing PayPal links in place until the owner reopens this. Do not add donation integrations as part of publication preparation. Spec: [#27](enhancements/enhancement-27-paypal-donation-links.md).
 - [ ] **SteamOS locale docs** — User guide section (Nix + manual paths); do not automate `locale-gen` in install.sh → [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#documentation-work)
 
@@ -90,4 +90,4 @@ Track detail in [REMAINING_WORK_SUMMARY.md](REMAINING_WORK_SUMMARY.md#mostly-imp
 
 **Plans index:** [Master plan](plans/master/linux-warning-system-plan.md) · [Active plans](plans/) · [Completed plans](completed-plans/)
 
-**Last updated:** 2026-10-25 (publication Phase 3 done: stubs removed, completed plans archived, smoke items collected; PayPal removal and public rename deferred)
+**Last updated:** 2026-10-28 (public repository plan archived; coverage tests added and 19 Tier-B scripts moved to Tier-A; PayPal removal deferred)

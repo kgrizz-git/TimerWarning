@@ -13,6 +13,7 @@
 # - has_gui()                - Check if GUI is available
 # - minutes_to_oncalendar()  - Convert minutes to systemd OnCalendar format
 # - format_hour_12h()        - Format hour to 12-hour format with AM/PM
+# - format_endpoint_12h()    - Format a range endpoint (H, HH:MM, 24:00) to 12-hour format
 # - get_threshold_warn_description()  - Get human-readable warning threshold description
 # - get_threshold_block_description() - Get human-readable block threshold description
 # - day_num_to_name_upper()  - Convert day number to uppercase day name (for config file)
@@ -353,6 +354,34 @@ format_hour_12h() {
     else
         echo "$((hour - 12)):00 PM"
     fi
+}
+
+# Format a range endpoint as "H:MM AM/PM".
+# Accepts a bare hour ("5", "05") or "H:MM" / "HH:MM", the forms parse_config and
+# the lock-hour readers return. A bare hour prints ":00", so "5" matches
+# format_hour_12h. An end of 24 or 24:00 is midnight and prints "12:00 AM".
+# Prints nothing and returns 1 for anything else.
+format_endpoint_12h() {
+    local part="${1//[[:space:]]/}"
+    local hour minute display ampm
+    if [[ "${part}" =~ ^([0-9]{1,2})(:([0-9]{2}))?$ ]]; then
+        hour=$((10#${BASH_REMATCH[1]}))
+        minute=$((10#${BASH_REMATCH[3]:-0}))
+    else
+        return 1
+    fi
+    if [[ "${minute}" -gt 59 || "${hour}" -gt 24 || ( "${hour}" -eq 24 && "${minute}" -ne 0 ) ]]; then
+        return 1
+    fi
+    ampm="AM"
+    if [[ "${hour}" -ge 12 && "${hour}" -lt 24 ]]; then
+        ampm="PM"
+    fi
+    display=$((hour % 12))
+    if [[ "${display}" -eq 0 ]]; then
+        display=12
+    fi
+    printf '%d:%02d %s\n' "${display}" "${minute}" "${ampm}"
 }
 
 # Get human-readable description of warning threshold

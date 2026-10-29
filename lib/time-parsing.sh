@@ -114,26 +114,23 @@ parse_single_time() {
 }
 
 # Convert 24h to 12h format
-# Parameters: hour (0-23), minute (0-59)
+# Parameters: hour (0-24), minute (0-59)
+# An hour of 24 is midnight at the end of the day, so it prints 12:00am.
 24hour_to_12hour() {
-    local hour="$1"
+    local hour=$((10#$1))
     local minute="$2"
-    
-    local h12="${hour}"
+
     local ampm="am"
-    
-    if [ "$((10#${hour}))" -ge 12 ]; then
+    if [[ "${hour}" -ge 12 && "${hour}" -lt 24 ]]; then
         ampm="pm"
-        if [ "$((10#${hour}))" -gt 12 ]; then
-            h12=$((10#${hour} - 12))
-        fi
     fi
 
-    if [ "$((10#${h12}))" -eq 0 ]; then
+    local h12=$((hour % 12))
+    if [[ "${h12}" -eq 0 ]]; then
         h12=12
     fi
 
-    printf "%d:%02d%s" "$((10#${h12}))" "$((10#${minute}))" "${ampm}"
+    printf "%d:%02d%s" "${h12}" "$((10#${minute}))" "${ampm}"
 }
 
 # Split "hour minute" output from parse_time_token_to_24h_hm (IFS-safe; use instead of read).
@@ -374,15 +371,19 @@ normalize_time_range() {
 
 # Convert one range endpoint (HH or HH:MM) to minutes from midnight (0-1439).
 # Prints minutes on stdout; returns 1 if invalid.
+# $2 is the role, "start" (default) or "end". A range may end at 24 or 24:00,
+# which is midnight at the end of the day, so the "end" role also accepts it and
+# prints 1440. daily-caps.sh reads a 24:00 end the same way.
 range_endpoint_to_day_minutes() {
     local part="$1"
+    local role="${2:-start}"
     local minutes_per_hour="${MINUTES_PER_HOUR:-60}"
+    local h m
 
     part=$(echo "${part}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     [ -z "${part}" ] && return 1
 
     if [[ "${part}" =~ : ]]; then
-        local h m
         h=$(echo "${part}" | cut -d: -f1)
         m=$(echo "${part}" | cut -d: -f2)
         if ! [[ "${h}" =~ ^[0-9]+$ ]] || ! [[ "${m}" =~ ^[0-9]+$ ]]; then
@@ -390,21 +391,22 @@ range_endpoint_to_day_minutes() {
         fi
         h=$((10#${h}))
         m=$((10#${m}))
-        if [ "${h}" -lt 0 ] || [ "${h}" -gt 23 ] || [ "${m}" -lt 0 ] || [ "${m}" -gt 59 ]; then
+    else
+        if ! [[ "${part}" =~ ^[0-9]+$ ]]; then
             return 1
         fi
-        echo $((h * minutes_per_hour + m))
-        return 0
+        h=$((10#${part}))
+        m=0
     fi
 
-    if ! [[ "${part}" =~ ^[0-9]+$ ]]; then
+    if [[ "${role}" == "end" && "${h}" -eq 24 && "${m}" -eq 0 ]]; then
+        echo $((24 * minutes_per_hour))
+        return 0
+    fi
+    if [ "${h}" -lt 0 ] || [ "${h}" -gt 23 ] || [ "${m}" -lt 0 ] || [ "${m}" -gt 59 ]; then
         return 1
     fi
-    local h=$((10#${part}))
-    if [ "${h}" -lt 0 ] || [ "${h}" -gt 23 ]; then
-        return 1
-    fi
-    echo $((h * minutes_per_hour))
+    echo $((h * minutes_per_hour + m))
     return 0
 }
 

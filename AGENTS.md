@@ -95,6 +95,7 @@ We follow [OpenAI harness engineering](https://openai.com/index/harness-engineer
 2. For `lib/` or entrypoint script changes: `./scripts/run-security-scan.sh --ci --with-tests` (or at least `--ci`).
 3. Update [docs/SAFETY.md](docs/SAFETY.md) and/or `dev-docs/` if behavior changed ([versioning guide](dev-docs/development/versioning.md)).
 4. Confirm [docs/SAFETY.md](docs/SAFETY.md) checklist still passes.
+5. Shell findings: local Sonar skips `.sh`. Before a push run `./scripts/check-sonar-shell-newcode.sh`; after it run `python3 scripts/sonarcloud_pr_issues.py --wait 180`.
 
 ## Git hooks (local)
 

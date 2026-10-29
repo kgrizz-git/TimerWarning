@@ -38,7 +38,7 @@ See [canonical-vs-archive.md](canonical-vs-archive.md) for what is current vs hi
 | [`plans/master/`](plans/master/) | [Master implementation plan](plans/master/linux-warning-system-plan.md) |
 | [`plans/phases/`](plans/phases/) | Phase 1–5 checklists, code-quality plan |
 | [`plans/`](plans/) | Active feature plans (in progress) |
-| [Public repository preparation](plans/plan-public-repo-prep-2026-10-16.md) | Sanitized private staging copy. PayPal removal stays deferred. Next: CI and settings review; public visibility needs a separate approval |
+| [Public repository preparation](completed-plans/plan-public-repo-prep-2026-10-16.md) | Complete and archived 2026-10-28. The repository is public. PayPal removal stays deferred |
 | [`completed-plans/plan-harness-engineering-improvements-2026-06-12.md`](completed-plans/plan-harness-engineering-improvements-2026-06-12.md) | **Complete** — Phases 0–8 (archived 2026-10-25) |
 | [`completed-plans/`](completed-plans/) | Finished or superseded implementation plans (archive) |
 
@@ -65,4 +65,4 @@ See [canonical-vs-archive.md](canonical-vs-archive.md) for what is current vs hi
 - **Safety** overrides feature work — read [`docs/SAFETY.md`](../docs/SAFETY.md) before popup, scheduler, or config changes.
 - **Tests** during restricted hours: use a temp `HOME`; see [`.cursor/rules/config-file-edits.mdc`](../.cursor/rules/config-file-edits.mdc).
 
-**Last updated:** 2026-06-12 (Phase 8 contributor guide; harness Phases 1–7 complete)
+**Last updated:** 2026-10-28 (public repository plan archived; test coverage tiers and the SonarCloud shell checks documented)
