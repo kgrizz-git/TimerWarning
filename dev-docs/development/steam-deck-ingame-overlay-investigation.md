@@ -26,6 +26,36 @@ Fix direction if H1 holds: make our dialog the focused app for its lifetime
 root, restored on close). Do not try raise/lower; see the archived click-through
 plan for why that cannot win the tie.
 
+## Findings (2026-10-31)
+
+The failure did not reproduce. H1–H4 are all refuted for the scenes below.
+
+**Setup:** commit `0e3431c`, SteamOS 3.8.28 (build 20260922.1), gamescope 3.16.23.6. The Deck was docked to an external 2560x1440 display. The game was Tyranny, a native Linux title (Steam Linux Runtime soldier, not Proton). Steam ran on `DISPLAY=:0` and the game on `:1`. Each run used the production `sleep-warning.sh` from the checkout with a temporary HOME, `GAMESCOPE_OVERLAY_DEBUG=true`, a `POPUP_ABSOLUTE_MAX_SECONDS` cap, and `timeout --kill-after=2s`. A human watched each run.
+
+| Run | Tool | Settings | Visible | predicted_overlay_wid | Focus displays (mouse/kbd/focus) |
+|-----|------|----------|---------|-----------------------|----------------------------------|
+| Home screen | yad | medium, min 0 | yes | ours | :0 / :0 / :0 |
+| Game paused | yad | medium, min 0 | yes; game input returned | ours | :0 / :0 / :1 |
+| Active play | yad | medium, min 0 | yes | ours | :0 / :0 / :1 |
+| Active play | zenity | medium, min 0 | yes | ours | :0 / :0 / :1 |
+| Active play | yad | installed settings: large, min 90 s, pause on, 4 respawns | yes, through every respawn | ours, every block | :0 / :0 / :1 |
+| Active play | zenity | installed settings and the service PATH, 4 respawns | yes, through every respawn | ours, every block | :0 / :0 / :1 |
+
+- **H1** refuted. In every block ours was the only `STEAM_OVERLAY` window in the census. The full-screen `mangoapp overlay window` on `:0` has no `STEAM_OVERLAY` and did not compete.
+- **H2** refuted as a cause. The game is on `:1` and the focus display stays `:1`, yet the dialog shows.
+- **H3** refuted. Every spawn and respawn logged `readback overlay=1 focus=1`.
+- **H4** refuted. Every run logged `Display environment: gamescope`. The installed timer's own log for 2026-10-29 and 2026-10-31 shows the same on all 43 popups.
+
+Other observations:
+
+- **Tool choice follows PATH.** yad on this Deck comes from Nix (`~/.nix-profile/bin/yad`). The user manager's PATH is `/usr/local/bin:/usr/bin`, so the scheduled service picks zenity (dark theme) and an SSH shell picks yad (light theme).
+- **Focus.** Keyboard and mouse focus move to `:0` while the dialog is up and return to `:1` after it closes. In the last zenity run the observer pressed OK over the running game, and the dialog exited 0 (an auto-close logs 143). The input method was not recorded.
+- **Service drop-in.** The installed drop-in was `mode-desktop.conf` (only `DISPLAY=:0`) while in Gaming Mode. Routing still worked, because the user manager supplies `XDG_CURRENT_DESKTOP=gamescope`.
+- **Likely explanation for the original report.** A separate personal timer on this Deck quit Steam every 10 minutes starting 15 minutes before the warning windows opened. On 2026-10-31 it quit Steam at 01:20:46 and 01:30:46, and the first warning appeared at 01:30:51. So no game was running when the warnings fired. That timer now starts at the same times as the warning windows.
+- **SSH preflight.** It needs `XDG_CURRENT_DESKTOP=gamescope DISPLAY=:0`; without them it reports routing `wayland` (a false blocker).
+
+Still unchecked: handheld (undocked), a Proton title, the Steam overlay or Quick Access Menu open at spawn time, and pressing Pause over a game.
+
 ## Prompt for the agent on the Deck
 
 ```text

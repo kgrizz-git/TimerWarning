@@ -42,7 +42,7 @@ experimental tool coverage, not evidence that all three tools were verified.
 5. **Safety Guardrails (`GAMESCOPE_FORCE_AUTO_CLOSE=true`)**:
    - `lib/popup-safety.sh` forces `auto_close="true"` when `env_type == "gamescope"`, ensuring popups always auto-close after `POPUP_MIN_DISPLAY_TIME + POPUP_AUTO_CLOSE_DELAY_SECONDS` in addition to the hard `POPUP_ABSOLUTE_MAX_SECONDS` watchdog.
 
-The percentage tables and “planned changes” sections later in this document are historical planning estimates from before the experimental overlay. They are not measurements. Current behavior is the opt-in path above. Desktop Mode is supported. Gaming Mode remains experimental. A Steam Deck check on 2026-10-19 showed the popup over a fullscreen game, and a 2026-10-20 check showed click and Enter reaching the dialog without Enter also firing into Steam. Still unchecked: pause-enabled buttons and the pause notice, countdown input, touch, the Quick Access Menu after the popup closes, a forced timeout, and docked versus undocked.
+The percentage tables and “planned changes” sections later in this document are historical planning estimates from before the experimental overlay. They are not measurements. Current behavior is the opt-in path above. Desktop Mode is supported. Gaming Mode remains experimental. A Steam Deck check on 2026-10-19 showed the popup over a fullscreen game, and a 2026-10-20 check showed click and Enter reaching the dialog without Enter also firing into Steam. A 2026-10-31 docked check showed yad and zenity visible over a native fullscreen game during active play, including across countdown respawns (see [On-device (2026-10-31)](#on-device-2026-10-31-visibility-over-fullscreen-games)). Still unchecked: pressing Pause and the pause notice, countdown input, touch, the Quick Access Menu after the popup closes, a forced timeout, handheld (undocked) use, and Proton titles.
 
 ## Key Challenges
 
@@ -551,6 +551,17 @@ Experimental Gaming Mode overlay support is implemented and **off by default**. 
 **On-device (2026-10-20):** After Stream F (top-left + ≥⅔ root height, zenity moved with `xdotool`), cursor reaches the dialog chrome and **click works** (user confirmed). Enter dismisses the dialog and did **not** appear to fire into Steam. Do not turn off forced auto-close or the popup watchdog. Plan: [completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md) (archived; Phase 2 done).
 
 **Code (2026-10-20, Stream F):** gamescope warning dialogs, countdown respawns, and the pause notice are forced to **top-left** with a height of at least two thirds of the `:0` root (capped at the root; still full root width). gamescope 3.16.23 paints the overlay centered and fit-scaled, but draws the cursor offset by the window's X11 position, so the window must sit at 0,0. zenity is moved after map with `xdotool windowmove` (preferred over `wmctrl` under gamescope). Desktop Mode unchanged. `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1`, forced auto-close, and the watchdog unchanged.
+
+### On-device (2026-10-31): visibility over fullscreen games
+
+A docked Steam Deck check (SteamOS 3.8.28, gamescope 3.16.23.6) did not reproduce the report of the warning showing on the home screen but not over a game. yad and zenity warnings were visible over a native fullscreen game, both paused and in active play. They stayed visible across countdown respawns with a 90-second minimum display. Every debug block showed our window as `predicted_overlay_wid`, with atom read-back `overlay=1 focus=1`. Keyboard and mouse focus moved to `:0` while the dialog was up, and an OK press over the running game reached the dialog.
+
+Two setup details matter when comparing runs:
+
+- **The dialog tool follows the service PATH.** The user systemd manager's PATH can be just `/usr/local/bin:/usr/bin`. A yad installed elsewhere (for example through Nix) is then invisible to the scheduled service, so `DIALOG_TOOL=auto` picks zenity there, while an interactive shell picks yad.
+- **Over SSH, the preflight needs the session variables.** Without `XDG_CURRENT_DESKTOP=gamescope DISPLAY=:0`, `check-steam-deck-gaming-mode.sh` reports routing `wayland` and a false blocker.
+
+Still unchecked: handheld (undocked) use, Proton titles, the Steam overlay or Quick Access Menu open when the warning spawns, and pressing Pause over a game. The investigation notes are in [steam-deck-ingame-overlay-investigation.md](development/steam-deck-ingame-overlay-investigation.md).
 
 ### Warning buttons (zenity vs Desktop) — Stream G
 
