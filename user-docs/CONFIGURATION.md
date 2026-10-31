@@ -364,7 +364,7 @@ POPUP_IMMOVABLE=false  # Allow window movement
 
 **Note**: 
 - Requires `wmctrl` or `xdotool` for functionality (X11 only).
-- On Wayland, this feature is not available due to security restrictions.
+- On Wayland, this feature is not available due to security restrictions. This includes KDE Plasma on Wayland, the SteamOS Desktop Mode default: the log reports `x11` there, but yad and zenity open as native Wayland windows, so the popup can be dragged. The next countdown respawn reopens it centered (checked with `POPUP_POSITION=center`).
 - The popup window will also stay on top of other windows automatically.
 - Setting this to `false` allows users to move the popup window, which may be useful if it blocks important content.
 

@@ -44,7 +44,7 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 - Compatibility cannot be guaranteed for all systems
 - Some features may not work on all Linux distributions or desktop environments
 - SteamOS Desktop Mode is supported. Gaming Mode overlay support is experimental and off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). A Steam Deck check on 2026-10-19 showed the popup over a fullscreen game, and a 2026-10-20 check showed click and Enter reaching the dialog without Enter also firing into Steam. A docked 2026-10-31 check showed the warning over a native fullscreen game in all five in-game runs: paused (yad) and during active play (yad and zenity), including through countdown respawns with a 90-second minimum display. A sixth run on the Gaming Mode home screen was the control. Still unchecked: pressing Pause and the pause notice, touch, countdown input, the Quick Access Menu after the popup closes, the Steam overlay or Quick Access Menu already open when the warning spawns, forced timeout, handheld (undocked) use, and Proton titles. Only one game has been tested, so other fullscreen games may still hide the popup.
-- On Wayland/gamescope, always-on-top behavior is best-effort and full-screen games may block popups
+- On Wayland/gamescope, always-on-top behavior is best-effort and full-screen games may block popups. On KDE Plasma Wayland (the SteamOS Desktop Mode default), popups are native Wayland windows, so `POPUP_IMMOVABLE` does not apply. A 2026-10-31 Desktop Mode check still showed them on top of a native fullscreen game.
 
 **Support:**
 - Provided on a best-effort basis with no guarantees
