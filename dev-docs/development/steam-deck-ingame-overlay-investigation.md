@@ -53,7 +53,7 @@ Other observations:
 - **Tool choice follows PATH.** yad on this Deck comes from Nix (`~/.nix-profile/bin/yad`). The user manager's PATH is `/usr/local/bin:/usr/bin`, so the scheduled service picks zenity (dark theme) and an SSH shell picks yad (light theme).
 - **Focus.** Keyboard and mouse focus move to `:0` while the dialog is up and return to `:1` after it closes. In the last zenity run the observer pressed OK over the running game, and the dialog exited 0 (an auto-close logs 143). The input method was not recorded.
 - **Service drop-in.** The installed drop-in was `mode-desktop.conf` (only `DISPLAY=:0`) while in Gaming Mode. Routing still worked, because the user manager supplies `XDG_CURRENT_DESKTOP=gamescope`.
-- **Likely explanation for the original report.** A separate personal timer on this Deck quit Steam every 10 minutes starting 15 minutes before the warning windows opened. On 2026-10-31 it quit Steam at 01:20:46 and 01:30:46, and the first warning appeared at 01:30:51. So no game was running when the warnings fired. That timer now starts at the same times as the warning windows.
+- **Likely explanation for the original report.** A separate personal timer on this Deck quit Steam every 10 minutes, starting 15 minutes before the warning windows opened. In the timer logs, the first warning of a window appeared about five seconds after one of those Steam quits. So no game was running when the warnings fired. That timer now starts at the same times as the warning windows.
 - **SSH preflight.** It needs `XDG_CURRENT_DESKTOP=gamescope DISPLAY=:0`; without them it reports routing `wayland` (a false blocker).
 
 Still unchecked: handheld (undocked), a Proton title, the Steam overlay or Quick Access Menu open at spawn time, and pressing Pause over a game.
@@ -94,9 +94,14 @@ create is under a temporary HOME you delete at the end.
       and one native title if available).
    For each scene, while the dialog is alive, also capture from DISPLAY=:0:
    xwininfo -root -children (first 80 lines), and xprop -root | grep -E
-   'GAMESCOPE|STEAM' (property names and values only).
+   'GAMESCOPE|STEAM' (property names and values only). Keep these captures
+   local. In the report, list only our window and windows that carry
+   STEAM_OVERLAY or cover the full root, with WID, geometry, opacity and
+   WM_CLASS. Write [redacted] for every window name, ours included (ours is
+   the dialog title); identify our window by WID.
 5. Copy each run's DEBUG-GAMESCOPE block and the surrounding gamescope log lines
-   from the temporary HOME's warnings.log. Strip the dialog title/body if present.
+   from the temporary HOME's warnings.log. Strip the dialog title/body, and
+   redact window names the same way as in step 4.
 6. For each scene, mark H1-H4 from the investigation doc as SUPPORTED,
    REFUTED or UNCLEAR, citing the log line. Do not propose code changes beyond
    naming the hypothesis and the evidence.

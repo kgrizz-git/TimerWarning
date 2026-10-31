@@ -15,7 +15,7 @@ The Sleep Warning System displays warning popups when you're using your computer
 - 🛡️ At most 16 hours per day in each lockout category. The wizard will not save a longer day
 - 🔒 During lock hours, configuration can only get stricter (tighten-only)
 
-**SteamOS:** Desktop Mode is supported. Gaming Mode is experimental and off until you turn it on. A Deck check on 2026-10-19–20 showed the popup, click, and Enter. Pause-enabled buttons, touch, countdown input, the Quick Access Menu after close, forced timeout, and docked versus undocked are still unchecked. Details are in [user-docs/USER_GUIDE.md](user-docs/USER_GUIDE.md#steamos-gaming-mode-compatibility).
+**SteamOS:** Desktop Mode is supported. Gaming Mode is experimental and off until you turn it on. A Deck check on 2026-10-19–20 showed the popup, click, and Enter. A docked check on 2026-10-31 showed the warning over a native fullscreen game while paused (yad) and during active play (yad and zenity). Still unchecked: pressing Pause and the pause notice, touch, countdown input, the Quick Access Menu after the popup closes, the Steam overlay or Quick Access Menu already open when the warning spawns, forced timeout, handheld (undocked) use, and Proton titles. Details are in [user-docs/USER_GUIDE.md](user-docs/USER_GUIDE.md#steamos-gaming-mode-compatibility).
 
 ## Before You Begin
 
