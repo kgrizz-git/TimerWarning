@@ -1,16 +1,18 @@
-# Steam Deck in-game overlay investigation (temporary)
+# Steam Deck in-game overlay investigation
 
-Temporary branch: `investigate/gamescope-ingame-overlay`. Delete this file and
-the branch once the findings are folded into
-[STEAMOS_GAMING_MODE.md](../STEAMOS_GAMING_MODE.md).
+**Status: closed 2026-10-31. The failure did not reproduce.** The summary is in
+[STEAMOS_GAMING_MODE.md](../STEAMOS_GAMING_MODE.md#on-device-2026-10-31-visibility-over-fullscreen-games).
+This file keeps the hypotheses, the raw findings, and the agent prompt so the
+check can be repeated for the cases still unchecked (handheld, Proton, Steam
+overlay or Quick Access Menu open at spawn, pressing Pause over a game).
 
 ## Problem
 
 In Gaming Mode with the experimental overlay on, the warning appears over the
 Gaming Mode home screen. Over a fullscreen game it mostly does not appear, or
-never does. The one debug capture so far (2026-10-20) was a case that worked.
-That capture showed our dialog as `predicted_overlay_wid` and every focus display
-as `:0`. We need a capture from a failing case.
+never does. Before this investigation, the one debug capture (2026-10-20) was a
+case that worked. That capture showed our dialog as `predicted_overlay_wid` and
+every focus display as `:0`, so a capture from a failing case was needed.
 
 ## Hypotheses the capture separates
 
@@ -60,7 +62,7 @@ Still unchecked: handheld (undocked), a Proton title, the Steam overlay or Quick
 
 ```text
 Investigate why the sleep-warning popup is not visible above fullscreen games in
-SteamOS Gaming Mode. Work on branch investigate/gamescope-ingame-overlay. Read
+SteamOS Gaming Mode. Read
 AGENTS.md, docs/SAFETY.md, dev-docs/STEAMOS_GAMING_MODE.md and
 dev-docs/development/steam-deck-ingame-overlay-investigation.md first. Follow the
 isolation and bounding rules in dev-docs/development/steam-deck-first-check.md.

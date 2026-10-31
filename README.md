@@ -43,7 +43,7 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 **Compatibility:**
 - Compatibility cannot be guaranteed for all systems
 - Some features may not work on all Linux distributions or desktop environments
-- SteamOS Desktop Mode is supported. Gaming Mode overlay support is experimental and off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). A Steam Deck check on 2026-10-19 showed the popup over a fullscreen game, and a 2026-10-20 check showed click and Enter reaching the dialog without Enter also firing into Steam. Still unchecked: pause-enabled buttons, touch, countdown input, the Quick Access Menu after the popup closes, forced timeout, and docked versus undocked. Some fullscreen games can still hide the popup.
+- SteamOS Desktop Mode is supported. Gaming Mode overlay support is experimental and off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). A Steam Deck check on 2026-10-19 showed the popup over a fullscreen game, and a 2026-10-20 check showed click and Enter reaching the dialog without Enter also firing into Steam. A docked 2026-10-31 check showed the warning in all six supervised runs over a native fullscreen game, paused and during active play, with yad and zenity, including through countdown respawns with a 90-second minimum display. Still unchecked: pressing Pause and the pause notice, touch, countdown input, the Quick Access Menu, forced timeout, handheld (undocked) use, and Proton titles. Only one game has been tested, so other fullscreen games may still hide the popup.
 - On Wayland/gamescope, always-on-top behavior is best-effort and full-screen games may block popups
 
 **Support:**
@@ -58,7 +58,7 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 - 🔔 **Modal warning popups** - Ensures you're aware of late-night usage
 - 🚀 **Easy installation** - Automated installation script handles everything
 - 🔄 **Auto-start on boot** - Runs automatically via systemd timer
-- 🎮 **Desktop and experimental Gaming Mode** - Desktop Mode is supported. Gaming Mode is experimental, off by default, and partially checked on a Steam Deck (2026-10-19 and 2026-10-20)
+- 🎮 **Desktop and experimental Gaming Mode** - Desktop Mode is supported. Gaming Mode is experimental, off by default, and checked on a Steam Deck over a fullscreen game during play (2026-10-19, 2026-10-20 and 2026-10-31)
 - 🐧 **Cross-distribution** - Works on Linux with systemd, and on macOS with a user LaunchAgent
 - 🔒 **Minimum display time** - Ensures warnings are visible for a set duration
 - 📌 **Immovable windows** - Prevents popup from being moved during countdown (optional)
@@ -272,7 +272,7 @@ systemctl --user daemon-reload
 ### Linux Distributions
 - ✅ Steam OS (Arch-based)
   - **Desktop Mode**: Supported on SteamOS Desktop Mode (KDE on X11). Popups work with some full-screen games; results vary by game, and exclusive full-screen games may still cover them.
-  - **Gaming Mode (Experimental)**: Off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). Option 12 in `sleep-warning-configure` routes dialogs through `gamescope`'s Xwayland overlay plane (`:0`) with `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1` and forced auto-close. Deck results: visible on 2026-10-19; click and Enter reached the dialog on 2026-10-20, and Enter did not also fire into Steam. Still unchecked: pause-enabled buttons, touch, countdown input, the Quick Access Menu after close, forced timeout, and docked versus undocked. See [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md).
+  - **Gaming Mode (Experimental)**: Off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). Option 12 in `sleep-warning-configure` routes dialogs through `gamescope`'s Xwayland overlay plane (`:0`) with `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1` and forced auto-close. Deck results: visible on 2026-10-19; click and Enter reached the dialog on 2026-10-20, and Enter did not also fire into Steam; on 2026-10-31 (docked) visible over a native fullscreen game during active play with yad and zenity, including through countdown respawns. Still unchecked: pressing Pause, touch, countdown input, the Quick Access Menu, forced timeout, handheld (undocked) use, and Proton titles. See [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md).
 - ✅ Ubuntu (18.04+)
 - ✅ Debian (8+)
 - ✅ Fedora

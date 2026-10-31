@@ -470,7 +470,7 @@ sudo pacman -S wmctrl xdotool
 **Limitations:**
 - Some exclusive full-screen games cannot be overlaid by window manager dialogs
 - This is a limitation of the windowing system, not the sleep warning system
-- SteamOS Gaming Mode overlay support is experimental, off unless `GAMING_MODE_EXPERIMENTAL_ENABLED=true` (Deck click path verified 2026-10-20; see SteamOS-specific documentation)
+- SteamOS Gaming Mode overlay support is experimental, off unless `GAMING_MODE_EXPERIMENTAL_ENABLED=true` (Deck click path verified 2026-10-20; visibility over a fullscreen game during play verified 2026-10-31; see SteamOS-specific documentation)
 
 ### Problem: Timer Not Starting on Boot
 
@@ -673,7 +673,7 @@ Future versions may support custom messages per day or time range.
   - Requires `xprop` (`xorg-xprop`, pre-installed on SteamOS) for setting `STEAM_OVERLAY=1` and `STEAM_INPUT_FOCUS=1`
   - Classic X11 window manager geometry/immovable loops (`wmctrl`/`xdotool`) do not apply under `gamescope` except for the gamescope zenity top-left move (`xdotool`); minimum display time is enforced via countdown respawn and auto-close
   - **Buttons depend on the dialog tool:** zenity has no Cancel on `--warning` (OK only, or OK + Pause when pause is available). Desktop Mode may show Cancel (yad) or Dismiss (kdialog) if a different tool is selected. Missing Cancel in Gaming Mode with zenity is expected, not a gamescope bug. Prefer `DIALOG_TOOL=yad` if you want OK/Cancel-style chrome.
-- **Checked on a Steam Deck:** popup visible and held for min-display (2026-10-19); click and Enter reached the dialog, and Enter did not also fire into Steam (2026-10-20). **Still unchecked:** pause-enabled buttons and the pause notice, countdown input, touch, the Quick Access Menu after the popup closes, a forced timeout, and docked versus undocked.
+- **Checked on a Steam Deck:** popup visible and held for min-display (2026-10-19); click and Enter reached the dialog, and Enter did not also fire into Steam (2026-10-20); visible over a native fullscreen game, paused and during active play, with yad and zenity and through countdown respawns, while docked (2026-10-31). **Still unchecked:** pressing Pause and the pause notice, countdown input, touch, the Quick Access Menu, a forced timeout, handheld (undocked) use, and Proton titles.
 
 **See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md) for detailed Gaming Mode technical documentation.**
 

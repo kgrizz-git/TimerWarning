@@ -17,10 +17,11 @@ SteamOS Gaming Mode presents unique challenges for systemd-based warning systems
 
 **Current Status**: ⚙️ **Experimental Overlay Implemented (Opt-In via `GAMING_MODE_EXPERIMENTAL_ENABLED`)**
 
-The 2026-10-20 hardware click verification covers **zenity**. Yad still needs
-equivalent hardware validation. Kdialog's message boxes do not receive the
+The 2026-10-20 hardware click verification covers **zenity**. The 2026-10-31
+check showed both **zenity and yad** visible over a fullscreen game; yad clicks
+were not separately recorded. Kdialog's message boxes do not receive the
 full-width size override and can remain non-interactive notifications under
-gamescope; use zenity for the verified path. This is a limitation of the
+gamescope; use zenity or yad for the verified path. This is a limitation of the
 experimental tool coverage, not evidence that all three tools were verified.
 
 ### How the Experimental `gamescope` Overlay Works
