@@ -30,7 +30,6 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
 - [ ] **Immovable popup on KDE Plasma Wayland (SteamOS Desktop Mode)** — Found 2026-10-31 ([STEAMOS_GAMING_MODE.md](STEAMOS_GAMING_MODE.md#on-device-2026-10-31-desktop-mode-over-a-fullscreen-game)). `detect_display_environment()` reports `x11` because Xwayland `:0` is reachable, but yad/zenity open as native Wayland windows (GTK picks Wayland when `WAYLAND_DISPLAY` is set, including in the service), so the `wmctrl`/`xdotool` position monitor never finds them and the popup can be dragged. Visibility over a fullscreen game is fine. Low priority.
   - [ ] Run 4 on the Deck: same fullscreen-game run with the dialog forced onto Xwayland (`env -u WAYLAND_DISPLAY GDK_BACKEND=x11`, as the gamescope path does). Check whether immovable works and whether the dialog still appears above the fullscreen game.
   - [ ] If it does, decide whether to force X11 dialogs on Plasma Wayland, or detect the session as `wayland` and skip the monitor with a log line. Either way, log when the window lookup fails instead of failing silently.
-  - [ ] Log wording: after auto-close kills the dialog (exit 143), the log also says `User closed popup manually`. Make it say the dialog was closed by auto-close.
 - [ ] **Additional hours on unrestricted days** — Lock/uninstall hours should not apply when a day has no restrictions (opt-in override) → [plan](plans/plan-additional-hours-no-restrictions.md)
 - [ ] **Popup frequency early tolerance** — Allow last-popup-time gate to fire up to `min(5% of POPUP_DISPLAY_FREQUENCY, 5 min)` early so 10-min settings do not slip to ~15 min on the 5-min timer grid; clamp early so earliest gap stays above popup on-screen time (`+60s` and `≤90%` cushions). **Plan needs human review — do not implement yet.** → [plan](plans/plan-popup-frequency-early-tolerance-2026-10-19.md)
 - [ ] **#29** — kdialog window size via `--textbox` + `--geometry` → [enhancement-29](enhancements/enhancement-29-kdialog-window-size-control.md)
@@ -47,7 +46,7 @@ Doc convention: **`docs/`** = end-users; **`dev-docs/`** = developers and agents
   - [x] **Click-through + magnification (Phase 1 code):** full `:0` root-width gamescope dialogs + atom/geometry logging → [plan](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md)
   - [x] **Click-through Phase 2 Streams E+F:** debug capture + top-left / ≥⅔-root height; on-device click retest passed 2026-10-20 → [plan](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md)
   - [x] **Click-through Phase 2 Stream G (docs):** zenity OK-only vs yad Cancel / kdialog Dismiss documented 2026-10-20 → [plan](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md)
-  - [ ] **Minor log bug (separate):** after auto-close SIGTERM, log may say `User closed popup manually` then exit 143 — fix classification when convenient
+  - [ ] **Minor log bug (separate):** after auto-close SIGTERM, log may say `User closed popup manually` then exit 143 — fix classification when convenient. Also seen in Desktop Mode on 2026-10-31.
 - [ ] **Desktop Mode, no external display** — Run test suite on Steam Deck internal display only
 - [ ] **Multi-distribution install** — Debian/Ubuntu, Fedora/RHEL, Arch/SteamOS, openSUSE, Alpine → [phase 3 plan](plans/phases/plan-phase-3-installation.md)
 

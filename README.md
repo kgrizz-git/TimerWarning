@@ -271,7 +271,7 @@ systemctl --user daemon-reload
 
 ### Linux Distributions
 - ✅ Steam OS (Arch-based)
-  - **Desktop Mode**: Supported on SteamOS Desktop Mode (KDE on X11). Popups work with some full-screen games; results vary by game, and exclusive full-screen games may still cover them.
+  - **Desktop Mode**: Supported on SteamOS Desktop Mode (KDE Plasma on Wayland, with Xwayland for X11 apps). yad and zenity open as native Wayland windows there, which `wmctrl` and `xdotool` cannot manage, so `POPUP_IMMOVABLE` and the X11 keep-above and positioning features do not apply. A 2026-10-31 Deck check showed the popup above a native fullscreen game, including through countdown respawns. Other games, Proton titles, and exclusive full-screen modes are untested and may still cover it. See [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md#on-device-2026-10-31-desktop-mode-over-a-fullscreen-game).
   - **Gaming Mode (Experimental)**: Off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). Option 12 in `sleep-warning-configure` routes dialogs through `gamescope`'s Xwayland overlay plane (`:0`) with `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1` and forced auto-close. Deck results: visible on 2026-10-19; click and Enter reached the dialog on 2026-10-20, and Enter did not also fire into Steam; on 2026-10-31 (docked) visible over a native fullscreen game while paused (yad) and during active play (yad and zenity), including through countdown respawns. Still unchecked: pressing Pause and the pause notice, touch, countdown input, the Quick Access Menu after the popup closes, the Steam overlay or Quick Access Menu already open when the warning spawns, forced timeout, handheld (undocked) use, and Proton titles. See [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md).
 - ✅ Ubuntu (18.04+)
 - ✅ Debian (8+)
@@ -326,6 +326,8 @@ The system automatically detects which dialog tool is available and uses them in
 - Always-on-top popup windows
 - Immovable popup windows during minimum display time
 - Better window state detection
+
+These tools only manage X11 windows. On a Wayland session (including SteamOS Desktop Mode), native Wayland dialogs are outside their reach.
 
 Without these tools, popups will still appear but may not stay on top of other windows or support position control.
 
