@@ -43,8 +43,8 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 **Compatibility:**
 - Compatibility cannot be guaranteed for all systems
 - Some features may not work on all Linux distributions or desktop environments
-- SteamOS Desktop Mode is supported. Gaming Mode overlay support is experimental and off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). A Steam Deck check on 2026-10-19 showed the popup over a fullscreen game, and a 2026-10-20 check showed click and Enter reaching the dialog without Enter also firing into Steam. Still unchecked: pause-enabled buttons, touch, countdown input, the Quick Access Menu after the popup closes, forced timeout, and docked versus undocked. Some fullscreen games can still hide the popup.
-- On Wayland/gamescope, always-on-top behavior is best-effort and full-screen games may block popups
+- SteamOS Desktop Mode is supported. Gaming Mode overlay support is experimental and off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). A Steam Deck check on 2026-10-19 showed the popup over a fullscreen game, and a 2026-10-20 check showed click and Enter reaching the dialog without Enter also firing into Steam. A docked 2026-10-31 check showed the warning over a native fullscreen game in all five in-game runs: paused (yad) and during active play (yad and zenity), including through countdown respawns with a 90-second minimum display. A sixth run on the Gaming Mode home screen was the control. Still unchecked: pressing Pause and the pause notice, touch, countdown input, the Quick Access Menu after the popup closes, the Steam overlay or Quick Access Menu already open when the warning spawns, forced timeout, handheld (undocked) use, and Proton titles. Only one game has been tested, so other fullscreen games may still hide the popup.
+- On Wayland/gamescope, always-on-top behavior is best-effort and full-screen games may block popups. On KDE Plasma Wayland (the SteamOS Desktop Mode default), popups are native Wayland windows, so `POPUP_IMMOVABLE` does not apply. A 2026-10-31 Desktop Mode check still showed them on top of a native fullscreen game.
 
 **Support:**
 - Provided on a best-effort basis with no guarantees
@@ -58,7 +58,7 @@ This software is provided "AS IS", without warranty of any kind, express or impl
 - 🔔 **Modal warning popups** - Ensures you're aware of late-night usage
 - 🚀 **Easy installation** - Automated installation script handles everything
 - 🔄 **Auto-start on boot** - Runs automatically via systemd timer
-- 🎮 **Desktop and experimental Gaming Mode** - Desktop Mode is supported. Gaming Mode is experimental, off by default, and partially checked on a Steam Deck (2026-10-19 and 2026-10-20)
+- 🎮 **Desktop and experimental Gaming Mode** - Desktop Mode is supported. Gaming Mode is experimental, off by default, and checked on a Steam Deck over a fullscreen game during play (2026-10-19, 2026-10-20 and 2026-10-31)
 - 🐧 **Cross-distribution** - Works on Linux with systemd, and on macOS with a user LaunchAgent
 - 🔒 **Minimum display time** - Ensures warnings are visible for a set duration
 - 📌 **Immovable windows** - Prevents popup from being moved during countdown (optional)
@@ -271,8 +271,8 @@ systemctl --user daemon-reload
 
 ### Linux Distributions
 - ✅ Steam OS (Arch-based)
-  - **Desktop Mode**: Supported on SteamOS Desktop Mode (KDE on X11). Popups work with some full-screen games; results vary by game, and exclusive full-screen games may still cover them.
-  - **Gaming Mode (Experimental)**: Off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). Option 12 in `sleep-warning-configure` routes dialogs through `gamescope`'s Xwayland overlay plane (`:0`) with `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1` and forced auto-close. Deck results: visible on 2026-10-19; click and Enter reached the dialog on 2026-10-20, and Enter did not also fire into Steam. Still unchecked: pause-enabled buttons, touch, countdown input, the Quick Access Menu after close, forced timeout, and docked versus undocked. See [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md).
+  - **Desktop Mode**: Supported on SteamOS Desktop Mode (KDE Plasma on Wayland, with Xwayland for X11 apps). yad and zenity open as native Wayland windows there, which `wmctrl` and `xdotool` cannot manage, so `POPUP_IMMOVABLE` and the X11 keep-above and positioning features do not apply. A 2026-10-31 Deck check showed the popup above a native fullscreen game, including through countdown respawns. Other games, Proton titles, and exclusive full-screen modes are untested and may still cover it. See [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md#on-device-2026-10-31-desktop-mode-over-a-fullscreen-game).
+  - **Gaming Mode (Experimental)**: Off by default (`GAMING_MODE_EXPERIMENTAL_ENABLED=false`). Option 12 in `sleep-warning-configure` routes dialogs through `gamescope`'s Xwayland overlay plane (`:0`) with `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1` and forced auto-close. Deck results: visible on 2026-10-19; click and Enter reached the dialog on 2026-10-20, and Enter did not also fire into Steam; on 2026-10-31 (docked) visible over a native fullscreen game while paused (yad) and during active play (yad and zenity), including through countdown respawns. Still unchecked: pressing Pause and the pause notice, touch, countdown input, the Quick Access Menu after the popup closes, the Steam overlay or Quick Access Menu already open when the warning spawns, forced timeout, handheld (undocked) use, and Proton titles. See [dev-docs/STEAMOS_GAMING_MODE.md](dev-docs/STEAMOS_GAMING_MODE.md).
 - ✅ Ubuntu (18.04+)
 - ✅ Debian (8+)
 - ✅ Fedora
@@ -326,6 +326,8 @@ The system automatically detects which dialog tool is available and uses them in
 - Always-on-top popup windows
 - Immovable popup windows during minimum display time
 - Better window state detection
+
+These tools only manage X11 windows. On a Wayland session (including SteamOS Desktop Mode), native Wayland dialogs are outside their reach.
 
 Without these tools, popups will still appear but may not stay on top of other windows or support position control.
 

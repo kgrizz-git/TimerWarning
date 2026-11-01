@@ -364,7 +364,7 @@ POPUP_IMMOVABLE=false  # Allow window movement
 
 **Note**: 
 - Requires `wmctrl` or `xdotool` for functionality (X11 only).
-- On Wayland, this feature is not available due to security restrictions.
+- On Wayland, this feature is not available due to security restrictions. This includes KDE Plasma on Wayland, the SteamOS Desktop Mode default: the log reports `x11` there, but yad and zenity open as native Wayland windows, so the popup can be dragged. The next countdown respawn reopens it centered (checked with `POPUP_POSITION=center`).
 - The popup window will also stay on top of other windows automatically.
 - Setting this to `false` allows users to move the popup window, which may be useful if it blocks important content.
 
@@ -823,7 +823,7 @@ GAMING_MODE_EXPERIMENTAL_ENABLED=false
 - Off unless this key is `true`. An older `mode-gaming.conf` drop-in does not turn it on.
 - Option 12 can turn it on or off during lock hours. It does not change restriction hours.
 - If no usable display can be found, the warning tries `notify-send` instead of a modal dialog. Gaming Mode may not have a notification daemon.
-- When the overlay path is active, zenity/yad warning dialogs request the full gamescope nested (`:0`) width and at least two thirds of that canvas height, placed at the top-left (gamescope 3.16.x treats narrower `STEAM_OVERLAY` windows as non-interactive notifications). Desktop Mode sizes and position are unchanged. Steam Deck verified 2026-10-20 (click + Enter). Still unchecked on device: pause-enabled buttons and the pause notice, countdown input, touch, the Quick Access Menu after close, a forced timeout, and docked versus undocked.
+- When the overlay path is active, zenity/yad warning dialogs request the full gamescope nested (`:0`) width and at least two thirds of that canvas height, placed at the top-left (gamescope 3.16.x treats narrower `STEAM_OVERLAY` windows as non-interactive notifications). Desktop Mode sizes and position are unchanged. Steam Deck verified 2026-10-20 (click + Enter) and 2026-10-31 (docked; visible over a native fullscreen game while paused with yad and during play with yad and zenity). Still unchecked on device: pressing Pause and the pause notice, touch, countdown input, the Quick Access Menu after the popup closes, the Steam overlay or Quick Access Menu already open when the warning spawns, forced timeout, handheld (undocked) use, and Proton titles.
 - **Button labels follow the tool:** zenity `--warning` has no Cancel (OK only, or OK + Pause). Yad without pause uses OK and Cancel; kdialog may say Dismiss. Gaming Mode often picks zenity, so a missing Cancel is expected. See [../dev-docs/STEAMOS_GAMING_MODE.md](../dev-docs/STEAMOS_GAMING_MODE.md).
 - Optional `GAMESCOPE_OVERLAY_DEBUG` (default off, not a wizard option) adds log-only diagnostics. Leave it unset unless you are collecting a Gaming Mode log.
 

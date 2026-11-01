@@ -17,10 +17,11 @@ SteamOS Gaming Mode presents unique challenges for systemd-based warning systems
 
 **Current Status**: ⚙️ **Experimental Overlay Implemented (Opt-In via `GAMING_MODE_EXPERIMENTAL_ENABLED`)**
 
-The 2026-10-20 hardware click verification covers **zenity**. Yad still needs
-equivalent hardware validation. Kdialog's message boxes do not receive the
+The 2026-10-20 hardware click verification covers **zenity**. The 2026-10-31
+check showed both **zenity and yad** visible over a fullscreen game; yad clicks
+were not separately recorded. Kdialog's message boxes do not receive the
 full-width size override and can remain non-interactive notifications under
-gamescope; use zenity for the verified path. This is a limitation of the
+gamescope; use zenity or yad for the verified path. This is a limitation of the
 experimental tool coverage, not evidence that all three tools were verified.
 
 ### How the Experimental `gamescope` Overlay Works
@@ -42,14 +43,14 @@ experimental tool coverage, not evidence that all three tools were verified.
 5. **Safety Guardrails (`GAMESCOPE_FORCE_AUTO_CLOSE=true`)**:
    - `lib/popup-safety.sh` forces `auto_close="true"` when `env_type == "gamescope"`, ensuring popups always auto-close after `POPUP_MIN_DISPLAY_TIME + POPUP_AUTO_CLOSE_DELAY_SECONDS` in addition to the hard `POPUP_ABSOLUTE_MAX_SECONDS` watchdog.
 
-The percentage tables and “planned changes” sections later in this document are historical planning estimates from before the experimental overlay. They are not measurements. Current behavior is the opt-in path above. Desktop Mode is supported. Gaming Mode remains experimental. A Steam Deck check on 2026-10-19 showed the popup over a fullscreen game, and a 2026-10-20 check showed click and Enter reaching the dialog without Enter also firing into Steam. Still unchecked: pause-enabled buttons and the pause notice, countdown input, touch, the Quick Access Menu after the popup closes, a forced timeout, and docked versus undocked.
+The percentage tables and “planned changes” sections later in this document are historical planning estimates from before the experimental overlay. They are not measurements. Current behavior is the opt-in path above. Desktop Mode is supported. Gaming Mode remains experimental. A Steam Deck check on 2026-10-19 showed the popup over a fullscreen game, and a 2026-10-20 check showed click and Enter reaching the dialog without Enter also firing into Steam. A 2026-10-31 docked check showed the warning over a native fullscreen game while paused (yad) and during active play (yad and zenity), including across countdown respawns (see [On-device (2026-10-31)](#on-device-2026-10-31-visibility-over-fullscreen-games)). Still unchecked: pressing Pause and the pause notice, touch, countdown input, the Quick Access Menu after the popup closes, the Steam overlay or Quick Access Menu already open when the warning spawns, forced timeout, handheld (undocked) use, and Proton titles.
 
 ## Key Challenges
 
 ### 1. Display Environment Detection
 
 **SteamOS Display Protocol Distinction**:
-- **Desktop Mode**: Uses **X11** (KDE Plasma desktop environment runs on X11). Window manager tools (`wmctrl`/`xdotool`) work in Desktop Mode, enabling full window control features like making windows immovable, preventing closing, etc.
+- **Desktop Mode**: KDE Plasma. On SteamOS 3.8 this is a **Wayland** session (`kwin_wayland`, with Xwayland on `:0` for X11 apps such as Steam). A Plasma X11 session is installed as an alternative but is not the default. Because `DISPLAY=:0` is reachable, `detect_display_environment()` reports `x11`, but GTK dialogs (yad, zenity) open as native Wayland windows when `WAYLAND_DISPLAY` is set. `wmctrl`/`xdotool` cannot see those windows, so the X11 window-control features (immovable, X11 keep-above and positioning) do not apply. See [On-device (2026-10-31): Desktop Mode](#on-device-2026-10-31-desktop-mode-over-a-fullscreen-game).
 - **Gaming Mode**: Uses **gamescope** (embedded Wayland compositor with Xwayland `:0` and `:1`). Standard Wayland or untagged X11 windows are hidden behind the running game; windows must connect to Xwayland `:0` and carry `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1`.
 
 **Gaming Mode Specific Challenges**:
@@ -179,20 +180,20 @@ For testing requirements, see [plan-phase-4-testing.md](plans/phases/plan-phase-
 
 ##### 3. No Game Running / Desktop Mode
 - **Expected Effectiveness**: ~95%
-- **Why**: Works identically to Desktop Mode (X11 environment)
-- **Implementation**: Full dialog functionality available, window manager tools work (X11)
-- **Reliability**: Same as Desktop Mode experience with full window control capabilities
-- **Status**: Should work perfectly
+- **Why**: Works identically to Desktop Mode
+- **Implementation**: Dialogs display and respond. On a Plasma Wayland session the X11 window-management features (immovable, X11 positioning) do not apply (see [Display Environment Detection](#1-display-environment-detection))
+- **Reliability**: Same as Desktop Mode
+- **Status**: Works, without X11 window control on Plasma Wayland
 
 ##### 3a. Full-Screen Games in Desktop Mode
 - **Expected Effectiveness**: Variable (game-dependent)
-- **Why**: Desktop Mode uses X11, enabling window manager tools and better dialog visibility
+- **Why**: In Desktop Mode, KWin stacks a new dialog above a fullscreen game without the gamescope overlay atoms
 - **Implementation**: 
-  - Window manager tools (`wmctrl`/`xdotool`) work in Desktop Mode (X11)
+  - Dialogs are native Wayland windows on a Plasma Wayland session; `wmctrl`/`xdotool` cannot manage them
   - Dialog tools can appear over full-screen applications more reliably than in Gaming Mode
   - Some full-screen games may still block dialogs depending on their implementation
 - **Reliability**: Moderate to high, highly game-dependent
-- **Status**: ⚠️ Limited testing indicates popups work with some full-screen games in Desktop Mode, but results vary by game. Exclusive full-screen games may still block popups. No guarantees can be made for all games.
+- **Status**: ⚠️ Verified on 2026-10-31 over one native fullscreen game (see [On-device (2026-10-31): Desktop Mode](#on-device-2026-10-31-desktop-mode-over-a-fullscreen-game)). Other games, Proton titles, and exclusive full-screen modes are untested and may still block popups.
 
 ##### 4. Windowed Games
 - **Expected Effectiveness**: ~85-90%
@@ -297,11 +298,10 @@ For testing requirements, see [plan-phase-4-testing.md](plans/phases/plan-phase-
    - Most windowed games: ~85-90% success
    - Borderless windowed: ~70-80% success
 
-5. **Desktop Mode**: Full functionality
+5. **Desktop Mode**: Supported (no X11 window control on Plasma Wayland)
    - Works identically to standard desktop environments
-   - Uses X11, so window manager tools (`wmctrl`/`xdotool`) work
-   - Full window control features available (immovable windows, prevent closing, etc.)
-   - **Full-Screen Games**: Limited testing indicates popups work with some full-screen games in Desktop Mode, but results vary by game. Exclusive full-screen games may still block popups. No guarantees can be made for all games.
+   - On a Plasma Wayland session (the SteamOS 3.8 default), dialogs are native Wayland windows, so the `wmctrl`/`xdotool` features (immovable, X11 keep-above) do not apply
+   - **Full-Screen Games**: Verified 2026-10-31 over one native fullscreen game. Other games, Proton titles, and exclusive full-screen modes are untested.
 
 #### ⚠️ Partial Success Areas
 
@@ -551,6 +551,34 @@ Experimental Gaming Mode overlay support is implemented and **off by default**. 
 **On-device (2026-10-20):** After Stream F (top-left + ≥⅔ root height, zenity moved with `xdotool`), cursor reaches the dialog chrome and **click works** (user confirmed). Enter dismisses the dialog and did **not** appear to fire into Steam. Do not turn off forced auto-close or the popup watchdog. Plan: [completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md](completed-plans/plan-gamescope-overlay-click-through-2026-10-19.md) (archived; Phase 2 done).
 
 **Code (2026-10-20, Stream F):** gamescope warning dialogs, countdown respawns, and the pause notice are forced to **top-left** with a height of at least two thirds of the `:0` root (capped at the root; still full root width). gamescope 3.16.23 paints the overlay centered and fit-scaled, but draws the cursor offset by the window's X11 position, so the window must sit at 0,0. zenity is moved after map with `xdotool windowmove` (preferred over `wmctrl` under gamescope). Desktop Mode unchanged. `STEAM_OVERLAY=1` / `STEAM_INPUT_FOCUS=1`, forced auto-close, and the watchdog unchanged.
+
+### On-device (2026-10-31): visibility over fullscreen games
+
+A docked Steam Deck check (SteamOS 3.8.28, gamescope 3.16.23.6) did not reproduce the report of the warning showing on the home screen but not over a game. Warnings were visible over a native fullscreen game while paused (yad) and in active play (yad and zenity). They stayed visible across countdown respawns with a 90-second minimum display. Every debug block showed our window as `predicted_overlay_wid`, with atom read-back `overlay=1 focus=1`. Keyboard and mouse focus moved to `:0` while the dialog was up, and an OK press over the running game reached the dialog.
+
+Two setup details matter when comparing runs:
+
+- **The dialog tool follows the service PATH.** The user systemd manager's PATH can be just `/usr/local/bin:/usr/bin`. A yad installed elsewhere (for example through Nix) is then invisible to the scheduled service, so `DIALOG_TOOL=auto` picks zenity there, while an interactive shell picks yad.
+- **Over SSH, the preflight needs the session variables.** Without `XDG_CURRENT_DESKTOP=gamescope DISPLAY=:0`, `check-steam-deck-gaming-mode.sh` reports routing `wayland` and a false blocker.
+
+Still unchecked: handheld (undocked) use, Proton titles, the Steam overlay or Quick Access Menu open when the warning spawns, and pressing Pause over a game. The investigation notes are in [steam-deck-ingame-overlay-investigation.md](development/steam-deck-ingame-overlay-investigation.md).
+
+### On-device (2026-10-31): Desktop Mode over a fullscreen game
+
+Same docked Deck, in Desktop Mode (KDE Plasma on Wayland, SteamOS 3.8.28). Tyranny (native) ran fullscreen. Each run used the production `sleep-warning.sh` from the checkout with a temporary HOME, a `POPUP_ABSOLUTE_MAX_SECONDS` cap, and `timeout --kill-after=2s`. A human watched each run. The log reported `Display environment: x11` and `Window state: fullscreen, Window title: Tyranny` every time.
+
+| Run | Tool | Settings | On top of the game | Game stays fullscreen | Input back after OK | Window type |
+|-----|------|----------|--------------------|-----------------------|---------------------|-------------|
+| 1 | yad | medium, min 0 | yes | yes | not tested (auto-closed) | not captured |
+| 2 | zenity | medium, min 0 | yes | yes | yes | native Wayland |
+| 3 | zenity | large, immovable, pause on, min 45 s, service-like environment | yes, through 5 respawns | yes | yes | native Wayland, every respawn |
+
+- **Visibility works.** KWin stacks each new dialog, including each countdown respawn, above the fullscreen game.
+- **Immovable does not work here.** The dialog could be dragged. It is a native Wayland window, so the `wmctrl`/`xdotool` position monitor never finds it. Only the next countdown respawn put it back in the center. This happens with the scheduled service too: its environment has `WAYLAND_DISPLAY=wayland-0`, and GTK then picks Wayland on its own. Tracked in [TO_DO.md](TO_DO.md#features-and-safety).
+- **Theme.** zenity used Plasma's light GTK theme here; the dark zenity seen in Gaming Mode comes from that session.
+- **Log wording.** After auto-close kills the dialog (exit 143), the log also says `User closed popup manually`. That line is wrong but harmless.
+
+Still unchecked in Desktop Mode: Proton titles, other games, handheld use, pressing Pause, and whether forcing the dialog onto Xwayland (`GDK_BACKEND=x11`) restores immovable without losing the on-top behavior.
 
 ### Warning buttons (zenity vs Desktop) — Stream G
 
